@@ -78,6 +78,7 @@ otool -L "${bridge_library}" | grep -F \
     "/System/Library/Frameworks/ServiceManagement.framework/" >/dev/null
 for symbol in \
     _np_mac_bridge_abi_version \
+    _np_mac_bridge_open_login_items_settings \
     _np_mac_bridge_probe \
     _np_mac_bridge_query \
     _np_mac_bridge_install_and_enable \

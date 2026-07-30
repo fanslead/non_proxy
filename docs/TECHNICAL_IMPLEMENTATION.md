@@ -1347,7 +1347,7 @@ Mac 宿主目标为 `net10.0-macos`。它通过 `LibraryImport` 调用同包 Swi
 
 macOS 原生桥 ABI 约束：
 
-- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `2`；第二版状态模型加入 `gatewayAgent`。
+- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `3`；第二版状态模型加入 `gatewayAgent`，第三版加入官方系统设置导航入口。
 - Swift 回调只在回调执行期间借出 UTF-8 JSON 字节，C# 必须立即复制；两侧不互相释放内存。
 - C 的 `size_t` 精确映射为 C# `nuint`，回调使用 `UnmanagedCallersOnly`，任何托管异常都不得越过 ABI。
 - 托管 `GCHandle` 必须持有到原生 completed 事件；调用方取消等待不能提前释放仍可能被系统回调使用的上下文。
@@ -1407,6 +1407,9 @@ macOS：
 - 签名按两个 System Extension、原生桥、`gatewayd`、外层 App 的嵌套顺序执行；外层 App 只在正式受限签名时应用安装 System Extension 所需 entitlement。
 - `scripts/macos/verify-system-extension-bundle.sh` 还校验原生桥导出符号、SystemExtensions/NetworkExtension/ServiceManagement 链接、LaunchAgent 的固定字段与签名；`scripts/macos/native-bridge-smoke.sh` 从最终 App 宿主跨 C ABI 验证版本及非 ASCII UTF-8。
 - `scripts/macos/gateway-bundle-smoke.sh` 使用隔离临时目录直接启动包内 `gatewayd`，验证 Socket/capability 类型、长度、`0600` 权限和 SIGTERM 清理。它不调用 `SMAppService.register()`，因此不能代替系统“后台项目”授权与登录重启测试。
+- 运行概览把后台服务、Transparent Proxy、DNS Proxy 和网络偏好建模为四段有序状态，不用一个总开关掩盖部分失败；诊断页从同一领域状态生成逐段检查和稳定错误码。
+- 等待授权时，UI 通过 C ABI v3 调用 `SMAppService.openSystemSettingsLoginItems()` 打开官方设置入口；允许后重新执行幂等安装事务。等待授权不显示为红色故障。
+- 卸载入口使用页面内二次确认；确认后仍由原生事务先撤销网络偏好，再移除扩展和 LaunchAgent，规则数据库和代理配置不在该动作中删除。
 - 当前证据证明可执行 Bundle 可构建、可嵌入、签名结构自洽，且托管/原生调用链和包内后台二进制真实连通；默认临时签名不能证明系统会接受权限请求。Developer ID 签名、系统审批、真实 `SMAppService` 登记、登录后启动、偏好写入、Provider 启动、升级、卸载和流量路径仍按系统测试门禁验收。
 
 Windows：

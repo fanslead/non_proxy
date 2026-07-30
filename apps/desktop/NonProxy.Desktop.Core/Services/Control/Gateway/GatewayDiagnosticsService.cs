@@ -42,11 +42,7 @@ public sealed class GatewayDiagnosticsService : IDiagnosticsService
         }
 
         var component = await _installer.GetStateAsync(cancellationToken);
-        checks.Add(new DiagnosticCheck(
-            "system-component",
-            "系统网络组件",
-            ToStatusLabel(component.Status),
-            component.Message));
+        SystemComponentDiagnostics.AddTo(checks, component);
         return checks;
     }
 
@@ -61,16 +57,4 @@ public sealed class GatewayDiagnosticsService : IDiagnosticsService
         };
     }
 
-    private static string ToStatusLabel(SystemComponentStatus status)
-    {
-        return status switch
-        {
-            SystemComponentStatus.Installed => "已就绪",
-            SystemComponentStatus.AwaitingApproval => "等待授权",
-            SystemComponentStatus.NotInstalled => "未安装",
-            SystemComponentStatus.Unavailable => "当前安装包不可用",
-            SystemComponentStatus.Failed => "异常",
-            _ => "未知",
-        };
-    }
 }

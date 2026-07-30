@@ -1,8 +1,65 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:dashboard="using:NonProxy.Desktop.Core.Features.Dashboard"
+             xmlns:platform="using:NonProxy.Desktop.Core.Platform"
              x:Class="NonProxy.Desktop.Core.Features.Dashboard.DashboardView"
              x:DataType="dashboard:DashboardViewModel">
+    <UserControl.Styles>
+        <Style Selector="Border.component-step">
+            <Setter Property="Margin"
+                    Value="0,0,10,0" />
+            <Setter Property="Padding"
+                    Value="14" />
+            <Setter Property="CornerRadius"
+                    Value="9" />
+            <Setter Property="BorderBrush"
+                    Value="{DynamicResource NpBorderBrush}" />
+            <Setter Property="BorderThickness"
+                    Value="1" />
+            <Setter Property="Background"
+                    Value="{DynamicResource NpCanvasBrush}" />
+        </Style>
+        <Style Selector="Border.step-dot">
+            <Setter Property="Width"
+                    Value="10" />
+            <Setter Property="Height"
+                    Value="10" />
+            <Setter Property="CornerRadius"
+                    Value="5" />
+            <Setter Property="Background"
+                    Value="{DynamicResource NpMutedBrush}" />
+        </Style>
+        <Style Selector="Border.step-dot.ready">
+            <Setter Property="Background"
+                    Value="{DynamicResource NpSuccessBrush}" />
+        </Style>
+        <Style Selector="Border.step-dot.attention">
+            <Setter Property="Background"
+                    Value="{DynamicResource NpWarningBrush}" />
+        </Style>
+        <Style Selector="Border.step-dot.failed">
+            <Setter Property="Background"
+                    Value="{DynamicResource NpDangerBrush}" />
+        </Style>
+        <Style Selector="TextBlock.step-status">
+            <Setter Property="Foreground"
+                    Value="{DynamicResource NpMutedBrush}" />
+            <Setter Property="FontWeight"
+                    Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.step-status.ready">
+            <Setter Property="Foreground"
+                    Value="{DynamicResource NpSuccessBrush}" />
+        </Style>
+        <Style Selector="TextBlock.step-status.attention">
+            <Setter Property="Foreground"
+                    Value="{DynamicResource NpWarningBrush}" />
+        </Style>
+        <Style Selector="TextBlock.step-status.failed">
+            <Setter Property="Foreground"
+                    Value="{DynamicResource NpDangerBrush}" />
+        </Style>
+    </UserControl.Styles>
     <ScrollViewer>
         <StackPanel Margin="40"
                     MaxWidth="960"
@@ -23,16 +80,8 @@
             </Grid>
 
             <Border Theme="{StaticResource NpCard}">
-                <Grid ColumnDefinitions="Auto,*"
-                      ColumnSpacing="18">
-                    <Border Width="12"
-                            Height="12"
-                            CornerRadius="6"
-                            Background="{DynamicResource NpWarningBrush}"
-                            VerticalAlignment="Top"
-                            Margin="0,8,0,0" />
-                    <StackPanel Grid.Column="1"
-                                Spacing="8">
+                <StackPanel Spacing="18">
+                    <StackPanel Spacing="8">
                         <TextBlock x:Name="StatusHeadline"
                                    FontSize="22"
                                    FontWeight="SemiBold"
@@ -48,15 +97,107 @@
                             <TextBlock FontWeight="SemiBold"
                                        Text="{Binding State.SnapshotLabel}" />
                         </StackPanel>
-                        <Button HorizontalAlignment="Left"
+                    </StackPanel>
+
+                    <StackPanel Spacing="10"
+                                IsVisible="{Binding State.HasComponentSteps}">
+                        <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                   Text="流量接管路径" />
+                        <ItemsControl ItemsSource="{Binding State.Component.Steps}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="1" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="platform:SystemComponentStep">
+                                    <Border Classes="component-step">
+                                        <StackPanel Spacing="7">
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                  ColumnSpacing="8">
+                                                <Border Classes="step-dot"
+                                                        Classes.ready="{Binding IsReady}"
+                                                        Classes.attention="{Binding IsAttention}"
+                                                        Classes.failed="{Binding IsFailed}"
+                                                        VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1"
+                                                           FontWeight="SemiBold"
+                                                           Text="{Binding Name}" />
+                                            </Grid>
+                                            <TextBlock Classes="step-status"
+                                                       Classes.ready="{Binding IsReady}"
+                                                       Classes.attention="{Binding IsAttention}"
+                                                       Classes.failed="{Binding IsFailed}"
+                                                       Text="{Binding StatusLabel}" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       FontSize="12"
+                                                       Text="{Binding Detail}"
+                                                       MaxLines="3" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="10">
+                        <Button x:Name="InstallComponentButton"
                                 Theme="{StaticResource NpPrimaryButton}"
                                 Command="{Binding InstallComponentCommand}"
-                                Content="安装或启用系统组件"
-                                AutomationProperties.Name="安装或启用系统网络组件" />
-                        <TextBlock Theme="{StaticResource NpMutedText}"
-                                   Text="{Binding OperationMessage}" />
+                                Content="{Binding State.ComponentActionLabel}"
+                                IsVisible="{Binding State.CanInstallOrRepair}"
+                                AutomationProperties.Name="安装、检查或修复系统网络组件" />
+                        <Button x:Name="OpenSystemSettingsButton"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding OpenSystemSettingsCommand}"
+                                Content="打开系统设置"
+                                IsVisible="{Binding State.Component.CanOpenSystemSettings}"
+                                AutomationProperties.Name="打开系统设置授权页面" />
+                        <Button x:Name="RequestUninstallButton"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding RequestUninstallCommand}"
+                                Content="卸载系统组件"
+                                IsVisible="{Binding State.CanUninstall}"
+                                AutomationProperties.Name="卸载 NonProxy 系统组件" />
                     </StackPanel>
-                </Grid>
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="{Binding OperationMessage}" />
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="UninstallConfirmation"
+                    Theme="{StaticResource NpCard}"
+                    BorderBrush="{DynamicResource NpWarningBrush}"
+                    IsVisible="{Binding IsUninstallConfirmationVisible}">
+                <StackPanel Spacing="12">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="确认卸载系统组件？" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="卸载会先停止 NonProxy 接管网络，再移除系统扩展和后台服务。已有规则与本地配置不会删除。" />
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="10">
+                        <Button Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding ConfirmUninstallCommand}"
+                                Content="确认卸载"
+                                AutomationProperties.Name="确认卸载系统组件" />
+                        <Button Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding CancelUninstallCommand}"
+                                Content="取消"
+                                AutomationProperties.Name="取消卸载系统组件" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}"
+                    BorderBrush="{DynamicResource NpWarningBrush}"
+                    IsVisible="{Binding RequiresRestart}">
+                <StackPanel Spacing="8">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="需要重新启动电脑" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="macOS 已接受组件变更；重新启动后回到这里并刷新状态，NonProxy 才会继续启用网络接管。" />
+                </StackPanel>
             </Border>
 
             <Grid ColumnDefinitions="*,*,*"
@@ -103,7 +244,7 @@
                     <TextBlock Theme="{StaticResource NpSectionTitle}"
                                Text="安全状态" />
                     <TextBlock Theme="{StaticResource NpMutedText}"
-                               Text="系统组件未就绪时，NonProxy 保持旁路，不修改现有 VPN 或代理配置。" />
+                               Text="系统组件未完整就绪时，NonProxy 不会声明已接管流量；卸载始终先撤销网络配置，再停止后台服务。" />
                 </StackPanel>
             </Border>
 

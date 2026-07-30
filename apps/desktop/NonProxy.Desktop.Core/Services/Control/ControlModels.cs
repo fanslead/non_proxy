@@ -12,7 +12,7 @@ public enum ConnectionState
 
 public sealed record SystemOverview(
     ConnectionState Connection,
-    SystemComponentStatus Component,
+    SystemComponentState ComponentState,
     string Headline,
     string Detail,
     ulong? ActiveSnapshotVersion,
@@ -22,11 +22,13 @@ public sealed record SystemOverview(
     DateTimeOffset CapturedAt,
     ulong? PendingSnapshotVersion = null)
 {
+    public SystemComponentStatus Component => ComponentState.Status;
+
     public static SystemOverview Unavailable(SystemComponentState component)
     {
         return new SystemOverview(
             ConnectionState.Disconnected,
-            component.Status,
+            component,
             "等待控制服务",
             component.Message,
             null,

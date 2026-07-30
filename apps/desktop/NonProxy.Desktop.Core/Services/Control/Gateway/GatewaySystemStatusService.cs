@@ -41,7 +41,7 @@ public sealed class GatewaySystemStatusService : ISystemStatusService
                 && item.Scope == PolicyScope.Website);
             return new SystemOverview(
                 ConnectionState.Connected,
-                component.Status,
+                component,
                 Headline(status.DataPlaneEnabled, status.PendingSnapshotVersion),
                 Detail(status.DataPlaneEnabled, status.ActiveSnapshotVersion),
                 OptionalVersion(status.ActiveSnapshotVersion),
@@ -55,7 +55,7 @@ public sealed class GatewaySystemStatusService : ISystemStatusService
         {
             return new SystemOverview(
                 ConnectionState.Disconnected,
-                component.Status,
+                component,
                 "等待控制服务",
                 exception.UserMessage,
                 null,

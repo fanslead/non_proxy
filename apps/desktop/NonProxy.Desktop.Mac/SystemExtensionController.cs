@@ -13,6 +13,7 @@ internal sealed class SystemExtensionController(
     private const string MissingAppGroupCode =
         "NP_MAC_APP_GROUP_UNAVAILABLE";
     private const string GatewayApprovalCode = "NP_MAC_GATEWAY_APPROVAL_REQUIRED";
+    private const string UserApprovalCode = "NP_MAC_USER_APPROVAL_REQUIRED";
     private const string BridgeBusyCode = "NP_MAC_BRIDGE_BUSY";
     private int _awaitingApproval;
 
@@ -23,7 +24,9 @@ internal sealed class SystemExtensionController(
         {
             return new SystemComponentState(
                 SystemComponentStatus.AwaitingApproval,
-                "请在系统设置中允许 NonProxy 后台项目或网络扩展。");
+                "请在系统设置中允许 NonProxy 后台项目或网络扩展。",
+                UserApprovalCode,
+                canOpenSystemSettings: true);
         }
 
         try
@@ -40,7 +43,10 @@ internal sealed class SystemExtensionController(
             {
                 return new SystemComponentState(
                     SystemComponentStatus.AwaitingApproval,
-                    "请在系统设置中允许 NonProxy 后台项目或网络扩展。");
+                    "请在系统设置中允许 NonProxy 后台项目或网络扩展。",
+                    UserApprovalCode,
+                    BuildSteps(state),
+                    canOpenSystemSettings: true);
             }
 
             if (!state.GatewayAgent.Found)
@@ -48,27 +54,31 @@ internal sealed class SystemExtensionController(
                 return new SystemComponentState(
                     SystemComponentStatus.Unavailable,
                     "当前安装包缺少 gatewayd 后台项目。",
-                    MissingGatewayCode);
+                    MissingGatewayCode,
+                    BuildSteps(state));
             }
 
             if (IsReady(state))
             {
                 return new SystemComponentState(
                     SystemComponentStatus.Installed,
-                    "后台服务、系统扩展和网络配置均已就绪。");
+                    "后台服务、系统扩展和网络配置均已就绪。",
+                    steps: BuildSteps(state));
             }
 
             if (IsAbsent(state))
             {
                 return new SystemComponentState(
                     SystemComponentStatus.NotInstalled,
-                    "NonProxy 系统组件尚未安装。");
+                    "NonProxy 系统组件尚未安装。",
+                    steps: BuildSteps(state));
             }
 
             return new SystemComponentState(
                 SystemComponentStatus.Failed,
                 "NonProxy 系统组件仅部分就绪，请执行修复。",
-                "NP_MAC_COMPONENT_PARTIAL");
+                "NP_MAC_COMPONENT_PARTIAL",
+                BuildSteps(state));
         }
         catch (MacNativeBridgeException exception)
         {
@@ -90,7 +100,8 @@ internal sealed class SystemExtensionController(
             return new InstallResult(
                 result.Success,
                 result.Message,
-                result.ErrorCode);
+                result.ErrorCode,
+                result.RequiresReboot);
         }
         catch (MacNativeBridgeException exception)
         {
@@ -110,11 +121,32 @@ internal sealed class SystemExtensionController(
             return new InstallResult(
                 result.Success,
                 result.Message,
-                result.ErrorCode);
+                result.ErrorCode,
+                result.RequiresReboot);
         }
         catch (MacNativeBridgeException exception)
         {
             return new InstallResult(false, exception.Message, exception.ErrorCode);
+        }
+    }
+
+    public Task<InstallResult> OpenSystemSettingsAsync(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            nativeBridge.OpenLoginItemsSystemSettings();
+            return Task.FromResult(new InstallResult(
+                true,
+                "已打开“登录项与扩展”，允许 NonProxy 后回到应用重新检查。"));
+        }
+        catch (MacNativeBridgeException exception)
+        {
+            return Task.FromResult(new InstallResult(
+                false,
+                exception.Message,
+                exception.ErrorCode));
         }
     }
 
@@ -148,24 +180,154 @@ internal sealed class SystemExtensionController(
     private static SystemComponentState FailureState(
         MacBridgeEventPayload result)
     {
+        var status = StatusForErrorCode(result.ErrorCode);
         return new SystemComponentState(
-            StatusForErrorCode(result.ErrorCode),
+            status,
             result.Message,
-            result.ErrorCode);
+            result.ErrorCode,
+            canOpenSystemSettings:
+                status == SystemComponentStatus.AwaitingApproval);
     }
 
     private static SystemComponentState ExceptionState(
         MacNativeBridgeException exception)
     {
+        var status = StatusForErrorCode(exception.ErrorCode);
         return new SystemComponentState(
-            StatusForErrorCode(exception.ErrorCode),
+            status,
             exception.Message,
-            exception.ErrorCode);
+            exception.ErrorCode,
+            canOpenSystemSettings:
+                status == SystemComponentStatus.AwaitingApproval);
+    }
+
+    private static IReadOnlyList<SystemComponentStep> BuildSteps(
+        MacHostState state)
+    {
+        return
+        [
+            GatewayStep(state.GatewayAgent),
+            ExtensionStep(
+                "transparent-proxy",
+                "透明代理",
+                state.TransparentExtension),
+            ExtensionStep(
+                "dns-proxy",
+                "DNS 分流",
+                state.DnsExtension),
+            NetworkPreferenceStep(state),
+        ];
+    }
+
+    private static SystemComponentStep GatewayStep(
+        MacGatewayAgentSnapshot gateway)
+    {
+        if (!gateway.Found)
+        {
+            return new SystemComponentStep(
+                "gateway",
+                "后台服务",
+                SystemComponentStepStatus.Unavailable,
+                "安装包中缺少 gatewayd。");
+        }
+        if (gateway.RequiresApproval)
+        {
+            return new SystemComponentStep(
+                "gateway",
+                "后台服务",
+                SystemComponentStepStatus.AwaitingApproval,
+                "需要在系统设置中允许后台项目。");
+        }
+        if (gateway.Enabled && gateway.Ready)
+        {
+            return new SystemComponentStep(
+                "gateway",
+                "后台服务",
+                SystemComponentStepStatus.Ready,
+                "两个本地私有通道已就绪。");
+        }
+        if (gateway.Registered)
+        {
+            return new SystemComponentStep(
+                "gateway",
+                "后台服务",
+                SystemComponentStepStatus.NeedsRepair,
+                "已登记，但本地通道未就绪。");
+        }
+        return new SystemComponentStep(
+            "gateway",
+            "后台服务",
+            SystemComponentStepStatus.NotInstalled,
+            "尚未登记用户级后台项目。");
+    }
+
+    private static SystemComponentStep ExtensionStep(
+        string id,
+        string name,
+        MacSystemExtensionSnapshot extension)
+    {
+        if (extension.AwaitingUserApproval)
+        {
+            return new SystemComponentStep(
+                id,
+                name,
+                SystemComponentStepStatus.AwaitingApproval,
+                "需要在系统设置中允许网络扩展。");
+        }
+        if (extension.Enabled)
+        {
+            return new SystemComponentStep(
+                id,
+                name,
+                SystemComponentStepStatus.Ready,
+                "系统扩展已安装并启用。");
+        }
+        if (extension.Installed)
+        {
+            return new SystemComponentStep(
+                id,
+                name,
+                SystemComponentStepStatus.NeedsRepair,
+                "系统扩展已安装，但尚未启用。");
+        }
+        return new SystemComponentStep(
+            id,
+            name,
+            SystemComponentStepStatus.NotInstalled,
+            "系统扩展尚未安装。");
+    }
+
+    private static SystemComponentStep NetworkPreferenceStep(
+        MacHostState state)
+    {
+        if (state.TransparentPreference.Enabled
+            && state.DnsPreference.Enabled)
+        {
+            return new SystemComponentStep(
+                "network-routing",
+                "网络接管",
+                SystemComponentStepStatus.Ready,
+                "透明代理与 DNS 配置均已启用。");
+        }
+        if (state.TransparentPreference.Configured
+            || state.DnsPreference.Configured)
+        {
+            return new SystemComponentStep(
+                "network-routing",
+                "网络接管",
+                SystemComponentStepStatus.NeedsRepair,
+                "网络配置仅部分存在或尚未启用。");
+        }
+        return new SystemComponentStep(
+            "network-routing",
+            "网络接管",
+            SystemComponentStepStatus.NotInstalled,
+            "NonProxy 尚未接管系统网络。");
     }
 
     private static SystemComponentStatus StatusForErrorCode(string? errorCode)
     {
-        if (errorCode == GatewayApprovalCode)
+        if (errorCode is GatewayApprovalCode or UserApprovalCode)
         {
             return SystemComponentStatus.AwaitingApproval;
         }

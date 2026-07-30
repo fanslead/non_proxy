@@ -18,6 +18,12 @@ public sealed partial class DashboardViewModel : LoadableViewModel
     [ObservableProperty]
     private string? _operationMessage;
 
+    [ObservableProperty]
+    private bool _isUninstallConfirmationVisible;
+
+    [ObservableProperty]
+    private bool _requiresRestart;
+
     public DashboardViewModel(
         IPlatformInformation platformInformation,
         ISystemStatusService statusService,
@@ -30,11 +36,29 @@ public sealed partial class DashboardViewModel : LoadableViewModel
         InstallComponentCommand = new AsyncRelayCommand(
             InstallComponentAsync,
             AsyncRelayCommandOptions.None);
+        OpenSystemSettingsCommand = new AsyncRelayCommand(
+            OpenSystemSettingsAsync,
+            AsyncRelayCommandOptions.None);
+        RequestUninstallCommand = new RelayCommand(
+            () => IsUninstallConfirmationVisible = true);
+        CancelUninstallCommand = new RelayCommand(
+            () => IsUninstallConfirmationVisible = false);
+        ConfirmUninstallCommand = new AsyncRelayCommand(
+            ConfirmUninstallAsync,
+            AsyncRelayCommandOptions.None);
     }
 
     public string PlatformLabel => _platformInformation.DisplayName;
 
     public IAsyncRelayCommand InstallComponentCommand { get; }
+
+    public IAsyncRelayCommand OpenSystemSettingsCommand { get; }
+
+    public IRelayCommand RequestUninstallCommand { get; }
+
+    public IRelayCommand CancelUninstallCommand { get; }
+
+    public IAsyncRelayCommand ConfirmUninstallCommand { get; }
 
     protected override async Task LoadCoreAsync(CancellationToken cancellationToken)
     {
@@ -43,7 +67,7 @@ public sealed partial class DashboardViewModel : LoadableViewModel
             overview.Headline,
             overview.Detail,
             ToConnectionLabel(overview.Connection),
-            ToComponentLabel(overview.Component),
+            overview.ComponentState,
             SnapshotLabel(overview),
             overview.DirectApplicationCount,
             overview.DirectWebsiteCount,
@@ -68,13 +92,52 @@ public sealed partial class DashboardViewModel : LoadableViewModel
             async token =>
             {
                 var result = await _componentInstaller.InstallAsync(token);
+                await ApplyComponentResultAsync(result, token);
+            },
+            cancellationToken);
+    }
+
+    private Task OpenSystemSettingsAsync(CancellationToken cancellationToken)
+    {
+        return RunOperationAsync(
+            async token =>
+            {
+                var result = await _componentInstaller
+                    .OpenSystemSettingsAsync(token);
                 OperationMessage = result.Message;
-                if (result.Success)
+                if (!result.Success)
                 {
-                    await LoadCoreAsync(token);
+                    ErrorMessage = result.Message;
                 }
             },
             cancellationToken);
+    }
+
+    private Task ConfirmUninstallAsync(CancellationToken cancellationToken)
+    {
+        IsUninstallConfirmationVisible = false;
+        return RunOperationAsync(
+            async token =>
+            {
+                var result = await _componentInstaller.UninstallAsync(token);
+                await ApplyComponentResultAsync(result, token);
+            },
+            cancellationToken);
+    }
+
+    private async Task ApplyComponentResultAsync(
+        InstallResult result,
+        CancellationToken cancellationToken)
+    {
+        OperationMessage = result.Message;
+        RequiresRestart = result.RequiresReboot;
+        await LoadCoreAsync(cancellationToken);
+        if (!result.Success
+            && State.Component.Status
+                != SystemComponentStatus.AwaitingApproval)
+        {
+            ErrorMessage = result.Message;
+        }
     }
 
     private static string ToConnectionLabel(ConnectionState state)
@@ -88,15 +151,4 @@ public sealed partial class DashboardViewModel : LoadableViewModel
         };
     }
 
-    private static string ToComponentLabel(SystemComponentStatus status)
-    {
-        return status switch
-        {
-            SystemComponentStatus.Installed => "系统组件已就绪",
-            SystemComponentStatus.AwaitingApproval => "等待系统授权",
-            SystemComponentStatus.Failed => "系统组件异常",
-            SystemComponentStatus.Unavailable => "当前安装包不含系统组件",
-            _ => "系统组件未安装",
-        };
-    }
 }

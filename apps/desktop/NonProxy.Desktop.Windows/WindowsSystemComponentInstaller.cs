@@ -30,4 +30,13 @@ internal sealed class WindowsSystemComponentInstaller : ISystemComponentInstalle
             "无需卸载：当前构建尚未包含签名后的 Windows Service 与 WFP 组件。",
             NotPackagedErrorCode));
     }
+
+    public Task<InstallResult> OpenSystemSettingsAsync(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(InstallResult.Unavailable(
+            "当前 Windows 构建没有可打开的系统组件授权页面。",
+            NotPackagedErrorCode));
+    }
 }

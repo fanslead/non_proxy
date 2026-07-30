@@ -1,8 +1,17 @@
 import Foundation
+import ServiceManagement
 
 @_cdecl("np_mac_bridge_abi_version")
 public func macBridgeABIVersion() -> UInt32 {
     BridgeConstants.abiVersion
+}
+
+@_cdecl("np_mac_bridge_open_login_items_settings")
+public func macBridgeOpenLoginItemsSettings() -> Int32 {
+    DispatchQueue.main.async {
+        SMAppService.openSystemSettingsLoginItems()
+    }
+    return 0
 }
 
 @_cdecl("np_mac_bridge_probe")

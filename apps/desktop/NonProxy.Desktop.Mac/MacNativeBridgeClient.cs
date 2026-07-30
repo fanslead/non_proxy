@@ -7,7 +7,7 @@ namespace NonProxy.Desktop.Mac;
 
 internal sealed class MacNativeBridgeClient
 {
-    internal const uint SupportedAbiVersion = 2;
+    internal const uint SupportedAbiVersion = 3;
     private const int StartAccepted = 0;
     private long _nextOperationId;
     private int _abiValidated;
@@ -66,6 +66,31 @@ internal sealed class MacNativeBridgeClient
         return Deserialize(
             json,
             MacNativeJsonContext.Default.MacBridgeEventPayload);
+    }
+
+    internal void OpenLoginItemsSystemSettings()
+    {
+        EnsureAbiVersion();
+        try
+        {
+            var result = MacNativeBridgeMethods.OpenLoginItemsSystemSettings();
+            if (result != StartAccepted)
+            {
+                throw new MacNativeBridgeException(
+                    "NP_MAC_SYSTEM_SETTINGS_OPEN_FAILED",
+                    "无法打开 macOS 后台项目设置。");
+            }
+        }
+        catch (Exception exception)
+            when (exception is DllNotFoundException
+                or EntryPointNotFoundException
+                or BadImageFormatException)
+        {
+            throw new MacNativeBridgeException(
+                "NP_MAC_BRIDGE_LIBRARY_NOT_FOUND",
+                "当前安装包无法加载 macOS 原生宿主桥接。",
+                exception);
+        }
     }
 
     private unsafe Task<string> InvokeAsync(

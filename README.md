@@ -6,6 +6,8 @@ NonProxy 是一个本地优先的跨平台智能分流网关。用户选择应�
 
 已经落地的基础包括版本化契约、Rust 策略模型/编译器/SQLite 权威存储、认证 UDS 控制面、Avalonia 共享产品工作区，以及 macOS Swift Provider 的快照校验、缓存、纯函数决策和持久化 Provider RPC 客户端。桌面端可以结构化导入 SOCKS5/HTTP CONNECT 出口，密码进入系统凭据库，数据库只保存版本化引用，导入后的能力会参与策略编译。`gatewayd` 已具备受限 UDS 上的 NPF1 TCP/UDP 数据通道、窗口背压和 SOCKS5/HTTP CONNECT 出口连接器。Transparent Proxy 已具备真实 Provider 入口、来源签名身份、TCP/UDP 目标解析、绑定物理接口的 DIRECT relay，以及通过 NPF1 连接所选代理出口的 TCP/UDP relay；BLOCK 与显式失败模式也已接入。Rust DNS 核心已经具备严格消息校验、DIRECT/PROXY/出站/网络分区缓存、正负响应 TTL 处理和 A/AAAA/CNAME 观察提取；`gatewayd` 已接通经过 DNS Provider 身份与活动快照校验的 RPC，支持绑定物理网卡的 DIRECT UDP/TCP、截断回退 TCP、SOCKS5 UDP/TCP 和 HTTP CONNECT TCP。macOS DNS Proxy Provider 已经接入系统 DNS 设置、split DNS 上游选择、应用身份、策略路由、UDP/TCP flow 和有界并发。Debug 与 Universal Release `.app` 会自动嵌入两个真实 System Extension Bundle、Swift 原生宿主桥以及由 `SMAppService` 管理的用户级 `gatewayd` LaunchAgent。UI、后台服务和沙盒 Provider 统一使用 App Group 状态目录；安装事务会等待后台服务的两个私有 Socket 和能力文件就绪后再启用网络配置，UI 退出不会停止它，明确卸载才会撤销登记。打包门禁会校验架构、导出符号、Framework 链接、LaunchAgent 配置、权限声明和签名，跨语言与后台服务冒烟还会验证借用字节、`size_t` 映射、非 ASCII UTF-8、运行时文件权限和 SIGTERM 清理。默认临时签名只证明开发包结构、ABI 和直接启动的后台二进制自洽；Developer ID/provisioning profile、系统审批、真实 `SMAppService` 登记、System Extension 激活和 VPN 共存流量仍需后续系统验收。自动化冒烟也会让 Swift `NWConnection` 经真实 Unix Socket、Rust 数据面和 HTTP CONNECT 夹具完成回显。浏览器学习及 Windows WFP 仍按里程碑继续实现，尚未启用的数据路径和 RPC 会明确失败，不伪造成功。
 
+运行概览会按“后台服务 → 透明代理 → DNS 分流 → 网络接管”显示真实分段状态。等待授权时可通过原生桥直接打开 macOS“登录项与扩展”，允许后重新检查；部分安装可执行修复，卸载需要二次确认。诊断页复用同一组分段证据并显示稳定错误码。
+
 ## 架构
 
 - `apps/desktop/`：唯一的 Avalonia 跨平台桌面 UI。

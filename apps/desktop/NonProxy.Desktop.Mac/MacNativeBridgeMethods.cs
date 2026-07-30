@@ -9,6 +9,11 @@ internal static unsafe partial class MacNativeBridgeMethods
     [LibraryImport(LibraryName, EntryPoint = "np_mac_bridge_abi_version")]
     internal static partial uint GetAbiVersion();
 
+    [LibraryImport(
+        LibraryName,
+        EntryPoint = "np_mac_bridge_open_login_items_settings")]
+    internal static partial int OpenLoginItemsSystemSettings();
+
     [LibraryImport(LibraryName, EntryPoint = "np_mac_bridge_probe")]
     internal static partial int Probe(
         ulong operationId,

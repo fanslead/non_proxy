@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#define NP_MAC_BRIDGE_ABI_VERSION 2u
+#define NP_MAC_BRIDGE_ABI_VERSION 3u
 
 /**
  * Swift 仅在回调执行期间借出 payload 指针；调用方必须在回调返回前复制字节。
@@ -41,6 +41,8 @@ enum np_mac_bridge_start_result {
 };
 
 uint32_t np_mac_bridge_abi_version(void);
+
+int32_t np_mac_bridge_open_login_items_settings(void);
 
 int32_t np_mac_bridge_probe(
     uint64_t operation_id,

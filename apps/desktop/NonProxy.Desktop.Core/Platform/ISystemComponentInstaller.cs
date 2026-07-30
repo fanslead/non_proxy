@@ -7,4 +7,7 @@ public interface ISystemComponentInstaller
     Task<InstallResult> InstallAsync(CancellationToken cancellationToken);
 
     Task<InstallResult> UninstallAsync(CancellationToken cancellationToken);
+
+    Task<InstallResult> OpenSystemSettingsAsync(
+        CancellationToken cancellationToken);
 }

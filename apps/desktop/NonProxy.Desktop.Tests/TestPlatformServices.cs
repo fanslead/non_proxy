@@ -45,5 +45,12 @@ internal static class TestPlatformServices
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(new InstallResult(true, "测试卸载成功"));
         }
+
+        public Task<InstallResult> OpenSystemSettingsAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new InstallResult(true, "测试设置已打开"));
+        }
     }
 }

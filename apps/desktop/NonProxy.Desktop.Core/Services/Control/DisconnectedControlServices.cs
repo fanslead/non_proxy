@@ -130,32 +130,16 @@ public sealed class DisconnectedDiagnosticsService : IDiagnosticsService
         CancellationToken cancellationToken)
     {
         var component = await _installer.GetStateAsync(cancellationToken);
-        return
-        [
-            new DiagnosticCheck(
+        var checks = new List<DiagnosticCheck>
+        {
+            new(
                 "control-service",
                 "控制服务",
                 "未连接",
                 "本地控制服务尚未打包或启动。"),
-            new DiagnosticCheck(
-                "system-component",
-                "系统网络组件",
-                ToStatusLabel(component.Status),
-                component.Message),
-        ];
-    }
-
-    private static string ToStatusLabel(SystemComponentStatus status)
-    {
-        return status switch
-        {
-            SystemComponentStatus.Installed => "已就绪",
-            SystemComponentStatus.AwaitingApproval => "等待授权",
-            SystemComponentStatus.NotInstalled => "未安装",
-            SystemComponentStatus.Unavailable => "当前安装包不可用",
-            SystemComponentStatus.Failed => "异常",
-            _ => "未知",
         };
+        SystemComponentDiagnostics.AddTo(checks, component);
+        return checks;
     }
 }
 

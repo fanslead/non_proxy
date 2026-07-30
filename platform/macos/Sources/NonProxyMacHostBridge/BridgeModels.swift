@@ -2,7 +2,7 @@ import Foundation
 import SystemExtensions
 
 enum BridgeConstants {
-    static let abiVersion: UInt32 = 2
+    static let abiVersion: UInt32 = 3
     static let transparentBundleIdentifier =
         "com.nonproxy.desktop.transparent-proxy"
     static let dnsBundleIdentifier = "com.nonproxy.desktop.dns-proxy"
