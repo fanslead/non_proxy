@@ -3,43 +3,32 @@
              xmlns:dashboard="using:NonProxy.Desktop.Core.Features.Dashboard"
              x:Class="NonProxy.Desktop.Core.Features.Dashboard.DashboardView"
              x:DataType="dashboard:DashboardViewModel">
-    <UserControl.Styles>
-        <Style Selector="Border.card">
-            <Setter Property="Padding" Value="22" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="BorderBrush" Value="#D8DEE9" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Background" Value="#FFFFFF" />
-        </Style>
-        <Style Selector="Border.card TextBlock">
-            <Setter Property="Foreground" Value="#182033" />
-        </Style>
-        <Style Selector="TextBlock.label">
-            <Setter Property="Foreground" Value="#657188" />
-            <Setter Property="FontSize" Value="13" />
-        </Style>
-    </UserControl.Styles>
-
     <ScrollViewer>
         <StackPanel Margin="40"
-                    MaxWidth="820"
+                    MaxWidth="960"
                     HorizontalAlignment="Stretch"
                     Spacing="24">
-            <StackPanel Spacing="6">
-                <TextBlock FontSize="30"
-                           FontWeight="SemiBold"
-                           Text="运行概览" />
-                <TextBlock Foreground="#657188"
-                           Text="{Binding PlatformLabel, StringFormat='运行平台：{0}'}" />
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                    <TextBlock Theme="{StaticResource NpPageTitle}"
+                               Text="运行概览" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="{Binding PlatformLabel, StringFormat='运行平台：{0}'}" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Theme="{StaticResource NpSecondaryButton}"
+                        Command="{Binding RefreshCommand}"
+                        Content="刷新状态"
+                        AutomationProperties.Name="刷新运行状态" />
+            </Grid>
 
-            <Border Classes="card">
+            <Border Theme="{StaticResource NpCard}">
                 <Grid ColumnDefinitions="Auto,*"
                       ColumnSpacing="18">
                     <Border Width="12"
                             Height="12"
                             CornerRadius="6"
-                            Background="#E6A23C"
+                            Background="{DynamicResource NpWarningBrush}"
                             VerticalAlignment="Top"
                             Margin="0,8,0,0" />
                     <StackPanel Grid.Column="1"
@@ -48,49 +37,81 @@
                                    FontSize="22"
                                    FontWeight="SemiBold"
                                    Text="{Binding State.StatusHeadline}" />
-                        <TextBlock Foreground="#657188"
-                                   TextWrapping="Wrap"
+                        <TextBlock Theme="{StaticResource NpMutedText}"
                                    Text="{Binding State.StatusDetail}" />
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="18">
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="{Binding State.ConnectionLabel}" />
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="{Binding State.ComponentLabel}" />
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="{Binding State.SnapshotLabel}" />
+                        </StackPanel>
+                        <Button HorizontalAlignment="Left"
+                                Theme="{StaticResource NpPrimaryButton}"
+                                Command="{Binding InstallComponentCommand}"
+                                Content="安装或启用系统组件"
+                                AutomationProperties.Name="安装或启用系统网络组件" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="{Binding OperationMessage}" />
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <Grid ColumnDefinitions="*,*"
+            <Grid ColumnDefinitions="*,*,*"
                   ColumnSpacing="18">
-                <Border Classes="card">
+                <Border Theme="{StaticResource NpCard}">
                     <StackPanel Spacing="10">
-                        <TextBlock Classes="label"
+                        <TextBlock Theme="{StaticResource NpMutedText}"
                                    Text="直连应用" />
                         <TextBlock FontSize="32"
                                    FontWeight="SemiBold"
                                    Text="{Binding State.DirectApplicationCount}" />
-                        <TextBlock Foreground="#657188"
-                                   Text="已配置的应用级直连规则" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="应用级直连规则" />
                     </StackPanel>
                 </Border>
                 <Border Grid.Column="1"
-                        Classes="card">
+                        Theme="{StaticResource NpCard}">
                     <StackPanel Spacing="10">
-                        <TextBlock Classes="label"
+                        <TextBlock Theme="{StaticResource NpMutedText}"
                                    Text="直连网站" />
                         <TextBlock FontSize="32"
                                    FontWeight="SemiBold"
                                    Text="{Binding State.DirectWebsiteCount}" />
-                        <TextBlock Foreground="#657188"
-                                   Text="已配置的网站与域名规则" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="网站与域名规则" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2"
+                        Theme="{StaticResource NpCard}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="近期决策" />
+                        <TextBlock FontSize="32"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding State.RecentDecisionCount}" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="可核对的流量决策" />
                     </StackPanel>
                 </Border>
             </Grid>
 
-            <Border Classes="card">
+            <Border Theme="{StaticResource NpCard}">
                 <StackPanel Spacing="12">
-                    <TextBlock FontSize="18"
-                               FontWeight="SemiBold"
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
                                Text="安全状态" />
-                    <TextBlock Foreground="#657188"
-                               TextWrapping="Wrap"
+                    <TextBlock Theme="{StaticResource NpMutedText}"
                                Text="系统组件未就绪时，NonProxy 保持旁路，不修改现有 VPN 或代理配置。" />
                 </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}"
+                    BorderBrush="{DynamicResource NpDangerBrush}"
+                    IsVisible="{Binding HasError}">
+                <TextBlock Text="{Binding ErrorMessage}"
+                           TextWrapping="Wrap" />
             </Border>
         </StackPanel>
     </ScrollViewer>

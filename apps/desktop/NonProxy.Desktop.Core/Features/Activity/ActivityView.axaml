@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:activity="using:NonProxy.Desktop.Core.Features.Activity"
+             xmlns:control="using:NonProxy.Desktop.Core.Services.Control"
+             x:Class="NonProxy.Desktop.Core.Features.Activity.ActivityView"
+             x:DataType="activity:ActivityViewModel">
+    <ScrollViewer>
+        <StackPanel Margin="40"
+                    MaxWidth="960"
+                    Spacing="24">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                    <TextBlock Theme="{StaticResource NpPageTitle}"
+                               Text="活动记录" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="核对最近连接走了直连、代理还是阻止，以及命中规则的原因。" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Theme="{StaticResource NpSecondaryButton}"
+                        Command="{Binding RefreshCommand}"
+                        Content="刷新"
+                        AutomationProperties.Name="刷新活动记录" />
+            </Grid>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="2*,2*,*,2*"
+                          ColumnSpacing="16">
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="应用" />
+                        <TextBlock Grid.Column="1"
+                                   FontWeight="SemiBold"
+                                   Text="目标" />
+                        <TextBlock Grid.Column="2"
+                                   FontWeight="SemiBold"
+                                   Text="结果" />
+                        <TextBlock Grid.Column="3"
+                                   FontWeight="SemiBold"
+                                   Text="原因" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding Items}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="control:ActivityItem">
+                                <Grid ColumnDefinitions="2*,2*,*,2*"
+                                      ColumnSpacing="16"
+                                      Margin="0,8">
+                                    <TextBlock Text="{Binding Application}" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Destination}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="2"
+                                               FontWeight="SemiBold"
+                                               Text="{Binding Action}" />
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding Reason}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="暂无活动时，不代表网络已停止；也可能是控制服务未连接或历史记录已关闭。" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

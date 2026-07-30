@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:NonProxy.Desktop.Core.Features.Settings"
+             x:Class="NonProxy.Desktop.Core.Features.Settings.SettingsView"
+             x:DataType="settings:SettingsViewModel">
+    <ScrollViewer>
+        <StackPanel Margin="40"
+                    MaxWidth="960"
+                    Spacing="24">
+            <StackPanel Spacing="6">
+                <TextBlock Theme="{StaticResource NpPageTitle}"
+                           Text="设置" />
+                <TextBlock Theme="{StaticResource NpMutedText}"
+                           Text="管理桌面体验、启动行为和本地诊断数据。" />
+            </StackPanel>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="18">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="外观" />
+                    <Grid ColumnDefinitions="180,*">
+                        <TextBlock VerticalAlignment="Center"
+                                   Text="主题" />
+                        <ComboBox Grid.Column="1"
+                                  Width="220"
+                                  HorizontalAlignment="Left"
+                                  ItemsSource="{Binding ThemeOptions}"
+                                  SelectedItem="{Binding Theme}"
+                                  AutomationProperties.Name="应用主题" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="18">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="启动与运行" />
+                    <CheckBox IsChecked="{Binding StartAtLogin}"
+                              Content="登录电脑后自动启动 NonProxy"
+                              AutomationProperties.Name="登录时自动启动" />
+                    <CheckBox IsChecked="{Binding KeepDataPlaneRunning}"
+                              Content="关闭窗口后继续执行已激活规则"
+                              AutomationProperties.Name="关闭窗口后保持数据面运行" />
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="18">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="隐私" />
+                    <CheckBox IsChecked="{Binding CollectDecisionHistory}"
+                              Content="保留本机近期决策记录"
+                              AutomationProperties.Name="保留本机决策历史" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="关闭后仍会保留必要的安全审计，但不再保存用于活动页面的连接历史。" />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Horizontal"
+                        Spacing="12">
+                <Button Theme="{StaticResource NpPrimaryButton}"
+                        Command="{Binding SaveCommand}"
+                        Content="保存设置"
+                        AutomationProperties.Name="保存桌面设置" />
+                <TextBlock VerticalAlignment="Center"
+                           Theme="{StaticResource NpMutedText}"
+                           Text="{Binding OperationMessage}" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

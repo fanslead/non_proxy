@@ -8,13 +8,15 @@ internal static class TestPlatformServices
 {
     public static ServiceProvider Create(
         PlatformKind platform = PlatformKind.MacOS,
-        string displayName = "macOS")
+        string displayName = "macOS",
+        Action<IServiceCollection>? configure = null)
     {
         return ServiceRegistration.BuildProvider(services =>
         {
             services.AddSingleton<IPlatformInformation>(
                 new FakePlatformInformation(platform, displayName));
             services.AddSingleton<ISystemComponentInstaller, FakeSystemComponentInstaller>();
+            configure?.Invoke(services);
         });
     }
 

@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:websites="using:NonProxy.Desktop.Core.Features.Websites"
+             xmlns:control="using:NonProxy.Desktop.Core.Services.Control"
+             x:Class="NonProxy.Desktop.Core.Features.Websites.WebsitesView"
+             x:DataType="websites:WebsitesViewModel">
+    <ScrollViewer>
+        <StackPanel Margin="40"
+                    MaxWidth="960"
+                    Spacing="24">
+            <StackPanel Spacing="6">
+                <TextBlock Theme="{StaticResource NpPageTitle}"
+                           Text="网站直连" />
+                <TextBlock Theme="{StaticResource NpMutedText}"
+                           Text="只需输入网站域名，NonProxy 会在控制服务中规范化并发布规则。" />
+            </StackPanel>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="14">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="添加网站" />
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="12">
+                        <TextBox Theme="{StaticResource NpTextBox}"
+                                 Text="{Binding Domain}"
+                                 PlaceholderText="例如：example.com"
+                                 AutomationProperties.Name="直连网站域名" />
+                        <Button Grid.Column="1"
+                                Theme="{StaticResource NpPrimaryButton}"
+                                Command="{Binding AddCommand}"
+                                Content="添加直连网站"
+                                AutomationProperties.Name="添加直连网站规则" />
+                    </Grid>
+                    <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                               Text="{Binding ValidationMessage}" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="{Binding OperationMessage}" />
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="14">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="已配置网站" />
+                    <ItemsControl ItemsSource="{Binding Items}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="control:PolicyListItem">
+                                <Grid ColumnDefinitions="3*,*,*"
+                                      ColumnSpacing="16"
+                                      Margin="0,8">
+                                    <TextBlock FontWeight="SemiBold"
+                                               Text="{Binding MatchValue}" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding ActionLabel}" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding StateLabel}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="未列出网站时，表示尚未保存网站规则。" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

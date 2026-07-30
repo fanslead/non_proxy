@@ -2,37 +2,86 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="using:NonProxy.Desktop.Core.Features.Shell"
         xmlns:dashboard="using:NonProxy.Desktop.Core.Features.Dashboard"
+        xmlns:policies="using:NonProxy.Desktop.Core.Features.Policies"
+        xmlns:applications="using:NonProxy.Desktop.Core.Features.Applications"
+        xmlns:websites="using:NonProxy.Desktop.Core.Features.Websites"
+        xmlns:outbounds="using:NonProxy.Desktop.Core.Features.Outbounds"
+        xmlns:learning="using:NonProxy.Desktop.Core.Features.Learning"
+        xmlns:activity="using:NonProxy.Desktop.Core.Features.Activity"
+        xmlns:diagnostics="using:NonProxy.Desktop.Core.Features.Diagnostics"
+        xmlns:settings="using:NonProxy.Desktop.Core.Features.Settings"
         x:Class="NonProxy.Desktop.Core.Views.MainWindow"
         x:DataType="shell:MainWindowViewModel"
-        Width="1080"
-        Height="720"
-        MinWidth="900"
-        MinHeight="600"
+        Width="1180"
+        Height="780"
+        MinWidth="960"
+        MinHeight="640"
+        Background="{DynamicResource NpCanvasBrush}"
         Title="NonProxy">
-    <Grid ColumnDefinitions="220,*">
+    <Window.DataTemplates>
+        <DataTemplate DataType="{x:Type dashboard:DashboardViewModel}">
+            <dashboard:DashboardView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type policies:PoliciesViewModel}">
+            <policies:PoliciesView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type applications:ApplicationsViewModel}">
+            <applications:ApplicationsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type websites:WebsitesViewModel}">
+            <websites:WebsitesView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type outbounds:OutboundsViewModel}">
+            <outbounds:OutboundsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type learning:LearningViewModel}">
+            <learning:LearningView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type activity:ActivityViewModel}">
+            <activity:ActivityView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type diagnostics:DiagnosticsViewModel}">
+            <diagnostics:DiagnosticsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type settings:SettingsViewModel}">
+            <settings:SettingsView />
+        </DataTemplate>
+    </Window.DataTemplates>
+
+    <Grid ColumnDefinitions="240,*">
         <Border Grid.Column="0"
-                Padding="24"
-                Background="#121826">
-            <Grid RowDefinitions="Auto,32,*,Auto">
+                Padding="20"
+                Background="{DynamicResource NpSidebarBrush}">
+            <Grid RowDefinitions="Auto,22,*,Auto">
                 <StackPanel>
                     <TextBlock FontSize="24"
                                FontWeight="SemiBold"
                                Foreground="White"
                                Text="NonProxy" />
                     <TextBlock Margin="0,6,0,0"
-                               Foreground="#AAB4C8"
+                               Foreground="{DynamicResource NpSidebarMutedBrush}"
                                Text="直连策略中心" />
                 </StackPanel>
 
-                <Border Grid.Row="2"
-                        Padding="14,12"
-                        CornerRadius="8"
-                        Background="#26334A"
-                        VerticalAlignment="Top">
-                    <TextBlock Foreground="White"
-                               FontWeight="SemiBold"
-                               Text="运行概览" />
-                </Border>
+                <ListBox Grid.Row="2"
+                         Classes="nav"
+                         ItemsSource="{Binding NavigationItems}"
+                         SelectedItem="{Binding SelectedNavigation}"
+                         AutomationProperties.Name="主导航">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="shell:NavigationItemViewModel">
+                            <Grid ColumnDefinitions="26,*">
+                                <TextBlock FontSize="16"
+                                           Foreground="White"
+                                           Text="{Binding Icon}" />
+                                <TextBlock Grid.Column="1"
+                                           FontWeight="SemiBold"
+                                           Foreground="White"
+                                           Text="{Binding Label}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
 
                 <StackPanel Grid.Row="3"
                             Spacing="4">
@@ -45,7 +94,7 @@
             </Grid>
         </Border>
 
-        <dashboard:DashboardView Grid.Column="1"
-                                 DataContext="{Binding Dashboard}" />
+        <ContentControl Grid.Column="1"
+                        Content="{Binding CurrentPage}" />
     </Grid>
 </Window>

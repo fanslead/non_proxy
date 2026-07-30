@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:outbounds="using:NonProxy.Desktop.Core.Features.Outbounds"
+             xmlns:control="using:NonProxy.Desktop.Core.Services.Control"
+             x:Class="NonProxy.Desktop.Core.Features.Outbounds.OutboundsView"
+             x:DataType="outbounds:OutboundsViewModel">
+    <ScrollViewer>
+        <StackPanel Margin="40"
+                    MaxWidth="960"
+                    Spacing="24">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                    <TextBlock Theme="{StaticResource NpPageTitle}"
+                               Text="网络出口" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="查看直连、本机代理和可选上游出口的健康状态；凭据不会显示在这里。" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Theme="{StaticResource NpSecondaryButton}"
+                        Command="{Binding RefreshCommand}"
+                        Content="重新检查"
+                        AutomationProperties.Name="重新检查网络出口" />
+            </Grid>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="2*,*,3*,*"
+                          ColumnSpacing="16">
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="名称" />
+                        <TextBlock Grid.Column="1"
+                                   FontWeight="SemiBold"
+                                   Text="类型" />
+                        <TextBlock Grid.Column="2"
+                                   FontWeight="SemiBold"
+                                   Text="端点" />
+                        <TextBlock Grid.Column="3"
+                                   FontWeight="SemiBold"
+                                   Text="健康状态" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding Items}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="control:OutboundListItem">
+                                <Grid ColumnDefinitions="2*,*,3*,*"
+                                      ColumnSpacing="16"
+                                      Margin="0,8">
+                                    <TextBlock Text="{Binding Name}" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Kind}" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding Endpoint}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding Health}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="控制服务未连接时不会猜测或伪造出口状态。" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

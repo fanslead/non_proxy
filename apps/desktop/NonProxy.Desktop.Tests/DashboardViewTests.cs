@@ -28,7 +28,7 @@ public sealed class DashboardViewTests
 
             var headline = view.FindControl<TextBlock>("StatusHeadline");
             Assert.NotNull(headline);
-            Assert.Equal("等待系统组件", headline.Text);
+            Assert.Equal("正在读取系统状态", headline.Text);
         }
         finally
         {

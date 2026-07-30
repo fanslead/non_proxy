@@ -1,0 +1,103 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <ControlTheme x:Key="NpPageTitle"
+                  TargetType="TextBlock">
+        <Setter Property="FontSize"
+                Value="30" />
+        <Setter Property="FontWeight"
+                Value="SemiBold" />
+        <Setter Property="Foreground"
+                Value="{DynamicResource NpTextBrush}" />
+        </ControlTheme>
+
+        <ControlTheme x:Key="NpSectionTitle"
+                  TargetType="TextBlock">
+        <Setter Property="FontSize"
+                Value="18" />
+        <Setter Property="FontWeight"
+                Value="SemiBold" />
+        <Setter Property="Foreground"
+                Value="{DynamicResource NpTextBrush}" />
+        </ControlTheme>
+
+        <ControlTheme x:Key="NpMutedText"
+                  TargetType="TextBlock">
+        <Setter Property="Foreground"
+                Value="{DynamicResource NpMutedBrush}" />
+        <Setter Property="TextWrapping"
+                Value="Wrap" />
+        </ControlTheme>
+
+        <ControlTheme x:Key="NpCard"
+                  TargetType="Border">
+        <Setter Property="Padding"
+                Value="22" />
+        <Setter Property="CornerRadius"
+                Value="12" />
+        <Setter Property="BorderBrush"
+                Value="{DynamicResource NpBorderBrush}" />
+        <Setter Property="BorderThickness"
+                Value="1" />
+        <Setter Property="Background"
+                Value="{DynamicResource NpSurfaceBrush}" />
+        </ControlTheme>
+
+        <ControlTheme x:Key="NpPrimaryButton"
+                  TargetType="Button">
+        <Setter Property="Padding"
+                Value="18,10" />
+        <Setter Property="CornerRadius"
+                Value="7" />
+        <Setter Property="Background"
+                Value="{DynamicResource NpBrandBrush}" />
+        <Setter Property="Foreground"
+                Value="White" />
+        <Setter Property="FontWeight"
+                Value="SemiBold" />
+        </ControlTheme>
+
+        <ControlTheme x:Key="NpSecondaryButton"
+                  TargetType="Button">
+        <Setter Property="Padding"
+                Value="16,9" />
+        <Setter Property="CornerRadius"
+                Value="7" />
+        </ControlTheme>
+
+        <ControlTheme x:Key="NpTextBox"
+                  TargetType="TextBox">
+        <Setter Property="MinHeight"
+                Value="40" />
+        <Setter Property="Padding"
+                Value="12,8" />
+        </ControlTheme>
+    </Styles.Resources>
+
+    <Style Selector="ListBox.nav">
+        <Setter Property="Background"
+                Value="Transparent" />
+        <Setter Property="BorderThickness"
+                Value="0" />
+    </Style>
+    <Style Selector="ListBox.nav ListBoxItem">
+        <Setter Property="Padding"
+                Value="14,10" />
+        <Setter Property="Margin"
+                Value="0,2" />
+        <Setter Property="CornerRadius"
+                Value="8" />
+        <Setter Property="Foreground"
+                Value="#D8DFEC" />
+        <Setter Property="HorizontalContentAlignment"
+                Value="Stretch" />
+    </Style>
+    <Style Selector="ListBox.nav ListBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background"
+                Value="#1C2739" />
+    </Style>
+    <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background"
+                Value="#26334A" />
+    </Style>
+</Styles>
