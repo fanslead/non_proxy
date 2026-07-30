@@ -13,9 +13,16 @@ internal static class Program
     {
         if (MacHostDiagnostics.IsNativeBridgeSmoke(args))
         {
-            return MacHostDiagnostics.RunNativeBridgeSmokeAsync()
-                .GetAwaiter()
-                .GetResult();
+            return MacHostDiagnostics.RunWithMainRunLoop(
+                MacHostDiagnostics.RunNativeBridgeSmokeAsync);
+        }
+        if (MacHostDiagnostics.TryGetSystemComponentAction(
+            args,
+            out var diagnosticAction))
+        {
+            return MacHostDiagnostics.RunWithMainRunLoop(
+                () => MacHostDiagnostics.RunSystemComponentActionAsync(
+                    diagnosticAction));
         }
 
         using var services = ServiceRegistration.BuildProvider(collection =>

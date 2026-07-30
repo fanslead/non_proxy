@@ -176,6 +176,8 @@ dotnet test apps/desktop/NonProxy.Desktop.Tests -c Release --no-restore
 
 涉及真实 `SMAppService` 或 System Extension 的功能必须在正式签名的真实 macOS 目标运行。仅编译、临时签名、直接启动 Bundle 内二进制或单元测试不能声明系统登记和网络路径运行完成。
 
+真实系统生命周期验收使用 `scripts/macos/system-lifecycle-e2e.sh`。查询保持只读；安装、升级、卸载必须显式设置 `NONPROXY_ALLOW_SYSTEM_MUTATION=1`，使用新的空证据目录并保留结果。不得为了让脚本通过而放宽 `/Applications`、TeamIdentifier、provisioning profile、重启中间态或发布候选 Gatekeeper/公证门禁。
+
 ## 9. Windows
 
 - UI 复用 `apps/desktop/NonProxy.Desktop.Core`，不得另建 WinUI/WPF 页面复制产品功能。

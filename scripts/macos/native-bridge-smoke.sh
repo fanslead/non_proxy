@@ -28,4 +28,25 @@ if ! grep -F '"abiVersion":4' <<<"${output}" >/dev/null; then
     exit 68
 fi
 
-echo "macOS 托管宿主已通过 C ABI 收到并验证原生 UTF-8 响应。"
+set +e
+mutation_output=$(
+    "${host_binary}" --system-components-install 2>&1
+)
+mutation_exit_code=$?
+set -e
+if [[ "${mutation_exit_code}" != 64 ]] ||
+   ! grep -F "NP_MAC_SYSTEM_MUTATION_NOT_CONFIRMED" \
+       <<<"${mutation_output}" >/dev/null; then
+    echo "系统验收命令未拒绝未经确认的网络状态变更：${mutation_output}" >&2
+    exit 68
+fi
+
+query_output=$("${host_binary}" --system-components-query)
+if ! grep -F '"operation":"query"' <<<"${query_output}" >/dev/null ||
+   ! grep -F '"success":true' <<<"${query_output}" >/dev/null ||
+   ! grep -F '"state":{' <<<"${query_output}" >/dev/null; then
+    echo "只读系统组件查询未返回结构化状态：${query_output}" >&2
+    exit 68
+fi
+
+echo "macOS 托管宿主已通过 C ABI、UTF-8、只读系统查询和变更确认门禁验证。"

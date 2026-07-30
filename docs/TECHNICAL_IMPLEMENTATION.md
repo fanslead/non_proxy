@@ -1413,6 +1413,9 @@ macOS：
 - 等待授权时，UI 通过 C ABI v4 调用 `SMAppService.openSystemSettingsLoginItems()` 打开官方设置入口；允许后重新执行幂等安装事务。等待授权不显示为红色故障。
 - 卸载入口使用页面内二次确认；确认后仍由原生事务先撤销网络偏好，再移除扩展和 LaunchAgent，规则数据库和代理配置不在该动作中删除。
 - 当前证据证明可执行 Bundle 可构建、可嵌入、签名结构自洽，且托管/原生调用链和包内后台二进制真实连通；默认临时签名不能证明系统会接受权限请求。Developer ID 签名、系统审批、真实 `SMAppService` 登记、登录后启动、偏好写入、Provider 启动、升级、卸载和流量路径仍按系统测试门禁验收。
+- 最终 Mac 宿主提供三个受限诊断入口：只读查询、安装和卸载。变更入口在调用原生桥前强制检查 `NONPROXY_ALLOW_SYSTEM_MUTATION=1`；正常 UI 不依赖这些命令。`scripts/macos/system-lifecycle-e2e.sh` 只接受 `/Applications` 内具备 TeamIdentifier、证书链、受限 entitlement 和 provisioning profile 的 App，支持 query/install/upgrade/uninstall/lifecycle，拒绝覆盖非空证据目录。
+- 诊断模式初始化 AppKit 并在主线程泵送 `NSRunLoop`，因为 `OSSystemExtensionRequest` 明确把 delegate 回调投递到主队列；不能用阻塞 `Task.GetResult()` 代替事件循环。正常 Avalonia 模式继续使用自身事件循环。
+- 系统验收不把“原生操作返回成功”直接视为通过：安装后重新查询当前包运行身份、两个扩展和两份偏好，卸载后重新查询五类残留；需要重启返回独立中间态。upgrade 要求前置查询明确报告旧包指纹，避免在未发生升级时制造通过记录。Developer ID 严格模式另行执行 Gatekeeper 和公证票据验证，所有步骤输出 JSON、签名详情和 SHA-256 证据清单。操作手册见 `docs/MACOS_SYSTEM_ACCEPTANCE.md`。
 
 Windows：
 

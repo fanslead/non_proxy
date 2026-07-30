@@ -46,6 +46,10 @@ if [[ "${extension_entry_count}" != 2 ]]; then
 fi
 
 app_plist="${app_bundle}/Contents/Info.plist"
+assert_plist_value \
+    "${app_plist}" \
+    CFBundleIdentifier \
+    com.nonproxy.desktop
 host_executable=$(/usr/libexec/PlistBuddy \
     -c "Print :CFBundleExecutable" \
     "${app_plist}")
