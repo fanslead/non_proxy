@@ -1293,6 +1293,7 @@ dependencies = [
  "nonproxy-proto",
  "nonproxy-storage",
  "nonproxy-windows-ipc",
+ "nonproxy-windows-wfp",
  "prost",
  "prost-types",
  "serde",
@@ -1391,6 +1392,14 @@ name = "nonproxy-windows-ipc"
 version = "0.1.0"
 dependencies = [
  "tokio",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "nonproxy-windows-wfp"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.19",
  "windows-sys 0.61.2",
 ]
 

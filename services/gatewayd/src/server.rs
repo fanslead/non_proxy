@@ -59,8 +59,23 @@ async fn run_with_lifecycle(
             provider_capability.clone(),
             Arc::clone(&credential_store),
         );
-        let flow = FlowConnectionHandler::new(gateway, provider_capability, credential_store);
-        serve_platform(config, control, provider, flow, shutdown, ready).await
+        let flow = FlowConnectionHandler::new(
+            gateway.clone(),
+            provider_capability,
+            Arc::clone(&credential_store),
+        );
+        #[cfg(windows)]
+        {
+            let platform = WindowsPlatformDependencies {
+                gateway,
+                credential_store,
+            };
+            serve_platform(config, platform, control, provider, flow, shutdown, ready).await
+        }
+        #[cfg(unix)]
+        {
+            serve_platform(config, control, provider, flow, shutdown, ready).await
+        }
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -75,6 +90,12 @@ async fn run_with_lifecycle(
 
 #[cfg(windows)]
 mod windows;
+
+#[cfg(windows)]
+struct WindowsPlatformDependencies {
+    gateway: Gateway,
+    credential_store: Arc<dyn CredentialStore>,
+}
 
 #[cfg(unix)]
 async fn serve_platform(
@@ -91,13 +112,14 @@ async fn serve_platform(
 #[cfg(windows)]
 async fn serve_platform(
     config: GatewayConfig,
+    platform: WindowsPlatformDependencies,
     control: ControlRpcService,
     provider: ProviderRpcService,
     flow: FlowConnectionHandler,
     shutdown: impl Future<Output = ()> + Send + 'static,
     ready: Option<tokio::sync::oneshot::Sender<()>>,
 ) -> Result<(), GatewayError> {
-    windows::serve(config, control, provider, flow, shutdown, ready).await
+    windows::serve(config, platform, control, provider, flow, shutdown, ready).await
 }
 
 #[cfg(unix)]

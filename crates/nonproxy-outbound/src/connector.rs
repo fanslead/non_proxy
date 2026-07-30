@@ -1,11 +1,11 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use nonproxy_flow_protocol::FlowEndpoint;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
-    OutboundError, ProxyCredentials, ProxyEndpoint, http_connect::HttpConnectConnector,
-    socks5::Socks5Connector, socks5_udp::Socks5UdpAssociation,
+    OutboundError, ProxyCredentials, ProxyEndpoint, SystemTcpDialer, TcpDialer,
+    http_connect::HttpConnectConnector, socks5::Socks5Connector, socks5_udp::Socks5UdpAssociation,
 };
 
 pub trait ProxyStream: AsyncRead + AsyncWrite + Send + Unpin {}
@@ -32,13 +32,32 @@ impl OutboundConnector {
         credentials: Option<ProxyCredentials>,
         timeout: Duration,
     ) -> Self {
+        Self::with_dialer(
+            kind,
+            endpoint,
+            credentials,
+            timeout,
+            Arc::new(SystemTcpDialer),
+        )
+    }
+
+    pub fn with_dialer(
+        kind: ConnectorKind,
+        endpoint: ProxyEndpoint,
+        credentials: Option<ProxyCredentials>,
+        timeout: Duration,
+        dialer: Arc<dyn TcpDialer>,
+    ) -> Self {
         match kind {
             ConnectorKind::Socks5 => {
-                Self::Socks5(Socks5Connector::new(endpoint, credentials, timeout))
+                Self::Socks5(Socks5Connector::new(endpoint, credentials, timeout, dialer))
             }
-            ConnectorKind::HttpConnect => {
-                Self::HttpConnect(HttpConnectConnector::new(endpoint, credentials, timeout))
-            }
+            ConnectorKind::HttpConnect => Self::HttpConnect(HttpConnectConnector::new(
+                endpoint,
+                credentials,
+                timeout,
+                dialer,
+            )),
         }
     }
 

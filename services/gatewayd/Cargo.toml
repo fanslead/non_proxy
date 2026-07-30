@@ -30,6 +30,7 @@ zeroize.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 nonproxy-windows-ipc = { path = "../../crates/nonproxy-windows-ipc" }
+nonproxy-windows-wfp = { path = "../../crates/nonproxy-windows-wfp" }
 windows-service.workspace = true
 
 [dev-dependencies]

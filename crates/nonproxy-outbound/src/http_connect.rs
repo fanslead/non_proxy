@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use nonproxy_flow_protocol::FlowEndpoint;
@@ -9,7 +9,7 @@ use tokio::{
 };
 use zeroize::Zeroizing;
 
-use crate::{BoxedProxyStream, OutboundError, ProxyCredentials, ProxyEndpoint};
+use crate::{BoxedProxyStream, OutboundError, ProxyCredentials, ProxyEndpoint, TcpDialer};
 
 const MAXIMUM_HEADER_BYTES: usize = 16 * 1024;
 
@@ -17,25 +17,29 @@ pub struct HttpConnectConnector {
     endpoint: ProxyEndpoint,
     credentials: Option<ProxyCredentials>,
     timeout: Duration,
+    dialer: Arc<dyn TcpDialer>,
 }
 
 impl HttpConnectConnector {
-    pub const fn new(
+    pub fn new(
         endpoint: ProxyEndpoint,
         credentials: Option<ProxyCredentials>,
         timeout: Duration,
+        dialer: Arc<dyn TcpDialer>,
     ) -> Self {
         Self {
             endpoint,
             credentials,
             timeout,
+            dialer,
         }
     }
 
     pub async fn connect(&self, target: &FlowEndpoint) -> Result<BoxedProxyStream, OutboundError> {
         let operation = async {
-            let mut stream =
-                TcpStream::connect((self.endpoint.host(), self.endpoint.port())).await?;
+            let endpoint = FlowEndpoint::new(self.endpoint.host(), self.endpoint.port())
+                .map_err(|_| OutboundError::InvalidEndpoint)?;
+            let mut stream = self.dialer.connect(&endpoint).await?;
             let request = self.request(target);
             stream.write_all(request.as_slice()).await?;
             stream.flush().await?;

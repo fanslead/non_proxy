@@ -46,6 +46,8 @@ pub enum GatewayError {
     RuntimeIdentity(String),
     #[error("RPC 服务失败: {0}")]
     Transport(#[from] tonic::transport::Error),
+    #[error("Windows 数据面失败: {0}")]
+    WindowsDataPlane(String),
 }
 
 impl GatewayError {
@@ -82,6 +84,7 @@ impl GatewayError {
             Self::Random(_) => "NP_SESSION_TOKEN_FAILED",
             Self::RuntimeIdentity(_) => "NP_RUNTIME_IDENTITY_INVALID",
             Self::Transport(_) => "NP_CONTROL_TRANSPORT_FAILED",
+            Self::WindowsDataPlane(_) => "NP_WINDOWS_DATA_PLANE_FAILED",
         }
     }
 
@@ -93,6 +96,7 @@ impl GatewayError {
                 | Self::Storage(StorageError::PendingSnapshotExists)
                 | Self::DatabaseTask(_)
                 | Self::Transport(_)
+                | Self::WindowsDataPlane(_)
         )
     }
 }

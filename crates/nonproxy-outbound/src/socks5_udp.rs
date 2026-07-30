@@ -1,5 +1,6 @@
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    sync::Arc,
     time::Duration,
 };
 
@@ -11,7 +12,7 @@ use tokio::{
 };
 use zeroize::Zeroizing;
 
-use crate::{OutboundError, ProxyCredentials, ProxyEndpoint};
+use crate::{OutboundError, ProxyCredentials, ProxyEndpoint, TcpDialer};
 
 const MAXIMUM_UDP_PACKET_BYTES: usize = 65_535;
 const MAXIMUM_UDP_CONTENT_BYTES: usize = 65_000;
@@ -26,9 +27,12 @@ impl Socks5UdpAssociation {
         proxy: &ProxyEndpoint,
         credentials: Option<&ProxyCredentials>,
         duration: Duration,
+        dialer: Arc<dyn TcpDialer>,
     ) -> Result<Self, OutboundError> {
         let operation = async {
-            let mut control = TcpStream::connect((proxy.host(), proxy.port())).await?;
+            let endpoint = FlowEndpoint::new(proxy.host(), proxy.port())
+                .map_err(|_| OutboundError::InvalidEndpoint)?;
+            let mut control = dialer.connect(&endpoint).await?;
             authenticate(&mut control, credentials).await?;
             let local = udp_local_endpoint(&control)?;
             let socket = UdpSocket::bind(local).await?;

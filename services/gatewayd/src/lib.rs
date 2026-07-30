@@ -32,6 +32,8 @@ mod snapshot_builder;
 mod snapshot_payload;
 #[cfg(unix)]
 mod unix_socket;
+#[cfg(windows)]
+mod windows_capture;
 mod windows_config;
 #[cfg(windows)]
 mod windows_pipe;

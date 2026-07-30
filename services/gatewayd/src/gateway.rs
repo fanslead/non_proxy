@@ -1,7 +1,8 @@
 use std::{path::Path, sync::Arc};
 
 use nonproxy_model::{DecisionSpec, OutboundId, Policy, PolicyId};
-use nonproxy_policy_compiler::CompileCapabilities;
+use nonproxy_policy::CompiledPolicySnapshot;
+use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
 use nonproxy_storage::{
     OutboundReference, PolicyDatabase, ProviderAck, ProviderAckState, SnapshotArtifact,
     SnapshotRecord, StorageError,
@@ -316,6 +317,32 @@ impl Gateway {
                     .snapshots()
                     .active()?
                     .map(|record| record.artifact().snapshot_version()))
+            })
+            .await
+    }
+
+    pub async fn active_compiled_snapshot(
+        &self,
+    ) -> Result<Option<CompiledPolicySnapshot>, GatewayError> {
+        self.database
+            .run(|database| {
+                let Some(record) = database.snapshots().active()? else {
+                    return Ok(None);
+                };
+                let artifact = record.artifact();
+                let (policies, capabilities, default_decision) =
+                    snapshot_payload::decode(artifact.payload())?;
+                let compiled = PolicyCompiler::compile(CompileRequest::new(
+                    artifact.snapshot_version(),
+                    artifact.created_at_unix_ms(),
+                    default_decision,
+                    policies,
+                    capabilities,
+                ))?;
+                if compiled.metadata().content_hash() != artifact.content_hash() {
+                    return Err(GatewayError::InvalidContract("活动策略快照内容哈希不一致"));
+                }
+                Ok(Some(compiled))
             })
             .await
     }

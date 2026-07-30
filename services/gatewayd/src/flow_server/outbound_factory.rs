@@ -1,7 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
 use nonproxy_model::OutboundId;
-use nonproxy_outbound::{ConnectorKind, OutboundConnector, ProxyCredentials, ProxyEndpoint};
+use nonproxy_outbound::{
+    ConnectorKind, OutboundConnector, ProxyCredentials, ProxyEndpoint, SystemTcpDialer, TcpDialer,
+};
 use nonproxy_storage::{CredentialKind, OutboundKind};
 use zeroize::Zeroizing;
 
@@ -15,6 +17,21 @@ pub async fn load_connector(
     gateway: &Gateway,
     credential_store: Arc<dyn CredentialStore>,
     outbound_id: &OutboundId,
+) -> Result<OutboundConnector, FlowServiceError> {
+    load_connector_with_dialer(
+        gateway,
+        credential_store,
+        outbound_id,
+        Arc::new(SystemTcpDialer),
+    )
+    .await
+}
+
+pub async fn load_connector_with_dialer(
+    gateway: &Gateway,
+    credential_store: Arc<dyn CredentialStore>,
+    outbound_id: &OutboundId,
+    dialer: Arc<dyn TcpDialer>,
 ) -> Result<OutboundConnector, FlowServiceError> {
     let outbound = gateway
         .outbound(outbound_id.clone())
@@ -42,11 +59,12 @@ pub async fn load_connector(
         Some(_) => return Err(FlowServiceError::OutboundInvalid),
         None => None,
     };
-    Ok(OutboundConnector::new(
+    Ok(OutboundConnector::with_dialer(
         kind,
         endpoint,
         credentials,
         CONNECT_TIMEOUT,
+        dialer,
     ))
 }
 

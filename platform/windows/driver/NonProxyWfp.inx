@@ -1,0 +1,48 @@
+[Version]
+Signature = "$WINDOWS NT$"
+Class = WFPCALLOUTS
+ClassGuid = {57465043-616C-6C6F-7574-5F636C617373}
+Provider = %ProviderName%
+DriverVer = 07/31/2026,0.1.0.0
+CatalogFile = NonProxyWfp.cat
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 12
+DriverCopyFiles = 12
+
+[DefaultInstall.NTamd64]
+CopyFiles = DriverCopyFiles
+
+[DefaultInstall.NTamd64.Services]
+AddService = NonProxyWfp,,ServiceInstall
+
+[DefaultInstall.NTarm64]
+CopyFiles = DriverCopyFiles
+
+[DefaultInstall.NTarm64.Services]
+AddService = NonProxyWfp,,ServiceInstall
+
+[DriverCopyFiles]
+NonProxyWfp.sys
+
+[ServiceInstall]
+DisplayName = %ServiceName%
+Description = %ServiceDescription%
+ServiceType = 1
+StartType = 3
+ErrorControl = 1
+ServiceBinary = %12%\NonProxyWfp.sys
+LoadOrderGroup = PNP_TDI
+
+[SourceDisksFiles]
+NonProxyWfp.sys = 1
+
+[SourceDisksNames]
+1 = %DiskName%,,,
+
+[Strings]
+ProviderName = "NonProxy"
+ServiceName = "NonProxy WFP Callout Driver"
+ServiceDescription = "只执行 TCP ALE connect redirect 的最小内核组件"
+DiskName = "NonProxy WFP Driver"

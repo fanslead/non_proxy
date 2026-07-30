@@ -520,9 +520,9 @@ Windows Callout Driver 只负责：
 
 - ALE Connect Redirect V4/V6 分类。
 - 读取系统提供的应用标识和连接元数据。
-- 应用已由用户态下发的紧凑策略。
-- 把需代理连接重定向到本地服务。
-- 保存/传递 WFP redirect records，防止递归重定向。
+- 在 Service 明确启用期间把 TCP 连接重定向到本地服务。
+- 写入原始本地/远端地址、进程 ID 和有界 ALE App ID context。
+- 使用 redirect handle 判断自身是否已经处理连接，防止递归重定向。
 
 驱动不得：
 
@@ -1737,7 +1737,7 @@ Provider 不逐条同步写日志：
 - 第三方二进制记录来源、版本、hash 和许可证。
 - `third_party/NOTICES.md` 随包发布。
 
-## 22. Windows 实现预留
+## 22. Windows 实现
 
 当前已落地的可移植基础：
 
@@ -1747,30 +1747,43 @@ Provider 不逐条同步写日志：
 - Avalonia Windows 宿主使用 `NamedPipeClientStream` 连接认证 gRPC 控制面，继续复用与 macOS 相同的页面、ViewModel 和控制契约。
 - x64 与 ARM64 Windows target 都进入编译门禁；这只能证明平台代码可构建，不能替代 SCM、ACL 或真实流量验收。
 
-尚未完成的系统数据面是 WFP filter/callout、redirect records、DNS 接管、安装签名和真实 Windows 生命周期验收。Windows UI 在这些组件可验证之前继续将系统组件标记为不可用。
+当前 TCP 数据面也已经具备：
+
+- WDM 最小 Callout Driver，只注册 ALE Connect Redirect V4/V6，不解析策略、域名、协议或数据库。
+- Rust 用户态动态 BFE session，原子添加 provider、sublayer、callout 和仅匹配 TCP 的 filter；持有进程退出或 engine handle 关闭时由 BFE 清理。
+- 固定大小、版本化的 Driver IOCTL ABI，以及带上限的原始地址/App ID redirect context；C/Rust 两侧具有尺寸和头文件一致性测试。
+- Service 先绑定 IPv4/IPv6 loopback listener、打开 disabled 驱动并安装动态 WFP 对象；SCM `Running` 只表示控制面与捕获基础设施就绪。只有缓存中存在哈希验证通过的活动快照时才启用重定向并把 `windows-wfp` Provider 上报为 `Ready`，无活动快照时保持 fail-open 旁路且数据面不报告就绪。
+- 关闭时先禁用驱动，再停止 listener 和活动任务；控制 handle 意外关闭也会由 `IRP_MJ_CLEANUP` 清除启用标记。
+- 本地代理查询 accepted socket 的 redirect records/context，并在每个 DIRECT 或代理出口 socket 连接前设置 redirect records。
+- 用户态用不可变活动快照执行 App/CIDR/端口策略；DIRECT、PROXY、BLOCK 和代理失败的显式 fail-open/fail-closed 都在 Service 内完成。
+- 所有连接、队列和元数据均有上限；驱动内部失败采用有计数的 fail-open，避免 Service/Driver 异常造成整机断网。
+- GitHub CI 已配置 Windows 2022 + WDK 的 x64/ARM64 独立驱动构建；首次远端运行通过前只视为待验证门禁。Rust 用户态同时经过 x64 clippy 和 ARM64 check。
+
+尚未完成的 Windows 系统能力是 DNS 接管和域名到连接的可靠关联、UDP/QUIC、安装器/升级回滚、生产驱动签名、Driver Verifier 与真实 VPN 共存路径验收。只有 App/CIDR TCP 路径已进入代码，不能把当前构建结果表述为完整 Windows 产品验收；Windows UI 在安装与系统验收完成前继续将系统组件标记为不可用。
 
 ### 22.1 用户态优先
 
-Windows POC 先验证：
+Windows POC 已确认：
 
-- WFP 用户态管理 API 是否能完成所需分类和过滤。
-- ALE App ID 到 `AppIdentity` 的稳定映射。
-- TCP connect redirect。
-- UDP 的处理边界。
-- DNS 客户端归属。
+- 用户态管理 API 可以安全持有动态 WFP 对象，但 Connect Redirect 的元组修改必须由 Callout Driver 完成。
+- TCP accepted socket 可以查询原始 redirect context 和 records，并把 records 传递给新建出口 socket。
+- ALE App ID 可作为规范化应用路径身份；打包应用身份/签名增强仍属于后续 Windows 身份解析层。
+- UDP connect redirect 与无连接 `sendto` 语义不同，不能复用 TCP 实现或宣称已支持。
+- 可靠网站规则需要 Windows DNS 归属和短期 IP 关联，不能只依赖 TLS SNI。
 
-只有实际重定向无法用标准功能完成时，才引入 Callout Driver。
+因此采用 [ADR-0004：最小 WFP Connect Redirect Callout](ADR/0004-use-minimal-wfp-connect-redirect-callout.md)。复杂策略、出口协议、DNS、存储与遥测继续严格留在用户态。
 
 ### 22.2 WFP 层
 
-计划评估：
+TCP 当前使用：
 
-- `FWPM_LAYER_ALE_AUTH_CONNECT_V4/V6`
 - `FWPM_LAYER_ALE_CONNECT_REDIRECT_V4/V6`
-- `FWPM_LAYER_ALE_FLOW_ESTABLISHED_V4/V6`
-- DNS 所需 datagram/stream 层
+- `FWPM_CONDITION_IP_PROTOCOL == IPPROTO_TCP`
+- Service 动态 provider/sublayer/callout/filter
+- Driver `FwpsQueryConnectionRedirectState`、`FwpsAcquireWritableLayerDataPointer0` 和 `FwpsApplyModifiedLayerData0`
+- Winsock `SIO_QUERY_WFP_CONNECTION_REDIRECT_RECORDS`、`SIO_QUERY_WFP_CONNECTION_REDIRECT_CONTEXT` 和 `SIO_SET_WFP_CONNECTION_REDIRECT_RECORDS`
 
-最终层选择必须通过 WDK POC、性能和 Driver Verifier 结果确认，不能只依据文档命名决定。
+DNS/UDP 最终层选择仍必须通过独立 WDK POC、性能和 Driver Verifier 结果确认，不能只依据文档命名决定。
 
 ### 22.3 共享复用
 

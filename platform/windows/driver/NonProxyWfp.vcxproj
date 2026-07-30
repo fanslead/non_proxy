@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{770CFA4C-0F46-4D0D-903D-484594EB17D1}</ProjectGuid>
+    <RootNamespace>NonProxyWfp</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>WDM</DriverType>
+    <DriverTargetPlatform>Universal</DriverTargetPlatform>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <TargetName>NonProxyWfp</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NDIS630</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\include</AdditionalIncludeDirectories>
+      <SpectreMitigation>Spectre</SpectreMitigation>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>%(AdditionalDependencies);FwpKClnt.lib;WdmSec.lib;Uuid.lib</AdditionalDependencies>
+    </Link>
+    <DriverSign>
+      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
+    </DriverSign>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="callout.c" />
+    <ClCompile Include="device.c" />
+    <ClCompile Include="driver.c" />
+    <ClCompile Include="state.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="nonproxy_wfp_driver.h" />
+    <ClInclude Include="..\include\nonproxy_wfp_abi.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="NonProxyWfp.inx">
+      <SpecifyArchitecture>true</SpecifyArchitecture>
+      <Architecture>$(InfArch)</Architecture>
+      <CopyOutput>$(OutDir)NonProxyWfp.inf</CopyOutput>
+    </Inf>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

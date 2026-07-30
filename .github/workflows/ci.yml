@@ -27,3 +27,29 @@ jobs:
         run: |
           source scripts/bootstrap/env.sh
           just check
+
+  windows-driver:
+    name: Windows WFP Driver（${{ matrix.platform }}）
+    runs-on: windows-2022
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - x64
+          - ARM64
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 固定为 v6.0.2
+
+      - name: 使用 WDK 构建最小 Callout Driver
+        shell: pwsh
+        run: ./scripts/windows/build-driver.ps1 -Platform '${{ matrix.platform }}'
+
+      - name: 上传未签名构建证据
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # 固定为 v4.6.2
+        with:
+          name: nonproxy-wfp-${{ matrix.platform }}-unsigned
+          path: .artifacts/windows-driver/${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 7

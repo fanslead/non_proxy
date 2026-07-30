@@ -1,7 +1,9 @@
-use std::{sync::Arc, time::Duration};
+use std::{future::Future, net::SocketAddr, pin::Pin, sync::Arc, time::Duration};
 
 use nonproxy_flow_protocol::FlowEndpoint;
-use nonproxy_outbound::{ConnectorKind, OutboundConnector, ProxyCredentials, ProxyEndpoint};
+use nonproxy_outbound::{
+    ConnectorKind, OutboundConnector, OutboundError, ProxyCredentials, ProxyEndpoint, TcpDialer,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream, UdpSocket},
@@ -38,6 +40,53 @@ async fn http_connect_sends_basic_auth_then_relays_without_losing_bytes() {
     assert!(captured.contains("Proxy-Authorization: Basic YWxpY2U6cHJpdmF0ZQ=="));
     if let Err(error) = server.await {
         panic!("HTTP fixture 任务失败: {error}");
+    }
+}
+
+#[tokio::test]
+async fn connector_uses_injected_dialer_for_proxy_control_connection() {
+    let listener = bind_fixture().await;
+    let address = match listener.local_addr() {
+        Ok(value) => value,
+        Err(error) => panic!("读取自定义拨号 fixture 地址失败: {error}"),
+    };
+    let request_capture = Arc::new(Mutex::new(String::new()));
+    let server = tokio::spawn(http_fixture(listener, Arc::clone(&request_capture)));
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    let dialer: Arc<dyn TcpDialer> = Arc::new(FixedDialer {
+        address,
+        observed: Arc::clone(&observed),
+    });
+    let endpoint = match ProxyEndpoint::new("proxy.example", 8_443) {
+        Ok(value) => value,
+        Err(error) => panic!("创建自定义拨号代理 endpoint 失败: {error}"),
+    };
+    let connector = OutboundConnector::with_dialer(
+        ConnectorKind::HttpConnect,
+        endpoint,
+        None,
+        Duration::from_secs(2),
+        dialer,
+    );
+
+    let mut stream = match connector.connect_tcp(&target()).await {
+        Ok(value) => value,
+        Err(error) => panic!("自定义拨号器 HTTP CONNECT 失败: {error}"),
+    };
+    if let Err(error) = stream.write_all(b"hello").await {
+        panic!("自定义拨号器写入失败: {error}");
+    }
+    let mut response = [0_u8; 5];
+    if let Err(error) = stream.read_exact(&mut response).await {
+        panic!("自定义拨号器读取失败: {error}");
+    }
+    assert_eq!(&response, b"hello");
+    let endpoints = observed.lock().await;
+    assert_eq!(endpoints.len(), 1);
+    assert_eq!(endpoints[0].host(), "proxy.example");
+    assert_eq!(endpoints[0].port(), 8_443);
+    if let Err(error) = server.await {
+        panic!("自定义拨号 fixture 任务失败: {error}");
     }
 }
 
@@ -140,6 +189,25 @@ fn target() -> FlowEndpoint {
         panic!("测试目标创建失败: {target:?}");
     };
     target
+}
+
+struct FixedDialer {
+    address: SocketAddr,
+    observed: Arc<Mutex<Vec<FlowEndpoint>>>,
+}
+
+impl TcpDialer for FixedDialer {
+    fn connect<'a>(
+        &'a self,
+        endpoint: &'a FlowEndpoint,
+    ) -> Pin<Box<dyn Future<Output = Result<TcpStream, OutboundError>> + Send + 'a>> {
+        Box::pin(async move {
+            self.observed.lock().await.push(endpoint.clone());
+            TcpStream::connect(self.address)
+                .await
+                .map_err(OutboundError::from)
+        })
+    }
 }
 
 async fn bind_fixture() -> TcpListener {
