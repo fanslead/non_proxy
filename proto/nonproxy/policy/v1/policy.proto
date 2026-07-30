@@ -136,6 +136,32 @@ message CompiledPolicySnapshot {
   DecisionSpec default_decision = 4;
 }
 
+// OutboundCapabilitySpec 保存编译时已验证的单个出口能力。
+message OutboundCapabilitySpec {
+  string outbound_id = 1;
+  repeated nonproxy.common.v1.TransportProtocol transports = 2;
+  repeated nonproxy.common.v1.IpFamily ip_families = 3;
+}
+
+// CompileCapabilitySet 固化生成快照时使用的平台和出口能力。
+message CompileCapabilitySet {
+  bool app_match = 1;
+  bool domain_match = 2;
+  bool cidr_match = 3;
+  repeated nonproxy.common.v1.TransportProtocol transports = 4;
+  repeated nonproxy.common.v1.IpFamily ip_families = 5;
+  repeated OutboundCapabilitySpec outbounds = 6;
+}
+
+// CompiledPolicyPayload 是经校验并排序后的不可变快照载荷。
+// Provider 解码后使用同版本 Rust Compiler 一次性构建内存索引，并校验内容哈希。
+message CompiledPolicyPayload {
+  uint32 format_version = 1;
+  repeated Policy policies = 2;
+  CompileCapabilitySet capabilities = 3;
+  DecisionSpec default_decision = 4;
+}
+
 // Decision 描述一次纯策略判定，不等同于路径或出口证据。
 message Decision {
   DecisionSpec result = 1;

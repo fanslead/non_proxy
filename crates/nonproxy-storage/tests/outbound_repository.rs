@@ -8,10 +8,6 @@ use nonproxy_storage::{
 };
 
 fn outbound(revision: u64) -> OutboundReference {
-    let id = match OutboundId::new("primary-socks") {
-        Ok(value) => value,
-        Err(error) => panic!("测试出口标识创建失败: {error}"),
-    };
     let credential = match CredentialReference::new(
         "keychain:primary-socks",
         CredentialKind::Password,
@@ -21,12 +17,24 @@ fn outbound(revision: u64) -> OutboundReference {
         Ok(value) => value,
         Err(error) => panic!("测试凭据引用创建失败: {error}"),
     };
+    outbound_with_id("primary-socks", revision, Some(credential))
+}
+
+fn outbound_with_id(
+    id: &str,
+    revision: u64,
+    credential: Option<CredentialReference>,
+) -> OutboundReference {
+    let id = match OutboundId::new(id) {
+        Ok(value) => value,
+        Err(error) => panic!("测试出口标识创建失败: {error}"),
+    };
     match OutboundReference::new(
         id,
         OutboundKind::Socks5,
         Some("PROXY.Example.COM."),
         Some(1080),
-        Some(credential),
+        credential,
         revision,
     ) {
         Ok(value) => value,
@@ -105,6 +113,46 @@ fn outbound_revision_is_optimistic_and_proxy_policy_can_reference_it() {
         panic!("代理策略读取失败: {loaded:?}");
     };
     assert_eq!(loaded, policy);
+}
+
+#[test]
+fn outbound_list_is_stable_and_contains_no_credential_value() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let credential = CredentialReference::new(
+        "keychain:list-proxy",
+        CredentialKind::Password,
+        "列表测试凭据",
+        1,
+    );
+    let Ok(credential) = credential else {
+        panic!("测试凭据引用创建失败: {credential:?}");
+    };
+    let first = outbound_with_id("z-proxy", 1, None);
+    let second = outbound_with_id("a-proxy", 1, Some(credential));
+    if let Err(error) = database.outbounds().save(&first, None, 1) {
+        panic!("保存第一个出口失败: {error}");
+    }
+    if let Err(error) = database.outbounds().save(&second, None, 2) {
+        panic!("保存第二个出口失败: {error}");
+    }
+
+    let listed = database.outbounds().list();
+    let Ok(listed) = listed else {
+        panic!("列出出口失败: {listed:?}");
+    };
+
+    assert_eq!(listed.len(), 2);
+    assert_eq!(listed[0].id().as_str(), "a-proxy");
+    assert_eq!(listed[1].id().as_str(), "z-proxy");
+    assert_eq!(
+        listed[0]
+            .credential()
+            .map(CredentialReference::item_reference),
+        Some("keychain:list-proxy")
+    );
 }
 
 fn proxy_policy(outbound_id: OutboundId) -> Policy {

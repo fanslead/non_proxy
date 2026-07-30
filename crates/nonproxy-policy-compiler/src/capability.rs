@@ -103,8 +103,39 @@ impl CompileCapabilities {
         self.validate_decision(decision, None, conflicts);
     }
 
-    pub(crate) const fn outbounds(&self) -> &BTreeMap<OutboundId, OutboundCapabilities> {
+    pub const fn outbounds(&self) -> &BTreeMap<OutboundId, OutboundCapabilities> {
         &self.outbounds
+    }
+
+    #[must_use]
+    pub const fn supports_app_matching(&self) -> bool {
+        self.app_matching
+    }
+
+    #[must_use]
+    pub const fn supports_domain_matching(&self) -> bool {
+        self.domain_matching
+    }
+
+    #[must_use]
+    pub const fn supports_cidr_matching(&self) -> bool {
+        self.cidr_matching
+    }
+
+    #[must_use]
+    pub const fn supports_transport(&self, transport: Transport) -> bool {
+        match transport {
+            Transport::Tcp => self.tcp,
+            Transport::Udp => self.udp,
+        }
+    }
+
+    #[must_use]
+    pub const fn supports_family(&self, family: IpFamily) -> bool {
+        match family {
+            IpFamily::Ipv4 => self.ipv4,
+            IpFamily::Ipv6 => self.ipv6,
+        }
     }
 
     fn validate_transports(&self, policy: &Policy, conflicts: &mut Vec<PolicyConflict>) {

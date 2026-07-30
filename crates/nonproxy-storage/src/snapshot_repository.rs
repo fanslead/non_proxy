@@ -272,6 +272,21 @@ impl<'connection> SnapshotRepository<'connection> {
     pub fn get(&self, snapshot_version: u64) -> Result<Option<SnapshotRecord>, StorageError> {
         read_snapshot(self.connection, snapshot_version)
     }
+
+    pub fn latest_version(&self) -> Result<Option<u64>, StorageError> {
+        let value: Option<i64> = self.connection.query_row(
+            "SELECT MAX(snapshot_version) FROM policy_snapshot",
+            [],
+            |row| row.get(0),
+        )?;
+        value
+            .map(|value| {
+                u64::try_from(value).map_err(|_| StorageError::CorruptData {
+                    field: "policy_snapshot.snapshot_version",
+                })
+            })
+            .transpose()
+    }
 }
 
 fn ensure_can_stage(

@@ -1,0 +1,205 @@
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
+
+use crate::GatewayError;
+
+const STATE_DIRECTORY_ENVIRONMENT: &str = "NONPROXY_STATE_DIR";
+const SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_SOCKET_PATH";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GatewayConfig {
+    state_directory: PathBuf,
+    database_path: PathBuf,
+    socket_path: PathBuf,
+}
+
+impl GatewayConfig {
+    pub fn from_process() -> Result<Self, GatewayError> {
+        let state_directory = match env::var_os(STATE_DIRECTORY_ENVIRONMENT) {
+            Some(value) => PathBuf::from(value),
+            None => default_state_directory()?,
+        };
+        let socket_path = env::var_os(SOCKET_PATH_ENVIRONMENT)
+            .map(PathBuf::from)
+            .unwrap_or_else(|| state_directory.join("gatewayd.sock"));
+        Self::new(state_directory, socket_path)
+    }
+
+    pub fn new(
+        state_directory: impl Into<PathBuf>,
+        socket_path: impl Into<PathBuf>,
+    ) -> Result<Self, GatewayError> {
+        let state_directory = state_directory.into();
+        let socket_path = socket_path.into();
+        validate_absolute(&state_directory)?;
+        validate_absolute(&socket_path)?;
+        if socket_path.parent() != Some(state_directory.as_path()) {
+            return Err(GatewayError::InvalidLocalPath(
+                "控制套接字必须位于状态目录中",
+            ));
+        }
+        Ok(Self {
+            database_path: state_directory.join("policy.sqlite3"),
+            state_directory,
+            socket_path,
+        })
+    }
+
+    pub fn prepare(&self) -> Result<(), GatewayError> {
+        reject_existing_state_path(&self.state_directory)?;
+        fs::create_dir_all(&self.state_directory).map_err(|source| GatewayError::Io {
+            operation: "创建状态目录",
+            source,
+        })?;
+        validate_created_state_directory(&self.state_directory)?;
+        restrict_directory(&self.state_directory)?;
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn state_directory(&self) -> &Path {
+        self.state_directory.as_path()
+    }
+
+    #[must_use]
+    pub fn database_path(&self) -> &Path {
+        self.database_path.as_path()
+    }
+
+    #[must_use]
+    pub fn socket_path(&self) -> &Path {
+        self.socket_path.as_path()
+    }
+}
+
+fn validate_absolute(path: &Path) -> Result<(), GatewayError> {
+    if !path.is_absolute() || path.as_os_str().is_empty() {
+        return Err(GatewayError::InvalidLocalPath("路径必须是绝对路径"));
+    }
+    Ok(())
+}
+
+fn reject_existing_state_path(path: &Path) -> Result<(), GatewayError> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            Err(GatewayError::InvalidLocalPath("状态目录不能是符号链接"))
+        }
+        Ok(metadata) if !metadata.is_dir() => {
+            Err(GatewayError::InvalidLocalPath("状态目录路径已被文件占用"))
+        }
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(GatewayError::Io {
+            operation: "检查状态目录",
+            source,
+        }),
+    }
+}
+
+fn validate_created_state_directory(path: &Path) -> Result<(), GatewayError> {
+    let metadata = fs::symlink_metadata(path).map_err(|source| GatewayError::Io {
+        operation: "复核状态目录",
+        source,
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(GatewayError::InvalidLocalPath("状态目录类型无效"));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn restrict_directory(path: &Path) -> Result<(), GatewayError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700)).map_err(|source| {
+        GatewayError::Io {
+            operation: "限制状态目录权限",
+            source,
+        }
+    })
+}
+
+#[cfg(not(unix))]
+fn restrict_directory(_path: &Path) -> Result<(), GatewayError> {
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn default_state_directory() -> Result<PathBuf, GatewayError> {
+    let home = env::var_os("HOME")
+        .map(PathBuf::from)
+        .ok_or(GatewayError::InvalidLocalPath("缺少用户主目录"))?;
+    Ok(home.join("Library/Application Support/NonProxy"))
+}
+
+#[cfg(target_os = "windows")]
+fn default_state_directory() -> Result<PathBuf, GatewayError> {
+    let root = env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .ok_or(GatewayError::InvalidLocalPath("缺少 LOCALAPPDATA"))?;
+    Ok(root.join("NonProxy"))
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn default_state_directory() -> Result<PathBuf, GatewayError> {
+    let home = env::var_os("HOME")
+        .map(PathBuf::from)
+        .ok_or(GatewayError::InvalidLocalPath("缺少用户主目录"))?;
+    Ok(home.join(".local/state/nonproxy"))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fs, path::PathBuf};
+
+    use super::GatewayConfig;
+
+    #[test]
+    fn rejects_socket_outside_state_directory() {
+        let result = GatewayConfig::new(PathBuf::from("/tmp/nonproxy-a"), "/tmp/nonproxy.sock");
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rejects_state_path_occupied_by_file() {
+        let directory = tempfile::tempdir();
+        let Ok(directory) = directory else {
+            panic!("临时目录创建失败: {directory:?}");
+        };
+        let state = directory.path().join("state");
+        if let Err(error) = fs::write(&state, b"occupied") {
+            panic!("状态占位文件创建失败: {error}");
+        }
+        let config = GatewayConfig::new(&state, state.join("gatewayd.sock"));
+        let Ok(config) = config else {
+            panic!("测试网关配置创建失败: {config:?}");
+        };
+
+        assert!(config.prepare().is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_state_directory_symbolic_link_before_creation() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir();
+        let target = tempfile::tempdir();
+        let (Ok(directory), Ok(target)) = (directory, target) else {
+            panic!("符号链接测试目录创建失败");
+        };
+        let state = directory.path().join("state");
+        if let Err(error) = symlink(target.path(), &state) {
+            panic!("状态目录符号链接创建失败: {error}");
+        }
+        let config = GatewayConfig::new(&state, state.join("gatewayd.sock"));
+        let Ok(config) = config else {
+            panic!("测试网关配置创建失败: {config:?}");
+        };
+
+        assert!(config.prepare().is_err());
+    }
+}

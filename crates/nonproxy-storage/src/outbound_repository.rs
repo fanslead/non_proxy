@@ -110,6 +110,24 @@ impl<'connection> OutboundRepository<'connection> {
         raw.map(|raw| decode_outbound(outbound_id.clone(), raw))
             .transpose()
     }
+
+    pub fn list(&self) -> Result<Vec<OutboundReference>, StorageError> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT id FROM outbound ORDER BY id")?;
+        let ids = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        drop(statement);
+        ids.into_iter()
+            .map(|id| {
+                let outbound_id = OutboundId::new(id)?;
+                self.get(&outbound_id)?.ok_or(StorageError::CorruptData {
+                    field: "outbound.id",
+                })
+            })
+            .collect()
+    }
 }
 
 type RawOutbound = (

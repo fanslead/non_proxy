@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
   "crates/*",
+  "services/*",
   "tools/*",
 ]
 
@@ -13,12 +14,21 @@ publish = false
 
 [workspace.dependencies]
 idna = "1.1.0"
+getrandom = "0.4.3"
+hyper-util = { version = "0.1.20", features = ["tokio"] }
+prost = "0.14.4"
+prost-types = "0.14.4"
 proptest = "1.11.0"
 psl = "2.1.223"
 rusqlite = { version = "0.40.1", features = ["bundled"] }
 sha2 = "0.11.0"
 tempfile = "3.27.0"
 thiserror = "2.0.19"
+tokio = { version = "1.53.1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-stream = { version = "0.1.18", features = ["net", "sync"] }
+tonic = { version = "0.14.6", features = ["transport"] }
+tonic-prost = "0.14.6"
+tower = { version = "0.5.3", features = ["util"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

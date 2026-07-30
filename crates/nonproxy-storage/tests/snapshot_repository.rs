@@ -129,6 +129,26 @@ fn rollback_creates_a_new_monotonic_snapshot_version() {
 }
 
 #[test]
+fn latest_version_is_none_then_tracks_highest_staged_snapshot() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let initial = database.snapshots().latest_version();
+    assert!(matches!(initial, Ok(None)));
+
+    let first = artifact(1, 1);
+    let Ok(first) = first else {
+        panic!("创建快照失败: {first:?}");
+    };
+    if let Err(error) = database.snapshots().stage(&first) {
+        panic!("暂存快照失败: {error}");
+    }
+
+    assert!(matches!(database.snapshots().latest_version(), Ok(Some(1))));
+}
+
+#[test]
 fn hash_mismatch_and_non_monotonic_versions_are_rejected() {
     let database = PolicyDatabase::open_in_memory(1_000);
     let Ok(mut database) = database else {
