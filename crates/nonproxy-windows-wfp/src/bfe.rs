@@ -5,14 +5,16 @@ use windows_sys::{
         Foundation::HANDLE,
         NetworkManagement::WindowsFilteringPlatform::{
             FWP_ACTION_CALLOUT_TERMINATING, FWP_CONDITION_VALUE0, FWP_CONDITION_VALUE0_0,
-            FWP_EMPTY, FWP_MATCH_EQUAL, FWP_UINT8, FWP_VALUE0, FWPM_ACTION0, FWPM_ACTION0_0,
-            FWPM_CALLOUT0, FWPM_CONDITION_IP_PROTOCOL, FWPM_DISPLAY_DATA0, FWPM_FILTER_CONDITION0,
-            FWPM_FILTER0, FWPM_LAYER_ALE_CONNECT_REDIRECT_V4, FWPM_LAYER_ALE_CONNECT_REDIRECT_V6,
-            FWPM_PROVIDER0, FWPM_SESSION_FLAG_DYNAMIC, FWPM_SESSION0, FWPM_SUBLAYER0,
-            FwpmCalloutAdd0, FwpmEngineClose0, FwpmEngineOpen0, FwpmFilterAdd0, FwpmProviderAdd0,
-            FwpmSubLayerAdd0, FwpmTransactionAbort0, FwpmTransactionBegin0, FwpmTransactionCommit0,
+            FWP_MATCH_EQUAL, FWP_UINT8, FWP_UINT16, FWP_VALUE0, FWP_VALUE0_0, FWPM_ACTION0,
+            FWPM_ACTION0_0, FWPM_CALLOUT0, FWPM_CONDITION_IP_PROTOCOL,
+            FWPM_CONDITION_IP_REMOTE_PORT, FWPM_DISPLAY_DATA0, FWPM_FILTER_CONDITION0,
+            FWPM_FILTER0, FWPM_FILTER0_0, FWPM_LAYER_ALE_CONNECT_REDIRECT_V4,
+            FWPM_LAYER_ALE_CONNECT_REDIRECT_V6, FWPM_PROVIDER0, FWPM_SESSION_FLAG_DYNAMIC,
+            FWPM_SESSION0, FWPM_SUBLAYER0, FwpmCalloutAdd0, FwpmEngineClose0, FwpmEngineOpen0,
+            FwpmFilterAdd0, FwpmProviderAdd0, FwpmSubLayerAdd0, FwpmTransactionAbort0,
+            FwpmTransactionBegin0, FwpmTransactionCommit0,
         },
-        Networking::WinSock::IPPROTO_TCP,
+        Networking::WinSock::{IPPROTO_TCP, IPPROTO_UDP},
         System::Rpc::RPC_C_AUTHN_WINNT,
     },
     core::GUID,
@@ -26,6 +28,24 @@ pub const CALLOUT_V4_KEY: GUID = GUID::from_u128(0x32715ea8_87fd_4da0_8f7f_2dfbb
 pub const CALLOUT_V6_KEY: GUID = GUID::from_u128(0xa9fe83c7_813e_4653_a44d_b5a4564fc632);
 const FILTER_V4_KEY: GUID = GUID::from_u128(0x496772cb_fa44_47a1_b5cb_0c7598767f9b);
 const FILTER_V6_KEY: GUID = GUID::from_u128(0xf4b0c29a_5c56_4b3a_ab41_960c9f7bb3e7);
+const DNS_TCP_FILTER_V4_KEY: GUID = GUID::from_u128(0x5ca711c6_43bc_4e65_b8d1_1fa29071614f);
+const DNS_TCP_FILTER_V6_KEY: GUID = GUID::from_u128(0xfdb52a0d_dc88_450a_8023_273ace34ca5c);
+const DNS_UDP_FILTER_V4_KEY: GUID = GUID::from_u128(0x9289ea15_c752_4729_9763_45778d132bd7);
+const DNS_UDP_FILTER_V6_KEY: GUID = GUID::from_u128(0x42fb3193_973a_4f80_8772_e32c010c9b41);
+const FILTER_CONTEXT_TCP: u64 = 1;
+const FILTER_CONTEXT_DNS: u64 = 2;
+const DNS_PORT: u16 = 53;
+
+struct FilterSpec {
+    key: GUID,
+    layer: GUID,
+    callout: GUID,
+    label: &'static str,
+    protocol: u8,
+    remote_port: Option<u16>,
+    raw_context: u64,
+    weight: u8,
+}
 
 pub struct DynamicWfpSession {
     engine: HANDLE,
@@ -82,7 +102,7 @@ impl DynamicWfpSession {
     fn install_objects(&self) -> Result<(), WindowsWfpError> {
         let mut provider_key = PROVIDER_KEY;
         let mut provider_name = wide("NonProxy");
-        let mut provider_description = wide("NonProxy TCP connect redirect provider");
+        let mut provider_description = wide("NonProxy TCP 与明文 DNS connect redirect provider");
         let provider = FWPM_PROVIDER0 {
             providerKey: provider_key,
             displayData: display(&mut provider_name, &mut provider_description),
@@ -94,8 +114,8 @@ impl DynamicWfpSession {
             unsafe { FwpmProviderAdd0(self.engine, &provider, ptr::null_mut()) },
         )?;
 
-        let mut sublayer_name = wide("NonProxy TCP redirect");
-        let mut sublayer_description = wide("仅处理 TCP ALE connect redirect");
+        let mut sublayer_name = wide("NonProxy connect redirect");
+        let mut sublayer_description = wide("处理 TCP 与远端 53 端口 DNS");
         let sublayer = FWPM_SUBLAYER0 {
             subLayerKey: SUBLAYER_KEY,
             displayData: display(&mut sublayer_name, &mut sublayer_description),
@@ -123,17 +143,81 @@ impl DynamicWfpSession {
         )?;
         self.add_filter(
             &mut provider_key,
-            FILTER_V4_KEY,
-            FWPM_LAYER_ALE_CONNECT_REDIRECT_V4,
-            CALLOUT_V4_KEY,
-            "NonProxy TCP IPv4 capture",
+            FilterSpec {
+                key: DNS_TCP_FILTER_V4_KEY,
+                layer: FWPM_LAYER_ALE_CONNECT_REDIRECT_V4,
+                callout: CALLOUT_V4_KEY,
+                label: "NonProxy DNS TCP IPv4 capture",
+                protocol: IPPROTO_TCP as u8,
+                remote_port: Some(DNS_PORT),
+                raw_context: FILTER_CONTEXT_DNS,
+                weight: 0xf0,
+            },
         )?;
         self.add_filter(
             &mut provider_key,
-            FILTER_V6_KEY,
-            FWPM_LAYER_ALE_CONNECT_REDIRECT_V6,
-            CALLOUT_V6_KEY,
-            "NonProxy TCP IPv6 capture",
+            FilterSpec {
+                key: DNS_TCP_FILTER_V6_KEY,
+                layer: FWPM_LAYER_ALE_CONNECT_REDIRECT_V6,
+                callout: CALLOUT_V6_KEY,
+                label: "NonProxy DNS TCP IPv6 capture",
+                protocol: IPPROTO_TCP as u8,
+                remote_port: Some(DNS_PORT),
+                raw_context: FILTER_CONTEXT_DNS,
+                weight: 0xf0,
+            },
+        )?;
+        self.add_filter(
+            &mut provider_key,
+            FilterSpec {
+                key: DNS_UDP_FILTER_V4_KEY,
+                layer: FWPM_LAYER_ALE_CONNECT_REDIRECT_V4,
+                callout: CALLOUT_V4_KEY,
+                label: "NonProxy DNS UDP IPv4 capture",
+                protocol: IPPROTO_UDP as u8,
+                remote_port: Some(DNS_PORT),
+                raw_context: FILTER_CONTEXT_DNS,
+                weight: 0xf0,
+            },
+        )?;
+        self.add_filter(
+            &mut provider_key,
+            FilterSpec {
+                key: DNS_UDP_FILTER_V6_KEY,
+                layer: FWPM_LAYER_ALE_CONNECT_REDIRECT_V6,
+                callout: CALLOUT_V6_KEY,
+                label: "NonProxy DNS UDP IPv6 capture",
+                protocol: IPPROTO_UDP as u8,
+                remote_port: Some(DNS_PORT),
+                raw_context: FILTER_CONTEXT_DNS,
+                weight: 0xf0,
+            },
+        )?;
+        self.add_filter(
+            &mut provider_key,
+            FilterSpec {
+                key: FILTER_V4_KEY,
+                layer: FWPM_LAYER_ALE_CONNECT_REDIRECT_V4,
+                callout: CALLOUT_V4_KEY,
+                label: "NonProxy TCP IPv4 capture",
+                protocol: IPPROTO_TCP as u8,
+                remote_port: None,
+                raw_context: FILTER_CONTEXT_TCP,
+                weight: 0x80,
+            },
+        )?;
+        self.add_filter(
+            &mut provider_key,
+            FilterSpec {
+                key: FILTER_V6_KEY,
+                layer: FWPM_LAYER_ALE_CONNECT_REDIRECT_V6,
+                callout: CALLOUT_V6_KEY,
+                label: "NonProxy TCP IPv6 capture",
+                protocol: IPPROTO_TCP as u8,
+                remote_port: None,
+                raw_context: FILTER_CONTEXT_TCP,
+                weight: 0x80,
+            },
         )
     }
 
@@ -161,43 +245,50 @@ impl DynamicWfpSession {
         )
     }
 
-    fn add_filter(
-        &self,
-        provider_key: &mut GUID,
-        filter_key: GUID,
-        layer_key: GUID,
-        callout_key: GUID,
-        label: &str,
-    ) -> Result<(), WindowsWfpError> {
-        let mut name = wide(label);
-        let mut description = wide("只匹配 TCP，策略判定留在用户态");
-        let mut condition = FWPM_FILTER_CONDITION0 {
+    fn add_filter(&self, provider_key: &mut GUID, spec: FilterSpec) -> Result<(), WindowsWfpError> {
+        let mut name = wide(spec.label);
+        let mut description = wide("内核只做协议与端口筛选，策略判定留在用户态");
+        let mut conditions = vec![FWPM_FILTER_CONDITION0 {
             fieldKey: FWPM_CONDITION_IP_PROTOCOL,
             matchType: FWP_MATCH_EQUAL,
             conditionValue: FWP_CONDITION_VALUE0 {
                 r#type: FWP_UINT8,
                 Anonymous: FWP_CONDITION_VALUE0_0 {
-                    uint8: IPPROTO_TCP as u8,
+                    uint8: spec.protocol,
                 },
             },
-        };
+        }];
+        if let Some(port) = spec.remote_port {
+            conditions.push(FWPM_FILTER_CONDITION0 {
+                fieldKey: FWPM_CONDITION_IP_REMOTE_PORT,
+                matchType: FWP_MATCH_EQUAL,
+                conditionValue: FWP_CONDITION_VALUE0 {
+                    r#type: FWP_UINT16,
+                    Anonymous: FWP_CONDITION_VALUE0_0 { uint16: port },
+                },
+            });
+        }
         let filter = FWPM_FILTER0 {
-            filterKey: filter_key,
+            filterKey: spec.key,
             displayData: display(&mut name, &mut description),
             providerKey: provider_key,
-            layerKey: layer_key,
+            layerKey: spec.layer,
             subLayerKey: SUBLAYER_KEY,
             weight: FWP_VALUE0 {
-                r#type: FWP_EMPTY,
-                ..Default::default()
+                r#type: FWP_UINT8,
+                Anonymous: FWP_VALUE0_0 { uint8: spec.weight },
             },
-            numFilterConditions: 1,
-            filterCondition: &mut condition,
+            numFilterConditions: u32::try_from(conditions.len())
+                .map_err(|_| WindowsWfpError::InvalidData("WFP filter 条件数量溢出"))?,
+            filterCondition: conditions.as_mut_ptr(),
             action: FWPM_ACTION0 {
                 r#type: FWP_ACTION_CALLOUT_TERMINATING,
                 Anonymous: FWPM_ACTION0_0 {
-                    calloutKey: callout_key,
+                    calloutKey: spec.callout,
                 },
+            },
+            Anonymous: FWPM_FILTER0_0 {
+                rawContext: spec.raw_context,
             },
             ..Default::default()
         };

@@ -11,9 +11,15 @@ NonProxyAppIdField(
 
 static UINT16
 NonProxyProxyPort(
-    _In_ const NP_WFP_CONFIG_V1* Config,
-    _In_ UINT16 LayerId)
+    _In_ const NP_WFP_CONFIG_V2* Config,
+    _In_ UINT16 LayerId,
+    _In_ UINT64 FilterContext)
 {
+    if (FilterContext == NP_WFP_FILTER_CONTEXT_DNS) {
+        return LayerId == FWPS_LAYER_ALE_CONNECT_REDIRECT_V4
+            ? Config->Ipv4DnsPortNetworkOrder
+            : Config->Ipv6DnsPortNetworkOrder;
+    }
     return LayerId == FWPS_LAYER_ALE_CONNECT_REDIRECT_V4
         ? Config->Ipv4ProxyPortNetworkOrder
         : Config->Ipv6ProxyPortNetworkOrder;
@@ -86,11 +92,21 @@ NonProxyAllocateContext(
 static BOOLEAN
 NonProxyShouldRedirect(
     _In_ const FWPS_INCOMING_METADATA_VALUES0* Metadata,
-    _In_ const NP_WFP_CONFIG_V1* Config)
+    _In_ const NP_WFP_CONFIG_V2* Config,
+    _In_ UINT64 FilterContext)
 {
     FWPS_CONNECTION_REDIRECT_STATE state;
+    UINT32 requiredFlag;
 
-    if ((Config->Flags & NP_WFP_CONFIG_FLAG_ENABLED) == 0 ||
+    if (FilterContext == NP_WFP_FILTER_CONTEXT_DNS) {
+        requiredFlag = NP_WFP_CONFIG_FLAG_DNS_REDIRECT;
+    } else if (FilterContext == NP_WFP_FILTER_CONTEXT_TCP) {
+        requiredFlag = NP_WFP_CONFIG_FLAG_TCP_REDIRECT;
+    } else {
+        return FALSE;
+    }
+
+    if ((Config->Flags & requiredFlag) == 0 ||
         !FWPS_IS_METADATA_FIELD_PRESENT(Metadata, FWPS_METADATA_FIELD_PROCESS_ID) ||
         Metadata->processId == Config->ProxyProcessId) {
         return FALSE;
@@ -118,7 +134,7 @@ NonProxyClassifyConnect(
     _In_ UINT64 FlowContext,
     _Inout_ FWPS_CLASSIFY_OUT0* ClassifyOut)
 {
-    NP_WFP_CONFIG_V1 config;
+    NP_WFP_CONFIG_V2 config;
     UINT64 classifyHandle = 0;
     FWPS_CONNECT_REQUEST0* request = NULL;
     NP_WFP_REDIRECT_CONTEXT_V1* context = NULL;
@@ -137,7 +153,7 @@ NonProxyClassifyConnect(
     ClassifyOut->actionType = FWP_ACTION_PERMIT;
     InterlockedIncrement(&g_NonProxyWfp->ActiveClassifications);
     config = NonProxyReadConfig(g_NonProxyWfp);
-    if (!NonProxyShouldRedirect(Metadata, &config)) {
+    if (!NonProxyShouldRedirect(Metadata, &config, Filter->context)) {
         goto Exit;
     }
 
@@ -180,7 +196,7 @@ NonProxyClassifyConnect(
     NonProxySetLoopback(
         &request->remoteAddressAndPort,
         IncomingValues->layerId,
-        NonProxyProxyPort(&config, IncomingValues->layerId));
+        NonProxyProxyPort(&config, IncomingValues->layerId, Filter->context));
 
     ClassifyOut->actionType = FWP_ACTION_PERMIT;
     ClassifyOut->rights |= FWPS_RIGHT_ACTION_WRITE;

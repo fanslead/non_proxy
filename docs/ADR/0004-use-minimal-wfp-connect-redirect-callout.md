@@ -2,7 +2,7 @@
 
 - 状态：Accepted
 - 日期：2026-07-31
-- 决策范围：Windows TCP 捕获与本地重定向
+- 决策范围：Windows TCP、明文 DNS 捕获与本地重定向
 
 ## 背景
 
@@ -15,20 +15,27 @@ Microsoft 的 WFP 指南要求：标准过滤足够时优先使用用户态管�
 增加一个最小 WDM Driver：
 
 - 只注册 IPv4/IPv6 ALE Connect Redirect callout。
-- 只接受版本化定长 IOCTL 配置：generation、Service PID、IPv4/IPv6 loopback 端口和 enabled。
-- 启用时重定向 TCP；Service 自身 PID、自身已经重定向的连接和未启用状态直接放行。
+- 只接受版本化定长 IOCTL 配置：generation、Service PID、IPv4/IPv6 TCP/DNS
+  loopback 端口，以及相互独立的 DNS/TCP enable flag。
+- DNS flag 只重定向远端 53 端口的 TCP/UDP；TCP flag 重定向其余 TCP。
+  Service 自身 PID、自身已经重定向的连接和未启用状态直接放行。
 - context 只包含原始本地/远端 `SOCKADDR_STORAGE`、PID 和最多 4096 字节 ALE App ID。
 - 不在内核执行产品策略。App/域名/CIDR/端口匹配、DIRECT/PROXY/BLOCK、出口协议、凭据和数据库全部留在 `gatewayd`。
 - 内部分配、可写层获取或应用失败时 fail-open，并增加有界状态计数；控制 handle cleanup 必须立即禁用重定向。
 
 用户态 Service：
 
-- 先绑定两个 listener，加载活动快照，打开驱动且保持 disabled。
-- 在动态 BFE transaction 中添加 provider、sublayer、V4/V6 callout 和 TCP filter。
-- 基础设施成功后可向 SCM 上报 `Running`；只有哈希验证通过的活动快照已加载时才下发 enabled，并把 WFP Provider 上报为 `Ready`。
-- 没有活动快照时 Driver 保持 disabled，不能先接管再把所有连接静默默认为 DIRECT。
+- 先绑定 TCP 与 DNS 的 IPv4/IPv6 listener，打开 disabled 驱动。
+- 在动态 BFE transaction 中添加 provider、sublayer、V4/V6 callout，以及高
+  优先级 TCP/UDP 53 filter 和普通 TCP filter。
+- 先下发 DNS-only 配置。没有活动快照时，本地 DNS 对普通查询明确走物理
+  DIRECT，仅用随机 `.invalid` 查询验证 WFP DNS 路径，不能先接管普通 TCP。
+- 只有系统 resolver 探针真实命中本地 listener，且哈希验证通过的活动快照
+  已加载时，才同时启用普通 TCP，并把 DNS/WFP Provider 上报为 `Ready`。
+- DNS 探针失效时只关闭普通 TCP；保留 DNS-only 路径以便恢复探针。
 - 对 accepted socket 查询 redirect records/context；每个直接或代理出口 socket 在 connect 前设置同一 records。
-- 停止时先下发 disabled，再停止 listener；BFE engine handle 关闭自动删除动态对象。
+- 停止时先下发全 disabled，再停止 listener；BFE engine handle 关闭自动删除
+  动态对象。控制 handle 异常关闭也会清零所有 flag。
 
 ## 安全边界
 
@@ -40,7 +47,8 @@ Microsoft 的 WFP 指南要求：标准过滤足够时优先使用用户态管�
 
 ## 未覆盖范围
 
-- UDP/QUIC 需要独立处理 connected UDP 与 connectionless `sendto`，不能套用 TCP redirect。
+- 远端 53 端口之外的 UDP/QUIC 仍需独立处理 connected UDP 与 connectionless
+  `sendto`，不能把 DNS UDP 重定向等同于通用 UDP 支持。
 - 网站规则需要 Windows DNS 捕获和应用归属关联，不能把 TLS SNI 当唯一域名来源。
 - 打包应用身份、签名验证、生产签名、安装/升级回滚、Driver Verifier 和 VPN 共存路径必须在真实 Windows 环境验收。
 

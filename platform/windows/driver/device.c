@@ -57,12 +57,12 @@ NonProxyDispatchDeviceControl(
 
     output = (NP_WFP_STATUS_V1*)Irp->AssociatedIrp.SystemBuffer;
     if (code == IOCTL_NP_WFP_APPLY_CONFIG) {
-        if (inputLength < sizeof(NP_WFP_CONFIG_V1)) {
+        if (inputLength < sizeof(NP_WFP_CONFIG_V2)) {
             return NonProxyComplete(Irp, STATUS_BUFFER_TOO_SMALL, 0);
         }
         status = NonProxyApplyConfig(
             extension,
-            (const NP_WFP_CONFIG_V1*)Irp->AssociatedIrp.SystemBuffer);
+            (const NP_WFP_CONFIG_V2*)Irp->AssociatedIrp.SystemBuffer);
         if (!NT_SUCCESS(status)) {
             return NonProxyComplete(Irp, status, 0);
         }

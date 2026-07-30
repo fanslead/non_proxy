@@ -11,7 +11,7 @@
 
 typedef struct _NP_WFP_DEVICE_EXTENSION {
     KSPIN_LOCK StateLock;
-    NP_WFP_CONFIG_V1 Config;
+    NP_WFP_CONFIG_V2 Config;
     HANDLE RedirectHandle;
     UINT32 CalloutV4Id;
     UINT32 CalloutV6Id;
@@ -41,13 +41,13 @@ NonProxyInitializeState(
 NTSTATUS
 NonProxyApplyConfig(
     _Inout_ NP_WFP_DEVICE_EXTENSION* Extension,
-    _In_ const NP_WFP_CONFIG_V1* Config);
+    _In_ const NP_WFP_CONFIG_V2* Config);
 
 VOID
 NonProxyDisableRedirect(
     _Inout_ NP_WFP_DEVICE_EXTENSION* Extension);
 
-NP_WFP_CONFIG_V1
+NP_WFP_CONFIG_V2
 NonProxyReadConfig(
     _Inout_ NP_WFP_DEVICE_EXTENSION* Extension);
 

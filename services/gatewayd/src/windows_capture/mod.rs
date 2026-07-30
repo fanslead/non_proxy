@@ -17,7 +17,7 @@ use tokio::{net::TcpListener, sync::watch};
 
 use crate::{Gateway, GatewayError, clock::unix_time_ms, credential_store::CredentialStore};
 
-use activation::WfpActivation;
+use activation::{WfpActivation, WfpRedirectPorts};
 use dns_proxy::WindowsDnsProxy;
 use policy_cache::WindowsPolicyCache;
 use tcp_proxy::WindowsTcpProxy;
@@ -61,6 +61,7 @@ impl WindowsCapture {
             Arc::clone(&physical_interfaces),
         )
         .await?;
+        let (ipv4_dns_port, ipv6_dns_port) = dns.redirect_ports();
         let proxy = WindowsTcpProxy::new(
             gateway,
             credential_store,
@@ -75,13 +76,28 @@ impl WindowsCapture {
             .map_err(data_plane_error)?;
         let bfe = DynamicWfpSession::install().map_err(data_plane_error)?;
         let process_id = u64::from(std::process::id());
+        let generation = generation
+            .checked_add(1)
+            .ok_or_else(|| GatewayError::WindowsDataPlane("WFP 配置代次耗尽".to_owned()))?;
+        driver
+            .apply(&WfpConfig::dns_only(
+                generation,
+                process_id,
+                ipv4_dns_port.to_be(),
+                ipv6_dns_port.to_be(),
+            ))
+            .map_err(data_plane_error)?;
         let activation = WfpActivation::new(
             driver,
             policies.clone(),
             generation,
             process_id,
-            ipv4_port.to_be(),
-            ipv6_port.to_be(),
+            WfpRedirectPorts {
+                tcp_ipv4: ipv4_port.to_be(),
+                tcp_ipv6: ipv6_port.to_be(),
+                dns_ipv4: ipv4_dns_port.to_be(),
+                dns_ipv6: ipv6_dns_port.to_be(),
+            },
             dns_ready,
         );
         Ok(Self {

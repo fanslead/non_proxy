@@ -5,8 +5,12 @@
 #include <ws2def.h>
 
 #define NP_WFP_CONFIG_MAGIC ((UINT32)0x4657504e)
-#define NP_WFP_CONFIG_VERSION ((UINT16)1)
-#define NP_WFP_CONFIG_FLAG_ENABLED ((UINT32)0x00000001)
+#define NP_WFP_CONFIG_VERSION ((UINT16)2)
+#define NP_WFP_CONFIG_FLAG_DNS_REDIRECT ((UINT32)0x00000001)
+#define NP_WFP_CONFIG_FLAG_TCP_REDIRECT ((UINT32)0x00000002)
+
+#define NP_WFP_FILTER_CONTEXT_TCP ((UINT64)1)
+#define NP_WFP_FILTER_CONTEXT_DNS ((UINT64)2)
 
 #define NP_WFP_STATUS_MAGIC ((UINT32)0x5357504e)
 #define NP_WFP_STATUS_VERSION ((UINT16)1)
@@ -20,7 +24,7 @@
 #define IOCTL_NP_WFP_QUERY_STATUS \
     CTL_CODE(FILE_DEVICE_NETWORK, 0x802, METHOD_BUFFERED, FILE_READ_DATA)
 
-typedef struct _NP_WFP_CONFIG_V1 {
+typedef struct _NP_WFP_CONFIG_V2 {
     UINT32 Magic;
     UINT16 Version;
     UINT16 Size;
@@ -28,8 +32,11 @@ typedef struct _NP_WFP_CONFIG_V1 {
     UINT64 ProxyProcessId;
     UINT16 Ipv4ProxyPortNetworkOrder;
     UINT16 Ipv6ProxyPortNetworkOrder;
+    UINT16 Ipv4DnsPortNetworkOrder;
+    UINT16 Ipv6DnsPortNetworkOrder;
     UINT32 Flags;
-} NP_WFP_CONFIG_V1;
+    UINT32 Reserved;
+} NP_WFP_CONFIG_V2;
 
 typedef struct _NP_WFP_STATUS_V1 {
     UINT32 Magic;
@@ -70,6 +77,6 @@ DEFINE_GUID(
     NP_WFP_CALLOUT_V6_KEY,
     0xa9fe83c7, 0x813e, 0x4653, 0xa4, 0x4d, 0xb5, 0xa4, 0x56, 0x4f, 0xc6, 0x32);
 
-C_ASSERT(sizeof(NP_WFP_CONFIG_V1) == 32);
+C_ASSERT(sizeof(NP_WFP_CONFIG_V2) == 40);
 C_ASSERT(sizeof(NP_WFP_STATUS_V1) == 48);
 C_ASSERT(FIELD_OFFSET(NP_WFP_REDIRECT_CONTEXT_V1, AppId) == 288);

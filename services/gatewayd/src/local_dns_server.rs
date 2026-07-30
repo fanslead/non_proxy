@@ -34,8 +34,8 @@ pub(crate) struct LocalDnsServer {
     udp_ipv6: Arc<UdpSocket>,
     tcp_ipv4: TcpListener,
     tcp_ipv6: TcpListener,
-    #[cfg(test)]
-    port: u16,
+    ipv4_port: u16,
+    ipv6_port: u16,
     capacity: Arc<Semaphore>,
 }
 
@@ -47,26 +47,33 @@ impl LocalDnsServer {
                 operation: "绑定本地 DNS IPv4 TCP",
                 source,
             })?;
-        let port = tcp_ipv4
+        let ipv4_port = tcp_ipv4
             .local_addr()
             .map_err(|source| GatewayError::Io {
                 operation: "读取本地 DNS TCP 端口",
                 source,
             })?
             .port();
-        let udp_ipv4 = UdpSocket::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, port)))
+        let udp_ipv4 = UdpSocket::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, ipv4_port)))
             .await
             .map_err(|source| GatewayError::Io {
                 operation: "绑定本地 DNS IPv4 UDP",
                 source,
             })?;
-        let tcp_ipv6 = TcpListener::bind(SocketAddr::from((Ipv6Addr::LOCALHOST, port)))
+        let tcp_ipv6 = TcpListener::bind(SocketAddr::from((Ipv6Addr::LOCALHOST, ipv4_port)))
             .await
             .map_err(|source| GatewayError::Io {
                 operation: "绑定本地 DNS IPv6 TCP",
                 source,
             })?;
-        let udp_ipv6 = UdpSocket::bind(SocketAddr::from((Ipv6Addr::LOCALHOST, port)))
+        let ipv6_port = tcp_ipv6
+            .local_addr()
+            .map_err(|source| GatewayError::Io {
+                operation: "读取本地 DNS IPv6 TCP 端口",
+                source,
+            })?
+            .port();
+        let udp_ipv6 = UdpSocket::bind(SocketAddr::from((Ipv6Addr::LOCALHOST, ipv6_port)))
             .await
             .map_err(|source| GatewayError::Io {
                 operation: "绑定本地 DNS IPv6 UDP",
@@ -77,16 +84,15 @@ impl LocalDnsServer {
             udp_ipv6: Arc::new(udp_ipv6),
             tcp_ipv4,
             tcp_ipv6,
-            #[cfg(test)]
-            port,
+            ipv4_port,
+            ipv6_port,
             capacity: Arc::new(Semaphore::new(MAXIMUM_ACTIVE_REQUESTS)),
         })
     }
 
     #[must_use]
-    #[cfg(test)]
-    pub const fn port(&self) -> u16 {
-        self.port
+    pub const fn ports(&self) -> (u16, u16) {
+        (self.ipv4_port, self.ipv6_port)
     }
 
     pub async fn serve(
@@ -271,7 +277,7 @@ mod tests {
     #[tokio::test]
     async fn udp_loopback_round_trip_preserves_transaction() -> Result<(), Box<dyn Error>> {
         let server = LocalDnsServer::bind_loopback(0).await?;
-        let port = server.port();
+        let port = server.ports().0;
         let (stop_sender, stop_receiver) = watch::channel(false);
         let task = tokio::spawn(server.serve(Arc::new(NoDataProcessor), stop_receiver));
         let client = UdpSocket::bind("127.0.0.1:0").await?;

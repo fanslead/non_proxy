@@ -551,11 +551,13 @@ Windows DNS 运行时分为四个独立模块：
 4. `windows_capture::direct_dns` 只为合成 TCP 目标重新解析真实地址。
 
 Service 启动 DNS 监听前枚举 IPv4 路由；任何与 `198.18.0.0/15` 重叠的非默认
-路由都会令该能力硬失败。监听启动后生成一次性随机 `.invalid` 探针域名，只在
-Windows 系统 resolver 确实从本地监听得到 `198.18.0.1` 时，DNS Provider 才
-确认策略快照，WFP 激活协调器才允许 Driver enable。探针失效会立即撤销 DNS
-确认、把运行时标为 Degraded 并关闭 WFP 重定向。当前代码尚未改变网卡 DNS
-设置，因此真实 Windows 仍需后续的可恢复设置事务才能自动进入 Ready。
+路由都会令该能力硬失败。监听使用随机 loopback 端口，动态 WFP filter 只把
+远端 TCP/UDP 53 重定向给它，不修改网卡 DNS。Driver 先进入 DNS-only，生成
+一次性随机 `.invalid` 探针域名；只有 Windows 系统 resolver 确实从本地监听
+得到 `198.18.0.1` 时，DNS Provider 才确认策略快照，WFP 激活协调器才允许
+普通 TCP redirect。探针失效会立即撤销 DNS 确认、把运行时标为 Degraded，并
+退回可自恢复的 DNS-only。完整决策见
+[ADR-0007](ADR/0007-intercept-windows-dns-with-wfp.md)。
 
 驱动不得：
 
@@ -1780,20 +1782,24 @@ Provider 不逐条同步写日志：
 - Avalonia Windows 宿主使用 `NamedPipeClientStream` 连接认证 gRPC 控制面，继续复用与 macOS 相同的页面、ViewModel 和控制契约。
 - x64 与 ARM64 Windows target 都进入编译门禁；这只能证明平台代码可构建，不能替代 SCM、ACL 或真实流量验收。
 
-当前 TCP 数据面也已经具备：
+当前 Windows 数据面也已经具备：
 
-- WDM 最小 Callout Driver，只注册 ALE Connect Redirect V4/V6，不解析策略、域名、协议或数据库。
-- Rust 用户态动态 BFE session，原子添加 provider、sublayer、callout 和仅匹配 TCP 的 filter；持有进程退出或 engine handle 关闭时由 BFE 清理。
+- WDM 最小 Callout Driver，只注册 ALE Connect Redirect V4/V6，不解析策略、域名、出口协议或数据库。
+- Rust 用户态动态 BFE session，原子添加 provider、sublayer、callout，以及高优先级 TCP/UDP 53 和普通 TCP filter；持有进程退出或 engine handle 关闭时由 BFE 清理。
 - 固定大小、版本化的 Driver IOCTL ABI，以及带上限的原始地址/App ID redirect context；C/Rust 两侧具有尺寸和头文件一致性测试。
-- Service 先绑定 IPv4/IPv6 loopback listener、打开 disabled 驱动并安装动态 WFP 对象；SCM `Running` 只表示控制面与捕获基础设施就绪。只有缓存中存在哈希验证通过的活动快照时才启用重定向并把 `windows-wfp` Provider 上报为 `Ready`，无活动快照时保持 fail-open 旁路且数据面不报告就绪。
+- Service 先绑定 IPv4/IPv6 TCP 与随机 DNS loopback listener、打开 disabled 驱动并安装动态 WFP 对象。随后只启用 TCP/UDP 53；随机系统 resolver 探针与活动策略同时就绪后才启用普通 TCP。无活动快照时 DNS 普通查询明确走物理 DIRECT，普通 TCP 保持 fail-open 旁路。
 - 关闭时先禁用驱动，再停止 listener 和活动任务；控制 handle 意外关闭也会由 `IRP_MJ_CLEANUP` 清除启用标记。
 - 本地代理查询 accepted socket 的 redirect records/context，并在每个 DIRECT 或代理出口 socket 连接前设置 redirect records。
 - 用户态用不可变活动快照执行 App/CIDR/端口策略；DIRECT、PROXY、BLOCK 和代理失败的显式 fail-open/fail-closed 都在 Service 内完成。
 - 所有连接、队列和元数据均有上限；驱动内部失败采用有计数的 fail-open，避免 Service/Driver 异常造成整机断网。
 - GitHub CI 已配置 Windows 2022 + WDK 的 x64/ARM64 独立驱动构建；首次远端运行通过前只视为待验证门禁。Rust 用户态同时经过 x64 clippy 和 ARM64 check。
 - 共享策略快照能判断任意层级是否需要域名身份；`nonproxy-dns` 已实现有界、确定性的 IPv4/IPv6 合成地址空间和 30 秒回答；SQLite V6 迁移以事务保存安装级 ULA 与 24 小时可恢复绑定，并处理散列碰撞。
+- 本地 DNS 已实现 UDP/TCP framing、DIRECT/PROXY 查询、系统探针、地址池冲突检查；WFP TCP 连接可由合成地址反查域名，再执行真实 App + 域名策略，DIRECT 重新物理解域，PROXY 保留域名交给远端。
 
-尚未完成的 Windows 系统能力是本地 DNS listener、网卡 DNS 配置事务、合成地址到 WFP 连接的运行时反查和真实地址解析，以及 UDP/QUIC、安装器/升级回滚、生产驱动签名、Driver Verifier 与真实 VPN 共存路径验收。只有 App/CIDR TCP 路径和域名关联的共享核心/持久化进入代码，不能把当前构建结果表述为完整 Windows 产品验收；Windows UI 在安装与系统验收完成前继续将系统组件标记为不可用。
+尚未完成的 Windows 系统能力是远端 53 之外的 UDP/QUIC、安装器/升级回滚、
+生产驱动签名、Driver Verifier 与真实 VPN 共存路径验收。明文 DNS/WFP 代码
+和交叉构建不能证明真实系统 resolver、UDP 反向元组或第三方 VPN filter 顺序
+正确；Windows UI 在安装与系统验收完成前继续将系统组件标记为不可用。
 
 ### 22.1 用户态优先
 
@@ -1802,22 +1808,25 @@ Windows POC 已确认：
 - 用户态管理 API 可以安全持有动态 WFP 对象，但 Connect Redirect 的元组修改必须由 Callout Driver 完成。
 - TCP accepted socket 可以查询原始 redirect context 和 records，并把 records 传递给新建出口 socket。
 - ALE App ID 可作为规范化应用路径身份；打包应用身份/签名增强仍属于后续 Windows 身份解析层。
-- UDP connect redirect 与无连接 `sendto` 语义不同，不能复用 TCP 实现或宣称已支持。
+- WFP 明文 DNS filter 只验证远端 53 端口的 TCP/UDP；通用 UDP connect redirect
+  与无连接 `sendto` 语义仍需独立数据面，不能据此宣称 UDP/QUIC 已支持。
 - 可靠网站规则需要 Windows DNS 归属和可恢复的选择性合成地址关联，不能只依赖短期真实 IP 或 TLS SNI。
 
-因此采用 [ADR-0004：最小 WFP Connect Redirect Callout](ADR/0004-use-minimal-wfp-connect-redirect-callout.md) 与 [ADR-0006：选择性合成 DNS](ADR/0006-use-selective-synthetic-dns-on-windows.md)。复杂策略、出口协议、DNS、存储与遥测继续严格留在用户态。
+因此采用 [ADR-0004：最小 WFP Connect Redirect Callout](ADR/0004-use-minimal-wfp-connect-redirect-callout.md)、[ADR-0006：选择性合成 DNS](ADR/0006-use-selective-synthetic-dns-on-windows.md) 与 [ADR-0007：WFP 明文 DNS 截获](ADR/0007-intercept-windows-dns-with-wfp.md)。复杂策略、出口协议、DNS 报文、存储与遥测继续严格留在用户态。
 
 ### 22.2 WFP 层
 
-TCP 当前使用：
+TCP 与明文 DNS 当前使用：
 
 - `FWPM_LAYER_ALE_CONNECT_REDIRECT_V4/V6`
-- `FWPM_CONDITION_IP_PROTOCOL == IPPROTO_TCP`
+- 普通 TCP：`FWPM_CONDITION_IP_PROTOCOL == IPPROTO_TCP`
+- 明文 DNS：高优先级 TCP/UDP + `FWPM_CONDITION_IP_REMOTE_PORT == 53`
 - Service 动态 provider/sublayer/callout/filter
 - Driver `FwpsQueryConnectionRedirectState`、`FwpsAcquireWritableLayerDataPointer0` 和 `FwpsApplyModifiedLayerData0`
 - Winsock `SIO_QUERY_WFP_CONNECTION_REDIRECT_RECORDS`、`SIO_QUERY_WFP_CONNECTION_REDIRECT_CONTEXT` 和 `SIO_SET_WFP_CONNECTION_REDIRECT_RECORDS`
 
-DNS/UDP 最终层选择仍必须通过独立 WDK POC、性能和 Driver Verifier 结果确认，不能只依据文档命名决定。
+DNS UDP 的接收/反向元组仍必须通过独立 WDK POC、性能和 Driver Verifier 结果
+确认；远端 53 之外的 UDP/QUIC 层选择尚未完成。
 
 ### 22.3 共享复用
 

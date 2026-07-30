@@ -18,10 +18,17 @@ pub struct WfpActivation {
     policies: WindowsPolicyCache,
     generation: u64,
     process_id: u64,
-    ipv4_port: u16,
-    ipv6_port: u16,
+    ports: WfpRedirectPorts,
     dns_ready: watch::Receiver<bool>,
     enabled: bool,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct WfpRedirectPorts {
+    pub tcp_ipv4: u16,
+    pub tcp_ipv6: u16,
+    pub dns_ipv4: u16,
+    pub dns_ipv6: u16,
 }
 
 impl WfpActivation {
@@ -30,8 +37,7 @@ impl WfpActivation {
         policies: WindowsPolicyCache,
         generation: u64,
         process_id: u64,
-        ipv4_port: u16,
-        ipv6_port: u16,
+        ports: WfpRedirectPorts,
         dns_ready: watch::Receiver<bool>,
     ) -> Self {
         Self {
@@ -39,8 +45,7 @@ impl WfpActivation {
             policies,
             generation,
             process_id,
-            ipv4_port,
-            ipv6_port,
+            ports,
             dns_ready,
             enabled: false,
         }
@@ -63,7 +68,7 @@ impl WfpActivation {
                 }
             }
         }
-        self.disable()?;
+        self.disable_all()?;
         Ok(())
     }
 
@@ -78,8 +83,10 @@ impl WfpActivation {
                         .apply(&WfpConfig::enabled(
                             self.generation,
                             self.process_id,
-                            self.ipv4_port,
-                            self.ipv6_port,
+                            self.ports.tcp_ipv4,
+                            self.ports.tcp_ipv6,
+                            self.ports.dns_ipv4,
+                            self.ports.dns_ipv6,
                         ))
                         .map_err(data_plane_error)?;
                     self.enabled = true;
@@ -88,7 +95,7 @@ impl WfpActivation {
                     .report_health(RuntimeState::Ready, snapshot.metadata().snapshot_version())?;
             }
             (snapshot, false) => {
-                self.disable()?;
+                self.disable_tcp()?;
                 let version = snapshot
                     .as_ref()
                     .map_or(0, |value| value.metadata().snapshot_version());
@@ -96,17 +103,31 @@ impl WfpActivation {
                     .report_health(RuntimeState::Degraded, version)?;
             }
             (None, true) => {
-                self.disable()?;
+                self.disable_tcp()?;
                 self.policies.report_health(RuntimeState::Starting, 0)?;
             }
         }
         Ok(())
     }
 
-    fn disable(&mut self) -> Result<(), GatewayError> {
+    fn disable_tcp(&mut self) -> Result<(), GatewayError> {
         if !self.enabled {
             return Ok(());
         }
+        self.generation = next_generation(self.generation)?;
+        self.driver
+            .apply(&WfpConfig::dns_only(
+                self.generation,
+                self.process_id,
+                self.ports.dns_ipv4,
+                self.ports.dns_ipv6,
+            ))
+            .map_err(data_plane_error)?;
+        self.enabled = false;
+        Ok(())
+    }
+
+    fn disable_all(&mut self) -> Result<(), GatewayError> {
         self.generation = next_generation(self.generation)?;
         self.driver
             .apply(&WfpConfig::disabled(self.generation))

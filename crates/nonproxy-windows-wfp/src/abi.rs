@@ -1,9 +1,10 @@
 use crate::WindowsWfpError;
 
 pub const CONFIG_MAGIC: u32 = u32::from_le_bytes(*b"NPWF");
-pub const CONFIG_VERSION: u16 = 1;
-pub const CONFIG_SIZE: u16 = 32;
-pub const CONFIG_FLAG_ENABLED: u32 = 1;
+pub const CONFIG_VERSION: u16 = 2;
+pub const CONFIG_SIZE: u16 = 40;
+pub const CONFIG_FLAG_DNS_REDIRECT: u32 = 1;
+pub const CONFIG_FLAG_TCP_REDIRECT: u32 = 1 << 1;
 
 pub const STATUS_MAGIC: u32 = u32::from_le_bytes(*b"NPWS");
 pub const STATUS_VERSION: u16 = 1;
@@ -38,7 +39,10 @@ pub struct WfpConfig {
     pub proxy_process_id: u64,
     pub ipv4_proxy_port_network_order: u16,
     pub ipv6_proxy_port_network_order: u16,
+    pub ipv4_dns_port_network_order: u16,
+    pub ipv6_dns_port_network_order: u16,
     pub flags: u32,
+    pub reserved: u32,
 }
 
 impl WfpConfig {
@@ -52,7 +56,32 @@ impl WfpConfig {
             proxy_process_id: 0,
             ipv4_proxy_port_network_order: 0,
             ipv6_proxy_port_network_order: 0,
+            ipv4_dns_port_network_order: 0,
+            ipv6_dns_port_network_order: 0,
             flags: 0,
+            reserved: 0,
+        }
+    }
+
+    #[must_use]
+    pub const fn dns_only(
+        generation: u64,
+        proxy_process_id: u64,
+        ipv4_dns_port_network_order: u16,
+        ipv6_dns_port_network_order: u16,
+    ) -> Self {
+        Self {
+            magic: CONFIG_MAGIC,
+            version: CONFIG_VERSION,
+            size: CONFIG_SIZE,
+            generation,
+            proxy_process_id,
+            ipv4_proxy_port_network_order: 0,
+            ipv6_proxy_port_network_order: 0,
+            ipv4_dns_port_network_order,
+            ipv6_dns_port_network_order,
+            flags: CONFIG_FLAG_DNS_REDIRECT,
+            reserved: 0,
         }
     }
 
@@ -62,6 +91,8 @@ impl WfpConfig {
         proxy_process_id: u64,
         ipv4_proxy_port_network_order: u16,
         ipv6_proxy_port_network_order: u16,
+        ipv4_dns_port_network_order: u16,
+        ipv6_dns_port_network_order: u16,
     ) -> Self {
         Self {
             magic: CONFIG_MAGIC,
@@ -71,7 +102,10 @@ impl WfpConfig {
             proxy_process_id,
             ipv4_proxy_port_network_order,
             ipv6_proxy_port_network_order,
-            flags: CONFIG_FLAG_ENABLED,
+            ipv4_dns_port_network_order,
+            ipv6_dns_port_network_order,
+            flags: CONFIG_FLAG_DNS_REDIRECT | CONFIG_FLAG_TCP_REDIRECT,
+            reserved: 0,
         }
     }
 
@@ -80,20 +114,39 @@ impl WfpConfig {
         {
             return Err(WindowsWfpError::InvalidData("WFP 驱动配置版本无效"));
         }
-        if self.flags & !CONFIG_FLAG_ENABLED != 0 {
+        let known_flags = CONFIG_FLAG_DNS_REDIRECT | CONFIG_FLAG_TCP_REDIRECT;
+        if self.flags & !known_flags != 0 || self.reserved != 0 {
             return Err(WindowsWfpError::InvalidData("WFP 驱动配置包含未知标志"));
         }
-        if self.flags & CONFIG_FLAG_ENABLED != 0
-            && (self.proxy_process_id == 0
-                || self.proxy_process_id > u64::from(u32::MAX)
-                || self.ipv4_proxy_port_network_order == 0
-                || self.ipv6_proxy_port_network_order == 0)
-        {
+        let process_valid =
+            self.proxy_process_id != 0 && self.proxy_process_id <= u64::from(u32::MAX);
+        if (self.flags == 0 && self.proxy_process_id != 0) || (self.flags != 0 && !process_valid) {
+            return Err(WindowsWfpError::InvalidData("启用 WFP 重定向时进程无效"));
+        }
+        let dns_enabled = self.flags & CONFIG_FLAG_DNS_REDIRECT != 0;
+        let tcp_enabled = self.flags & CONFIG_FLAG_TCP_REDIRECT != 0;
+        if !port_pair_matches_flag(
+            dns_enabled,
+            self.ipv4_dns_port_network_order,
+            self.ipv6_dns_port_network_order,
+        ) || !port_pair_matches_flag(
+            tcp_enabled,
+            self.ipv4_proxy_port_network_order,
+            self.ipv6_proxy_port_network_order,
+        ) {
             return Err(WindowsWfpError::InvalidData(
-                "启用 WFP 重定向时必须提供进程和监听端口",
+                "WFP 重定向标志与监听端口不一致",
             ));
         }
         Ok(())
+    }
+}
+
+const fn port_pair_matches_flag(enabled: bool, ipv4: u16, ipv6: u16) -> bool {
+    if enabled {
+        ipv4 != 0 && ipv6 != 0
+    } else {
+        ipv4 == 0 && ipv6 == 0
     }
 }
 
@@ -224,8 +277,19 @@ mod tests {
 
     #[test]
     fn enabled_config_requires_complete_redirect_target() {
-        assert!(WfpConfig::enabled(4, 912, 10, 11).validate().is_ok());
-        assert!(WfpConfig::enabled(4, 0, 10, 11).validate().is_err());
+        assert!(
+            WfpConfig::enabled(4, 912, 10, 11, 12, 13)
+                .validate()
+                .is_ok()
+        );
+        assert!(WfpConfig::dns_only(4, 912, 12, 13).validate().is_ok());
+        assert!(WfpConfig::enabled(4, 0, 10, 11, 12, 13).validate().is_err());
+        let mut partial = WfpConfig::dns_only(4, 912, 12, 13);
+        partial.ipv6_dns_port_network_order = 0;
+        assert!(partial.validate().is_err());
+        let mut dirty_disabled = WfpConfig::disabled(5);
+        dirty_disabled.proxy_process_id = 912;
+        assert!(dirty_disabled.validate().is_err());
         assert!(WfpConfig::disabled(5).validate().is_ok());
     }
 
@@ -246,8 +310,8 @@ mod tests {
     fn checked_in_driver_header_matches_rust_contract() {
         let header = include_str!("../../../platform/windows/include/nonproxy_wfp_abi.h");
         for required in [
-            "#define NP_WFP_CONFIG_VERSION ((UINT16)1)",
-            "C_ASSERT(sizeof(NP_WFP_CONFIG_V1) == 32);",
+            "#define NP_WFP_CONFIG_VERSION ((UINT16)2)",
+            "C_ASSERT(sizeof(NP_WFP_CONFIG_V2) == 40);",
             "C_ASSERT(sizeof(NP_WFP_STATUS_V1) == 48);",
             "C_ASSERT(FIELD_OFFSET(NP_WFP_REDIRECT_CONTEXT_V1, AppId) == 288);",
             "CTL_CODE(FILE_DEVICE_NETWORK, 0x801, METHOD_BUFFERED, FILE_WRITE_DATA)",

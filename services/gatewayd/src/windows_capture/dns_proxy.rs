@@ -30,7 +30,6 @@ use crate::{
 use super::direct_dns::{WindowsDirectDomainResolver, resolve_direct_wire};
 use super::policy_cache::WindowsPolicyCache;
 
-const LOCAL_DNS_PORT: u16 = 53;
 const PROBE_ADDRESS: Ipv4Addr = Ipv4Addr::new(198, 18, 0, 1);
 const READINESS_INTERVAL: Duration = Duration::from_secs(2);
 
@@ -39,6 +38,7 @@ pub struct WindowsDnsProxy {
     processor: Arc<WindowsDnsProcessor>,
     policies: WindowsPolicyCache,
     readiness_sender: watch::Sender<bool>,
+    redirect_ports: (u16, u16),
 }
 
 struct WindowsDnsProcessor {
@@ -66,7 +66,8 @@ impl WindowsDnsProxy {
         upstreams
             .current()
             .map_err(|error| GatewayError::WindowsDataPlane(error.to_string()))?;
-        let server = LocalDnsServer::bind_loopback(LOCAL_DNS_PORT).await?;
+        let server = LocalDnsServer::bind_loopback(0).await?;
+        let redirect_ports = server.ports();
         let probe_domain = random_probe_domain()?;
         let resolution = Arc::new(DnsResolutionService::new(gateway.clone(), credential_store));
         let processor = Arc::new(WindowsDnsProcessor {
@@ -86,10 +87,16 @@ impl WindowsDnsProxy {
                 processor,
                 policies,
                 readiness_sender,
+                redirect_ports,
             },
             readiness_receiver,
             direct_resolver,
         ))
+    }
+
+    #[must_use]
+    pub const fn redirect_ports(&self) -> (u16, u16) {
+        self.redirect_ports
     }
 
     pub async fn serve(self, mut shutdown: watch::Receiver<bool>) -> Result<(), GatewayError> {
@@ -98,6 +105,7 @@ impl WindowsDnsProxy {
             processor,
             policies,
             readiness_sender,
+            redirect_ports: _,
         } = self;
         let (worker_stop_sender, worker_stop_receiver) = watch::channel(false);
         let server_worker = server.serve(
@@ -176,11 +184,9 @@ impl WindowsDnsProcessor {
             return synthetic_address_response(&wire_query, PROBE_ADDRESS.into())
                 .map_err(DnsServiceError::InvalidQuery);
         }
-        let snapshot = self
-            .policies
-            .current()
-            .await
-            .ok_or(DnsServiceError::SnapshotUnavailable)?;
+        let Some(snapshot) = self.policies.current().await else {
+            return self.resolve_direct(&query, &wire_query, 0).await;
+        };
         match plan_query(&snapshot, &query) {
             DnsQueryPlan::Synthetic { domain, family } => {
                 let binding = self
@@ -197,13 +203,21 @@ impl WindowsDnsProcessor {
                 RouteAction::Block => {
                     refused_response(&wire_query).map_err(DnsServiceError::InvalidQuery)
                 }
-                RouteAction::Direct => self.resolve_direct(&query, &wire_query, &snapshot).await,
+                RouteAction::Direct => {
+                    self.resolve_direct(&query, &wire_query, snapshot.metadata().snapshot_version())
+                        .await
+                }
                 RouteAction::Proxy => {
                     let proxy = self
                         .resolve_proxy(&query, &wire_query, &snapshot, &decision)
                         .await;
                     if proxy.is_err() && decision.failure_mode() == FailureMode::Open {
-                        self.resolve_direct(&query, &wire_query, &snapshot).await
+                        self.resolve_direct(
+                            &query,
+                            &wire_query,
+                            snapshot.metadata().snapshot_version(),
+                        )
+                        .await
                     } else {
                         proxy
                     }
@@ -216,14 +230,14 @@ impl WindowsDnsProcessor {
         &self,
         query: &ParsedDnsQuery,
         wire_query: &[u8],
-        snapshot: &nonproxy_policy::CompiledPolicySnapshot,
+        snapshot_version: u64,
     ) -> Result<Vec<u8>, DnsServiceError> {
         resolve_direct_wire(
             self.resolution.as_ref(),
             self.upstreams.as_ref(),
             query,
             wire_query,
-            snapshot.metadata().snapshot_version(),
+            snapshot_version,
         )
         .await
     }
