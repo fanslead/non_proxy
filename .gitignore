@@ -1,0 +1,67 @@
+# 操作系统和编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.fleet/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+
+# 仓库本地工具链和产物
+.tools/
+.artifacts/
+.cache/
+coverage/
+TestResults/
+
+# Rust 构建
+target/
+
+# .NET 构建
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userprefs
+*.csproj.user
+
+# Node 与浏览器包
+node_modules/
+.pnpm-store/
+dist/
+web-ext-artifacts/
+pnpm-debug.log*
+npm-debug.log*
+
+# Xcode 与 Swift
+DerivedData/
+.build/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+
+# 签名材料和敏感信息
+.env
+.env.*
+!.env.example
+*.cer
+*.der
+*.mobileprovision
+*.p12
+*.pfx
+*.provisionprofile
+*.key
+*.pem
+secrets/
+
+# 本地运行状态
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.log
+diagnostics/

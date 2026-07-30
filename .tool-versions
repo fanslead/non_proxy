@@ -1,0 +1,7 @@
+dotnet 10.0.301
+rust 1.97.1
+nodejs 24.18.0
+pnpm 11.13.1
+buf 1.72.0
+protoc 35.1
+just 1.57.0
