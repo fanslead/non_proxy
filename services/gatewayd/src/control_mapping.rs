@@ -9,7 +9,7 @@ use nonproxy_proto::{
     events::v1::RuntimeState,
     policy::v1::{PolicyConflict as ProtoPolicyConflict, PolicySnapshotMetadata, SnapshotState},
 };
-use nonproxy_storage::{OutboundKind, OutboundReference, SnapshotArtifact};
+use nonproxy_storage::{OutboundKind, OutboundReference, SnapshotArtifact, SnapshotStatus};
 
 use crate::{
     GatewayError, RuntimePolicyRecord, RuntimePolicyState, clock::timestamp_from_unix_ms,
@@ -48,6 +48,16 @@ pub fn snapshot_metadata(
         policy_count: u32::try_from(artifact.policy_count())
             .map_err(|_| GatewayError::InvalidRequest("策略数量超出协议范围"))?,
     })
+}
+
+#[must_use]
+pub const fn snapshot_state(status: SnapshotStatus) -> SnapshotState {
+    match status {
+        SnapshotStatus::Pending => SnapshotState::PendingAck,
+        SnapshotStatus::Active => SnapshotState::Active,
+        SnapshotStatus::Superseded => SnapshotState::Superseded,
+        SnapshotStatus::Rejected => SnapshotState::Rejected,
+    }
 }
 
 #[must_use]

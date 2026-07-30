@@ -65,13 +65,31 @@ if (!started.sessionID) {
   throw new Error("Native Host 未返回学习会话 ID。");
 }
 
-const observed = exchange({
+const mainObserved = exchange({
   protocolVersion: 1,
-  requestID: "smoke-observe",
+  requestID: "smoke-observe-main",
   type: "observeLearning",
   payload: {
     sessionID: started.sessionID,
-    observationID: "smoke-observation",
+    observationID: "smoke-observation-main",
+    browserContextID: "smoke-browser-context",
+    kind: "mainFrame",
+    normalizedDomain: "nonproxy.test",
+    initiatorDomain: "nonproxy.test",
+    resourceType: "mainFrame",
+  },
+});
+if (mainObserved.candidate?.kind !== "requiredFirstParty") {
+  throw new Error("Native Host 主站学习观测结果不正确。");
+}
+
+const observed = exchange({
+  protocolVersion: 1,
+  requestID: "smoke-observe-api",
+  type: "observeLearning",
+  payload: {
+    sessionID: started.sessionID,
+    observationID: "smoke-observation-api",
     browserContextID: "smoke-browser-context",
     kind: "subresource",
     normalizedDomain: "api.nonproxy.test",
@@ -94,7 +112,7 @@ const listed = exchange({
 });
 if (
   listed.session?.browserContextID !== "smoke-browser-context" ||
-  listed.candidates?.length !== 1
+  listed.candidates?.length !== 2
 ) {
   throw new Error("Native Host 学习候选查询结果不正确。");
 }
@@ -106,12 +124,31 @@ const stopped = exchange({
   payload: { sessionID: started.sessionID },
 });
 if (
-  stopped.candidateCount !== 1 ||
+  stopped.candidateCount !== 2 ||
   stopped.session?.state !== "stopped"
 ) {
   throw new Error("Native Host 停止学习结果不正确。");
 }
 
+const confirmed = exchange({
+  protocolVersion: 1,
+  requestID: "smoke-confirm",
+  type: "confirmLearning",
+  payload: {
+    sessionID: started.sessionID,
+    confirmationID: "smoke-confirmation",
+    selectedDomains: ["nonproxy.test", "api.nonproxy.test"],
+  },
+});
+if (
+  confirmed.policies?.length !== 2 ||
+  confirmed.snapshotVersion !== 1 ||
+  confirmed.snapshotState !== "pendingAck" ||
+  confirmed.replayed
+) {
+  throw new Error("Native Host 候选确认结果不正确。");
+}
+
 process.stdout.write(
-  "Native Messaging 跨语言联调通过：长度前缀、来源校验、能力认证、UDS 与学习生命周期一致。\n",
+  "Native Messaging 跨语言联调通过：来源校验、能力认证、UDS、学习生命周期与候选确认一致。\n",
 );

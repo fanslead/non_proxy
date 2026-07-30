@@ -2,6 +2,29 @@ import NonProxyProviderContracts
 import SwiftProtobuf
 
 extension NativeLearningClient {
+    func snapshotState(
+        _ value: Nonproxy_Policy_V1_SnapshotState
+    ) throws -> String {
+        switch value {
+        case .pendingAck:
+            "pendingAck"
+        case .active:
+            "active"
+        case .rejected:
+            "rejected"
+        case .rolledBack:
+            "rolledBack"
+        case .superseded:
+            "superseded"
+        case .draft:
+            "draft"
+        case .unspecified, .UNRECOGNIZED:
+            throw NativeMessagingError.runtimeUnavailable(
+                "gatewayd 返回的策略快照状态无效。"
+            )
+        }
+    }
+
     func reject(
         _ error: Nonproxy_Common_V1_ErrorDetail?
     ) throws {

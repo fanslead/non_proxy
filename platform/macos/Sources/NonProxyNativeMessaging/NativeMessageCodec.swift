@@ -48,6 +48,8 @@ public struct NativeMessageCodec: Sendable {
             payload = .list(try decodePayload(data))
         case "stopLearning":
             payload = .stop(try decodePayload(data))
+        case "confirmLearning":
+            payload = .confirm(try decodePayload(data))
         default:
             throw NativeMessagingError.invalidMessage(
                 "Native Messaging 消息类型不受支持。"

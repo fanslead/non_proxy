@@ -327,6 +327,16 @@ impl ControlService for ControlRpcService {
         ))
     }
 
+    async fn confirm_learning_candidates(
+        &self,
+        request: Request<control_proto::ConfirmLearningCandidatesRequest>,
+    ) -> Result<Response<control_proto::ConfirmLearningCandidatesResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            learning_rpc::confirm(&self.gateway, request.into_inner()).await?,
+        ))
+    }
+
     async fn export_diagnostics(
         &self,
         request: Request<control_proto::ExportDiagnosticsRequest>,

@@ -202,6 +202,19 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "ConfirmLearningCandidates" metadata.
+        public enum ConfirmLearningCandidates: Sendable {
+            /// Request type for "ConfirmLearningCandidates".
+            public typealias Input = Nonproxy_Control_V1_ConfirmLearningCandidatesRequest
+            /// Response type for "ConfirmLearningCandidates".
+            public typealias Output = Nonproxy_Control_V1_ConfirmLearningCandidatesResponse
+            /// Descriptor for "ConfirmLearningCandidates".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "ConfirmLearningCandidates",
+                type: .unary
+            )
+        }
         /// Namespace for "ExportDiagnostics" metadata.
         public enum ExportDiagnostics: Sendable {
             /// Request type for "ExportDiagnostics".
@@ -244,6 +257,7 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             RecordLearningObservation.descriptor,
             ListLearningCandidates.descriptor,
             StopLearningSession.descriptor,
+            ConfirmLearningCandidates.descriptor,
             ExportDiagnostics.descriptor,
             SubscribeEvents.descriptor
         ]
@@ -533,6 +547,25 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_StopLearningSessionResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_StopLearningSessionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "ConfirmLearningCandidates" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ConfirmLearningCandidatesRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ConfirmLearningCandidatesRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ConfirmLearningCandidatesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func confirmLearningCandidates<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ConfirmLearningCandidatesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ConfirmLearningCandidatesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ConfirmLearningCandidatesResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ConfirmLearningCandidatesResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "ExportDiagnostics" method.
@@ -1014,6 +1047,36 @@ extension Nonproxy_Control_V1_ControlService {
             )
         }
 
+        /// Call the "ConfirmLearningCandidates" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ConfirmLearningCandidatesRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ConfirmLearningCandidatesRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ConfirmLearningCandidatesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func confirmLearningCandidates<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ConfirmLearningCandidatesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ConfirmLearningCandidatesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ConfirmLearningCandidatesResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ConfirmLearningCandidatesResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.ConfirmLearningCandidates.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
         /// Call the "ExportDiagnostics" method.
         ///
         /// - Parameters:
@@ -1422,6 +1485,31 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_StopLearningSessionRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_StopLearningSessionResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ConfirmLearningCandidates" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_ConfirmLearningCandidatesRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func confirmLearningCandidates<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ConfirmLearningCandidatesRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ConfirmLearningCandidatesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.confirmLearningCandidates(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_ConfirmLearningCandidatesRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_ConfirmLearningCandidatesResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1879,6 +1967,35 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.stopLearningSession(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ConfirmLearningCandidates" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func confirmLearningCandidates<Result>(
+        _ message: Nonproxy_Control_V1_ConfirmLearningCandidatesRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ConfirmLearningCandidatesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_ConfirmLearningCandidatesRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.confirmLearningCandidates(
             request: request,
             options: options,
             onResponse: handleResponse

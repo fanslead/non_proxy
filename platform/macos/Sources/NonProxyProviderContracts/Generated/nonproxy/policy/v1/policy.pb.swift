@@ -191,6 +191,7 @@ public nonisolated enum Nonproxy_Policy_V1_SnapshotState: SwiftProtobuf.Enum, Sw
   case active // = 3
   case rejected // = 4
   case rolledBack // = 5
+  case superseded // = 6
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -205,6 +206,7 @@ public nonisolated enum Nonproxy_Policy_V1_SnapshotState: SwiftProtobuf.Enum, Sw
     case 3: self = .active
     case 4: self = .rejected
     case 5: self = .rolledBack
+    case 6: self = .superseded
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -217,6 +219,7 @@ public nonisolated enum Nonproxy_Policy_V1_SnapshotState: SwiftProtobuf.Enum, Sw
     case .active: return 3
     case .rejected: return 4
     case .rolledBack: return 5
+    case .superseded: return 6
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -229,6 +232,7 @@ public nonisolated enum Nonproxy_Policy_V1_SnapshotState: SwiftProtobuf.Enum, Sw
     .active,
     .rejected,
     .rolledBack,
+    .superseded,
   ]
 
 }
@@ -676,7 +680,7 @@ nonisolated extension Nonproxy_Policy_V1_DomainMatchKind: SwiftProtobuf._ProtoNa
 }
 
 nonisolated extension Nonproxy_Policy_V1_SnapshotState: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SNAPSHOT_STATE_UNSPECIFIED\0\u{1}SNAPSHOT_STATE_DRAFT\0\u{1}SNAPSHOT_STATE_PENDING_ACK\0\u{1}SNAPSHOT_STATE_ACTIVE\0\u{1}SNAPSHOT_STATE_REJECTED\0\u{1}SNAPSHOT_STATE_ROLLED_BACK\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SNAPSHOT_STATE_UNSPECIFIED\0\u{1}SNAPSHOT_STATE_DRAFT\0\u{1}SNAPSHOT_STATE_PENDING_ACK\0\u{1}SNAPSHOT_STATE_ACTIVE\0\u{1}SNAPSHOT_STATE_REJECTED\0\u{1}SNAPSHOT_STATE_ROLLED_BACK\0\u{1}SNAPSHOT_STATE_SUPERSEDED\0")
 }
 
 nonisolated extension Nonproxy_Policy_V1_AppMatcher: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

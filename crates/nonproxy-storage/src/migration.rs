@@ -16,6 +16,8 @@ const POLICY_CATALOG_GENERATION: &str =
 const PROVIDER_GENERATION: &str =
     include_str!("../../../migrations/V0003__provider_generation.sql");
 const LEARNING_SESSIONS: &str = include_str!("../../../migrations/V0004__learning_sessions.sql");
+const LEARNING_CONFIRMATIONS: &str =
+    include_str!("../../../migrations/V0005__learning_confirmations.sql");
 
 struct Migration {
     version: i64,
@@ -43,6 +45,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 4,
         name: "learning_sessions",
         sql: LEARNING_SESSIONS,
+    },
+    Migration {
+        version: 5,
+        name: "learning_confirmations",
+        sql: LEARNING_CONFIRMATIONS,
     },
 ];
 

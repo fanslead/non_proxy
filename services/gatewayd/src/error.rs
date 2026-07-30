@@ -66,6 +66,10 @@ impl GatewayError {
                 | StorageError::ActiveLearningSessionExists
                 | StorageError::LearningCandidateLimitReached
                 | StorageError::LearningObservationLimitReached
+                | StorageError::LearningSessionStillActive
+                | StorageError::LearningConfirmationInvalid
+                | StorageError::LearningSessionAlreadyConfirmed
+                | StorageError::LearningConfirmationReplayMismatch
                 | StorageError::Learning(_)),
             ) => error.code(),
             Self::Storage(_) => "NP_STORAGE_FAILURE",

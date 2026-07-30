@@ -33,6 +33,7 @@ macro_rules! learning_identifier {
 learning_identifier!(LearningSessionId);
 learning_identifier!(BrowserContextId);
 learning_identifier!(ObservationId);
+learning_identifier!(ConfirmationId);
 
 fn validate(value: &str) -> Result<(), LearningError> {
     if value.is_empty()
@@ -55,5 +56,6 @@ mod tests {
         assert!(LearningSessionId::new("../session").is_err());
         assert!(BrowserContextId::new("tab 1").is_err());
         assert!(ObservationId::new("").is_err());
+        assert!(ConfirmationId::new("confirm/path").is_err());
     }
 }

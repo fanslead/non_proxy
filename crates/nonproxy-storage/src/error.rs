@@ -83,6 +83,14 @@ pub enum StorageError {
     LearningCandidateLimitReached,
     #[error("学习会话已达到观测数量上限")]
     LearningObservationLimitReached,
+    #[error("学习会话仍在进行，不能确认候选")]
+    LearningSessionStillActive,
+    #[error("学习候选确认内容无效")]
+    LearningConfirmationInvalid,
+    #[error("学习会话已经确认")]
+    LearningSessionAlreadyConfirmed,
+    #[error("学习确认幂等请求与既有收据不一致")]
+    LearningConfirmationReplayMismatch,
 }
 
 impl StorageError {
@@ -124,6 +132,10 @@ impl StorageError {
             Self::ActiveLearningSessionExists => "NP_LEARNING_SESSION_ALREADY_ACTIVE",
             Self::LearningCandidateLimitReached => "NP_LEARNING_CANDIDATE_LIMIT_REACHED",
             Self::LearningObservationLimitReached => "NP_LEARNING_OBSERVATION_LIMIT_REACHED",
+            Self::LearningSessionStillActive => "NP_LEARNING_SESSION_STILL_ACTIVE",
+            Self::LearningConfirmationInvalid => "NP_LEARNING_CONFIRMATION_INVALID",
+            Self::LearningSessionAlreadyConfirmed => "NP_LEARNING_SESSION_ALREADY_CONFIRMED",
+            Self::LearningConfirmationReplayMismatch => "NP_LEARNING_CONFIRMATION_REPLAY_MISMATCH",
         }
     }
 }

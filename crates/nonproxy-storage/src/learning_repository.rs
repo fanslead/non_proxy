@@ -210,7 +210,10 @@ impl<'connection> LearningRepository<'connection> {
     }
 }
 
-fn expire_active(transaction: &Transaction<'_>, now_unix_ms: u64) -> Result<(), StorageError> {
+pub(crate) fn expire_active(
+    transaction: &Transaction<'_>,
+    now_unix_ms: u64,
+) -> Result<(), StorageError> {
     transaction.execute(
         "UPDATE learning_session
          SET state = 'expired', stopped_at_unix_ms = expires_at_unix_ms

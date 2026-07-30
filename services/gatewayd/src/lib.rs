@@ -12,6 +12,7 @@ mod event_hub;
 #[cfg(unix)]
 mod flow_server;
 mod gateway;
+mod learning_confirmation_gateway;
 mod learning_contract;
 mod learning_gateway;
 mod learning_rpc;
@@ -27,6 +28,7 @@ mod runtime_identity;
 mod runtime_policy;
 mod server;
 mod session_capability;
+mod snapshot_builder;
 mod snapshot_payload;
 #[cfg(unix)]
 mod unix_socket;
@@ -35,6 +37,7 @@ pub use config::GatewayConfig;
 pub use error::GatewayError;
 pub use event_hub::EventHub;
 pub use gateway::{Gateway, GatewayStatus, ProviderSnapshot, PublishedSnapshot};
+pub use learning_confirmation_gateway::LearningConfirmationResult;
 pub use runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, RuntimePolicyState};
 pub use server::run;
 pub use snapshot_payload::{SNAPSHOT_PAYLOAD_FORMAT, decode as decode_snapshot_payload};

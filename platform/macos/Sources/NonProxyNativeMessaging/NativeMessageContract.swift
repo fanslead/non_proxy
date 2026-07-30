@@ -6,6 +6,7 @@ public enum NativeRequestPayload: Equatable, Sendable {
     case observe(ObserveLearningPayload)
     case list(SessionPayload)
     case stop(SessionPayload)
+    case confirm(ConfirmLearningPayload)
 }
 
 public struct NativeRequest: Equatable, Sendable {
@@ -75,6 +76,22 @@ public struct SessionPayload: Codable, Equatable, Sendable {
     }
 }
 
+public struct ConfirmLearningPayload: Codable, Equatable, Sendable {
+    public let sessionID: String
+    public let confirmationID: String
+    public let selectedDomains: [String]
+
+    public init(
+        sessionID: String,
+        confirmationID: String,
+        selectedDomains: [String]
+    ) {
+        self.sessionID = sessionID
+        self.confirmationID = confirmationID
+        self.selectedDomains = selectedDomains
+    }
+}
+
 public struct NativeErrorPayload: Codable, Equatable, Sendable {
     public let code: String
     public let message: String
@@ -86,6 +103,7 @@ public enum NativeResponsePayload: Encodable, Equatable, Sendable {
     case observed(ObservationResult)
     case candidates(CandidateListResult)
     case stopped(StopLearningResult)
+    case confirmed(ConfirmLearningResult)
 }
 
 public struct NativeResponse: Encodable, Equatable, Sendable {
@@ -181,6 +199,35 @@ public struct StopLearningResult: Codable, Equatable, Sendable {
     }
 }
 
+public struct ConfirmLearningResult: Codable, Equatable, Sendable {
+    public let policies: [ConfirmedPolicyResult]
+    public let snapshotVersion: UInt64
+    public let snapshotState: String
+    public let replayed: Bool
+
+    public init(
+        policies: [ConfirmedPolicyResult],
+        snapshotVersion: UInt64,
+        snapshotState: String,
+        replayed: Bool
+    ) {
+        self.policies = policies
+        self.snapshotVersion = snapshotVersion
+        self.snapshotState = snapshotState
+        self.replayed = replayed
+    }
+}
+
+public struct ConfirmedPolicyResult: Codable, Equatable, Sendable {
+    public let normalizedDomain: String
+    public let policyID: String
+
+    public init(normalizedDomain: String, policyID: String) {
+        self.normalizedDomain = normalizedDomain
+        self.policyID = policyID
+    }
+}
+
 public struct SessionResult: Codable, Equatable, Sendable {
     public let sessionID: String
     public let state: String
@@ -263,6 +310,8 @@ extension NativeResponsePayload {
         case .candidates(let value):
             try value.encode(to: encoder)
         case .stopped(let value):
+            try value.encode(to: encoder)
+        case .confirmed(let value):
             try value.encode(to: encoder)
         }
     }

@@ -140,6 +140,47 @@ public final class NativeLearningClient: NativeLearningServing, Sendable {
         )
     }
 
+    public func confirm(
+        _ payload: ConfirmLearningPayload
+    ) async throws -> ConfirmLearningResult {
+        var request =
+            Nonproxy_Control_V1_ConfirmLearningCandidatesRequest()
+        request.context = operationContext(prefix: "native-confirm")
+        request.sessionID = payload.sessionID
+        request.confirmationID = payload.confirmationID
+        request.selectedDomains = payload.selectedDomains
+        let authenticatedRequest = request
+        let response:
+            Nonproxy_Control_V1_ConfirmLearningCandidatesResponse =
+            try await connection.perform { client in
+                try await client.confirmLearningCandidates(
+                    request: ClientRequest(
+                        message: authenticatedRequest
+                    ),
+                    options: Self.callOptions
+                )
+            }
+        try reject(response.hasError ? response.error : nil)
+        guard response.hasSnapshot else {
+            throw NativeMessagingError.runtimeUnavailable(
+                "gatewayd 未返回确认后的策略快照。"
+            )
+        }
+        return ConfirmLearningResult(
+            policies: response.policies.map {
+                ConfirmedPolicyResult(
+                    normalizedDomain: $0.normalizedDomain,
+                    policyID: $0.policyID
+                )
+            },
+            snapshotVersion: response.snapshot.snapshotVersion,
+            snapshotState: try snapshotState(
+                response.snapshot.state
+            ),
+            replayed: response.replayed
+        )
+    }
+
     public func shutdown() {
         connection.shutdown()
     }

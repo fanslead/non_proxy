@@ -64,14 +64,14 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         panic!("V1 数据库升级失败: {upgraded:?}");
     };
     assert_eq!(upgraded.previous_version(), 1);
-    assert_eq!(upgraded.current_version(), 4);
+    assert_eq!(upgraded.current_version(), 5);
     assert_eq!(
         upgraded
             .applied()
             .iter()
             .map(AppliedMigration::version)
             .collect::<Vec<_>>(),
-        vec![2, 3, 4]
+        vec![2, 3, 4, 5]
     );
     let generation: i64 = match connection.query_row(
         "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
@@ -122,7 +122,7 @@ fn legacy_learning_rows_upgrade_without_losing_candidates() {
     let Ok(upgraded) = upgraded else {
         panic!("旧学习数据升级失败: {upgraded:?}");
     };
-    assert_eq!(upgraded.current_version(), 4);
+    assert_eq!(upgraded.current_version(), 5);
     let session: (String, String, i64) = match connection.query_row(
         "SELECT browser_context_id, state, expires_at_unix_ms
          FROM learning_session WHERE id = 'legacy-session'",

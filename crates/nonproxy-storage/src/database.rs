@@ -7,9 +7,9 @@ use std::{
 use rusqlite::{Connection, OpenFlags};
 
 use crate::{
-    LearningRepository, MigrationReport, NetworkProfileRepository, OutboundRepository,
-    PolicyRepository, ProviderRepository, RetentionRepository, SnapshotRepository, StorageError,
-    migration::migrate,
+    LearningConfirmationRepository, LearningRepository, MigrationReport, NetworkProfileRepository,
+    OutboundRepository, PolicyRepository, ProviderRepository, RetentionRepository,
+    SnapshotRepository, StorageError, migration::migrate,
 };
 
 #[derive(Debug)]
@@ -97,6 +97,11 @@ impl PolicyDatabase {
     #[must_use]
     pub fn learning(&mut self) -> LearningRepository<'_> {
         LearningRepository::new(&mut self.connection)
+    }
+
+    #[must_use]
+    pub fn learning_confirmations(&mut self) -> LearningConfirmationRepository<'_> {
+        LearningConfirmationRepository::new(&mut self.connection)
     }
 
     #[must_use]

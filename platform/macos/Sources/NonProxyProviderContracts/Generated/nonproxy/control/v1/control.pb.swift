@@ -1516,6 +1516,88 @@ public nonisolated struct Nonproxy_Control_V1_StopLearningSessionResponse: Senda
   fileprivate var _session: Nonproxy_Control_V1_LearningSessionSummary? = nil
 }
 
+/// ConfirmLearningCandidatesRequest 将已结束站点会话中选中的域名原子写为直连规则。
+public nonisolated struct Nonproxy_Control_V1_ConfirmLearningCandidatesRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var sessionID: String = String()
+
+  /// confirmation_id 是客户端生成的幂等键；相同键只能重放完全相同的选择。
+  public var confirmationID: String = String()
+
+  public var selectedDomains: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+}
+
+/// ConfirmedLearningPolicy 返回规范化域名与最终策略 ID 的稳定映射。
+public nonisolated struct Nonproxy_Control_V1_ConfirmedLearningPolicy: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var normalizedDomain: String = String()
+
+  public var policyID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// ConfirmLearningCandidatesResponse 返回全量确认结果和待 Provider 确认的快照。
+public nonisolated struct Nonproxy_Control_V1_ConfirmLearningCandidatesResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var policies: [Nonproxy_Control_V1_ConfirmedLearningPolicy] = []
+
+  public var snapshot: Nonproxy_Policy_V1_PolicySnapshotMetadata {
+    get {_snapshot ?? Nonproxy_Policy_V1_PolicySnapshotMetadata()}
+    set {_snapshot = newValue}
+  }
+  /// Returns true if `snapshot` has been explicitly set.
+  public var hasSnapshot: Bool {self._snapshot != nil}
+  /// Clears the value of `snapshot`. Subsequent reads from it will return its default value.
+  public mutating func clearSnapshot() {self._snapshot = nil}
+
+  public var replayed: Bool = false
+
+  public var conflicts: [Nonproxy_Policy_V1_PolicyConflict] = []
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _snapshot: Nonproxy_Policy_V1_PolicySnapshotMetadata? = nil
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+}
+
 /// ExportDiagnosticsRequest 请求生成本地诊断包，不自动上传。
 public nonisolated struct Nonproxy_Control_V1_ExportDiagnosticsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -3367,6 +3449,144 @@ nonisolated extension Nonproxy_Control_V1_StopLearningSessionResponse: SwiftProt
     if lhs.candidateCount != rhs.candidateCount {return false}
     if lhs._error != rhs._error {return false}
     if lhs._session != rhs._session {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ConfirmLearningCandidatesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ConfirmLearningCandidatesRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}session_id\0\u{3}confirmation_id\0\u{3}selected_domains\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.confirmationID) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.selectedDomains) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.sessionID.isEmpty {
+      try visitor.visitSingularStringField(value: self.sessionID, fieldNumber: 2)
+    }
+    if !self.confirmationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.confirmationID, fieldNumber: 3)
+    }
+    if !self.selectedDomains.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.selectedDomains, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ConfirmLearningCandidatesRequest, rhs: Nonproxy_Control_V1_ConfirmLearningCandidatesRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.sessionID != rhs.sessionID {return false}
+    if lhs.confirmationID != rhs.confirmationID {return false}
+    if lhs.selectedDomains != rhs.selectedDomains {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ConfirmedLearningPolicy: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ConfirmedLearningPolicy"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}normalized_domain\0\u{3}policy_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.normalizedDomain) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.policyID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.normalizedDomain.isEmpty {
+      try visitor.visitSingularStringField(value: self.normalizedDomain, fieldNumber: 1)
+    }
+    if !self.policyID.isEmpty {
+      try visitor.visitSingularStringField(value: self.policyID, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ConfirmedLearningPolicy, rhs: Nonproxy_Control_V1_ConfirmedLearningPolicy) -> Bool {
+    if lhs.normalizedDomain != rhs.normalizedDomain {return false}
+    if lhs.policyID != rhs.policyID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ConfirmLearningCandidatesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ConfirmLearningCandidatesResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}policies\0\u{1}snapshot\0\u{1}replayed\0\u{1}conflicts\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.policies) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._snapshot) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.replayed) }()
+      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.conflicts) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.policies.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.policies, fieldNumber: 1)
+    }
+    try { if let v = self._snapshot {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.replayed != false {
+      try visitor.visitSingularBoolField(value: self.replayed, fieldNumber: 3)
+    }
+    if !self.conflicts.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.conflicts, fieldNumber: 4)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ConfirmLearningCandidatesResponse, rhs: Nonproxy_Control_V1_ConfirmLearningCandidatesResponse) -> Bool {
+    if lhs.policies != rhs.policies {return false}
+    if lhs._snapshot != rhs._snapshot {return false}
+    if lhs.replayed != rhs.replayed {return false}
+    if lhs.conflicts != rhs.conflicts {return false}
+    if lhs._error != rhs._error {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

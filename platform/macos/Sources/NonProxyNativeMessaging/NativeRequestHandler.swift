@@ -19,6 +19,7 @@ public struct NativeRequestHandler: Sendable {
                             "site-learning-v1",
                             "domain-only-observation-v1",
                             "tab-context-isolation-v1",
+                            "atomic-candidate-confirmation-v1",
                         ]
                     )
                 )
@@ -30,6 +31,10 @@ public struct NativeRequestHandler: Sendable {
                 payload = .candidates(try await service.list(value))
             case .stop(let value):
                 payload = .stopped(try await service.stop(value))
+            case .confirm(let value):
+                payload = .confirmed(
+                    try await service.confirm(value)
+                )
             }
             return .success(
                 requestID: request.requestID,

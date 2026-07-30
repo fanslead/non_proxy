@@ -1,5 +1,5 @@
 use nonproxy_learning::{
-    AppLearningSubject, BrowserContextId, LearningCandidate, LearningCandidateKind,
+    AppLearningSubject, BrowserContextId, ConfirmationId, LearningCandidate, LearningCandidateKind,
     LearningObservation, LearningObservationKind, LearningResourceType, LearningSession,
     LearningSessionId, LearningSessionKind, LearningSessionState, LearningSubject, ObservationId,
 };
@@ -69,6 +69,17 @@ pub fn observation_from_proto(
 
 pub fn session_id(value: &str) -> Result<LearningSessionId, GatewayError> {
     LearningSessionId::new(value.to_owned()).map_err(GatewayError::from)
+}
+
+pub fn confirmation_id(value: &str) -> Result<ConfirmationId, GatewayError> {
+    ConfirmationId::new(value.to_owned()).map_err(GatewayError::from)
+}
+
+pub fn selected_domains(values: &[String]) -> Result<Vec<DomainName>, GatewayError> {
+    values
+        .iter()
+        .map(|value| normalized_domain(value))
+        .collect()
 }
 
 pub fn session_to_proto(

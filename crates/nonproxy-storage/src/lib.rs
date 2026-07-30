@@ -1,6 +1,8 @@
 mod database;
 mod error;
 mod learning_codec;
+mod learning_confirmation_receipt;
+mod learning_confirmation_repository;
 mod learning_repository;
 mod migration;
 mod network_profile;
@@ -16,6 +18,10 @@ mod types;
 
 pub use database::PolicyDatabase;
 pub use error::StorageError;
+pub use learning_confirmation_receipt::{ConfirmedLearningPolicy, LearningConfirmationReceipt};
+pub use learning_confirmation_repository::{
+    LearningConfirmationRepository, LearningPolicySelection,
+};
 pub use learning_repository::{LearningObservationResult, LearningRepository, StoppedLearning};
 pub use migration::{AppliedMigration, MigrationReport};
 pub use network_profile::{

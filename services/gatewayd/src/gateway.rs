@@ -1,7 +1,7 @@
 use std::{path::Path, sync::Arc};
 
 use nonproxy_model::{DecisionSpec, OutboundId, Policy, PolicyId};
-use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
+use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_storage::{
     OutboundReference, PolicyDatabase, ProviderAck, ProviderAckState, SnapshotArtifact,
     SnapshotRecord, StorageError,
@@ -13,10 +13,10 @@ use crate::{
     clock::unix_time_ms,
     database_executor::DatabaseExecutor,
     event_hub::EventHub,
-    outbound_capabilities,
     provider_health::ProviderHealthRegistry,
     provider_requirements,
     runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, build_runtime_catalog},
+    snapshot_builder::build_snapshot,
     snapshot_payload,
 };
 
@@ -165,41 +165,31 @@ impl Gateway {
     pub async fn compile_and_stage(&self) -> Result<PublishedSnapshot, GatewayError> {
         let _operation = self.mutation_gate.lock().await;
         let now = unix_time_ms()?;
+        self.compile_and_stage_locked(now).await
+    }
+
+    pub(crate) async fn compile_and_stage_locked(
+        &self,
+        now_unix_ms: u64,
+    ) -> Result<PublishedSnapshot, GatewayError> {
         let capabilities = self.capabilities.clone();
         self.database
             .run(move |database| {
                 let policies = database.policies().list()?;
                 let outbounds = database.outbounds().list()?;
-                let capabilities =
-                    outbound_capabilities::for_configured_outbounds(capabilities, &outbounds);
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
                 let snapshot_version = current
                     .checked_add(1)
                     .ok_or(GatewayError::SnapshotVersionExhausted)?;
-                let default_decision = DecisionSpec::direct();
-                let compiled = PolicyCompiler::compile(CompileRequest::new(
+                let published = build_snapshot(
+                    capabilities,
+                    &policies,
+                    &outbounds,
                     snapshot_version,
-                    now,
-                    default_decision.clone(),
-                    policies.clone(),
-                    capabilities.clone(),
-                ))?;
-                let payload =
-                    snapshot_payload::encode(&policies, &capabilities, &default_decision)?;
-                let metadata = compiled.metadata();
-                let artifact = SnapshotArtifact::new(
-                    metadata.snapshot_version(),
-                    metadata.schema_version(),
-                    metadata.created_at_unix_ms(),
-                    *metadata.content_hash(),
-                    metadata.policy_count(),
-                    payload,
+                    now_unix_ms,
                 )?;
-                database.snapshots().stage(&artifact)?;
-                Ok(PublishedSnapshot {
-                    artifact,
-                    default_decision,
-                })
+                database.snapshots().stage(published.artifact())?;
+                Ok(published)
             })
             .await
     }
@@ -363,6 +353,13 @@ impl Gateway {
 }
 
 impl PublishedSnapshot {
+    pub(crate) const fn new(artifact: SnapshotArtifact, default_decision: DecisionSpec) -> Self {
+        Self {
+            artifact,
+            default_decision,
+        }
+    }
+
     #[must_use]
     pub const fn artifact(&self) -> &SnapshotArtifact {
         &self.artifact

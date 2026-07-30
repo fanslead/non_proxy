@@ -1503,6 +1503,10 @@ unknown
 
 候选按精确域名聚合，并保留可注册域、分类、千分制置信度、确认要求和三类事件计数。同一可注册域只有达到高置信度后才可标记为无需再次确认；跨域 API、登录、CDN、第三方和未知候选始终要求用户确认。评分结果本身不写策略。
 
+`ConfirmLearningCandidates` 只接受已停止或已过期的站点会话、客户端随机 `confirmation_id` 和最多 256 个规范化域名。`gatewayd` 再次验证每个选择都来自该会话的真实候选，并强制包含主站；客户端不能借确认接口写入任意域名、应用规则、代理规则或带额外端口/协议维度的规则。
+
+确认前先用当前完整策略目录执行编译预检，并在已有 `pending` 快照时拒绝新确认，避免把尚未生效的策略误报为本次结果。通过后，所有新建的精确域名 `DIRECT` 规则、已有规则复用关系、逐候选选择结果、确认收据和目录 generation 在一个 `BEGIN IMMEDIATE` 事务中提交；任一项失败则整批不写。规则批次提交后再暂存不可变快照并回填收据中的版本。若进程在这两个事务边界之间中断，同一 `confirmation_id` 和完全相同的域名集合会恢复快照发布；会话或选择发生变化则以 `NP_LEARNING_CONFIRMATION_REPLAY_MISMATCH` 拒绝，不能重复建规则。
+
 ### 18.5 macOS Native Messaging Host
 
 `NonProxyNativeMessagingHost` 是随主应用签名和嵌入的 Swift 可执行文件。Chromium 启动宿主时传入的扩展 origin 必须与仓库固定公钥对应的扩展 ID 完全一致；浏览器清单自身也使用相同 `allowed_origins` 做第一层限制。宿主不监听 TCP、不访问 SQLite、不保存规则。
@@ -1511,7 +1515,7 @@ stdin/stdout 使用浏览器规定的 4 字节小端长度前缀 JSON 帧。输�
 
 宿主使用 `O_NOFOLLOW` 打开 `session.capability`，并校验它是当前用户拥有、无 group/other 权限、精确 32 字节的普通文件。随后通过明文仅限本机文件系统权限保护的 Unix Domain Socket 调用 `gatewayd`；每次 RPC 都生成新的安全 operation ID，并携带内存中的能力 Token。
 
-主应用安装事务为 Chrome、Chromium、Edge 和 Brave 写入用户级 `com.nonproxy.browser.json`。清单中的宿主路径指向当前 `.app/Contents/Resources/nonproxy-native-messaging-host`；更新会原子替换，后续系统组件安装失败会恢复既有清单，明确卸载会移除 NonProxy 自有清单。打包门禁检查宿主与主程序架构一致且代码签名有效；跨语言冒烟使用真实长度前缀和 stdin/stdout 完成开始、观测、查询、停止全生命周期。
+主应用安装事务为 Chrome、Chromium、Edge 和 Brave 写入用户级 `com.nonproxy.browser.json`。清单中的宿主路径指向当前 `.app/Contents/Resources/nonproxy-native-messaging-host`；更新会原子替换，后续系统组件安装失败会恢复既有清单，明确卸载会移除 NonProxy 自有清单。打包门禁检查宿主与主程序架构一致且代码签名有效；跨语言冒烟使用真实长度前缀和 stdin/stdout 完成开始、观测、查询、停止、候选确认和快照暂存全生命周期。
 
 ### 18.6 共享 WebExtension 实现
 
@@ -1523,7 +1527,7 @@ Chromium 使用 Manifest V3 service worker。清单常驻权限只有 `activeTab
 
 Native Messaging 客户端按 `requestID` 关联并发响应，设置 12 秒超时。只有端口断开或超时可以使用同一个请求身份重试一次；服务端业务错误不重放。自动化测试覆盖多标签页隔离、去敏、过期权限回收、固定 Chromium 扩展 ID、最小权限、双目标代码一致性和重试语义。
 
-当前边界：Chromium/Safari 共享代码和分发资产已经建立；Safari App Extension 容器、候选逐项确认并原子写入规则，以及真实浏览器隐私窗口和多标签页 UI 验收属于后续交付。
+当前边界：Chromium/Safari 共享代码和分发资产、候选确认控制契约、服务端原子规则批次和 Native Messaging 转发已经建立；浏览器弹窗的候选逐项选择、Safari App Extension 容器，以及真实浏览器隐私窗口和多标签页 UI 验收属于后续交付。
 
 ## 19. 存储
 
@@ -1567,6 +1571,8 @@ schema_migration
 策略、出口和网络画像写入使用显式 revision 乐观锁。Wi-Fi 网络画像只保存 SHA-256 指纹，不保存原始 SSID。出口 endpoint 只接受规范化主机名或 IP，不接受可能携带用户名、密码或 Token 的 URI。
 
 学习表通过追加的 V4 migration 从首版预留结构升级，增加权威过期时间、应用平台、随机浏览器上下文、候选确认状态和有界幂等收据。过期在任一学习读写事务开始时惰性结算；停止与观测重放均保持幂等。
+
+V5 migration 新增 `learning_confirmation` 与 `learning_candidate_decision`。前者以确认 ID 为主键、以学习会话为唯一键并记录最终快照版本；后者为会话中的每个候选保存是否选中及最终策略 ID。策略删除不会反向删除历史选择中的策略 ID 文本；学习数据按保留策略删除时，其确认明细随会话清理。
 
 ### 19.2 快照发布事务
 

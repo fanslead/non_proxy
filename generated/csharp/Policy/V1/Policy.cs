@@ -111,12 +111,13 @@ namespace NonProxy.Policy.V1 {
             "SUdJTl9BREFQVEVSEAUqmQEKD0RvbWFpbk1hdGNoS2luZBIhCh1ET01BSU5f",
             "TUFUQ0hfS0lORF9VTlNQRUNJRklFRBAAEhsKF0RPTUFJTl9NQVRDSF9LSU5E",
             "X0VYQUNUEAESHAoYRE9NQUlOX01BVENIX0tJTkRfU1VGRklYEAISKAokRE9N",
-            "QUlOX01BVENIX0tJTkRfUkVHSVNUUkFCTEVfRE9NQUlOEAMqwQEKDVNuYXBz",
+            "QUlOX01BVENIX0tJTkRfUkVHSVNUUkFCTEVfRE9NQUlOEAMq4AEKDVNuYXBz",
             "aG90U3RhdGUSHgoaU05BUFNIT1RfU1RBVEVfVU5TUEVDSUZJRUQQABIYChRT",
             "TkFQU0hPVF9TVEFURV9EUkFGVBABEh4KGlNOQVBTSE9UX1NUQVRFX1BFTkRJ",
             "TkdfQUNLEAISGQoVU05BUFNIT1RfU1RBVEVfQUNUSVZFEAMSGwoXU05BUFNI",
             "T1RfU1RBVEVfUkVKRUNURUQQBBIeChpTTkFQU0hPVF9TVEFURV9ST0xMRURf",
-            "QkFDSxAFQhWqAhJOb25Qcm94eS5Qb2xpY3kuVjFiBnByb3RvMw=="));
+            "QkFDSxAFEh0KGVNOQVBTSE9UX1NUQVRFX1NVUEVSU0VERUQQBkIVqgISTm9u",
+            "UHJveHkuUG9saWN5LlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::NonProxy.Common.V1.CommonReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::NonProxy.Policy.V1.PolicySourceKind), typeof(global::NonProxy.Policy.V1.PolicyOrigin), typeof(global::NonProxy.Policy.V1.DomainMatchKind), typeof(global::NonProxy.Policy.V1.SnapshotState), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -188,6 +189,7 @@ namespace NonProxy.Policy.V1 {
     [pbr::OriginalName("SNAPSHOT_STATE_ACTIVE")] Active = 3,
     [pbr::OriginalName("SNAPSHOT_STATE_REJECTED")] Rejected = 4,
     [pbr::OriginalName("SNAPSHOT_STATE_ROLLED_BACK")] RolledBack = 5,
+    [pbr::OriginalName("SNAPSHOT_STATE_SUPERSEDED")] Superseded = 6,
   }
 
   #endregion

@@ -26,6 +26,7 @@ service ControlService {
   rpc RecordLearningObservation(RecordLearningObservationRequest) returns (RecordLearningObservationResponse);
   rpc ListLearningCandidates(ListLearningCandidatesRequest) returns (ListLearningCandidatesResponse);
   rpc StopLearningSession(StopLearningSessionRequest) returns (StopLearningSessionResponse);
+  rpc ConfirmLearningCandidates(ConfirmLearningCandidatesRequest) returns (ConfirmLearningCandidatesResponse);
   rpc ExportDiagnostics(ExportDiagnosticsRequest) returns (ExportDiagnosticsResponse);
   rpc SubscribeEvents(SubscribeEventsRequest) returns (stream SubscribeEventsResponse);
 }
@@ -374,6 +375,30 @@ message StopLearningSessionResponse {
   uint32 candidate_count = 1;
   nonproxy.common.v1.ErrorDetail error = 2;
   LearningSessionSummary session = 3;
+}
+
+// ConfirmLearningCandidatesRequest 将已结束站点会话中选中的域名原子写为直连规则。
+message ConfirmLearningCandidatesRequest {
+  OperationContext context = 1;
+  string session_id = 2;
+  // confirmation_id 是客户端生成的幂等键；相同键只能重放完全相同的选择。
+  string confirmation_id = 3;
+  repeated string selected_domains = 4;
+}
+
+// ConfirmedLearningPolicy 返回规范化域名与最终策略 ID 的稳定映射。
+message ConfirmedLearningPolicy {
+  string normalized_domain = 1;
+  string policy_id = 2;
+}
+
+// ConfirmLearningCandidatesResponse 返回全量确认结果和待 Provider 确认的快照。
+message ConfirmLearningCandidatesResponse {
+  repeated ConfirmedLearningPolicy policies = 1;
+  nonproxy.policy.v1.PolicySnapshotMetadata snapshot = 2;
+  bool replayed = 3;
+  repeated nonproxy.policy.v1.PolicyConflict conflicts = 4;
+  nonproxy.common.v1.ErrorDetail error = 5;
 }
 
 // ExportDiagnosticsRequest 请求生成本地诊断包，不自动上传。

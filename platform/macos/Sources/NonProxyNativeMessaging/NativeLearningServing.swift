@@ -15,5 +15,9 @@ public protocol NativeLearningServing: Sendable {
         _ payload: SessionPayload
     ) async throws -> StopLearningResult
 
+    func confirm(
+        _ payload: ConfirmLearningPayload
+    ) async throws -> ConfirmLearningResult
+
     func shutdown()
 }

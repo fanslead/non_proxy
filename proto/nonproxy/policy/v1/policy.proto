@@ -46,6 +46,7 @@ enum SnapshotState {
   SNAPSHOT_STATE_ACTIVE = 3;
   SNAPSHOT_STATE_REJECTED = 4;
   SNAPSHOT_STATE_ROLLED_BACK = 5;
+  SNAPSHOT_STATE_SUPERSEDED = 6;
 }
 
 // AppMatcher 使用稳定身份和签名约束匹配应用。

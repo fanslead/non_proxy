@@ -8,7 +8,7 @@ mod session;
 pub use candidate::{LearningCandidate, LearningCandidateKind};
 pub use classifier::classify;
 pub use error::LearningError;
-pub use identifier::{BrowserContextId, LearningSessionId, ObservationId};
+pub use identifier::{BrowserContextId, ConfirmationId, LearningSessionId, ObservationId};
 pub use observation::{LearningObservation, LearningObservationKind, LearningResourceType};
 pub use session::{
     AppLearningSubject, DEFAULT_LEARNING_DURATION_MS, LearningSession, LearningSessionKind,

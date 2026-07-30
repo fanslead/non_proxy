@@ -44,6 +44,36 @@ final class NativeMessageCodecTests: XCTestCase {
         )
     }
 
+    func testDecodesCandidateConfirmationWithoutURLData() throws {
+        let data = Data(
+            """
+            {
+              "protocolVersion": 1,
+              "requestID": "request-confirm",
+              "type": "confirmLearning",
+              "payload": {
+                "sessionID": "learning-1",
+                "confirmationID": "confirmation-1",
+                "selectedDomains": [
+                  "example.com",
+                  "api.example.com"
+                ]
+              }
+            }
+            """.utf8
+        )
+
+        let request = try NativeMessageCodec().decode(data)
+
+        guard case .confirm(let payload) = request.payload else {
+            return XCTFail("消息类型应为候选确认")
+        }
+        XCTAssertEqual(
+            payload.selectedDomains,
+            ["example.com", "api.example.com"]
+        )
+    }
+
     func testEncodesStableErrorEnvelope() throws {
         let response = NativeResponse.failure(
             requestID: "request-1",

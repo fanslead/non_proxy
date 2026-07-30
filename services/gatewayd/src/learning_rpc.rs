@@ -93,3 +93,55 @@ pub async fn stop(
         }),
     }
 }
+
+pub async fn confirm(
+    gateway: &Gateway,
+    request: control_proto::ConfirmLearningCandidatesRequest,
+) -> Result<control_proto::ConfirmLearningCandidatesResponse, Status> {
+    let session_id = learning_contract::session_id(&request.session_id).map_err(request_status)?;
+    let confirmation_id =
+        learning_contract::confirmation_id(&request.confirmation_id).map_err(request_status)?;
+    let selected_domains =
+        learning_contract::selected_domains(&request.selected_domains).map_err(request_status)?;
+    match gateway
+        .confirm_learning_candidates(session_id, confirmation_id, selected_domains)
+        .await
+    {
+        Ok(confirmed) => {
+            let record = confirmed.snapshot();
+            let metadata = control_mapping::snapshot_metadata(
+                record.artifact(),
+                control_mapping::snapshot_state(record.status()),
+            )
+            .map_err(crate::control_rpc_helpers::internal_status)?;
+            if confirmed.snapshot_staged() {
+                crate::control_rpc_helpers::publish_snapshot_event(gateway, metadata.clone())?;
+            }
+            Ok(control_proto::ConfirmLearningCandidatesResponse {
+                policies: confirmed
+                    .receipt()
+                    .policies()
+                    .iter()
+                    .map(|value| control_proto::ConfirmedLearningPolicy {
+                        normalized_domain: value.domain().as_ascii().to_owned(),
+                        policy_id: value.policy_id().as_str().to_owned(),
+                    })
+                    .collect(),
+                snapshot: Some(metadata),
+                replayed: confirmed.replayed(),
+                conflicts: Vec::new(),
+                error: None,
+            })
+        }
+        Err(error) => Ok(control_proto::ConfirmLearningCandidatesResponse {
+            conflicts: match &error {
+                crate::GatewayError::Compile(compile) => {
+                    control_mapping::compile_conflicts(compile)
+                }
+                _ => Vec::new(),
+            },
+            error: Some(control_mapping::error_detail(&error)),
+            ..Default::default()
+        }),
+    }
+}

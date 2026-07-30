@@ -123,7 +123,9 @@ impl<'connection> PolicyRepository<'connection> {
     }
 }
 
-fn increment_catalog_generation(transaction: &Transaction<'_>) -> Result<(), StorageError> {
+pub(crate) fn increment_catalog_generation(
+    transaction: &Transaction<'_>,
+) -> Result<(), StorageError> {
     let changed = transaction.execute(
         "UPDATE control_generation
          SET value = value + 1
@@ -138,7 +140,7 @@ fn increment_catalog_generation(transaction: &Transaction<'_>) -> Result<(), Sto
     Ok(())
 }
 
-fn validate_revision(
+pub(crate) fn validate_revision(
     transaction: &Transaction<'_>,
     policy: &Policy,
     expected_current_revision: Option<u64>,
@@ -169,7 +171,7 @@ fn validate_revision(
     Ok(())
 }
 
-fn upsert_policy(
+pub(crate) fn upsert_policy(
     transaction: &Transaction<'_>,
     policy: &Policy,
     updated_at_unix_ms: u64,
@@ -227,7 +229,7 @@ fn upsert_policy(
     Ok(())
 }
 
-fn replace_matcher_children(
+pub(crate) fn replace_matcher_children(
     transaction: &Transaction<'_>,
     policy: &Policy,
 ) -> Result<(), StorageError> {
@@ -276,7 +278,7 @@ fn replace_matcher_children(
     Ok(())
 }
 
-fn load_policy(
+pub(crate) fn load_policy(
     connection: &Connection,
     policy_id: &PolicyId,
 ) -> Result<Option<Policy>, StorageError> {
@@ -326,7 +328,7 @@ fn query_i64_values(
         .map_err(StorageError::from)
 }
 
-fn insert_policy_audit(
+pub(crate) fn insert_policy_audit(
     transaction: &Transaction<'_>,
     event_type: &str,
     policy: &Policy,

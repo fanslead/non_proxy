@@ -63,6 +63,17 @@ private actor LearningServiceStub: NativeLearningServing {
         throw NativeMessagingError.invalidMessage("测试未实现")
     }
 
+    func confirm(
+        _ payload: ConfirmLearningPayload
+    ) async throws -> ConfirmLearningResult {
+        ConfirmLearningResult(
+            policies: [],
+            snapshotVersion: 1,
+            snapshotState: "pendingAck",
+            replayed: false
+        )
+    }
+
     nonisolated func shutdown() {}
 
     func startedSites() -> [String] {

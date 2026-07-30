@@ -35,12 +35,19 @@ export interface SessionPayload {
   readonly sessionID: string;
 }
 
+export interface ConfirmLearningPayload {
+  readonly sessionID: string;
+  readonly confirmationID: string;
+  readonly selectedDomains: readonly string[];
+}
+
 export type NativeRequest =
   | NativeEnvelope<"hello", Record<string, never>>
   | NativeEnvelope<"startLearning", StartLearningPayload>
   | NativeEnvelope<"observeLearning", ObserveLearningPayload>
   | NativeEnvelope<"listCandidates", SessionPayload>
-  | NativeEnvelope<"stopLearning", SessionPayload>;
+  | NativeEnvelope<"stopLearning", SessionPayload>
+  | NativeEnvelope<"confirmLearning", ConfirmLearningPayload>;
 
 export interface NativeEnvelope<Type extends string, Payload> {
   readonly protocolVersion: typeof nativeProtocolVersion;
@@ -110,6 +117,24 @@ export interface CandidateListResult {
 export interface StopLearningResult {
   readonly session: SessionResult;
   readonly candidateCount: number;
+}
+
+export interface ConfirmedPolicyResult {
+  readonly normalizedDomain: string;
+  readonly policyID: string;
+}
+
+export interface ConfirmLearningResult {
+  readonly policies: readonly ConfirmedPolicyResult[];
+  readonly snapshotVersion: number;
+  readonly snapshotState:
+    | "draft"
+    | "pendingAck"
+    | "active"
+    | "rejected"
+    | "rolledBack"
+    | "superseded";
+  readonly replayed: boolean;
 }
 
 export function createNativeRequest(
