@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NonProxy 智能直连</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand">
+        <span class="brand-mark" aria-hidden="true">N</span>
+        <div>
+          <p class="eyebrow">NONPROXY</p>
+          <h1>当前网站直连</h1>
+        </div>
+        <span id="status-dot" class="status-dot" aria-hidden="true"></span>
+      </header>
+
+      <section class="site-card" aria-labelledby="site-label">
+        <p id="site-label" class="label">当前网站</p>
+        <p id="site-domain" class="domain">正在读取…</p>
+        <p id="site-note" class="note">
+          仅处理当前标签页，不读取网页正文和浏览历史。
+        </p>
+      </section>
+
+      <section id="idle-panel" class="action-panel">
+        <p class="panel-title">识别网站依赖</p>
+        <p class="panel-copy">
+          开启 60 秒学习，只上报域名和资源类别。跨站域名仍需你确认。
+        </p>
+        <button id="start-button" class="primary" type="button">
+          开始识别
+        </button>
+      </section>
+
+      <section id="active-panel" class="action-panel" hidden>
+        <div class="active-row">
+          <div>
+            <p class="panel-title">正在识别</p>
+            <p id="countdown" class="countdown">剩余 60 秒</p>
+          </div>
+          <span class="pulse" aria-hidden="true"></span>
+        </div>
+        <p id="candidate-summary" class="panel-copy">
+          尚未发现依赖域名。
+        </p>
+        <button id="stop-button" class="secondary" type="button">
+          提前结束
+        </button>
+      </section>
+
+      <p id="error-message" class="error" role="alert" hidden></p>
+      <footer>本地处理 · 不上传浏览记录</footer>
+    </main>
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>

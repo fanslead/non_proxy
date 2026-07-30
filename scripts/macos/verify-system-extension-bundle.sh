@@ -17,6 +17,8 @@ launch_agents_root="${app_bundle}/Contents/Library/LaunchAgents"
 gateway_agent_plist="${launch_agents_root}/com.nonproxy.gatewayd.plist"
 gateway_binary="${app_bundle}/Contents/Resources/nonproxy-gatewayd"
 native_messaging_host="${app_bundle}/Contents/Resources/nonproxy-native-messaging-host"
+browser_extensions_source="${script_dir}/../../packages/browser-extension/dist"
+browser_extensions_root="${app_bundle}/Contents/Resources/BrowserExtensions"
 
 assert_plist_value() {
     local plist=$1
@@ -162,6 +164,56 @@ if [[ "${host_architectures}" != "${native_host_architectures}" ]]; then
     exit 67
 fi
 codesign --verify --strict --verbose=2 "${native_messaging_host}"
+if [[ ! -d "${browser_extensions_root}" ||
+      -L "${browser_extensions_root}" ]]; then
+    echo "macOS App 缺少有效的共享浏览器扩展资产" >&2
+    exit 67
+fi
+browser_extension_entry_count=$(find "${browser_extensions_root}" \
+    -mindepth 1 \
+    -maxdepth 1 | wc -l | tr -d ' ')
+if [[ "${browser_extension_entry_count}" != 3 ]]; then
+    echo "浏览器扩展资产只能包含 Chromium、Safari 与构建信息" >&2
+    exit 67
+fi
+if find "${browser_extensions_root}" -type l -print -quit |
+    grep -q .; then
+    echo "浏览器扩展资产不得包含符号链接" >&2
+    exit 67
+fi
+for target in chromium safari; do
+    target_root="${browser_extensions_root}/${target}"
+    for relative in \
+        manifest.json \
+        background/background.js \
+        popup/popup.html \
+        popup/popup.js \
+        shared/native-contract.js; do
+        if [[ ! -f "${target_root}/${relative}" ]]; then
+            echo "浏览器扩展资产缺少 ${target}/${relative}" >&2
+            exit 67
+        fi
+    done
+    manifest_version=$(node -e \
+        'const fs = require("node:fs"); const value = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(String(value.manifest_version));' \
+        "${target_root}/manifest.json")
+    if [[ "${manifest_version}" != 3 ]]; then
+        echo "${target} 浏览器扩展必须使用 Manifest V3" >&2
+        exit 67
+    fi
+    if ! diff -qr \
+        "${browser_extensions_source}/${target}" \
+        "${target_root}" >/dev/null; then
+        echo "${target} 浏览器扩展资产与当前源码构建不一致" >&2
+        exit 67
+    fi
+done
+if ! cmp -s \
+    "${browser_extensions_source}/BUILD_INFO.json" \
+    "${browser_extensions_root}/BUILD_INFO.json"; then
+    echo "浏览器扩展构建信息与当前源码构建不一致" >&2
+    exit 67
+fi
 gateway_binary_digest=$(shasum -a 256 "${gateway_binary}" | awk '{print $1}')
 gateway_plist_digest=$(shasum -a 256 "${gateway_plist_template}" | awk '{print $1}')
 expected_gateway_fingerprint=$(
@@ -315,4 +367,4 @@ assert_plist_value \
     NSSystemExtensionUsageDescription \
     "NonProxy 需要安装网络系统扩展，以便按应用和网站选择直连或指定代理。"
 codesign --verify --deep --strict --verbose=2 "${app_bundle}"
-echo "macOS App 已包含签名有效的 System Extension、宿主桥接、Native Messaging Host 与 gatewayd LaunchAgent。"
+echo "macOS App 已包含签名有效的系统扩展、浏览器扩展、Native Messaging Host 与 gatewayd。"

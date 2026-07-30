@@ -238,6 +238,17 @@ buf breaking --against '.git#branch=main'
 - 学习观测必须带会话内幂等 ID；重放不得重复计数、重复发事件或隐式写策略。
 - Native Messaging Host 的 stdout 只能输出 4 字节小端长度前缀协议帧，诊断写 stderr 且不得回显浏览器输入。
 - Chromium 本地宿主必须同时校验固定扩展 origin 与清单 `allowed_origins`；能力文件必须拒绝符号链接、非当前用户、宽松权限和非 32 字节内容。
+- `*://*/*` 只能作为用户手势触发的临时可选权限；最后一个学习会话停止、过期或后台状态重建时必须回收。
+- 浏览器真实 `tabId` 只能保存在扩展后台内存中，不得写入浏览器 storage、日志或 Native Messaging payload。
+- Native Messaging 只有传输断开或超时可以使用相同请求身份重试；服务端业务错误不得重放。
+
+扩展变更至少验证：
+
+```bash
+pnpm --filter @nonproxy/browser-extension lint
+pnpm --filter @nonproxy/browser-extension test
+pnpm --filter @nonproxy/browser-extension typecheck
+```
 
 ## 13. 第三方适配器
 

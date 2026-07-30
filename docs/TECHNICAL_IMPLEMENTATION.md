@@ -1447,11 +1447,12 @@ Windows：
 共享：
 
 - 当前标签页域名规范化。
-- 学习 session。
+- 学习 session 控制和标签页内存映射。
 - initiator 关系。
-- 依赖域名评分。
 - Native Messaging 消息。
 - UI 状态模型。
+
+依赖域名评分由受信的 Rust 学习后端完成，扩展不自行决定或写入规则。
 
 平台差异：
 
@@ -1466,7 +1467,7 @@ Windows：
 - 不申请读取历史记录。
 - 不读取页面正文。
 - 不保存完整 URL query。
-- 发送给主应用的 URL 先去除 query 和 fragment。
+- 完整 URL 只在扩展内瞬时解析；发送给主应用的消息只包含规范化域名，不包含 scheme、端口、路径、query 或 fragment。
 
 ### 18.3 标签页学习
 
@@ -1511,6 +1512,18 @@ stdin/stdout 使用浏览器规定的 4 字节小端长度前缀 JSON 帧。输�
 宿主使用 `O_NOFOLLOW` 打开 `session.capability`，并校验它是当前用户拥有、无 group/other 权限、精确 32 字节的普通文件。随后通过明文仅限本机文件系统权限保护的 Unix Domain Socket 调用 `gatewayd`；每次 RPC 都生成新的安全 operation ID，并携带内存中的能力 Token。
 
 主应用安装事务为 Chrome、Chromium、Edge 和 Brave 写入用户级 `com.nonproxy.browser.json`。清单中的宿主路径指向当前 `.app/Contents/Resources/nonproxy-native-messaging-host`；更新会原子替换，后续系统组件安装失败会恢复既有清单，明确卸载会移除 NonProxy 自有清单。打包门禁检查宿主与主程序架构一致且代码签名有效；跨语言冒烟使用真实长度前缀和 stdin/stdout 完成开始、观测、查询、停止全生命周期。
+
+### 18.6 共享 WebExtension 实现
+
+`packages/browser-extension` 使用 TypeScript 7 严格模式维护一套后台、弹窗、域名规范化和 Native Messaging 契约。构建输出分别位于 `dist/chromium` 与 `dist/safari`，目标目录只提供 Manifest 差异；macOS 打包会把两份可复现产物嵌入 `.app/Contents/Resources/BrowserExtensions/`，签名验证器逐文件比对当前构建产物。
+
+Chromium 使用 Manifest V3 service worker。清单常驻权限只有 `activeTab`、`nativeMessaging` 和 `webRequest`，不声明 `host_permissions`；用户点击“开始识别”时才请求可选的 `*://*/*`，最后一个会话停止、过期或后台状态重建时立即回收。持续 Native Messaging 端口在活动会话期间保持 worker 存活。
+
+真实 `tabId` 只作为进程内 `Map` 的键，不写 `storage`，也不进入 Native Messaging payload。每个标签页生成独立随机 `browserContextID`；网络事件先按 `details.tabId` 查找会话，再把 URL 瞬时收敛为域名。非 HTTP(S)、IP 地址、路径、查询参数、fragment 和页面内容不会上报。同一 `requestId` 的跨域主文档重定向链可以继续学习；新的直接跨站导航会停止当前标签页会话，不影响其他标签页。
+
+Native Messaging 客户端按 `requestID` 关联并发响应，设置 12 秒超时。只有端口断开或超时可以使用同一个请求身份重试一次；服务端业务错误不重放。自动化测试覆盖多标签页隔离、去敏、过期权限回收、固定 Chromium 扩展 ID、最小权限、双目标代码一致性和重试语义。
+
+当前边界：Chromium/Safari 共享代码和分发资产已经建立；Safari App Extension 容器、候选逐项确认并原子写入规则，以及真实浏览器隐私窗口和多标签页 UI 验收属于后续交付。
 
 ## 19. 存储
 

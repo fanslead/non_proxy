@@ -114,6 +114,13 @@ bin_path_for_build() {
         --show-bin-path
 }
 
+build_browser_extensions() {
+    (
+        cd "${repo_root}"
+        pnpm --filter @nonproxy/browser-extension build
+    )
+}
+
 swift_architecture_args=(--arch "${architecture}")
 if [[ "${architecture}" == universal ]]; then
     swift_architecture_args=(--arch arm64 --arch x86_64)
@@ -122,6 +129,7 @@ build_product NonProxyTransparentSystemExtension
 build_product NonProxyDNSSystemExtension
 build_product NonProxyMacHostBridge
 build_product NonProxyNativeMessagingHost
+build_browser_extensions
 gateway_temporary_directory=
 gateway_source=
 cleanup_gateway_build() {
@@ -144,6 +152,8 @@ bridge_library="${frameworks_root}/libNonProxyMacHostBridge.dylib"
 gateway_agent_plist="${launch_agents_root}/com.nonproxy.gatewayd.plist"
 gateway_binary="${resources_root}/nonproxy-gatewayd"
 native_messaging_host="${resources_root}/nonproxy-native-messaging-host"
+browser_extensions_source="${repo_root}/packages/browser-extension/dist"
+browser_extensions_root="${resources_root}/BrowserExtensions"
 
 assemble_bundle() {
     local bundle=$1
@@ -158,6 +168,7 @@ assemble_bundle() {
 
 rm -rf "${extensions_root}"
 rm -rf "${launch_agents_root}"
+rm -rf "${browser_extensions_root}"
 install -d -m 0755 "${extensions_root}"
 install -d -m 0755 "${frameworks_root}"
 install -d -m 0755 "${launch_agents_root}" "${resources_root}"
@@ -176,6 +187,14 @@ install -m 0755 "${gateway_source}" "${gateway_binary}"
 install -m 0755 \
     "${bin_path}/NonProxyNativeMessagingHost" \
     "${native_messaging_host}"
+install -d -m 0755 "${browser_extensions_root}"
+cp -R \
+    "${browser_extensions_source}/chromium" \
+    "${browser_extensions_source}/safari" \
+    "${browser_extensions_root}/"
+install -m 0644 \
+    "${browser_extensions_source}/BUILD_INFO.json" \
+    "${browser_extensions_root}/BUILD_INFO.json"
 assemble_bundle \
     "${transparent_bundle}" \
     NonProxyTransparentSystemExtension \
