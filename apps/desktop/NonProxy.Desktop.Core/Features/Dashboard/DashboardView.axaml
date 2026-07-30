@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dashboard="using:NonProxy.Desktop.Core.Features.Dashboard"
+             x:Class="NonProxy.Desktop.Core.Features.Dashboard.DashboardView"
+             x:DataType="dashboard:DashboardViewModel">
+    <UserControl.Styles>
+        <Style Selector="Border.card">
+            <Setter Property="Padding" Value="22" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BorderBrush" Value="#D8DEE9" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="#FFFFFF" />
+        </Style>
+        <Style Selector="Border.card TextBlock">
+            <Setter Property="Foreground" Value="#182033" />
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="#657188" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer>
+        <StackPanel Margin="40"
+                    MaxWidth="820"
+                    HorizontalAlignment="Stretch"
+                    Spacing="24">
+            <StackPanel Spacing="6">
+                <TextBlock FontSize="30"
+                           FontWeight="SemiBold"
+                           Text="运行概览" />
+                <TextBlock Foreground="#657188"
+                           Text="{Binding PlatformLabel, StringFormat='运行平台：{0}'}" />
+            </StackPanel>
+
+            <Border Classes="card">
+                <Grid ColumnDefinitions="Auto,*"
+                      ColumnSpacing="18">
+                    <Border Width="12"
+                            Height="12"
+                            CornerRadius="6"
+                            Background="#E6A23C"
+                            VerticalAlignment="Top"
+                            Margin="0,8,0,0" />
+                    <StackPanel Grid.Column="1"
+                                Spacing="8">
+                        <TextBlock x:Name="StatusHeadline"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding State.StatusHeadline}" />
+                        <TextBlock Foreground="#657188"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding State.StatusDetail}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid ColumnDefinitions="*,*"
+                  ColumnSpacing="18">
+                <Border Classes="card">
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="label"
+                                   Text="直连应用" />
+                        <TextBlock FontSize="32"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding State.DirectApplicationCount}" />
+                        <TextBlock Foreground="#657188"
+                                   Text="已配置的应用级直连规则" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1"
+                        Classes="card">
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="label"
+                                   Text="直连网站" />
+                        <TextBlock FontSize="32"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding State.DirectWebsiteCount}" />
+                        <TextBlock Foreground="#657188"
+                                   Text="已配置的网站与域名规则" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock FontSize="18"
+                               FontWeight="SemiBold"
+                               Text="安全状态" />
+                    <TextBlock Foreground="#657188"
+                               TextWrapping="Wrap"
+                               Text="系统组件未就绪时，NonProxy 保持旁路，不修改现有 VPN 或代理配置。" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

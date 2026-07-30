@@ -33,6 +33,8 @@ command_version() {
 }
 
 dotnet_actual="$(command_version dotnet dotnet --version)"
+dotnet_workload_actual="$(command_version dotnet dotnet workload --info | awk '/Workload version:/ {print $3}')"
+macos_workload_actual="$(command_version dotnet dotnet workload list | awk '$1 == "macos" {print $1}')"
 rust_actual="$(command_version rustc rustc --version | awk '{print $2}')"
 buf_actual="$(command_version buf buf --version)"
 protoc_actual="$(command_version protoc protoc --version | awk '{print $2}')"
@@ -41,6 +43,8 @@ node_actual="$(command_version node node --version | sed 's/^v//')"
 pnpm_actual="$(command_version pnpm pnpm --version)"
 
 check_exact dotnet "$DOTNET_VERSION" "$dotnet_actual"
+check_exact workload "$DOTNET_WORKLOAD_VERSION" "$dotnet_workload_actual"
+check_exact macos-workload macos "$macos_workload_actual"
 check_exact rust "$RUST_VERSION" "$rust_actual"
 check_exact buf "$BUF_VERSION" "$buf_actual"
 check_exact protoc "$PROTOC_VERSION" "$protoc_actual"

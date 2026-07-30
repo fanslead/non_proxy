@@ -1,0 +1,29 @@
+name: 持续集成
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nonproxy-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: 验证单体仓库
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 固定为 v6.0.2
+
+      - name: 安装仓库工具链
+        run: ./scripts/bootstrap/install-local-tools.sh
+
+      - name: 执行完整检查
+        run: |
+          source scripts/bootstrap/env.sh
+          just check

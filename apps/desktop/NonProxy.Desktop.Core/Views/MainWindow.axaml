@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="using:NonProxy.Desktop.Core.Features.Shell"
+        xmlns:dashboard="using:NonProxy.Desktop.Core.Features.Dashboard"
+        x:Class="NonProxy.Desktop.Core.Views.MainWindow"
+        x:DataType="shell:MainWindowViewModel"
+        Width="1080"
+        Height="720"
+        MinWidth="900"
+        MinHeight="600"
+        Title="NonProxy">
+    <Grid ColumnDefinitions="220,*">
+        <Border Grid.Column="0"
+                Padding="24"
+                Background="#121826">
+            <Grid RowDefinitions="Auto,32,*,Auto">
+                <StackPanel>
+                    <TextBlock FontSize="24"
+                               FontWeight="SemiBold"
+                               Foreground="White"
+                               Text="NonProxy" />
+                    <TextBlock Margin="0,6,0,0"
+                               Foreground="#AAB4C8"
+                               Text="直连策略中心" />
+                </StackPanel>
+
+                <Border Grid.Row="2"
+                        Padding="14,12"
+                        CornerRadius="8"
+                        Background="#26334A"
+                        VerticalAlignment="Top">
+                    <TextBlock Foreground="White"
+                               FontWeight="SemiBold"
+                               Text="运行概览" />
+                </Border>
+
+                <StackPanel Grid.Row="3"
+                            Spacing="4">
+                    <TextBlock Foreground="#7E8CA6"
+                               FontSize="12"
+                               Text="当前平台" />
+                    <TextBlock Foreground="#D8DFEC"
+                               Text="{Binding PlatformLabel}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <dashboard:DashboardView Grid.Column="1"
+                                 DataContext="{Binding Dashboard}" />
+    </Grid>
+</Window>
