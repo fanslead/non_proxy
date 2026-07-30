@@ -524,6 +524,17 @@ Windows Callout Driver 只负责：
 - 写入原始本地/远端地址、进程 ID 和有界 ALE App ID context。
 - 使用 redirect handle 判断自身是否已经处理连接，防止递归重定向。
 
+Windows Service 的 DIRECT 出口不能复用系统默认路由。`nonproxy-windows-network` 在连接时按地址族动态选择可信物理接口：
+
+1. 使用 `GetIfTable2` 读取 operational/hardware/filter/connector/media/endpoint 状态，排除 PPP、loopback、tunnel 和虚拟过滤接口。
+2. 使用 `GetIpForwardTable2` 读取 IPv4/IPv6 默认路由。
+3. 使用 `GetIpInterfaceEntry` 验证接口 connected、未设置 `DisableDefaultRoutes`，并计算“路由 metric 偏移 + 接口 metric”。
+4. 一秒短缓存内优先 connector，其后比较总 metric、链路速度和接口索引；IPv4/IPv6 可以选择不同接口。
+5. DIRECT socket 设置 `IP_UNICAST_IF`/`IPV6_UNICAST_IF` 后连接；没有可信物理接口则失败。
+6. PROXY socket 不绑定物理接口，只传递 WFP redirect records，保留用户选择的代理/VPN 系统路径。
+
+接口索引是运行时易变值，不进入策略、数据库或长期配置。Windows DIRECT DNS UDP/TCP 与 TCP relay 复用同一 socket 绑定实现。完整决策和限制见 [ADR-0005](ADR/0005-bind-windows-direct-to-physical-interface.md)。
+
 驱动不得：
 
 - 解析域名订阅。

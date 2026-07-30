@@ -2,18 +2,30 @@ use std::{future::Future, io, net::SocketAddr, os::windows::io::AsRawSocket, pin
 
 use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_outbound::{OutboundError, TcpDialer};
+use nonproxy_windows_network::{
+    AddressFamily, PhysicalInterfaceCatalog, WindowsNetworkError, bind_unicast_interface,
+};
 use nonproxy_windows_wfp::apply_redirect_records;
 use socket2::{Domain, Protocol, Socket, Type};
 use tokio::net::{TcpStream, lookup_host};
 
 pub struct RedirectTcpDialer {
     records: Arc<[u8]>,
+    physical_interfaces: Option<Arc<PhysicalInterfaceCatalog>>,
 }
 
 impl RedirectTcpDialer {
     pub fn new(records: &[u8]) -> Self {
         Self {
             records: Arc::from(records),
+            physical_interfaces: None,
+        }
+    }
+
+    pub fn direct(records: &[u8], physical_interfaces: Arc<PhysicalInterfaceCatalog>) -> Self {
+        Self {
+            records: Arc::from(records),
+            physical_interfaces: Some(physical_interfaces),
         }
     }
 
@@ -40,6 +52,23 @@ impl RedirectTcpDialer {
         socket.set_nonblocking(true)?;
         socket.set_tcp_nodelay(true)?;
         apply_redirect_records(socket.as_raw_socket(), &self.records).map_err(io::Error::other)?;
+        if let Some(catalog) = &self.physical_interfaces {
+            let interfaces = catalog.current().map_err(io::Error::other)?;
+            let family = if address.is_ipv4() {
+                AddressFamily::Ipv4
+            } else {
+                AddressFamily::Ipv6
+            };
+            let family_label = if address.is_ipv4() { "IPv4" } else { "IPv6" };
+            let interface_index = interfaces
+                .for_family(family)
+                .ok_or(WindowsNetworkError::PhysicalInterfaceUnavailable {
+                    family: family_label,
+                })
+                .map_err(io::Error::other)?;
+            bind_unicast_interface(socket.as_raw_socket(), address.ip(), interface_index)
+                .map_err(io::Error::other)?;
+        }
         if let Err(error) = socket.connect(&address.into())
             && error.kind() != io::ErrorKind::WouldBlock
         {

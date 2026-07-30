@@ -4,6 +4,7 @@ use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_model::{ConnectionContext, Destination, FailureMode, RouteAction, Transport};
 use nonproxy_outbound::{OutboundError, TcpDialer};
 use nonproxy_policy::PolicyEngine;
+use nonproxy_windows_network::PhysicalInterfaceCatalog;
 use nonproxy_windows_wfp::query_redirect_metadata;
 use tokio::{
     io::{AsyncRead, AsyncWrite, copy_bidirectional},
@@ -31,6 +32,7 @@ pub struct WindowsTcpProxy {
     gateway: Gateway,
     credential_store: Arc<dyn CredentialStore>,
     policies: WindowsPolicyCache,
+    physical_interfaces: Arc<PhysicalInterfaceCatalog>,
     capacity: Arc<Semaphore>,
 }
 
@@ -39,11 +41,13 @@ impl WindowsTcpProxy {
         gateway: Gateway,
         credential_store: Arc<dyn CredentialStore>,
         policies: WindowsPolicyCache,
+        physical_interfaces: Arc<PhysicalInterfaceCatalog>,
     ) -> Self {
         Self {
             gateway,
             credential_store,
             policies,
+            physical_interfaces,
             capacity: Arc::new(Semaphore::new(MAXIMUM_ACTIVE_CONNECTIONS)),
         }
     }
@@ -94,9 +98,17 @@ impl WindowsTcpProxy {
         let gateway = self.gateway.clone();
         let credential_store = Arc::clone(&self.credential_store);
         let policies = self.policies.clone();
+        let physical_interfaces = Arc::clone(&self.physical_interfaces);
         tasks.spawn(async move {
             let _permit = permit;
-            let _result = handle_connection(stream, gateway, credential_store, policies).await;
+            let _result = handle_connection(
+                stream,
+                gateway,
+                credential_store,
+                policies,
+                physical_interfaces,
+            )
+            .await;
         });
     }
 }
@@ -106,6 +118,7 @@ async fn handle_connection(
     gateway: Gateway,
     credential_store: Arc<dyn CredentialStore>,
     policies: WindowsPolicyCache,
+    physical_interfaces: Arc<PhysicalInterfaceCatalog>,
 ) -> Result<(), GatewayError> {
     let metadata =
         query_redirect_metadata(std::os::windows::io::AsRawSocket::as_raw_socket(&inbound))
@@ -121,11 +134,15 @@ async fn handle_connection(
         .await
         .ok_or_else(|| GatewayError::WindowsDataPlane("没有可用的活动策略快照".to_owned()))?;
     let decision = PolicyEngine::decide(&snapshot, &context);
-    let dialer: Arc<dyn TcpDialer> = Arc::new(RedirectTcpDialer::new(metadata.records()));
+    let proxy_dialer: Arc<dyn TcpDialer> = Arc::new(RedirectTcpDialer::new(metadata.records()));
+    let direct_dialer: Arc<dyn TcpDialer> = Arc::new(RedirectTcpDialer::direct(
+        metadata.records(),
+        physical_interfaces,
+    ));
     match decision.result().action() {
         RouteAction::Block => Ok(()),
         RouteAction::Direct => {
-            let mut outbound = connect_direct(Arc::clone(&dialer), &target).await?;
+            let mut outbound = connect_direct(Arc::clone(&direct_dialer), &target).await?;
             relay(&mut inbound, &mut outbound).await
         }
         RouteAction::Proxy => {
@@ -138,7 +155,7 @@ async fn handle_connection(
                     &gateway,
                     Arc::clone(&credential_store),
                     outbound_id,
-                    Arc::clone(&dialer),
+                    proxy_dialer,
                 )
                 .await
                 .map_err(data_plane_error)?;
@@ -151,7 +168,7 @@ async fn handle_connection(
             match proxied {
                 Ok(mut outbound) => relay(&mut inbound, &mut outbound).await,
                 Err(_) if decision.result().failure_mode() == FailureMode::Open => {
-                    let mut outbound = connect_direct(dialer, &target).await?;
+                    let mut outbound = connect_direct(direct_dialer, &target).await?;
                     relay(&mut inbound, &mut outbound).await
                 }
                 Err(error) => Err(error),

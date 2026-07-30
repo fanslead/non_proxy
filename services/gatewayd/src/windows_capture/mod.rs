@@ -9,6 +9,7 @@ use std::{
     sync::Arc,
 };
 
+use nonproxy_windows_network::PhysicalInterfaceCatalog;
 use nonproxy_windows_wfp::{DynamicWfpSession, WfpConfig, WfpDriver};
 use tokio::{net::TcpListener, sync::watch};
 
@@ -49,7 +50,13 @@ impl WindowsCapture {
         let ipv4_port = local_port(&ipv4, "读取 Windows IPv4 重定向端口")?;
         let ipv6_port = local_port(&ipv6, "读取 Windows IPv6 重定向端口")?;
         let policies = WindowsPolicyCache::load(gateway.clone()).await?;
-        let proxy = WindowsTcpProxy::new(gateway, credential_store, policies.clone());
+        let physical_interfaces = Arc::new(PhysicalInterfaceCatalog::new());
+        let proxy = WindowsTcpProxy::new(
+            gateway,
+            credential_store,
+            policies.clone(),
+            physical_interfaces,
+        );
         let generation = unix_time_ms()?;
         let driver = WfpDriver::open().map_err(data_plane_error)?;
         driver

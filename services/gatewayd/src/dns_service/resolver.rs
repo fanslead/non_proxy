@@ -5,6 +5,8 @@ use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_outbound::OutboundConnector;
 #[cfg(unix)]
 use socket2::SockRef;
+#[cfg(windows)]
+use std::os::windows::io::AsRawSocket;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::{TcpSocket, UdpSocket},
@@ -166,7 +168,21 @@ fn bind_udp_interface(
     bind_interface(&SockRef::from(socket), upstream, interface_index)
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn bind_udp_interface(
+    socket: &UdpSocket,
+    upstream: SocketAddr,
+    interface_index: NonZeroU32,
+) -> io::Result<()> {
+    nonproxy_windows_network::bind_unicast_interface(
+        socket.as_raw_socket(),
+        upstream.ip(),
+        interface_index,
+    )
+    .map_err(io::Error::other)
+}
+
+#[cfg(all(not(unix), not(windows)))]
 fn bind_udp_interface(
     _socket: &UdpSocket,
     _upstream: SocketAddr,
@@ -187,7 +203,21 @@ fn bind_tcp_interface(
     bind_interface(&SockRef::from(socket), upstream, interface_index)
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn bind_tcp_interface(
+    socket: &TcpSocket,
+    upstream: SocketAddr,
+    interface_index: NonZeroU32,
+) -> io::Result<()> {
+    nonproxy_windows_network::bind_unicast_interface(
+        socket.as_raw_socket(),
+        upstream.ip(),
+        interface_index,
+    )
+    .map_err(io::Error::other)
+}
+
+#[cfg(all(not(unix), not(windows)))]
 fn bind_tcp_interface(
     _socket: &TcpSocket,
     _upstream: SocketAddr,
