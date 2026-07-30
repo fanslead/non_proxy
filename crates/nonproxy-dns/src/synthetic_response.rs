@@ -27,13 +27,7 @@ pub fn synthetic_address_response(
     }
     let owner =
         Name::from_ascii(parsed.question().qname().as_ascii()).map_err(|_| DnsError::Domain)?;
-    let mut response = Message::response(parsed.transaction_id(), OpCode::Query);
-    response.metadata.response_code = ResponseCode::NoError;
-    response.metadata.recursion_desired = query.metadata.recursion_desired;
-    response.metadata.recursion_available = true;
-    response.metadata.checking_disabled = query.metadata.checking_disabled;
-    response.add_query(query.queries[0].clone());
-    response.edns = query.edns;
+    let mut response = response_for(&parsed, query, ResponseCode::NoError);
     response.add_answer(Record::from_rdata(
         owner,
         SYNTHETIC_DNS_TTL_SECONDS,
@@ -48,4 +42,38 @@ pub fn synthetic_address_response(
         return Err(DnsError::Codec);
     }
     Ok(bytes)
+}
+
+pub fn synthetic_nodata_response(query_bytes: &[u8]) -> Result<Vec<u8>, DnsError> {
+    response_without_answers(query_bytes, ResponseCode::NoError)
+}
+
+pub fn server_failure_response(query_bytes: &[u8]) -> Result<Vec<u8>, DnsError> {
+    response_without_answers(query_bytes, ResponseCode::ServFail)
+}
+
+pub fn refused_response(query_bytes: &[u8]) -> Result<Vec<u8>, DnsError> {
+    response_without_answers(query_bytes, ResponseCode::Refused)
+}
+
+fn response_without_answers(
+    query_bytes: &[u8],
+    response_code: ResponseCode,
+) -> Result<Vec<u8>, DnsError> {
+    let parsed = ParsedDnsQuery::parse(query_bytes)?;
+    let query = Message::from_vec(query_bytes).map_err(|_| DnsError::Codec)?;
+    response_for(&parsed, query, response_code)
+        .to_vec()
+        .map_err(|_| DnsError::Codec)
+}
+
+fn response_for(parsed: &ParsedDnsQuery, query: Message, response_code: ResponseCode) -> Message {
+    let mut response = Message::response(parsed.transaction_id(), OpCode::Query);
+    response.metadata.response_code = response_code;
+    response.metadata.recursion_desired = query.metadata.recursion_desired;
+    response.metadata.recursion_available = true;
+    response.metadata.checking_disabled = query.metadata.checking_disabled;
+    response.add_query(query.queries[0].clone());
+    response.edns = query.edns;
+    response
 }

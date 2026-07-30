@@ -47,6 +47,12 @@ WFP 用户态代理收到合成目标地址后，从 SQLite 反查规范化域�
 绑定事务，策略快照只回答某域名是否需要保留身份。Windows DNS listener、
 网卡 DNS 配置事务和 WFP 连接恢复留在平台/Service 层。
 
+当前 Service 已实现 loopback UDP/TCP DNS listener、地址池路由冲突检查、
+DIRECT/PROXY 查询路由、随机系统 resolver 探针、DNS Provider 确认门禁，以及
+WFP 合成 TCP 目标的域名反查和物理解域。探针未成功时会保持 DNS Degraded 并
+禁止 WFP 重定向。网卡 DNS 设置和原值恢复事务尚未实现，因此这些组件构成安全
+的 gated runtime，还不是可自动启用的网站规则交付。
+
 ## 安全与能力边界
 
 - 地址分配不代表对应域名可信；规范化、策略匹配和实际解析仍使用各自的受信
@@ -58,8 +64,8 @@ WFP 用户态代理收到合成目标地址后，从 SQLite 反查规范化域�
 - HTTPS/SVCB 查询需要返回无地址的成功回答，促使客户端继续查询 A/AAAA；
   该兼容行为必须单独测试后才能启用。
 - 绑定记录是敏感元数据，诊断导出默认只给出散列/计数，不导出完整域名清单。
-- 本 ADR 不代表 Windows DNS listener、DNS 设置安装事务、UDP/QUIC、驱动签名
-  或真实 VPN 共存验收已经完成。
+- 本 ADR 不代表 DNS 设置安装事务、UDP/QUIC 应用流量、驱动签名或真实 VPN
+  共存验收已经完成。
 
 ## 参考
 

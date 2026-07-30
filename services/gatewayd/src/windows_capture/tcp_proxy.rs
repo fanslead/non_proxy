@@ -21,6 +21,7 @@ use crate::{
 
 use super::{
     dialer::RedirectTcpDialer,
+    direct_dns::WindowsDirectDomainResolver,
     identity::{app_identity, original_remote},
     policy_cache::WindowsPolicyCache,
 };
@@ -33,6 +34,7 @@ pub struct WindowsTcpProxy {
     credential_store: Arc<dyn CredentialStore>,
     policies: WindowsPolicyCache,
     physical_interfaces: Arc<PhysicalInterfaceCatalog>,
+    direct_domain_resolver: WindowsDirectDomainResolver,
     capacity: Arc<Semaphore>,
 }
 
@@ -42,12 +44,14 @@ impl WindowsTcpProxy {
         credential_store: Arc<dyn CredentialStore>,
         policies: WindowsPolicyCache,
         physical_interfaces: Arc<PhysicalInterfaceCatalog>,
+        direct_domain_resolver: WindowsDirectDomainResolver,
     ) -> Self {
         Self {
             gateway,
             credential_store,
             policies,
             physical_interfaces,
+            direct_domain_resolver,
             capacity: Arc::new(Semaphore::new(MAXIMUM_ACTIVE_CONNECTIONS)),
         }
     }
@@ -99,6 +103,7 @@ impl WindowsTcpProxy {
         let credential_store = Arc::clone(&self.credential_store);
         let policies = self.policies.clone();
         let physical_interfaces = Arc::clone(&self.physical_interfaces);
+        let direct_domain_resolver = self.direct_domain_resolver.clone();
         tasks.spawn(async move {
             let _permit = permit;
             let _result = handle_connection(
@@ -107,6 +112,7 @@ impl WindowsTcpProxy {
                 credential_store,
                 policies,
                 physical_interfaces,
+                direct_domain_resolver,
             )
             .await;
         });
@@ -119,16 +125,35 @@ async fn handle_connection(
     credential_store: Arc<dyn CredentialStore>,
     policies: WindowsPolicyCache,
     physical_interfaces: Arc<PhysicalInterfaceCatalog>,
+    direct_domain_resolver: WindowsDirectDomainResolver,
 ) -> Result<(), GatewayError> {
     let metadata =
         query_redirect_metadata(std::os::windows::io::AsRawSocket::as_raw_socket(&inbound))
             .map_err(data_plane_error)?;
     let remote = original_remote(metadata.context())?;
-    let target = FlowEndpoint::Ip(remote);
-    let context = ConnectionContext::new(
-        app_identity(metadata.context()),
-        Destination::new(None, Some(remote.ip()), remote.port(), Transport::Tcp)?,
-    );
+    let (target, destination) = if direct_domain_resolver.address_space().contains(remote.ip()) {
+        let binding = gateway
+            .synthetic_dns_lookup(direct_domain_resolver.address_space(), remote.ip())
+            .await?
+            .ok_or_else(|| {
+                GatewayError::WindowsDataPlane("合成 DNS 目标没有有效域名绑定".to_owned())
+            })?;
+        (
+            FlowEndpoint::Domain(binding.domain().clone(), remote.port()),
+            Destination::new(
+                Some(binding.domain().as_ascii()),
+                None,
+                remote.port(),
+                Transport::Tcp,
+            )?,
+        )
+    } else {
+        (
+            FlowEndpoint::Ip(remote),
+            Destination::new(None, Some(remote.ip()), remote.port(), Transport::Tcp)?,
+        )
+    };
+    let context = ConnectionContext::new(app_identity(metadata.context()), destination);
     let snapshot = policies
         .current()
         .await
@@ -142,7 +167,13 @@ async fn handle_connection(
     match decision.result().action() {
         RouteAction::Block => Ok(()),
         RouteAction::Direct => {
-            let mut outbound = connect_direct(Arc::clone(&direct_dialer), &target).await?;
+            let mut outbound = connect_direct(
+                Arc::clone(&direct_dialer),
+                &target,
+                &direct_domain_resolver,
+                snapshot.metadata().snapshot_version(),
+            )
+            .await?;
             relay(&mut inbound, &mut outbound).await
         }
         RouteAction::Proxy => {
@@ -168,7 +199,13 @@ async fn handle_connection(
             match proxied {
                 Ok(mut outbound) => relay(&mut inbound, &mut outbound).await,
                 Err(_) if decision.result().failure_mode() == FailureMode::Open => {
-                    let mut outbound = connect_direct(direct_dialer, &target).await?;
+                    let mut outbound = connect_direct(
+                        direct_dialer,
+                        &target,
+                        &direct_domain_resolver,
+                        snapshot.metadata().snapshot_version(),
+                    )
+                    .await?;
                     relay(&mut inbound, &mut outbound).await
                 }
                 Err(error) => Err(error),
@@ -178,6 +215,33 @@ async fn handle_connection(
 }
 
 async fn connect_direct(
+    dialer: Arc<dyn TcpDialer>,
+    target: &FlowEndpoint,
+    domain_resolver: &WindowsDirectDomainResolver,
+    snapshot_version: u64,
+) -> Result<TcpStream, GatewayError> {
+    match target {
+        FlowEndpoint::Ip(_) => connect_direct_endpoint(dialer, target).await,
+        FlowEndpoint::Domain(domain, port) => {
+            let addresses = domain_resolver
+                .resolve(domain, *port, snapshot_version)
+                .await?;
+            let mut last_error = None;
+            for address in addresses {
+                match connect_direct_endpoint(Arc::clone(&dialer), &FlowEndpoint::Ip(address)).await
+                {
+                    Ok(stream) => return Ok(stream),
+                    Err(error) => last_error = Some(error),
+                }
+            }
+            Err(last_error.unwrap_or_else(|| {
+                GatewayError::WindowsDataPlane("DIRECT 域名没有可连接地址".to_owned())
+            }))
+        }
+    }
+}
+
+async fn connect_direct_endpoint(
     dialer: Arc<dyn TcpDialer>,
     target: &FlowEndpoint,
 ) -> Result<TcpStream, GatewayError> {

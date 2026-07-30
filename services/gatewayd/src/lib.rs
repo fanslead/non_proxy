@@ -6,6 +6,8 @@ mod control_rpc_service;
 mod control_service;
 mod credential_store;
 mod database_executor;
+#[cfg(any(test, windows))]
+mod dns_policy;
 mod dns_service;
 mod error;
 mod event_hub;
@@ -16,6 +18,8 @@ mod learning_confirmation_gateway;
 mod learning_contract;
 mod learning_gateway;
 mod learning_rpc;
+#[cfg(any(test, windows))]
+mod local_dns_server;
 mod outbound_capabilities;
 mod outbound_import;
 mod outbound_import_service;

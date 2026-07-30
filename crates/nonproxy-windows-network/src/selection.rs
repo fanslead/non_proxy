@@ -1,4 +1,8 @@
+use std::net::Ipv4Addr;
 use std::num::NonZeroU32;
+
+const SYNTHETIC_IPV4_NETWORK: u32 = u32::from_be_bytes([198, 18, 0, 0]);
+const SYNTHETIC_IPV4_PREFIX_LENGTH: u8 = 15;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AddressFamily {
@@ -24,6 +28,12 @@ pub struct DefaultRouteCandidate {
     pub interface_index: NonZeroU32,
     pub family: AddressFamily,
     pub metric: u32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Ipv4RoutePrefix {
+    pub network: Ipv4Addr,
+    pub prefix_length: u8,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -65,6 +75,16 @@ pub fn select_physical_interfaces(
         select_family(interfaces, routes, AddressFamily::Ipv4),
         select_family(interfaces, routes, AddressFamily::Ipv6),
     )
+}
+
+#[must_use]
+pub fn conflicts_with_synthetic_ipv4_pool(route: Ipv4RoutePrefix) -> bool {
+    if route.prefix_length == 0 || route.prefix_length > 32 {
+        return false;
+    }
+    let common_prefix = route.prefix_length.min(SYNTHETIC_IPV4_PREFIX_LENGTH);
+    let mask = u32::MAX << (32 - common_prefix);
+    u32::from(route.network) & mask == SYNTHETIC_IPV4_NETWORK & mask
 }
 
 fn select_family(
@@ -200,5 +220,45 @@ mod tests {
             select_physical_interfaces(&interfaces, &routes).ipv4(),
             Some(index(4))
         );
+    }
+
+    #[test]
+    fn detects_routes_that_overlap_the_synthetic_ipv4_pool() {
+        for route in [
+            Ipv4RoutePrefix {
+                network: Ipv4Addr::new(198, 18, 0, 0),
+                prefix_length: 15,
+            },
+            Ipv4RoutePrefix {
+                network: Ipv4Addr::new(198, 19, 42, 0),
+                prefix_length: 24,
+            },
+            Ipv4RoutePrefix {
+                network: Ipv4Addr::new(198, 16, 0, 0),
+                prefix_length: 14,
+            },
+        ] {
+            assert!(conflicts_with_synthetic_ipv4_pool(route));
+        }
+    }
+
+    #[test]
+    fn ignores_default_invalid_and_unrelated_routes() {
+        for route in [
+            Ipv4RoutePrefix {
+                network: Ipv4Addr::UNSPECIFIED,
+                prefix_length: 0,
+            },
+            Ipv4RoutePrefix {
+                network: Ipv4Addr::new(198, 20, 0, 0),
+                prefix_length: 15,
+            },
+            Ipv4RoutePrefix {
+                network: Ipv4Addr::new(198, 18, 0, 0),
+                prefix_length: 33,
+            },
+        ] {
+            assert!(!conflicts_with_synthetic_ipv4_pool(route));
+        }
     }
 }

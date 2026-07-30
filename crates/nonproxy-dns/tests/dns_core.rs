@@ -12,9 +12,10 @@ use hickory_proto::{
 };
 use nonproxy_dns::{
     DnsRoute, ParsedDnsQuery, ParsedDnsResponse, PartitionedDnsCache, SYNTHETIC_DNS_TTL_SECONDS,
-    synthetic_address_response,
+    SyntheticAddressFamily, address_query, server_failure_response, synthetic_address_response,
+    synthetic_nodata_response,
 };
-use nonproxy_model::{NetworkProfileId, OutboundId};
+use nonproxy_model::{DomainName, NetworkProfileId, OutboundId};
 
 fn query_message(id: u16, qname: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut message = Message::new(id, MessageType::Query, OpCode::Query);
@@ -249,5 +250,32 @@ fn synthetic_response_rejects_address_family_mismatch() -> Result<(), Box<dyn Er
     let query = query_message(25, "direct.example.")?;
 
     assert!(synthetic_address_response(&query, IpAddr::V6(Ipv6Addr::LOCALHOST)).is_err());
+    Ok(())
+}
+
+#[test]
+fn synthetic_empty_responses_preserve_question_and_distinguish_failure()
+-> Result<(), Box<dyn Error>> {
+    let query = query_message(26, "direct.example.")?;
+    let no_data = Message::from_vec(&synthetic_nodata_response(&query)?)?;
+    let failure = Message::from_vec(&server_failure_response(&query)?)?;
+
+    assert_eq!(no_data.response_code, ResponseCode::NoError);
+    assert_eq!(failure.response_code, ResponseCode::ServFail);
+    assert_eq!(no_data.queries.len(), 1);
+    assert_eq!(failure.queries.len(), 1);
+    assert!(no_data.answers.is_empty());
+    assert!(failure.answers.is_empty());
+    Ok(())
+}
+
+#[test]
+fn address_query_uses_the_requested_family_and_recursion() -> Result<(), Box<dyn Error>> {
+    let domain = DomainName::normalize("resolve.example")?;
+    let query = Message::from_vec(&address_query(27, &domain, SyntheticAddressFamily::Ipv6)?)?;
+
+    assert_eq!(query.id, 27);
+    assert!(query.recursion_desired);
+    assert_eq!(query.queries[0].query_type(), RecordType::AAAA);
     Ok(())
 }

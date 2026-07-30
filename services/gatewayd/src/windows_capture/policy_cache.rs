@@ -1,4 +1,10 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use nonproxy_policy::CompiledPolicySnapshot;
 use nonproxy_policy_compiler::{CompileRequest, PolicyCompiler};
@@ -12,28 +18,34 @@ use tokio::{
 use crate::{Gateway, GatewayError, clock::unix_time_ms, provider_requirements, snapshot_payload};
 
 const REFRESH_INTERVAL: Duration = Duration::from_millis(250);
-const PROVIDER_ID: &str = "windows-wfp";
-
 #[derive(Clone)]
 pub struct WindowsPolicyCache {
     gateway: Gateway,
     current: Arc<RwLock<Option<Arc<CompiledPolicySnapshot>>>>,
+    provider_id: &'static str,
     provider_generation: u64,
     processed_candidate: Arc<Mutex<Option<u64>>>,
+    acknowledgements_enabled: Arc<AtomicBool>,
 }
 
 impl WindowsPolicyCache {
-    pub async fn load(gateway: Gateway) -> Result<Self, GatewayError> {
+    pub async fn load(
+        gateway: Gateway,
+        provider_id: &'static str,
+        acknowledgements_enabled: bool,
+    ) -> Result<Self, GatewayError> {
         let provider_generation = gateway
-            .next_provider_generation(PROVIDER_ID.to_owned())
+            .next_provider_generation(provider_id.to_owned())
             .await?;
-        gateway.mark_provider_registered(PROVIDER_ID, provider_generation, unix_time_ms()?)?;
+        gateway.mark_provider_registered(provider_id, provider_generation, unix_time_ms()?)?;
         let current = gateway.active_compiled_snapshot().await?.map(Arc::new);
         let cache = Self {
             gateway,
             current: Arc::new(RwLock::new(current)),
+            provider_id,
             provider_generation,
             processed_candidate: Arc::new(Mutex::new(None)),
+            acknowledgements_enabled: Arc::new(AtomicBool::new(acknowledgements_enabled)),
         };
         cache.refresh_provider().await?;
         cache.refresh().await?;
@@ -72,12 +84,31 @@ impl WindowsPolicyCache {
         active_snapshot_version: u64,
     ) -> Result<(), GatewayError> {
         self.gateway.report_provider_health(
-            PROVIDER_ID,
+            self.provider_id,
             self.provider_generation,
             state,
             active_snapshot_version,
             unix_time_ms()?,
         )
+    }
+
+    pub async fn enable_acknowledgements(&self) -> Result<(), GatewayError> {
+        self.set_acknowledgements_enabled(true).await
+    }
+
+    pub async fn disable_acknowledgements(&self) {
+        self.acknowledgements_enabled
+            .store(false, Ordering::Release);
+    }
+
+    async fn set_acknowledgements_enabled(&self, enabled: bool) -> Result<(), GatewayError> {
+        self.acknowledgements_enabled
+            .store(enabled, Ordering::Release);
+        if enabled {
+            self.refresh_provider().await
+        } else {
+            Ok(())
+        }
     }
 
     async fn refresh(&self) -> Result<(), GatewayError> {
@@ -97,6 +128,9 @@ impl WindowsPolicyCache {
     }
 
     async fn refresh_provider(&self) -> Result<(), GatewayError> {
+        if !self.acknowledgements_enabled.load(Ordering::Acquire) {
+            return Ok(());
+        }
         let known = self
             .current
             .read()
@@ -128,24 +162,24 @@ impl WindowsPolicyCache {
         let acknowledgement = match compiled {
             Ok(snapshot) if snapshot.metadata().content_hash() == artifact.content_hash() => {
                 ProviderAck::loaded(
-                    PROVIDER_ID,
+                    self.provider_id,
                     self.provider_generation,
                     *artifact.content_hash(),
                     now,
                 )?
             }
             Ok(_) => ProviderAck::rejected(
-                PROVIDER_ID,
+                self.provider_id,
                 self.provider_generation,
                 *artifact.content_hash(),
-                "NP_WINDOWS_WFP_SNAPSHOT_HASH_MISMATCH",
+                "NP_WINDOWS_SNAPSHOT_HASH_MISMATCH",
                 now,
             )?,
             Err(_) => ProviderAck::rejected(
-                PROVIDER_ID,
+                self.provider_id,
                 self.provider_generation,
                 *artifact.content_hash(),
-                "NP_WINDOWS_WFP_SNAPSHOT_REJECTED",
+                "NP_WINDOWS_SNAPSHOT_REJECTED",
                 now,
             )?,
         };

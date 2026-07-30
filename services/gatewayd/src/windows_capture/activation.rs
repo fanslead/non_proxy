@@ -20,6 +20,7 @@ pub struct WfpActivation {
     process_id: u64,
     ipv4_port: u16,
     ipv6_port: u16,
+    dns_ready: watch::Receiver<bool>,
     enabled: bool,
 }
 
@@ -31,6 +32,7 @@ impl WfpActivation {
         process_id: u64,
         ipv4_port: u16,
         ipv6_port: u16,
+        dns_ready: watch::Receiver<bool>,
     ) -> Self {
         Self {
             driver,
@@ -39,6 +41,7 @@ impl WfpActivation {
             process_id,
             ipv4_port,
             ipv6_port,
+            dns_ready,
             enabled: false,
         }
     }
@@ -54,6 +57,10 @@ impl WfpActivation {
                     }
                 }
                 _ = ticker.tick() => self.reconcile().await?,
+                changed = self.dns_ready.changed() => {
+                    let _changed = changed;
+                    self.reconcile().await?;
+                }
             }
         }
         self.disable()?;
@@ -62,8 +69,9 @@ impl WfpActivation {
 
     async fn reconcile(&mut self) -> Result<(), GatewayError> {
         let active = self.policies.current().await;
-        match active {
-            Some(snapshot) => {
+        let dns_ready = *self.dns_ready.borrow();
+        match (active, dns_ready) {
+            (Some(snapshot), true) => {
                 if !self.enabled {
                     self.generation = next_generation(self.generation)?;
                     self.driver
@@ -79,7 +87,15 @@ impl WfpActivation {
                 self.policies
                     .report_health(RuntimeState::Ready, snapshot.metadata().snapshot_version())?;
             }
-            None => {
+            (snapshot, false) => {
+                self.disable()?;
+                let version = snapshot
+                    .as_ref()
+                    .map_or(0, |value| value.metadata().snapshot_version());
+                self.policies
+                    .report_health(RuntimeState::Degraded, version)?;
+            }
+            (None, true) => {
                 self.disable()?;
                 self.policies.report_health(RuntimeState::Starting, 0)?;
             }

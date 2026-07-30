@@ -543,6 +543,20 @@ A/AAAA 查询才分配 `198.18.0.0/15` 或安装级 IPv6 ULA 地址；30 秒 DNS
 池路由冲突；DoH/DNSSEC/HTTPS-SVCB 的兼容边界不得隐藏。组件边界、失败语义
 和依据见 [ADR-0006](ADR/0006-use-selective-synthetic-dns-on-windows.md)。
 
+Windows DNS 运行时分为四个独立模块：
+
+1. `local_dns_server` 只处理 loopback UDP/TCP framing、长度与并发上限。
+2. `dns_policy` 把活动快照和严格解析后的问题映射为合成、NODATA 或真实路由。
+3. `windows_capture::dns_proxy` 负责合成绑定、物理/代理上游和 Provider 健康。
+4. `windows_capture::direct_dns` 只为合成 TCP 目标重新解析真实地址。
+
+Service 启动 DNS 监听前枚举 IPv4 路由；任何与 `198.18.0.0/15` 重叠的非默认
+路由都会令该能力硬失败。监听启动后生成一次性随机 `.invalid` 探针域名，只在
+Windows 系统 resolver 确实从本地监听得到 `198.18.0.1` 时，DNS Provider 才
+确认策略快照，WFP 激活协调器才允许 Driver enable。探针失效会立即撤销 DNS
+确认、把运行时标为 Degraded 并关闭 WFP 重定向。当前代码尚未改变网卡 DNS
+设置，因此真实 Windows 仍需后续的可恢复设置事务才能自动进入 Ready。
+
 驱动不得：
 
 - 解析域名订阅。

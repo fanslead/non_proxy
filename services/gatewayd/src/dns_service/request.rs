@@ -4,7 +4,7 @@ use std::{
     num::NonZeroU32,
 };
 
-use nonproxy_dns::{DnsCacheKey, DnsName, DnsRoute, ParsedDnsQuery};
+use nonproxy_dns::{DnsName, DnsRoute, ParsedDnsQuery};
 use nonproxy_model::{NetworkProfileId, OutboundId};
 use nonproxy_proto::provider::v1::{DnsRouteKind, ResolveDnsRequest};
 
@@ -51,12 +51,6 @@ impl ValidatedDnsRequest {
     }
 
     #[must_use]
-    pub fn cache_key(&self) -> DnsCacheKey {
-        self.query
-            .cache_key(self.route.clone(), self.network_profile.clone())
-    }
-
-    #[must_use]
     pub const fn query(&self) -> &ParsedDnsQuery {
         &self.query
     }
@@ -84,6 +78,11 @@ impl ValidatedDnsRequest {
     #[must_use]
     pub const fn direct_interface_index(&self) -> Option<NonZeroU32> {
         self.direct_interface_index
+    }
+
+    #[must_use]
+    pub const fn network_profile(&self) -> Option<&NetworkProfileId> {
+        self.network_profile.as_ref()
     }
 }
 

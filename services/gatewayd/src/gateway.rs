@@ -1,11 +1,16 @@
-use std::{path::Path, sync::Arc};
+use std::{
+    net::{IpAddr, Ipv6Addr},
+    path::Path,
+    sync::Arc,
+};
 
-use nonproxy_model::{DecisionSpec, OutboundId, Policy, PolicyId};
+use nonproxy_dns::{SyntheticAddressFamily, SyntheticAddressSpace};
+use nonproxy_model::{DecisionSpec, DomainName, OutboundId, Policy, PolicyId};
 use nonproxy_policy::CompiledPolicySnapshot;
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
 use nonproxy_storage::{
     OutboundReference, PolicyDatabase, ProviderAck, ProviderAckState, SnapshotArtifact,
-    SnapshotRecord, StorageError,
+    SnapshotRecord, StorageError, SyntheticDnsBinding,
 };
 use tokio::sync::Mutex;
 
@@ -344,6 +349,47 @@ impl Gateway {
                 }
                 Ok(Some(compiled))
             })
+            .await
+    }
+
+    pub async fn load_or_create_synthetic_dns_space(
+        &self,
+        proposed_ipv6_prefix: Ipv6Addr,
+    ) -> Result<SyntheticAddressSpace, GatewayError> {
+        let now = unix_time_ms()?;
+        self.database
+            .run(move |database| {
+                Ok(database
+                    .synthetic_dns()
+                    .load_or_create_space(proposed_ipv6_prefix, now)?)
+            })
+            .await
+    }
+
+    pub async fn synthetic_dns_binding(
+        &self,
+        space: SyntheticAddressSpace,
+        domain: DomainName,
+        family: SyntheticAddressFamily,
+    ) -> Result<SyntheticDnsBinding, GatewayError> {
+        let now = unix_time_ms()?;
+        self.database
+            .run(move |database| {
+                Ok(database
+                    .synthetic_dns()
+                    .get_or_create(space, &domain, family, now)?)
+            })
+            .await
+    }
+
+    pub async fn synthetic_dns_lookup(
+        &self,
+        space: SyntheticAddressSpace,
+        address: IpAddr,
+    ) -> Result<Option<SyntheticDnsBinding>, GatewayError> {
+        let now = unix_time_ms()?;
+        self.database
+            .run(move |database| Ok(database.synthetic_dns().lookup(space, address, now)?))
             .await
     }
 

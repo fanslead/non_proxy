@@ -4,8 +4,8 @@ mod resolver;
 
 use std::{sync::Arc, time::Duration};
 
-use nonproxy_dns::{DnsRoute, ParsedDnsResponse, PartitionedDnsCache};
-use nonproxy_model::OutboundId;
+use nonproxy_dns::{DnsRoute, ParsedDnsQuery, ParsedDnsResponse, PartitionedDnsCache};
+use nonproxy_model::{NetworkProfileId, OutboundId};
 use nonproxy_proto::{
     common::v1::ErrorDetail,
     provider::v1::{DnsRouteKind, ResolveDnsRequest, ResolveDnsResponse},
@@ -38,6 +38,16 @@ pub struct DnsResolutionResult {
     pub resolver_endpoint: Option<String>,
 }
 
+pub(crate) struct WireDnsRequest<'request> {
+    pub query: &'request ParsedDnsQuery,
+    pub wire_query: &'request [u8],
+    pub route: DnsRoute,
+    pub upstreams: &'request [std::net::SocketAddr],
+    pub snapshot_version: u64,
+    pub direct_interface_index: Option<std::num::NonZeroU32>,
+    pub network_profile: Option<&'request NetworkProfileId>,
+}
+
 impl DnsResolutionService {
     #[must_use]
     pub fn new(gateway: Gateway, credential_store: Arc<dyn CredentialStore>) -> Self {
@@ -53,19 +63,37 @@ impl DnsResolutionService {
         request: ResolveDnsRequest,
     ) -> Result<DnsResolutionResult, DnsServiceError> {
         let request = ValidatedDnsRequest::parse(request)?;
-        if self.gateway.active_snapshot_version().await? != Some(request.snapshot_version()) {
+        self.resolve_wire(WireDnsRequest {
+            query: request.query(),
+            wire_query: request.wire_query(),
+            route: request.route().clone(),
+            upstreams: request.upstreams(),
+            snapshot_version: request.snapshot_version(),
+            direct_interface_index: request.direct_interface_index(),
+            network_profile: request.network_profile(),
+        })
+        .await
+    }
+
+    pub(crate) async fn resolve_wire(
+        &self,
+        request: WireDnsRequest<'_>,
+    ) -> Result<DnsResolutionResult, DnsServiceError> {
+        if self.gateway.active_snapshot_version().await? != Some(request.snapshot_version) {
             return Err(DnsServiceError::SnapshotUnavailable);
         }
-        let key = request.cache_key();
+        let key = request
+            .query
+            .cache_key(request.route.clone(), request.network_profile.cloned());
         let now = unix_time_ms()?;
         if let Some(cached) = self
             .cache
-            .get(&key, request.query().transaction_id(), now)
+            .get(&key, request.query.transaction_id(), now)
             .map_err(DnsServiceError::Cache)?
         {
             return Ok(DnsResolutionResult {
                 dns_message: cached.bytes().to_vec(),
-                route: request.route().clone(),
+                route: request.route,
                 valid_for_seconds: cached.remaining_ttl_seconds(),
                 cache_hit: true,
                 resolver_endpoint: None,
@@ -73,13 +101,13 @@ impl DnsResolutionService {
         }
 
         let forwarded = timeout(DNS_REQUEST_TIMEOUT, async {
-            match request.route() {
+            match &request.route {
                 DnsRoute::Direct | DnsRoute::System => {
                     resolver::direct(
-                        request.upstreams(),
-                        request.query(),
-                        request.wire_query(),
-                        request.direct_interface_index(),
+                        request.upstreams,
+                        request.query,
+                        request.wire_query,
+                        request.direct_interface_index,
                     )
                     .await
                 }
@@ -92,9 +120,9 @@ impl DnsResolutionService {
                     .await?;
                     resolver::proxy(
                         &connector,
-                        request.upstreams(),
-                        request.query(),
-                        request.wire_query(),
+                        request.upstreams,
+                        request.query,
+                        request.wire_query,
                     )
                     .await
                 }
@@ -102,7 +130,7 @@ impl DnsResolutionService {
         })
         .await
         .map_err(|_| DnsServiceError::ResolverTimeout)??;
-        let response = ParsedDnsResponse::parse(request.query(), &forwarded.bytes)
+        let response = ParsedDnsResponse::parse(request.query, &forwarded.bytes)
             .map_err(DnsServiceError::InvalidResponse)?;
         let valid_for_seconds = response.valid_for_seconds();
         self.cache
@@ -110,7 +138,7 @@ impl DnsResolutionService {
             .map_err(DnsServiceError::Cache)?;
         Ok(DnsResolutionResult {
             dns_message: forwarded.bytes,
-            route: request.route().clone(),
+            route: request.route,
             valid_for_seconds,
             cache_hit: false,
             resolver_endpoint: Some(forwarded.resolver.to_string()),

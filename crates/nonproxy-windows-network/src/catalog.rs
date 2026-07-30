@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     ffi::c_void,
+    net::Ipv4Addr,
     num::NonZeroU32,
     ptr,
     sync::Mutex,
@@ -20,8 +21,8 @@ use windows_sys::Win32::{
 };
 
 use crate::{
-    AddressFamily, DefaultRouteCandidate, InterfaceCandidate, PhysicalInterfaces,
-    WindowsNetworkError, select_physical_interfaces,
+    AddressFamily, DefaultRouteCandidate, InterfaceCandidate, Ipv4RoutePrefix, PhysicalInterfaces,
+    WindowsNetworkError, conflicts_with_synthetic_ipv4_pool, select_physical_interfaces,
 };
 
 const CACHE_TTL: Duration = Duration::from_secs(1);
@@ -70,6 +71,46 @@ impl PhysicalInterfaceCatalog {
 impl Default for PhysicalInterfaceCatalog {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub fn ensure_synthetic_ipv4_pool_available() -> Result<(), WindowsNetworkError> {
+    let mut table = ptr::null_mut::<MIB_IPFORWARD_TABLE2>();
+    // SAFETY: Windows 分配输出表，成功后由 MibTableGuard 唯一释放。
+    let code = unsafe { GetIpForwardTable2(AF_INET, &mut table) };
+    if code != 0 {
+        return Err(WindowsNetworkError::windows(
+            "检查 Windows IPv4 路由冲突",
+            code,
+        ));
+    }
+    let guard = MibTableGuard(table.cast());
+    if table.is_null() {
+        return Err(WindowsNetworkError::InvalidRouteTable);
+    }
+    // SAFETY: GetIpForwardTable2 成功返回至少含表头的有效分配。
+    let count = unsafe { (*table).NumEntries };
+    // SAFETY: Table 是当前 guard 持有的 Windows 分配，count 来自同一表头。
+    let rows = unsafe {
+        table_rows(
+            ptr::addr_of!((*table).Table).cast::<MIB_IPFORWARD_ROW2>(),
+            count,
+            WindowsNetworkError::InvalidRouteTable,
+        )
+    }?;
+    let conflicted = rows.iter().any(|row| {
+        // SAFETY: GetIpForwardTable2(AF_INET) 返回 IPv4 路由，读取 Ipv4 union 成员有效。
+        let octets = unsafe { row.DestinationPrefix.Prefix.Ipv4.sin_addr.S_un.S_un_b };
+        conflicts_with_synthetic_ipv4_pool(Ipv4RoutePrefix {
+            network: Ipv4Addr::new(octets.s_b1, octets.s_b2, octets.s_b3, octets.s_b4),
+            prefix_length: row.DestinationPrefix.PrefixLength,
+        })
+    });
+    drop(guard);
+    if conflicted {
+        Err(WindowsNetworkError::SyntheticIpv4RouteConflict)
+    } else {
+        Ok(())
     }
 }
 
