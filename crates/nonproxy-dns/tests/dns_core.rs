@@ -203,3 +203,12 @@ fn invalid_query_shapes_are_rejected() -> Result<(), Box<dyn Error>> {
     assert!(ParsedDnsQuery::parse(&[0_u8; 11]).is_err());
     Ok(())
 }
+
+#[test]
+fn dns_names_accept_service_labels_and_root() -> Result<(), Box<dyn Error>> {
+    let service = ParsedDnsQuery::parse(&query_message(22, "_dns-sd._udp.local.")?)?;
+    assert_eq!(service.question().qname().as_ascii(), "_dns-sd._udp.local");
+    let root = ParsedDnsQuery::parse(&query_message(23, ".")?)?;
+    assert!(root.question().qname().is_root());
+    Ok(())
+}

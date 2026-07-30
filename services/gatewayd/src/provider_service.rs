@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use nonproxy_proto::{
     common::v1::{ComponentKind, ComponentVersion, ErrorDetail},
@@ -22,6 +22,10 @@ use crate::{
     clock::{timestamp_from_unix_ms, unix_time_ms},
     control_mapping,
     control_rpc_helpers::{internal_status, publish_snapshot_event},
+    credential_store::CredentialStore,
+    dns_service::{
+        DnsResolutionService, error_response as dns_error_response, response as dns_response,
+    },
     proto_policy::decision_to_proto,
     provider_requirements,
     provider_session::{ProviderSessionRegistry, validate_registration_input},
@@ -41,12 +45,18 @@ pub struct ProviderRpcService {
     gateway: Gateway,
     bootstrap: SessionCapability,
     sessions: ProviderSessionRegistry,
+    dns: DnsResolutionService,
 }
 
 impl ProviderRpcService {
     #[must_use]
-    pub fn new(gateway: Gateway, bootstrap: SessionCapability) -> Self {
+    pub(crate) fn with_credential_store(
+        gateway: Gateway,
+        bootstrap: SessionCapability,
+        credential_store: Arc<dyn CredentialStore>,
+    ) -> Self {
         Self {
+            dns: DnsResolutionService::new(gateway.clone(), credential_store),
             gateway,
             bootstrap,
             sessions: ProviderSessionRegistry::new(),
@@ -230,14 +240,20 @@ impl ProviderService for ProviderRpcService {
         &self,
         request: Request<ResolveDnsRequest>,
     ) -> Result<Response<ResolveDnsResponse>, Status> {
-        self.authenticate(request.get_ref().context.as_ref())?;
-        Ok(Response::new(ResolveDnsResponse {
-            dns_message: Vec::new(),
-            route: provider_proto::DnsRouteKind::Unspecified as i32,
-            outbound_id: String::new(),
-            valid_for: None,
-            error: Some(feature_unavailable("DNS 解析")),
-        }))
+        let request = request.into_inner();
+        let session = self.authenticate(request.context.as_ref())?;
+        if !matches!(session.provider_id(), "dns-proxy" | "windows-dns") {
+            return Err(Status::permission_denied(
+                "只有 DNS Provider 可以请求 DNS 解析",
+            ));
+        }
+        match self.dns.resolve(request).await {
+            Ok(result) => Ok(Response::new(dns_response(result))),
+            Err(error) if error.is_invalid_argument() => {
+                Err(Status::invalid_argument(error.to_string()))
+            }
+            Err(error) => Ok(Response::new(dns_error_response(&error))),
+        }
     }
 
     async fn open_proxy_flow(

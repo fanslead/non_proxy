@@ -156,6 +156,18 @@ message ResolveDnsRequest {
   string qname = 4;
   uint32 qtype = 5;
   string network_profile_id = 6;
+  bytes dns_message = 7;
+  DnsRouteKind requested_route = 8;
+  string requested_outbound_id = 9;
+  repeated DnsUpstreamEndpoint upstreams = 10;
+  uint64 snapshot_version = 11;
+}
+
+// DnsUpstreamEndpoint 使用 IP 字面量，避免网关解析 resolver 主机名时再次进入 DNS Proxy。
+message DnsUpstreamEndpoint {
+  string ip_address = 1;
+  uint32 port = 2;
+  uint32 scope_id = 3;
 }
 
 // ResolveDnsResponse 返回原始 DNS 消息和路由标签。
@@ -165,6 +177,8 @@ message ResolveDnsResponse {
   string outbound_id = 3;
   google.protobuf.Duration valid_for = 4;
   nonproxy.common.v1.ErrorDetail error = 5;
+  bool cache_hit = 6;
+  string resolver_endpoint = 7;
 }
 
 // OpenProxyFlowRequest 在大流量通道外创建 flow 元数据。

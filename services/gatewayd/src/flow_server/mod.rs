@@ -1,6 +1,6 @@
 mod connection;
 mod error;
-mod outbound_factory;
+pub(crate) mod outbound_factory;
 mod tcp;
 mod udp;
 mod window;

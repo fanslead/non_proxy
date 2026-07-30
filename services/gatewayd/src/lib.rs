@@ -5,6 +5,7 @@ mod control_rpc_helpers;
 mod control_service;
 mod credential_store;
 mod database_executor;
+mod dns_service;
 mod error;
 mod event_hub;
 #[cfg(unix)]

@@ -318,6 +318,17 @@ impl Gateway {
             .await
     }
 
+    pub async fn active_snapshot_version(&self) -> Result<Option<u64>, GatewayError> {
+        self.database
+            .run(|database| {
+                Ok(database
+                    .snapshots()
+                    .active()?
+                    .map(|record| record.artifact().snapshot_version()))
+            })
+            .await
+    }
+
     pub async fn acknowledge_provider_snapshot(
         &self,
         snapshot_version: u64,

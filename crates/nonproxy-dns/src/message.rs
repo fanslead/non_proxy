@@ -2,25 +2,24 @@ use std::net::IpAddr;
 
 use hickory_proto::{
     op::{Message, MessageType, OpCode, ResponseCode},
-    rr::{DNSClass, RData},
+    rr::{DNSClass, Name, RData},
 };
-use nonproxy_model::DomainName;
 use sha2::{Digest, Sha256};
 
-use crate::{DnsCacheKey, DnsError, DnsRoute};
+use crate::{DnsCacheKey, DnsError, DnsName, DnsRoute};
 
 const MAXIMUM_MESSAGE_BYTES: usize = u16::MAX as usize;
 const MAXIMUM_CACHE_TTL_SECONDS: u32 = 24 * 60 * 60;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DnsQuestion {
-    qname: DomainName,
+    qname: DnsName,
     qtype: u16,
 }
 
 impl DnsQuestion {
     #[must_use]
-    pub const fn qname(&self) -> &DomainName {
+    pub const fn qname(&self) -> &DnsName {
         &self.qname
     }
 
@@ -56,7 +55,7 @@ impl ParsedDnsQuery {
         if query.query_class() != DNSClass::IN {
             return Err(DnsError::InvalidQuery);
         }
-        let qname = normalize_name(&query.name().to_ascii())?;
+        let qname = normalize_name(query.name());
         let mut normalized = bytes.to_vec();
         normalized[0] = 0;
         normalized[1] = 0;
@@ -99,14 +98,14 @@ impl ParsedDnsQuery {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DnsAddressObservation {
-    owner: DomainName,
+    owner: DnsName,
     address: IpAddr,
     ttl_seconds: u32,
 }
 
 impl DnsAddressObservation {
     #[must_use]
-    pub const fn owner(&self) -> &DomainName {
+    pub const fn owner(&self) -> &DnsName {
         &self.owner
     }
 
@@ -123,19 +122,19 @@ impl DnsAddressObservation {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DnsCnameObservation {
-    alias: DomainName,
-    canonical: DomainName,
+    alias: DnsName,
+    canonical: DnsName,
     ttl_seconds: u32,
 }
 
 impl DnsCnameObservation {
     #[must_use]
-    pub const fn alias(&self) -> &DomainName {
+    pub const fn alias(&self) -> &DnsName {
         &self.alias
     }
 
     #[must_use]
-    pub const fn canonical(&self) -> &DomainName {
+    pub const fn canonical(&self) -> &DnsName {
         &self.canonical
     }
 
@@ -166,7 +165,7 @@ impl ParsedDnsResponse {
             return Err(DnsError::InvalidResponse);
         }
         let response_query = &message.queries[0];
-        let response_name = normalize_name(&response_query.name().to_ascii())?;
+        let response_name = normalize_name(response_query.name());
         if response_query.query_class() != DNSClass::IN
             || response_name != query.question.qname
             || u16::from(response_query.query_type()) != query.question.qtype
@@ -176,7 +175,7 @@ impl ParsedDnsResponse {
         let mut addresses = Vec::new();
         let mut cnames = Vec::new();
         for record in &message.answers {
-            let owner = normalize_name(&record.name.to_ascii())?;
+            let owner = normalize_name(&record.name);
             match &record.data {
                 RData::A(value) => addresses.push(DnsAddressObservation {
                     owner,
@@ -190,7 +189,7 @@ impl ParsedDnsResponse {
                 }),
                 RData::CNAME(value) => cnames.push(DnsCnameObservation {
                     alias: owner,
-                    canonical: normalize_name(&value.0.to_ascii())?,
+                    canonical: normalize_name(&value.0),
                     ttl_seconds: record.ttl,
                 }),
                 _ => {}
@@ -263,8 +262,8 @@ fn cache_ttl(message: &Message) -> u32 {
     }
 }
 
-fn normalize_name(value: &str) -> Result<DomainName, DnsError> {
-    DomainName::normalize(value).map_err(|_| DnsError::Domain)
+fn normalize_name(value: &Name) -> DnsName {
+    DnsName::from_name(value)
 }
 
 fn validate_size(bytes: &[u8]) -> Result<(), DnsError> {

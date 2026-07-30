@@ -1280,8 +1280,10 @@ name = "nonproxy-gatewayd"
 version = "0.1.0"
 dependencies = [
  "getrandom 0.4.3",
+ "hickory-proto",
  "hyper-util",
  "keyring",
+ "nonproxy-dns",
  "nonproxy-flow-protocol",
  "nonproxy-model",
  "nonproxy-outbound",

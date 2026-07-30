@@ -35,13 +35,21 @@ pub async fn run(config: GatewayConfig) -> Result<(), GatewayError> {
     );
     #[cfg(unix)]
     {
-        let provider = ProviderRpcService::new(gateway.clone(), provider_capability.clone());
+        let provider = ProviderRpcService::with_credential_store(
+            gateway.clone(),
+            provider_capability.clone(),
+            Arc::clone(&credential_store),
+        );
         let flow = FlowConnectionHandler::new(gateway, provider_capability, credential_store);
         serve_platform(config, control, provider, flow).await
     }
     #[cfg(not(unix))]
     {
-        let provider = ProviderRpcService::new(gateway, provider_capability);
+        let provider = ProviderRpcService::with_credential_store(
+            gateway,
+            provider_capability,
+            credential_store,
+        );
         serve_platform(config, control, provider).await
     }
 }
@@ -205,9 +213,13 @@ mod tests {
         };
         let gateway = Gateway::new(database, CompileCapabilities::full());
         let control = ControlRpcService::new(gateway.clone(), control_capability);
-        let provider = ProviderRpcService::new(gateway.clone(), provider_capability.clone());
         let credential_store: std::sync::Arc<dyn CredentialStore> =
             std::sync::Arc::new(MemoryCredentialStore::default());
+        let provider = ProviderRpcService::with_credential_store(
+            gateway.clone(),
+            provider_capability.clone(),
+            std::sync::Arc::clone(&credential_store),
+        );
         let flow = FlowConnectionHandler::new(gateway, provider_capability, credential_store);
         let (shutdown_sender, shutdown_receiver) = oneshot::channel();
         let server = tokio::spawn(serve_unix_with_shutdown(

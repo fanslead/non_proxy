@@ -7,21 +7,25 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
+use hickory_proto::{
+    op::{Message, MessageType, OpCode, Query},
+    rr::{Name, RData, Record, RecordType, rdata::A},
+};
 use hyper_util::rt::TokioIo;
 use nonproxy_proto::{
-    common::v1::{ComponentKind, ComponentVersion},
+    common::v1::{AppIdentity, ComponentKind, ComponentVersion, Platform},
     control::v1::{
         ApplyPolicySnapshotRequest, GetSystemStatusRequest, OperationContext,
         control_service_client::ControlServiceClient,
     },
     provider::v1::{
-        AcknowledgeSnapshotRequest, GetCurrentSnapshotRequest, ProviderKind,
-        ProviderRequestContext, RegisterProviderRequest, ReportHealthRequest,
-        provider_service_client::ProviderServiceClient,
+        AcknowledgeSnapshotRequest, DnsRouteKind, DnsUpstreamEndpoint, GetCurrentSnapshotRequest,
+        ProviderKind, ProviderRequestContext, RegisterProviderRequest, ReportHealthRequest,
+        ResolveDnsRequest, provider_service_client::ProviderServiceClient,
     },
 };
 use tokio::{
-    net::UnixStream,
+    net::{UdpSocket, UnixStream},
     time::{Duration, sleep},
 };
 use tonic::{Code, transport::Endpoint};
@@ -214,6 +218,78 @@ async fn two_authenticated_providers_activate_the_pending_snapshot() {
         })
         .await;
     assert!(dns_health.is_ok());
+    let forbidden_dns = transparent
+        .resolve_dns(ResolveDnsRequest {
+            context: Some(context(
+                "transparent-test-1",
+                &transparent_session.session_token,
+                6,
+            )),
+            ..Default::default()
+        })
+        .await;
+    assert!(matches!(
+        forbidden_dns,
+        Err(status) if status.code() == Code::PermissionDenied
+    ));
+
+    let resolver = UdpSocket::bind("127.0.0.1:0").await;
+    let Ok(resolver) = resolver else {
+        panic!("DNS RPC resolver 夹具绑定失败: {resolver:?}");
+    };
+    let resolver_endpoint = resolver.local_addr();
+    let Ok(resolver_endpoint) = resolver_endpoint else {
+        panic!("DNS RPC resolver 地址读取失败: {resolver_endpoint:?}");
+    };
+    let resolver_task = tokio::spawn(async move {
+        let mut query = vec![0_u8; u16::MAX as usize];
+        let (received, peer) = resolver.recv_from(&mut query).await?;
+        query.truncate(received);
+        let response =
+            dns_response_bytes(&query).map_err(|error| std::io::Error::other(error.to_string()))?;
+        resolver.send_to(&response, peer).await?;
+        Ok::<(), std::io::Error>(())
+    });
+    let query = dns_query_bytes(0xCAFE);
+    let Ok(query) = query else {
+        panic!("DNS RPC 查询构造失败: {query:?}");
+    };
+    let resolved = dns
+        .resolve_dns(ResolveDnsRequest {
+            context: Some(context("dns-test-1", &dns_session.session_token, 3)),
+            query_id: "provider-rpc-dns".to_owned(),
+            app: Some(AppIdentity {
+                platform: Platform::Macos as i32,
+                stable_id: "com.example.browser".to_owned(),
+                ..Default::default()
+            }),
+            qname: "rpc.example".to_owned(),
+            qtype: u32::from(u16::from(RecordType::A)),
+            network_profile_id: "test-network".to_owned(),
+            dns_message: query,
+            requested_route: DnsRouteKind::Direct as i32,
+            requested_outbound_id: String::new(),
+            upstreams: vec![DnsUpstreamEndpoint {
+                ip_address: resolver_endpoint.ip().to_string(),
+                port: u32::from(resolver_endpoint.port()),
+                scope_id: 0,
+            }],
+            snapshot_version: 1,
+        })
+        .await;
+    let Ok(resolved) = resolved else {
+        panic!("DNS Provider RPC 解析失败: {resolved:?}");
+    };
+    let resolved = resolved.into_inner();
+    assert!(resolved.error.is_none());
+    assert_eq!(resolved.route, DnsRouteKind::Direct as i32);
+    assert_eq!(resolved.resolver_endpoint, resolver_endpoint.to_string());
+    let decoded = Message::from_vec(&resolved.dns_message);
+    let Ok(decoded) = decoded else {
+        panic!("DNS Provider RPC 响应解码失败: {decoded:?}");
+    };
+    assert_eq!(decoded.id, 0xCAFE);
+    assert!(matches!(resolver_task.await, Ok(Ok(()))));
 
     let status = control.get_system_status(GetSystemStatusRequest {}).await;
     let Ok(status) = status else {
@@ -225,6 +301,32 @@ async fn two_authenticated_providers_activate_the_pending_snapshot() {
     assert!(status.data_plane_enabled);
 
     process.stop();
+}
+
+fn dns_query_bytes(id: u16) -> Result<Vec<u8>, hickory_proto::ProtoError> {
+    let mut message = Message::new(id, MessageType::Query, OpCode::Query);
+    message.add_query(Query::query(
+        Name::from_ascii("rpc.example.")?,
+        RecordType::A,
+    ));
+    message.to_vec()
+}
+
+fn dns_response_bytes(query: &[u8]) -> Result<Vec<u8>, hickory_proto::ProtoError> {
+    let query = Message::from_vec(query)?;
+    let question = query
+        .queries
+        .first()
+        .cloned()
+        .ok_or_else(|| hickory_proto::ProtoError::from("DNS RPC 查询缺少 question"))?;
+    let mut response = Message::response(query.id, OpCode::Query);
+    response.add_query(question.clone());
+    response.add_answer(Record::from_rdata(
+        question.name().clone(),
+        60,
+        RData::A(A::new(192, 0, 2, 7)),
+    ));
+    response.to_vec()
 }
 
 async fn register(

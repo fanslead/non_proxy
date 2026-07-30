@@ -9,6 +9,7 @@ publish.workspace = true
 getrandom.workspace = true
 keyring.workspace = true
 nonproxy-model = { path = "../../crates/nonproxy-model" }
+nonproxy-dns = { path = "../../crates/nonproxy-dns" }
 nonproxy-flow-protocol = { path = "../../crates/nonproxy-flow-protocol" }
 nonproxy-outbound = { path = "../../crates/nonproxy-outbound" }
 nonproxy-policy = { path = "../../crates/nonproxy-policy" }
@@ -26,6 +27,7 @@ tonic.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
+hickory-proto.workspace = true
 hyper-util.workspace = true
 tempfile.workspace = true
 tower.workspace = true

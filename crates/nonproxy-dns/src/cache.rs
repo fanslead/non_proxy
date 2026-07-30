@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Mutex};
 use crate::{DnsCacheKey, DnsError, ParsedDnsResponse};
 
 const MAXIMUM_CACHE_ENTRIES: usize = 65_536;
+const DEFAULT_CACHE_ENTRIES: usize = 4_096;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CachedDnsResponse {
@@ -32,6 +33,15 @@ struct CacheEntry {
 pub struct PartitionedDnsCache {
     capacity: usize,
     entries: Mutex<HashMap<DnsCacheKey, CacheEntry>>,
+}
+
+impl Default for PartitionedDnsCache {
+    fn default() -> Self {
+        Self {
+            capacity: DEFAULT_CACHE_ENTRIES,
+            entries: Mutex::new(HashMap::with_capacity(DEFAULT_CACHE_ENTRIES)),
+        }
+    }
 }
 
 impl PartitionedDnsCache {

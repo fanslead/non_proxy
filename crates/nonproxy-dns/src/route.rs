@@ -1,4 +1,6 @@
-use nonproxy_model::{DomainName, NetworkProfileId, OutboundId};
+use nonproxy_model::{NetworkProfileId, OutboundId};
+
+use crate::DnsName;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum DnsRoute {
@@ -9,7 +11,7 @@ pub enum DnsRoute {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DnsCacheKey {
-    pub(crate) qname: DomainName,
+    pub(crate) qname: DnsName,
     pub(crate) qtype: u16,
     pub(crate) route: DnsRoute,
     pub(crate) network_profile: Option<NetworkProfileId>,
@@ -28,7 +30,7 @@ impl DnsCacheKey {
     }
 
     #[must_use]
-    pub const fn qname(&self) -> &DomainName {
+    pub const fn qname(&self) -> &DnsName {
         &self.qname
     }
 

@@ -99,64 +99,74 @@ namespace NonProxy.Provider.V1 {
             "GAYgASgLMh8ubm9ucHJveHkuY29tbW9uLnYxLkVycm9yRGV0YWlsUgVlcnJv",
             "ciJWChRSZXBvcnRIZWFsdGhSZXNwb25zZRI+Cg1uZXh0X2ludGVydmFsGAEg",
             "ASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uUgxuZXh0SW50ZXJ2YWwi",
-            "gwIKEVJlc29sdmVEbnNSZXF1ZXN0EkYKB2NvbnRleHQYASABKAsyLC5ub25w",
+            "mQQKEVJlc29sdmVEbnNSZXF1ZXN0EkYKB2NvbnRleHQYASABKAsyLC5ub25w",
             "cm94eS5wcm92aWRlci52MS5Qcm92aWRlclJlcXVlc3RDb250ZXh0Ugdjb250",
             "ZXh0EhkKCHF1ZXJ5X2lkGAIgASgJUgdxdWVyeUlkEjEKA2FwcBgDIAEoCzIf",
             "Lm5vbnByb3h5LmNvbW1vbi52MS5BcHBJZGVudGl0eVIDYXBwEhQKBXFuYW1l",
             "GAQgASgJUgVxbmFtZRIUCgVxdHlwZRgFIAEoDVIFcXR5cGUSLAoSbmV0d29y",
-            "a19wcm9maWxlX2lkGAYgASgJUhBuZXR3b3JrUHJvZmlsZUlkIv8BChJSZXNv",
-            "bHZlRG5zUmVzcG9uc2USHwoLZG5zX21lc3NhZ2UYASABKAxSCmRuc01lc3Nh",
-            "Z2USOAoFcm91dGUYAiABKA4yIi5ub25wcm94eS5wcm92aWRlci52MS5EbnNS",
-            "b3V0ZUtpbmRSBXJvdXRlEh8KC291dGJvdW5kX2lkGAMgASgJUgpvdXRib3Vu",
-            "ZElkEjYKCXZhbGlkX2ZvchgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJh",
-            "dGlvblIIdmFsaWRGb3ISNQoFZXJyb3IYBSABKAsyHy5ub25wcm94eS5jb21t",
-            "b24udjEuRXJyb3JEZXRhaWxSBWVycm9yIvABChRPcGVuUHJveHlGbG93UmVx",
-            "dWVzdBJVCg9yZXF1ZXN0X2NvbnRleHQYASABKAsyLC5ub25wcm94eS5wcm92",
-            "aWRlci52MS5Qcm92aWRlclJlcXVlc3RDb250ZXh0Ug5yZXF1ZXN0Q29udGV4",
-            "dBJHCgpjb25uZWN0aW9uGAIgASgLMicubm9ucHJveHkucHJvdmlkZXIudjEu",
-            "Q29ubmVjdGlvbkNvbnRleHRSCmNvbm5lY3Rpb24SOAoIZGVjaXNpb24YAyAB",
-            "KAsyHC5ub25wcm94eS5wb2xpY3kudjEuRGVjaXNpb25SCGRlY2lzaW9uIoAC",
-            "ChVPcGVuUHJveHlGbG93UmVzcG9uc2USGgoIYWNjZXB0ZWQYASABKAhSCGFj",
-            "Y2VwdGVkEjQKFmZyYW1lX3Byb3RvY29sX3ZlcnNpb24YAiABKA1SFGZyYW1l",
-            "UHJvdG9jb2xWZXJzaW9uEjAKFGluaXRpYWxfd2luZG93X2J5dGVzGAMgASgE",
-            "UhJpbml0aWFsV2luZG93Qnl0ZXMSNQoFZXJyb3IYBCABKAsyHy5ub25wcm94",
-            "eS5jb21tb24udjEuRXJyb3JEZXRhaWxSBWVycm9yEiwKEmRhdGFfY2hhbm5l",
-            "bF90b2tlbhgFIAEoDFIQZGF0YUNoYW5uZWxUb2tlbiL3AQoVQ2xvc2VQcm94",
-            "eUZsb3dSZXF1ZXN0EkYKB2NvbnRleHQYASABKAsyLC5ub25wcm94eS5wcm92",
-            "aWRlci52MS5Qcm92aWRlclJlcXVlc3RDb250ZXh0Ugdjb250ZXh0EhcKB2Zs",
-            "b3dfaWQYAiABKAlSBmZsb3dJZBIkCg5ieXRlc19mcm9tX2FwcBgDIAEoBFIM",
-            "Ynl0ZXNGcm9tQXBwEiAKDGJ5dGVzX3RvX2FwcBgEIAEoBFIKYnl0ZXNUb0Fw",
-            "cBI1CgVlcnJvchgFIAEoCzIfLm5vbnByb3h5LmNvbW1vbi52MS5FcnJvckRl",
-            "dGFpbFIFZXJyb3IiMAoWQ2xvc2VQcm94eUZsb3dSZXNwb25zZRIWCgZjbG9z",
-            "ZWQYASABKAhSBmNsb3NlZCqtAQoMUHJvdmlkZXJLaW5kEh0KGVBST1ZJREVS",
-            "X0tJTkRfVU5TUEVDSUZJRUQQABIjCh9QUk9WSURFUl9LSU5EX1RSQU5TUEFS",
-            "RU5UX1BST1hZEAESGwoXUFJPVklERVJfS0lORF9ETlNfUFJPWFkQAhIdChlQ",
-            "Uk9WSURFUl9LSU5EX1dJTkRPV1NfV0ZQEAMSHQoZUFJPVklERVJfS0lORF9X",
-            "SU5ET1dTX0ROUxAEKn4KDERuc1JvdXRlS2luZBIeChpETlNfUk9VVEVfS0lO",
-            "RF9VTlNQRUNJRklFRBAAEhkKFUROU19ST1VURV9LSU5EX0RJUkVDVBABEhgK",
-            "FEROU19ST1VURV9LSU5EX1BST1hZEAISGQoVRE5TX1JPVVRFX0tJTkRfU1lT",
-            "VEVNEAMylAcKD1Byb3ZpZGVyU2VydmljZRJxChBSZWdpc3RlclByb3ZpZGVy",
-            "Ei0ubm9ucHJveHkucHJvdmlkZXIudjEuUmVnaXN0ZXJQcm92aWRlclJlcXVl",
-            "c3QaLi5ub25wcm94eS5wcm92aWRlci52MS5SZWdpc3RlclByb3ZpZGVyUmVz",
-            "cG9uc2USdwoSR2V0Q3VycmVudFNuYXBzaG90Ei8ubm9ucHJveHkucHJvdmlk",
-            "ZXIudjEuR2V0Q3VycmVudFNuYXBzaG90UmVxdWVzdBowLm5vbnByb3h5LnBy",
-            "b3ZpZGVyLnYxLkdldEN1cnJlbnRTbmFwc2hvdFJlc3BvbnNlEnoKE0Fja25v",
-            "d2xlZGdlU25hcHNob3QSMC5ub25wcm94eS5wcm92aWRlci52MS5BY2tub3ds",
-            "ZWRnZVNuYXBzaG90UmVxdWVzdBoxLm5vbnByb3h5LnByb3ZpZGVyLnYxLkFj",
-            "a25vd2xlZGdlU25hcHNob3RSZXNwb25zZRJ6ChNSZXBvcnREZWNpc2lvbkJh",
-            "dGNoEjAubm9ucHJveHkucHJvdmlkZXIudjEuUmVwb3J0RGVjaXNpb25CYXRj",
-            "aFJlcXVlc3QaMS5ub25wcm94eS5wcm92aWRlci52MS5SZXBvcnREZWNpc2lv",
-            "bkJhdGNoUmVzcG9uc2USZQoMUmVwb3J0SGVhbHRoEikubm9ucHJveHkucHJv",
-            "dmlkZXIudjEuUmVwb3J0SGVhbHRoUmVxdWVzdBoqLm5vbnByb3h5LnByb3Zp",
-            "ZGVyLnYxLlJlcG9ydEhlYWx0aFJlc3BvbnNlEl8KClJlc29sdmVEbnMSJy5u",
-            "b25wcm94eS5wcm92aWRlci52MS5SZXNvbHZlRG5zUmVxdWVzdBooLm5vbnBy",
-            "b3h5LnByb3ZpZGVyLnYxLlJlc29sdmVEbnNSZXNwb25zZRJoCg1PcGVuUHJv",
-            "eHlGbG93Eioubm9ucHJveHkucHJvdmlkZXIudjEuT3BlblByb3h5Rmxvd1Jl",
-            "cXVlc3QaKy5ub25wcm94eS5wcm92aWRlci52MS5PcGVuUHJveHlGbG93UmVz",
-            "cG9uc2USawoOQ2xvc2VQcm94eUZsb3cSKy5ub25wcm94eS5wcm92aWRlci52",
-            "MS5DbG9zZVByb3h5Rmxvd1JlcXVlc3QaLC5ub25wcm94eS5wcm92aWRlci52",
-            "MS5DbG9zZVByb3h5Rmxvd1Jlc3BvbnNlQheqAhROb25Qcm94eS5Qcm92aWRl",
-            "ci5WMWIGcHJvdG8z"));
+            "a19wcm9maWxlX2lkGAYgASgJUhBuZXR3b3JrUHJvZmlsZUlkEh8KC2Ruc19t",
+            "ZXNzYWdlGAcgASgMUgpkbnNNZXNzYWdlEksKD3JlcXVlc3RlZF9yb3V0ZRgI",
+            "IAEoDjIiLm5vbnByb3h5LnByb3ZpZGVyLnYxLkRuc1JvdXRlS2luZFIOcmVx",
+            "dWVzdGVkUm91dGUSMgoVcmVxdWVzdGVkX291dGJvdW5kX2lkGAkgASgJUhNy",
+            "ZXF1ZXN0ZWRPdXRib3VuZElkEkcKCXVwc3RyZWFtcxgKIAMoCzIpLm5vbnBy",
+            "b3h5LnByb3ZpZGVyLnYxLkRuc1Vwc3RyZWFtRW5kcG9pbnRSCXVwc3RyZWFt",
+            "cxIpChBzbmFwc2hvdF92ZXJzaW9uGAsgASgEUg9zbmFwc2hvdFZlcnNpb24i",
+            "YwoTRG5zVXBzdHJlYW1FbmRwb2ludBIdCgppcF9hZGRyZXNzGAEgASgJUglp",
+            "cEFkZHJlc3MSEgoEcG9ydBgCIAEoDVIEcG9ydBIZCghzY29wZV9pZBgDIAEo",
+            "DVIHc2NvcGVJZCLJAgoSUmVzb2x2ZURuc1Jlc3BvbnNlEh8KC2Ruc19tZXNz",
+            "YWdlGAEgASgMUgpkbnNNZXNzYWdlEjgKBXJvdXRlGAIgASgOMiIubm9ucHJv",
+            "eHkucHJvdmlkZXIudjEuRG5zUm91dGVLaW5kUgVyb3V0ZRIfCgtvdXRib3Vu",
+            "ZF9pZBgDIAEoCVIKb3V0Ym91bmRJZBI2Cgl2YWxpZF9mb3IYBCABKAsyGS5n",
+            "b29nbGUucHJvdG9idWYuRHVyYXRpb25SCHZhbGlkRm9yEjUKBWVycm9yGAUg",
+            "ASgLMh8ubm9ucHJveHkuY29tbW9uLnYxLkVycm9yRGV0YWlsUgVlcnJvchIb",
+            "CgljYWNoZV9oaXQYBiABKAhSCGNhY2hlSGl0EisKEXJlc29sdmVyX2VuZHBv",
+            "aW50GAcgASgJUhByZXNvbHZlckVuZHBvaW50IvABChRPcGVuUHJveHlGbG93",
+            "UmVxdWVzdBJVCg9yZXF1ZXN0X2NvbnRleHQYASABKAsyLC5ub25wcm94eS5w",
+            "cm92aWRlci52MS5Qcm92aWRlclJlcXVlc3RDb250ZXh0Ug5yZXF1ZXN0Q29u",
+            "dGV4dBJHCgpjb25uZWN0aW9uGAIgASgLMicubm9ucHJveHkucHJvdmlkZXIu",
+            "djEuQ29ubmVjdGlvbkNvbnRleHRSCmNvbm5lY3Rpb24SOAoIZGVjaXNpb24Y",
+            "AyABKAsyHC5ub25wcm94eS5wb2xpY3kudjEuRGVjaXNpb25SCGRlY2lzaW9u",
+            "IoACChVPcGVuUHJveHlGbG93UmVzcG9uc2USGgoIYWNjZXB0ZWQYASABKAhS",
+            "CGFjY2VwdGVkEjQKFmZyYW1lX3Byb3RvY29sX3ZlcnNpb24YAiABKA1SFGZy",
+            "YW1lUHJvdG9jb2xWZXJzaW9uEjAKFGluaXRpYWxfd2luZG93X2J5dGVzGAMg",
+            "ASgEUhJpbml0aWFsV2luZG93Qnl0ZXMSNQoFZXJyb3IYBCABKAsyHy5ub25w",
+            "cm94eS5jb21tb24udjEuRXJyb3JEZXRhaWxSBWVycm9yEiwKEmRhdGFfY2hh",
+            "bm5lbF90b2tlbhgFIAEoDFIQZGF0YUNoYW5uZWxUb2tlbiL3AQoVQ2xvc2VQ",
+            "cm94eUZsb3dSZXF1ZXN0EkYKB2NvbnRleHQYASABKAsyLC5ub25wcm94eS5w",
+            "cm92aWRlci52MS5Qcm92aWRlclJlcXVlc3RDb250ZXh0Ugdjb250ZXh0EhcK",
+            "B2Zsb3dfaWQYAiABKAlSBmZsb3dJZBIkCg5ieXRlc19mcm9tX2FwcBgDIAEo",
+            "BFIMYnl0ZXNGcm9tQXBwEiAKDGJ5dGVzX3RvX2FwcBgEIAEoBFIKYnl0ZXNU",
+            "b0FwcBI1CgVlcnJvchgFIAEoCzIfLm5vbnByb3h5LmNvbW1vbi52MS5FcnJv",
+            "ckRldGFpbFIFZXJyb3IiMAoWQ2xvc2VQcm94eUZsb3dSZXNwb25zZRIWCgZj",
+            "bG9zZWQYASABKAhSBmNsb3NlZCqtAQoMUHJvdmlkZXJLaW5kEh0KGVBST1ZJ",
+            "REVSX0tJTkRfVU5TUEVDSUZJRUQQABIjCh9QUk9WSURFUl9LSU5EX1RSQU5T",
+            "UEFSRU5UX1BST1hZEAESGwoXUFJPVklERVJfS0lORF9ETlNfUFJPWFkQAhId",
+            "ChlQUk9WSURFUl9LSU5EX1dJTkRPV1NfV0ZQEAMSHQoZUFJPVklERVJfS0lO",
+            "RF9XSU5ET1dTX0ROUxAEKn4KDERuc1JvdXRlS2luZBIeChpETlNfUk9VVEVf",
+            "S0lORF9VTlNQRUNJRklFRBAAEhkKFUROU19ST1VURV9LSU5EX0RJUkVDVBAB",
+            "EhgKFEROU19ST1VURV9LSU5EX1BST1hZEAISGQoVRE5TX1JPVVRFX0tJTkRf",
+            "U1lTVEVNEAMylAcKD1Byb3ZpZGVyU2VydmljZRJxChBSZWdpc3RlclByb3Zp",
+            "ZGVyEi0ubm9ucHJveHkucHJvdmlkZXIudjEuUmVnaXN0ZXJQcm92aWRlclJl",
+            "cXVlc3QaLi5ub25wcm94eS5wcm92aWRlci52MS5SZWdpc3RlclByb3ZpZGVy",
+            "UmVzcG9uc2USdwoSR2V0Q3VycmVudFNuYXBzaG90Ei8ubm9ucHJveHkucHJv",
+            "dmlkZXIudjEuR2V0Q3VycmVudFNuYXBzaG90UmVxdWVzdBowLm5vbnByb3h5",
+            "LnByb3ZpZGVyLnYxLkdldEN1cnJlbnRTbmFwc2hvdFJlc3BvbnNlEnoKE0Fj",
+            "a25vd2xlZGdlU25hcHNob3QSMC5ub25wcm94eS5wcm92aWRlci52MS5BY2tu",
+            "b3dsZWRnZVNuYXBzaG90UmVxdWVzdBoxLm5vbnByb3h5LnByb3ZpZGVyLnYx",
+            "LkFja25vd2xlZGdlU25hcHNob3RSZXNwb25zZRJ6ChNSZXBvcnREZWNpc2lv",
+            "bkJhdGNoEjAubm9ucHJveHkucHJvdmlkZXIudjEuUmVwb3J0RGVjaXNpb25C",
+            "YXRjaFJlcXVlc3QaMS5ub25wcm94eS5wcm92aWRlci52MS5SZXBvcnREZWNp",
+            "c2lvbkJhdGNoUmVzcG9uc2USZQoMUmVwb3J0SGVhbHRoEikubm9ucHJveHku",
+            "cHJvdmlkZXIudjEuUmVwb3J0SGVhbHRoUmVxdWVzdBoqLm5vbnByb3h5LnBy",
+            "b3ZpZGVyLnYxLlJlcG9ydEhlYWx0aFJlc3BvbnNlEl8KClJlc29sdmVEbnMS",
+            "Jy5ub25wcm94eS5wcm92aWRlci52MS5SZXNvbHZlRG5zUmVxdWVzdBooLm5v",
+            "bnByb3h5LnByb3ZpZGVyLnYxLlJlc29sdmVEbnNSZXNwb25zZRJoCg1PcGVu",
+            "UHJveHlGbG93Eioubm9ucHJveHkucHJvdmlkZXIudjEuT3BlblByb3h5Rmxv",
+            "d1JlcXVlc3QaKy5ub25wcm94eS5wcm92aWRlci52MS5PcGVuUHJveHlGbG93",
+            "UmVzcG9uc2USawoOQ2xvc2VQcm94eUZsb3cSKy5ub25wcm94eS5wcm92aWRl",
+            "ci52MS5DbG9zZVByb3h5Rmxvd1JlcXVlc3QaLC5ub25wcm94eS5wcm92aWRl",
+            "ci52MS5DbG9zZVByb3h5Rmxvd1Jlc3BvbnNlQheqAhROb25Qcm94eS5Qcm92",
+            "aWRlci5WMWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.DurationReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::NonProxy.Common.V1.CommonReflection.Descriptor, global::NonProxy.Events.V1.EventsReflection.Descriptor, global::NonProxy.Policy.V1.PolicyReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::NonProxy.Provider.V1.ProviderKind), typeof(global::NonProxy.Provider.V1.DnsRouteKind), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -174,8 +184,9 @@ namespace NonProxy.Provider.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ReportDecisionBatchResponse), global::NonProxy.Provider.V1.ReportDecisionBatchResponse.Parser, new[]{ "AcceptedCount", "Error" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ReportHealthRequest), global::NonProxy.Provider.V1.ReportHealthRequest.Parser, new[]{ "Context", "State", "ActiveSnapshotVersion", "ActiveFlowCount", "QueuedBytes", "Error" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ReportHealthResponse), global::NonProxy.Provider.V1.ReportHealthResponse.Parser, new[]{ "NextInterval" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ResolveDnsRequest), global::NonProxy.Provider.V1.ResolveDnsRequest.Parser, new[]{ "Context", "QueryId", "App", "Qname", "Qtype", "NetworkProfileId" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ResolveDnsResponse), global::NonProxy.Provider.V1.ResolveDnsResponse.Parser, new[]{ "DnsMessage", "Route", "OutboundId", "ValidFor", "Error" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ResolveDnsRequest), global::NonProxy.Provider.V1.ResolveDnsRequest.Parser, new[]{ "Context", "QueryId", "App", "Qname", "Qtype", "NetworkProfileId", "DnsMessage", "RequestedRoute", "RequestedOutboundId", "Upstreams", "SnapshotVersion" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.DnsUpstreamEndpoint), global::NonProxy.Provider.V1.DnsUpstreamEndpoint.Parser, new[]{ "IpAddress", "Port", "ScopeId" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ResolveDnsResponse), global::NonProxy.Provider.V1.ResolveDnsResponse.Parser, new[]{ "DnsMessage", "Route", "OutboundId", "ValidFor", "Error", "CacheHit", "ResolverEndpoint" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.OpenProxyFlowRequest), global::NonProxy.Provider.V1.OpenProxyFlowRequest.Parser, new[]{ "RequestContext", "Connection", "Decision" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.OpenProxyFlowResponse), global::NonProxy.Provider.V1.OpenProxyFlowResponse.Parser, new[]{ "Accepted", "FrameProtocolVersion", "InitialWindowBytes", "Error", "DataChannelToken" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.CloseProxyFlowRequest), global::NonProxy.Provider.V1.CloseProxyFlowRequest.Parser, new[]{ "Context", "FlowId", "BytesFromApp", "BytesToApp", "Error" }, null, null, null, null),
@@ -4687,6 +4698,11 @@ namespace NonProxy.Provider.V1 {
       qname_ = other.qname_;
       qtype_ = other.qtype_;
       networkProfileId_ = other.networkProfileId_;
+      dnsMessage_ = other.dnsMessage_;
+      requestedRoute_ = other.requestedRoute_;
+      requestedOutboundId_ = other.requestedOutboundId_;
+      upstreams_ = other.upstreams_.Clone();
+      snapshotVersion_ = other.snapshotVersion_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -4768,6 +4784,65 @@ namespace NonProxy.Provider.V1 {
       }
     }
 
+    /// <summary>Field number for the "dns_message" field.</summary>
+    public const int DnsMessageFieldNumber = 7;
+    private pb::ByteString dnsMessage_ = pb::ByteString.Empty;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pb::ByteString DnsMessage {
+      get { return dnsMessage_; }
+      set {
+        dnsMessage_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "requested_route" field.</summary>
+    public const int RequestedRouteFieldNumber = 8;
+    private global::NonProxy.Provider.V1.DnsRouteKind requestedRoute_ = global::NonProxy.Provider.V1.DnsRouteKind.Unspecified;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::NonProxy.Provider.V1.DnsRouteKind RequestedRoute {
+      get { return requestedRoute_; }
+      set {
+        requestedRoute_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "requested_outbound_id" field.</summary>
+    public const int RequestedOutboundIdFieldNumber = 9;
+    private string requestedOutboundId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string RequestedOutboundId {
+      get { return requestedOutboundId_; }
+      set {
+        requestedOutboundId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "upstreams" field.</summary>
+    public const int UpstreamsFieldNumber = 10;
+    private static readonly pb::FieldCodec<global::NonProxy.Provider.V1.DnsUpstreamEndpoint> _repeated_upstreams_codec
+        = pb::FieldCodec.ForMessage(82, global::NonProxy.Provider.V1.DnsUpstreamEndpoint.Parser);
+    private readonly pbc::RepeatedField<global::NonProxy.Provider.V1.DnsUpstreamEndpoint> upstreams_ = new pbc::RepeatedField<global::NonProxy.Provider.V1.DnsUpstreamEndpoint>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::NonProxy.Provider.V1.DnsUpstreamEndpoint> Upstreams {
+      get { return upstreams_; }
+    }
+
+    /// <summary>Field number for the "snapshot_version" field.</summary>
+    public const int SnapshotVersionFieldNumber = 11;
+    private ulong snapshotVersion_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong SnapshotVersion {
+      get { return snapshotVersion_; }
+      set {
+        snapshotVersion_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -4789,6 +4864,11 @@ namespace NonProxy.Provider.V1 {
       if (Qname != other.Qname) return false;
       if (Qtype != other.Qtype) return false;
       if (NetworkProfileId != other.NetworkProfileId) return false;
+      if (DnsMessage != other.DnsMessage) return false;
+      if (RequestedRoute != other.RequestedRoute) return false;
+      if (RequestedOutboundId != other.RequestedOutboundId) return false;
+      if(!upstreams_.Equals(other.upstreams_)) return false;
+      if (SnapshotVersion != other.SnapshotVersion) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -4802,6 +4882,11 @@ namespace NonProxy.Provider.V1 {
       if (Qname.Length != 0) hash ^= Qname.GetHashCode();
       if (Qtype != 0) hash ^= Qtype.GetHashCode();
       if (NetworkProfileId.Length != 0) hash ^= NetworkProfileId.GetHashCode();
+      if (DnsMessage.Length != 0) hash ^= DnsMessage.GetHashCode();
+      if (RequestedRoute != global::NonProxy.Provider.V1.DnsRouteKind.Unspecified) hash ^= RequestedRoute.GetHashCode();
+      if (RequestedOutboundId.Length != 0) hash ^= RequestedOutboundId.GetHashCode();
+      hash ^= upstreams_.GetHashCode();
+      if (SnapshotVersion != 0UL) hash ^= SnapshotVersion.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -4844,6 +4929,23 @@ namespace NonProxy.Provider.V1 {
         output.WriteRawTag(50);
         output.WriteString(NetworkProfileId);
       }
+      if (DnsMessage.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteBytes(DnsMessage);
+      }
+      if (RequestedRoute != global::NonProxy.Provider.V1.DnsRouteKind.Unspecified) {
+        output.WriteRawTag(64);
+        output.WriteEnum((int) RequestedRoute);
+      }
+      if (RequestedOutboundId.Length != 0) {
+        output.WriteRawTag(74);
+        output.WriteString(RequestedOutboundId);
+      }
+      upstreams_.WriteTo(output, _repeated_upstreams_codec);
+      if (SnapshotVersion != 0UL) {
+        output.WriteRawTag(88);
+        output.WriteUInt64(SnapshotVersion);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4878,6 +4980,23 @@ namespace NonProxy.Provider.V1 {
         output.WriteRawTag(50);
         output.WriteString(NetworkProfileId);
       }
+      if (DnsMessage.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteBytes(DnsMessage);
+      }
+      if (RequestedRoute != global::NonProxy.Provider.V1.DnsRouteKind.Unspecified) {
+        output.WriteRawTag(64);
+        output.WriteEnum((int) RequestedRoute);
+      }
+      if (RequestedOutboundId.Length != 0) {
+        output.WriteRawTag(74);
+        output.WriteString(RequestedOutboundId);
+      }
+      upstreams_.WriteTo(ref output, _repeated_upstreams_codec);
+      if (SnapshotVersion != 0UL) {
+        output.WriteRawTag(88);
+        output.WriteUInt64(SnapshotVersion);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -4905,6 +5024,19 @@ namespace NonProxy.Provider.V1 {
       }
       if (NetworkProfileId.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(NetworkProfileId);
+      }
+      if (DnsMessage.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeBytesSize(DnsMessage);
+      }
+      if (RequestedRoute != global::NonProxy.Provider.V1.DnsRouteKind.Unspecified) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) RequestedRoute);
+      }
+      if (RequestedOutboundId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(RequestedOutboundId);
+      }
+      size += upstreams_.CalculateSize(_repeated_upstreams_codec);
+      if (SnapshotVersion != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(SnapshotVersion);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -4941,6 +5073,19 @@ namespace NonProxy.Provider.V1 {
       }
       if (other.NetworkProfileId.Length != 0) {
         NetworkProfileId = other.NetworkProfileId;
+      }
+      if (other.DnsMessage.Length != 0) {
+        DnsMessage = other.DnsMessage;
+      }
+      if (other.RequestedRoute != global::NonProxy.Provider.V1.DnsRouteKind.Unspecified) {
+        RequestedRoute = other.RequestedRoute;
+      }
+      if (other.RequestedOutboundId.Length != 0) {
+        RequestedOutboundId = other.RequestedOutboundId;
+      }
+      upstreams_.Add(other.upstreams_);
+      if (other.SnapshotVersion != 0UL) {
+        SnapshotVersion = other.SnapshotVersion;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -4989,6 +5134,26 @@ namespace NonProxy.Provider.V1 {
           }
           case 50: {
             NetworkProfileId = input.ReadString();
+            break;
+          }
+          case 58: {
+            DnsMessage = input.ReadBytes();
+            break;
+          }
+          case 64: {
+            RequestedRoute = (global::NonProxy.Provider.V1.DnsRouteKind) input.ReadEnum();
+            break;
+          }
+          case 74: {
+            RequestedOutboundId = input.ReadString();
+            break;
+          }
+          case 82: {
+            upstreams_.AddEntriesFrom(input, _repeated_upstreams_codec);
+            break;
+          }
+          case 88: {
+            SnapshotVersion = input.ReadUInt64();
             break;
           }
         }
@@ -5040,6 +5205,301 @@ namespace NonProxy.Provider.V1 {
             NetworkProfileId = input.ReadString();
             break;
           }
+          case 58: {
+            DnsMessage = input.ReadBytes();
+            break;
+          }
+          case 64: {
+            RequestedRoute = (global::NonProxy.Provider.V1.DnsRouteKind) input.ReadEnum();
+            break;
+          }
+          case 74: {
+            RequestedOutboundId = input.ReadString();
+            break;
+          }
+          case 82: {
+            upstreams_.AddEntriesFrom(ref input, _repeated_upstreams_codec);
+            break;
+          }
+          case 88: {
+            SnapshotVersion = input.ReadUInt64();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// DnsUpstreamEndpoint 使用 IP 字面量，避免网关解析 resolver 主机名时再次进入 DNS Proxy。
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class DnsUpstreamEndpoint : pb::IMessage<DnsUpstreamEndpoint>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<DnsUpstreamEndpoint> _parser = new pb::MessageParser<DnsUpstreamEndpoint>(() => new DnsUpstreamEndpoint());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<DnsUpstreamEndpoint> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[15]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public DnsUpstreamEndpoint() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public DnsUpstreamEndpoint(DnsUpstreamEndpoint other) : this() {
+      ipAddress_ = other.ipAddress_;
+      port_ = other.port_;
+      scopeId_ = other.scopeId_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public DnsUpstreamEndpoint Clone() {
+      return new DnsUpstreamEndpoint(this);
+    }
+
+    /// <summary>Field number for the "ip_address" field.</summary>
+    public const int IpAddressFieldNumber = 1;
+    private string ipAddress_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string IpAddress {
+      get { return ipAddress_; }
+      set {
+        ipAddress_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "port" field.</summary>
+    public const int PortFieldNumber = 2;
+    private uint port_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint Port {
+      get { return port_; }
+      set {
+        port_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "scope_id" field.</summary>
+    public const int ScopeIdFieldNumber = 3;
+    private uint scopeId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint ScopeId {
+      get { return scopeId_; }
+      set {
+        scopeId_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as DnsUpstreamEndpoint);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(DnsUpstreamEndpoint other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (IpAddress != other.IpAddress) return false;
+      if (Port != other.Port) return false;
+      if (ScopeId != other.ScopeId) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (IpAddress.Length != 0) hash ^= IpAddress.GetHashCode();
+      if (Port != 0) hash ^= Port.GetHashCode();
+      if (ScopeId != 0) hash ^= ScopeId.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (IpAddress.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(IpAddress);
+      }
+      if (Port != 0) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(Port);
+      }
+      if (ScopeId != 0) {
+        output.WriteRawTag(24);
+        output.WriteUInt32(ScopeId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (IpAddress.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(IpAddress);
+      }
+      if (Port != 0) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(Port);
+      }
+      if (ScopeId != 0) {
+        output.WriteRawTag(24);
+        output.WriteUInt32(ScopeId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (IpAddress.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(IpAddress);
+      }
+      if (Port != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Port);
+      }
+      if (ScopeId != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(ScopeId);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(DnsUpstreamEndpoint other) {
+      if (other == null) {
+        return;
+      }
+      if (other.IpAddress.Length != 0) {
+        IpAddress = other.IpAddress;
+      }
+      if (other.Port != 0) {
+        Port = other.Port;
+      }
+      if (other.ScopeId != 0) {
+        ScopeId = other.ScopeId;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            IpAddress = input.ReadString();
+            break;
+          }
+          case 16: {
+            Port = input.ReadUInt32();
+            break;
+          }
+          case 24: {
+            ScopeId = input.ReadUInt32();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            IpAddress = input.ReadString();
+            break;
+          }
+          case 16: {
+            Port = input.ReadUInt32();
+            break;
+          }
+          case 24: {
+            ScopeId = input.ReadUInt32();
+            break;
+          }
         }
       }
     }
@@ -5065,7 +5525,7 @@ namespace NonProxy.Provider.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[15]; }
+      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[16]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5090,6 +5550,8 @@ namespace NonProxy.Provider.V1 {
       outboundId_ = other.outboundId_;
       validFor_ = other.validFor_ != null ? other.validFor_.Clone() : null;
       error_ = other.error_ != null ? other.error_.Clone() : null;
+      cacheHit_ = other.cacheHit_;
+      resolverEndpoint_ = other.resolverEndpoint_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -5159,6 +5621,30 @@ namespace NonProxy.Provider.V1 {
       }
     }
 
+    /// <summary>Field number for the "cache_hit" field.</summary>
+    public const int CacheHitFieldNumber = 6;
+    private bool cacheHit_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool CacheHit {
+      get { return cacheHit_; }
+      set {
+        cacheHit_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "resolver_endpoint" field.</summary>
+    public const int ResolverEndpointFieldNumber = 7;
+    private string resolverEndpoint_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string ResolverEndpoint {
+      get { return resolverEndpoint_; }
+      set {
+        resolverEndpoint_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -5179,6 +5665,8 @@ namespace NonProxy.Provider.V1 {
       if (OutboundId != other.OutboundId) return false;
       if (!object.Equals(ValidFor, other.ValidFor)) return false;
       if (!object.Equals(Error, other.Error)) return false;
+      if (CacheHit != other.CacheHit) return false;
+      if (ResolverEndpoint != other.ResolverEndpoint) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -5191,6 +5679,8 @@ namespace NonProxy.Provider.V1 {
       if (OutboundId.Length != 0) hash ^= OutboundId.GetHashCode();
       if (validFor_ != null) hash ^= ValidFor.GetHashCode();
       if (error_ != null) hash ^= Error.GetHashCode();
+      if (CacheHit != false) hash ^= CacheHit.GetHashCode();
+      if (ResolverEndpoint.Length != 0) hash ^= ResolverEndpoint.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -5229,6 +5719,14 @@ namespace NonProxy.Provider.V1 {
         output.WriteRawTag(42);
         output.WriteMessage(Error);
       }
+      if (CacheHit != false) {
+        output.WriteRawTag(48);
+        output.WriteBool(CacheHit);
+      }
+      if (ResolverEndpoint.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteString(ResolverEndpoint);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -5259,6 +5757,14 @@ namespace NonProxy.Provider.V1 {
         output.WriteRawTag(42);
         output.WriteMessage(Error);
       }
+      if (CacheHit != false) {
+        output.WriteRawTag(48);
+        output.WriteBool(CacheHit);
+      }
+      if (ResolverEndpoint.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteString(ResolverEndpoint);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -5283,6 +5789,12 @@ namespace NonProxy.Provider.V1 {
       }
       if (error_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Error);
+      }
+      if (CacheHit != false) {
+        size += 1 + 1;
+      }
+      if (ResolverEndpoint.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(ResolverEndpoint);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -5316,6 +5828,12 @@ namespace NonProxy.Provider.V1 {
           Error = new global::NonProxy.Common.V1.ErrorDetail();
         }
         Error.MergeFrom(other.Error);
+      }
+      if (other.CacheHit != false) {
+        CacheHit = other.CacheHit;
+      }
+      if (other.ResolverEndpoint.Length != 0) {
+        ResolverEndpoint = other.ResolverEndpoint;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -5360,6 +5878,14 @@ namespace NonProxy.Provider.V1 {
               Error = new global::NonProxy.Common.V1.ErrorDetail();
             }
             input.ReadMessage(Error);
+            break;
+          }
+          case 48: {
+            CacheHit = input.ReadBool();
+            break;
+          }
+          case 58: {
+            ResolverEndpoint = input.ReadString();
             break;
           }
         }
@@ -5407,6 +5933,14 @@ namespace NonProxy.Provider.V1 {
             input.ReadMessage(Error);
             break;
           }
+          case 48: {
+            CacheHit = input.ReadBool();
+            break;
+          }
+          case 58: {
+            ResolverEndpoint = input.ReadString();
+            break;
+          }
         }
       }
     }
@@ -5432,7 +5966,7 @@ namespace NonProxy.Provider.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[16]; }
+      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[17]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5734,7 +6268,7 @@ namespace NonProxy.Provider.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[17]; }
+      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[18]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6092,7 +6626,7 @@ namespace NonProxy.Provider.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[18]; }
+      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[19]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6459,7 +6993,7 @@ namespace NonProxy.Provider.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[19]; }
+      get { return global::NonProxy.Provider.V1.ProviderReflection.Descriptor.MessageTypes[20]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

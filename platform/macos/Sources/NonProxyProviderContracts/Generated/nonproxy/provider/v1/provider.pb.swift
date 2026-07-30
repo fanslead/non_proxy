@@ -566,43 +566,96 @@ public nonisolated struct Nonproxy_Provider_V1_ReportHealthResponse: Sendable {
 }
 
 /// ResolveDnsRequest 请求与策略路径一致的 DNS 解析。
-public nonisolated struct Nonproxy_Provider_V1_ResolveDnsRequest: Sendable {
+public nonisolated struct Nonproxy_Provider_V1_ResolveDnsRequest: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var context: Nonproxy_Provider_V1_ProviderRequestContext {
-    get {_context ?? Nonproxy_Provider_V1_ProviderRequestContext()}
-    set {_context = newValue}
+    get {_storage._context ?? Nonproxy_Provider_V1_ProviderRequestContext()}
+    set {_uniqueStorage()._context = newValue}
   }
   /// Returns true if `context` has been explicitly set.
-  public var hasContext: Bool {self._context != nil}
+  public var hasContext: Bool {_storage._context != nil}
   /// Clears the value of `context`. Subsequent reads from it will return its default value.
-  public mutating func clearContext() {self._context = nil}
+  public mutating func clearContext() {_uniqueStorage()._context = nil}
 
-  public var queryID: String = String()
+  public var queryID: String {
+    get {_storage._queryID}
+    set {_uniqueStorage()._queryID = newValue}
+  }
 
   public var app: Nonproxy_Common_V1_AppIdentity {
-    get {_app ?? Nonproxy_Common_V1_AppIdentity()}
-    set {_app = newValue}
+    get {_storage._app ?? Nonproxy_Common_V1_AppIdentity()}
+    set {_uniqueStorage()._app = newValue}
   }
   /// Returns true if `app` has been explicitly set.
-  public var hasApp: Bool {self._app != nil}
+  public var hasApp: Bool {_storage._app != nil}
   /// Clears the value of `app`. Subsequent reads from it will return its default value.
-  public mutating func clearApp() {self._app = nil}
+  public mutating func clearApp() {_uniqueStorage()._app = nil}
 
-  public var qname: String = String()
+  public var qname: String {
+    get {_storage._qname}
+    set {_uniqueStorage()._qname = newValue}
+  }
 
-  public var qtype: UInt32 = 0
+  public var qtype: UInt32 {
+    get {_storage._qtype}
+    set {_uniqueStorage()._qtype = newValue}
+  }
 
-  public var networkProfileID: String = String()
+  public var networkProfileID: String {
+    get {_storage._networkProfileID}
+    set {_uniqueStorage()._networkProfileID = newValue}
+  }
+
+  public var dnsMessage: Data {
+    get {_storage._dnsMessage}
+    set {_uniqueStorage()._dnsMessage = newValue}
+  }
+
+  public var requestedRoute: Nonproxy_Provider_V1_DnsRouteKind {
+    get {_storage._requestedRoute}
+    set {_uniqueStorage()._requestedRoute = newValue}
+  }
+
+  public var requestedOutboundID: String {
+    get {_storage._requestedOutboundID}
+    set {_uniqueStorage()._requestedOutboundID = newValue}
+  }
+
+  public var upstreams: [Nonproxy_Provider_V1_DnsUpstreamEndpoint] {
+    get {_storage._upstreams}
+    set {_uniqueStorage()._upstreams = newValue}
+  }
+
+  public var snapshotVersion: UInt64 {
+    get {_storage._snapshotVersion}
+    set {_uniqueStorage()._snapshotVersion = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _context: Nonproxy_Provider_V1_ProviderRequestContext? = nil
-  fileprivate var _app: Nonproxy_Common_V1_AppIdentity? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// DnsUpstreamEndpoint 使用 IP 字面量，避免网关解析 resolver 主机名时再次进入 DNS Proxy。
+public nonisolated struct Nonproxy_Provider_V1_DnsUpstreamEndpoint: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var ipAddress: String = String()
+
+  public var port: UInt32 = 0
+
+  public var scopeID: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 /// ResolveDnsResponse 返回原始 DNS 消息和路由标签。
@@ -634,6 +687,10 @@ public nonisolated struct Nonproxy_Provider_V1_ResolveDnsResponse: Sendable {
   public var hasError: Bool {self._error != nil}
   /// Clears the value of `error`. Subsequent reads from it will return its default value.
   public mutating func clearError() {self._error = nil}
+
+  public var cacheHit: Bool = false
+
+  public var resolverEndpoint: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1571,7 +1628,147 @@ nonisolated extension Nonproxy_Provider_V1_ReportHealthResponse: SwiftProtobuf.M
 
 nonisolated extension Nonproxy_Provider_V1_ResolveDnsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ResolveDnsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}query_id\0\u{1}app\0\u{1}qname\0\u{1}qtype\0\u{3}network_profile_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}query_id\0\u{1}app\0\u{1}qname\0\u{1}qtype\0\u{3}network_profile_id\0\u{3}dns_message\0\u{3}requested_route\0\u{3}requested_outbound_id\0\u{1}upstreams\0\u{3}snapshot_version\0")
+
+  fileprivate class _StorageClass {
+    var _context: Nonproxy_Provider_V1_ProviderRequestContext? = nil
+    var _queryID: String = String()
+    var _app: Nonproxy_Common_V1_AppIdentity? = nil
+    var _qname: String = String()
+    var _qtype: UInt32 = 0
+    var _networkProfileID: String = String()
+    var _dnsMessage: Data = Data()
+    var _requestedRoute: Nonproxy_Provider_V1_DnsRouteKind = .unspecified
+    var _requestedOutboundID: String = String()
+    var _upstreams: [Nonproxy_Provider_V1_DnsUpstreamEndpoint] = []
+    var _snapshotVersion: UInt64 = 0
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _context = source._context
+      _queryID = source._queryID
+      _app = source._app
+      _qname = source._qname
+      _qtype = source._qtype
+      _networkProfileID = source._networkProfileID
+      _dnsMessage = source._dnsMessage
+      _requestedRoute = source._requestedRoute
+      _requestedOutboundID = source._requestedOutboundID
+      _upstreams = source._upstreams
+      _snapshotVersion = source._snapshotVersion
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._context) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._queryID) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._app) }()
+        case 4: try { try decoder.decodeSingularStringField(value: &_storage._qname) }()
+        case 5: try { try decoder.decodeSingularUInt32Field(value: &_storage._qtype) }()
+        case 6: try { try decoder.decodeSingularStringField(value: &_storage._networkProfileID) }()
+        case 7: try { try decoder.decodeSingularBytesField(value: &_storage._dnsMessage) }()
+        case 8: try { try decoder.decodeSingularEnumField(value: &_storage._requestedRoute) }()
+        case 9: try { try decoder.decodeSingularStringField(value: &_storage._requestedOutboundID) }()
+        case 10: try { try decoder.decodeRepeatedMessageField(value: &_storage._upstreams) }()
+        case 11: try { try decoder.decodeSingularUInt64Field(value: &_storage._snapshotVersion) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._context {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      if !_storage._queryID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._queryID, fieldNumber: 2)
+      }
+      try { if let v = _storage._app {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      if !_storage._qname.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._qname, fieldNumber: 4)
+      }
+      if _storage._qtype != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._qtype, fieldNumber: 5)
+      }
+      if !_storage._networkProfileID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._networkProfileID, fieldNumber: 6)
+      }
+      if !_storage._dnsMessage.isEmpty {
+        try visitor.visitSingularBytesField(value: _storage._dnsMessage, fieldNumber: 7)
+      }
+      if _storage._requestedRoute != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._requestedRoute, fieldNumber: 8)
+      }
+      if !_storage._requestedOutboundID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._requestedOutboundID, fieldNumber: 9)
+      }
+      if !_storage._upstreams.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._upstreams, fieldNumber: 10)
+      }
+      if _storage._snapshotVersion != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._snapshotVersion, fieldNumber: 11)
+      }
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Provider_V1_ResolveDnsRequest, rhs: Nonproxy_Provider_V1_ResolveDnsRequest) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._context != rhs_storage._context {return false}
+        if _storage._queryID != rhs_storage._queryID {return false}
+        if _storage._app != rhs_storage._app {return false}
+        if _storage._qname != rhs_storage._qname {return false}
+        if _storage._qtype != rhs_storage._qtype {return false}
+        if _storage._networkProfileID != rhs_storage._networkProfileID {return false}
+        if _storage._dnsMessage != rhs_storage._dnsMessage {return false}
+        if _storage._requestedRoute != rhs_storage._requestedRoute {return false}
+        if _storage._requestedOutboundID != rhs_storage._requestedOutboundID {return false}
+        if _storage._upstreams != rhs_storage._upstreams {return false}
+        if _storage._snapshotVersion != rhs_storage._snapshotVersion {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Provider_V1_DnsUpstreamEndpoint: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DnsUpstreamEndpoint"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}ip_address\0\u{1}port\0\u{3}scope_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1579,50 +1776,31 @@ nonisolated extension Nonproxy_Provider_V1_ResolveDnsRequest: SwiftProtobuf.Mess
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.queryID) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._app) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.qname) }()
-      case 5: try { try decoder.decodeSingularUInt32Field(value: &self.qtype) }()
-      case 6: try { try decoder.decodeSingularStringField(value: &self.networkProfileID) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.ipAddress) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.port) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.scopeID) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._context {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    if !self.queryID.isEmpty {
-      try visitor.visitSingularStringField(value: self.queryID, fieldNumber: 2)
+    if !self.ipAddress.isEmpty {
+      try visitor.visitSingularStringField(value: self.ipAddress, fieldNumber: 1)
     }
-    try { if let v = self._app {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    if !self.qname.isEmpty {
-      try visitor.visitSingularStringField(value: self.qname, fieldNumber: 4)
+    if self.port != 0 {
+      try visitor.visitSingularUInt32Field(value: self.port, fieldNumber: 2)
     }
-    if self.qtype != 0 {
-      try visitor.visitSingularUInt32Field(value: self.qtype, fieldNumber: 5)
-    }
-    if !self.networkProfileID.isEmpty {
-      try visitor.visitSingularStringField(value: self.networkProfileID, fieldNumber: 6)
+    if self.scopeID != 0 {
+      try visitor.visitSingularUInt32Field(value: self.scopeID, fieldNumber: 3)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Nonproxy_Provider_V1_ResolveDnsRequest, rhs: Nonproxy_Provider_V1_ResolveDnsRequest) -> Bool {
-    if lhs._context != rhs._context {return false}
-    if lhs.queryID != rhs.queryID {return false}
-    if lhs._app != rhs._app {return false}
-    if lhs.qname != rhs.qname {return false}
-    if lhs.qtype != rhs.qtype {return false}
-    if lhs.networkProfileID != rhs.networkProfileID {return false}
+  public static func ==(lhs: Nonproxy_Provider_V1_DnsUpstreamEndpoint, rhs: Nonproxy_Provider_V1_DnsUpstreamEndpoint) -> Bool {
+    if lhs.ipAddress != rhs.ipAddress {return false}
+    if lhs.port != rhs.port {return false}
+    if lhs.scopeID != rhs.scopeID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1630,7 +1808,7 @@ nonisolated extension Nonproxy_Provider_V1_ResolveDnsRequest: SwiftProtobuf.Mess
 
 nonisolated extension Nonproxy_Provider_V1_ResolveDnsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ResolveDnsResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}dns_message\0\u{1}route\0\u{3}outbound_id\0\u{3}valid_for\0\u{1}error\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}dns_message\0\u{1}route\0\u{3}outbound_id\0\u{3}valid_for\0\u{1}error\0\u{3}cache_hit\0\u{3}resolver_endpoint\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1643,6 +1821,8 @@ nonisolated extension Nonproxy_Provider_V1_ResolveDnsResponse: SwiftProtobuf.Mes
       case 3: try { try decoder.decodeSingularStringField(value: &self.outboundID) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._validFor) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.cacheHit) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.resolverEndpoint) }()
       default: break
       }
     }
@@ -1668,6 +1848,12 @@ nonisolated extension Nonproxy_Provider_V1_ResolveDnsResponse: SwiftProtobuf.Mes
     try { if let v = self._error {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
+    if self.cacheHit != false {
+      try visitor.visitSingularBoolField(value: self.cacheHit, fieldNumber: 6)
+    }
+    if !self.resolverEndpoint.isEmpty {
+      try visitor.visitSingularStringField(value: self.resolverEndpoint, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1677,6 +1863,8 @@ nonisolated extension Nonproxy_Provider_V1_ResolveDnsResponse: SwiftProtobuf.Mes
     if lhs.outboundID != rhs.outboundID {return false}
     if lhs._validFor != rhs._validFor {return false}
     if lhs._error != rhs._error {return false}
+    if lhs.cacheHit != rhs.cacheHit {return false}
+    if lhs.resolverEndpoint != rhs.resolverEndpoint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
