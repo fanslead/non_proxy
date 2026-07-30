@@ -3,9 +3,11 @@ import Foundation
 
 public enum GatewayRuntimeReadiness {
     private static let capabilityByteCount: UInt64 = 32
+    private static let maximumIdentityByteCount: UInt64 = 1_024
 
     public static func inspect(
         paths: MacSharedRuntimePaths,
+        expectedFingerprint: String,
         fileManager: FileManager = .default
     ) throws {
         let owner = try requireDirectory(
@@ -29,6 +31,12 @@ public enum GatewayRuntimeReadiness {
         )
         try inspectCapability(
             paths.providerCapability,
+            owner: owner,
+            fileManager: fileManager
+        )
+        try inspectRuntimeIdentity(
+            paths.runtimeIdentity,
+            expectedFingerprint: expectedFingerprint,
             owner: owner,
             fileManager: fileManager
         )
@@ -117,10 +125,87 @@ public enum GatewayRuntimeReadiness {
             throw GatewayRuntimeReadinessError.invalidCapability
         }
     }
+
+    static func inspectRuntimeIdentity(
+        _ url: URL,
+        expectedFingerprint: String,
+        owner: NSNumber? = nil,
+        fileManager: FileManager,
+        processIsAlive: (Int32) -> Bool = defaultProcessIsAlive
+    ) throws {
+        let attributes: [FileAttributeKey: Any]
+        do {
+            let values = try url.resourceValues(
+                forKeys: [.isSymbolicLinkKey]
+            )
+            attributes = try fileManager.attributesOfItem(
+                atPath: url.path
+            )
+            guard values.isSymbolicLink != true,
+                  attributes[.type] as? FileAttributeType == .typeRegular,
+                  let size = attributes[.size] as? NSNumber,
+                  size.uint64Value > 0,
+                  size.uint64Value <= maximumIdentityByteCount,
+                  let permissions =
+                    attributes[.posixPermissions] as? NSNumber,
+                  permissions.uint16Value & 0o777 == 0o600,
+                  owner == nil
+                    || attributes[.ownerAccountID] as? NSNumber == owner
+            else {
+                throw GatewayRuntimeReadinessError.invalidRuntimeIdentity
+            }
+        } catch let error as GatewayRuntimeReadinessError {
+            throw error
+        } catch {
+            throw GatewayRuntimeReadinessError.invalidRuntimeIdentity
+        }
+
+        let identity: GatewayRuntimeIdentity
+        do {
+            let data = try Data(
+                contentsOf: url,
+                options: [.mappedIfSafe]
+            )
+            identity = try JSONDecoder().decode(
+                GatewayRuntimeIdentity.self,
+                from: data
+            )
+        } catch {
+            throw GatewayRuntimeReadinessError.invalidRuntimeIdentity
+        }
+        guard identity.schemaVersion == 1,
+              !identity.semanticVersion.isEmpty,
+              !identity.buildId.isEmpty,
+              identity.processId > 0,
+              identity.processId <= UInt32(Int32.max)
+        else {
+            throw GatewayRuntimeReadinessError.invalidRuntimeIdentity
+        }
+        guard identity.bundleFingerprint == expectedFingerprint else {
+            throw GatewayRuntimeReadinessError.fingerprintMismatch
+        }
+        guard processIsAlive(Int32(identity.processId)) else {
+            throw GatewayRuntimeReadinessError.invalidRuntimeIdentity
+        }
+    }
+
+    private static func defaultProcessIsAlive(_ processID: Int32) -> Bool {
+        kill(processID, 0) == 0 || errno == EPERM
+    }
 }
 
 public enum GatewayRuntimeReadinessError: Error, Equatable, Sendable {
     case invalidStateDirectory
     case invalidSocket
     case invalidCapability
+    case invalidRuntimeIdentity
+    case fingerprintMismatch
+}
+
+private struct GatewayRuntimeIdentity: Decodable {
+    let schemaVersion: UInt32
+    let bundleFingerprint: String
+    let processId: UInt32
+    let semanticVersion: String
+    let buildId: String
 }

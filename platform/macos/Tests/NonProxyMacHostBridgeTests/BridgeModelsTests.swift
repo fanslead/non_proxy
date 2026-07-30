@@ -69,7 +69,8 @@ struct BridgeModelsTests {
                 enabled: true,
                 requiresApproval: false,
                 found: true,
-                ready: true
+                ready: true,
+                requiresUpgrade: false
             ),
             transparentExtension: extensionSnapshot,
             dnsExtension: extensionSnapshot,
@@ -110,7 +111,8 @@ struct BridgeModelsTests {
                 enabled: false,
                 requiresApproval: false,
                 found: false,
-                ready: false
+                ready: false,
+                requiresUpgrade: false
             ),
             transparentExtension: absentExtension,
             dnsExtension: absentExtension,
@@ -123,7 +125,8 @@ struct BridgeModelsTests {
                 enabled: false,
                 requiresApproval: false,
                 found: true,
-                ready: false
+                ready: false,
+                requiresUpgrade: false
             ),
             transparentExtension: absentExtension,
             dnsExtension: absentExtension,

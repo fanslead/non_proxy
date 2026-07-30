@@ -7,6 +7,8 @@ if [[ $# -ne 1 ]]; then
 fi
 
 app_bundle=${1%/}
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+gateway_plist_template="${script_dir}/../../platform/macos/Packaging/com.nonproxy.gatewayd.plist"
 extensions_root="${app_bundle}/Contents/Library/SystemExtensions"
 transparent_bundle="${extensions_root}/com.nonproxy.desktop.transparent-proxy.systemextension"
 dns_bundle="${extensions_root}/com.nonproxy.desktop.dns-proxy.systemextension"
@@ -115,6 +117,16 @@ assert_plist_value "${gateway_agent_plist}" RunAtLoad true
 assert_plist_value "${gateway_agent_plist}" KeepAlive true
 assert_plist_value "${gateway_agent_plist}" ProcessType Background
 assert_plist_value "${gateway_agent_plist}" ThrottleInterval 5
+gateway_bundle_fingerprint=$(
+    /usr/libexec/PlistBuddy -c \
+        "Print :EnvironmentVariables:NONPROXY_GATEWAY_BUNDLE_FINGERPRINT" \
+        "${gateway_agent_plist}"
+)
+if [[ ${#gateway_bundle_fingerprint} -ne 64 ||
+      "${gateway_bundle_fingerprint}" == *[!0-9a-f]* ]]; then
+    echo "LaunchAgent 缺少规范的 gatewayd 包指纹" >&2
+    exit 67
+fi
 for forbidden_key in Program ProgramArguments; do
     if /usr/libexec/PlistBuddy \
         -c "Print :${forbidden_key}" \
@@ -134,6 +146,17 @@ if [[ "${host_architectures}" != "${gateway_architectures}" ]]; then
     exit 67
 fi
 codesign --verify --strict --verbose=2 "${gateway_binary}"
+gateway_binary_digest=$(shasum -a 256 "${gateway_binary}" | awk '{print $1}')
+gateway_plist_digest=$(shasum -a 256 "${gateway_plist_template}" | awk '{print $1}')
+expected_gateway_fingerprint=$(
+    printf '%s%s' "${gateway_binary_digest}" "${gateway_plist_digest}" |
+        shasum -a 256 |
+        awk '{print $1}'
+)
+if [[ "${gateway_bundle_fingerprint}" != "${expected_gateway_fingerprint}" ]]; then
+    echo "LaunchAgent 包指纹与已签名 gatewayd 或 plist 不一致" >&2
+    exit 67
+fi
 
 verification_dir=$(mktemp -d)
 trap 'rm -rf "${verification_dir}"' EXIT

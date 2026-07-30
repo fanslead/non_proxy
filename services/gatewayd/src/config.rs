@@ -8,6 +8,8 @@ use crate::GatewayError;
 const STATE_DIRECTORY_ENVIRONMENT: &str = "NONPROXY_STATE_DIR";
 const SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_SOCKET_PATH";
 const FLOW_SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_FLOW_SOCKET_PATH";
+const BUNDLE_FINGERPRINT_ENVIRONMENT: &str = "NONPROXY_GATEWAY_BUNDLE_FINGERPRINT";
+const DEVELOPMENT_FINGERPRINT: &str = "development";
 #[cfg(target_os = "macos")]
 const MACOS_APP_GROUP_STATE_PATH: &str =
     "Library/Group Containers/group.com.nonproxy.shared/Library/Application Support/NonProxy";
@@ -18,6 +20,7 @@ pub struct GatewayConfig {
     database_path: PathBuf,
     socket_path: PathBuf,
     flow_socket_path: PathBuf,
+    bundle_fingerprint: String,
 }
 
 impl GatewayConfig {
@@ -32,7 +35,21 @@ impl GatewayConfig {
         let flow_socket_path = env::var_os(FLOW_SOCKET_PATH_ENVIRONMENT)
             .map(PathBuf::from)
             .unwrap_or_else(|| state_directory.join("gatewayd-flow.sock"));
-        Self::new_with_flow_socket(state_directory, socket_path, flow_socket_path)
+        let bundle_fingerprint = match env::var(BUNDLE_FINGERPRINT_ENVIRONMENT) {
+            Ok(value) => validate_bundle_fingerprint(value)?,
+            Err(env::VarError::NotPresent) => DEVELOPMENT_FINGERPRINT.to_owned(),
+            Err(env::VarError::NotUnicode(_)) => {
+                return Err(GatewayError::InvalidLocalPath(
+                    "后台服务包指纹不是有效 UTF-8",
+                ));
+            }
+        };
+        Self::build(
+            state_directory,
+            socket_path,
+            flow_socket_path,
+            bundle_fingerprint,
+        )
     }
 
     pub fn new(
@@ -50,9 +67,20 @@ impl GatewayConfig {
         socket_path: impl Into<PathBuf>,
         flow_socket_path: impl Into<PathBuf>,
     ) -> Result<Self, GatewayError> {
-        let state_directory = state_directory.into();
-        let socket_path = socket_path.into();
-        let flow_socket_path = flow_socket_path.into();
+        Self::build(
+            state_directory.into(),
+            socket_path.into(),
+            flow_socket_path.into(),
+            DEVELOPMENT_FINGERPRINT.to_owned(),
+        )
+    }
+
+    fn build(
+        state_directory: PathBuf,
+        socket_path: PathBuf,
+        flow_socket_path: PathBuf,
+        bundle_fingerprint: String,
+    ) -> Result<Self, GatewayError> {
         validate_absolute(&state_directory)?;
         validate_absolute(&socket_path)?;
         validate_absolute(&flow_socket_path)?;
@@ -69,6 +97,7 @@ impl GatewayConfig {
             state_directory,
             socket_path,
             flow_socket_path,
+            bundle_fingerprint,
         })
     }
 
@@ -102,6 +131,24 @@ impl GatewayConfig {
     pub fn flow_socket_path(&self) -> &Path {
         self.flow_socket_path.as_path()
     }
+
+    #[must_use]
+    pub fn bundle_fingerprint(&self) -> &str {
+        self.bundle_fingerprint.as_str()
+    }
+}
+
+fn validate_bundle_fingerprint(value: String) -> Result<String, GatewayError> {
+    if value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Ok(value);
+    }
+    Err(GatewayError::RuntimeIdentity(
+        "后台服务包指纹必须是 64 位小写十六进制".to_owned(),
+    ))
 }
 
 fn validate_absolute(path: &Path) -> Result<(), GatewayError> {
@@ -191,9 +238,9 @@ mod tests {
     use std::path::Path;
     use std::{fs, path::PathBuf};
 
-    use super::GatewayConfig;
     #[cfg(target_os = "macos")]
     use super::macos_state_directory;
+    use super::{GatewayConfig, validate_bundle_fingerprint};
 
     #[test]
     fn rejects_socket_outside_state_directory() {
@@ -265,5 +312,13 @@ mod tests {
                  Library/Application Support/NonProxy",
             )
         );
+    }
+
+    #[test]
+    fn bundle_fingerprint_requires_canonical_sha256() {
+        assert!(validate_bundle_fingerprint("a".repeat(64)).is_ok());
+        assert!(validate_bundle_fingerprint("A".repeat(64)).is_err());
+        assert!(validate_bundle_fingerprint("a".repeat(63)).is_err());
+        assert!(validate_bundle_fingerprint("g".repeat(64)).is_err());
     }
 }

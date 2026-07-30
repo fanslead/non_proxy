@@ -2,7 +2,7 @@ import Foundation
 import SystemExtensions
 
 enum BridgeConstants {
-    static let abiVersion: UInt32 = 3
+    static let abiVersion: UInt32 = 4
     static let transparentBundleIdentifier =
         "com.nonproxy.desktop.transparent-proxy"
     static let dnsBundleIdentifier = "com.nonproxy.desktop.dns-proxy"
@@ -37,6 +37,7 @@ struct GatewayAgentSnapshot: Codable, Equatable, Sendable {
     let requiresApproval: Bool
     let found: Bool
     let ready: Bool
+    let requiresUpgrade: Bool
 }
 
 struct MacHostState: Codable, Equatable, Sendable {

@@ -17,6 +17,8 @@ struct MacSharedRuntimePathsTests {
             == "/tmp/nonproxy-runtime/session.capability")
         #expect(paths.providerCapability.path
             == "/tmp/nonproxy-runtime/provider.capability")
+        #expect(paths.runtimeIdentity.path
+            == "/tmp/nonproxy-runtime/gateway.runtime.json")
         #expect(paths.providerCacheDirectory.path
             == "/tmp/nonproxy-runtime/provider-cache")
     }

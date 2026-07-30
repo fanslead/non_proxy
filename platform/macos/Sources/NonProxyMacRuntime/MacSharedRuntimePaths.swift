@@ -8,6 +8,7 @@ public struct MacSharedRuntimePaths: Equatable, Sendable {
     public static let flowSocketFileName = "gatewayd-flow.sock"
     public static let controlCapabilityFileName = "session.capability"
     public static let providerCapabilityFileName = "provider.capability"
+    public static let runtimeIdentityFileName = "gateway.runtime.json"
 
     public let stateDirectory: URL
 
@@ -58,6 +59,12 @@ public struct MacSharedRuntimePaths: Equatable, Sendable {
     public var providerCapability: URL {
         stateDirectory.appendingPathComponent(
             Self.providerCapabilityFileName
+        )
+    }
+
+    public var runtimeIdentity: URL {
+        stateDirectory.appendingPathComponent(
+            Self.runtimeIdentityFileName
         )
     }
 

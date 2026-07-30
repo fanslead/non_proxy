@@ -10,6 +10,7 @@ use crate::{
     credential_store::{CredentialStore, OsCredentialStore},
     gateway::Gateway,
     provider_service::ProviderRpcService,
+    runtime_identity::RuntimeIdentityGuard,
     session_capability::SessionCapability,
 };
 
@@ -80,6 +81,7 @@ async fn serve_unix_with_shutdown(
         bind_private_socket(config.socket_path(), SocketRole::Control).await?;
     let (flow_listener, _flow_socket_guard) =
         bind_private_socket(config.flow_socket_path(), SocketRole::Flow).await?;
+    let _runtime_identity_guard = RuntimeIdentityGuard::create(&config)?;
     let incoming = UnixListenerStream::new(control_listener);
     let control_rpc = ControlServiceServer::new(control)
         .max_decoding_message_size(ControlRpcService::max_message_bytes())

@@ -39,6 +39,8 @@ pub enum GatewayError {
     },
     #[error("无法生成本机会话能力令牌: {0}")]
     Random(String),
+    #[error("后台运行身份无效: {0}")]
+    RuntimeIdentity(String),
     #[error("RPC 服务失败: {0}")]
     Transport(#[from] tonic::transport::Error),
 }
@@ -63,6 +65,7 @@ impl GatewayError {
             Self::SnapshotVersionExhausted => "NP_SNAPSHOT_VERSION_EXHAUSTED",
             Self::InvalidLocalPath(_) | Self::Io { .. } => "NP_LOCAL_PATH_INVALID",
             Self::Random(_) => "NP_SESSION_TOKEN_FAILED",
+            Self::RuntimeIdentity(_) => "NP_RUNTIME_IDENTITY_INVALID",
             Self::Transport(_) => "NP_CONTROL_TRANSPORT_FAILED",
         }
     }

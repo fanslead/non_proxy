@@ -3,6 +3,8 @@ import Testing
 @testable import NonProxyMacRuntime
 
 struct GatewayRuntimeReadinessTests {
+    private let fingerprint = String(repeating: "a", count: 64)
+
     @Test
     func rejectsRuntimeDirectoryWithLoosePermissions() throws {
         let directory = FileManager.default.temporaryDirectory
@@ -25,7 +27,10 @@ struct GatewayRuntimeReadinessTests {
         #expect(
             throws: GatewayRuntimeReadinessError.invalidStateDirectory
         ) {
-            try GatewayRuntimeReadiness.inspect(paths: paths)
+            try GatewayRuntimeReadiness.inspect(
+                paths: paths,
+                expectedFingerprint: fingerprint
+            )
         }
     }
 
@@ -49,7 +54,10 @@ struct GatewayRuntimeReadinessTests {
         )
 
         #expect(throws: GatewayRuntimeReadinessError.invalidSocket) {
-            try GatewayRuntimeReadiness.inspect(paths: paths)
+            try GatewayRuntimeReadiness.inspect(
+                paths: paths,
+                expectedFingerprint: fingerprint
+            )
         }
     }
 
@@ -74,6 +82,69 @@ struct GatewayRuntimeReadinessTests {
             )
         }
     }
+
+    @Test
+    func acceptsMatchingLiveRuntimeIdentity() throws {
+        let fixture = try RuntimeFixture()
+        defer {
+            fixture.remove()
+        }
+        try fixture.writeIdentity(
+            fingerprint: fingerprint,
+            processID: UInt32(getpid())
+        )
+
+        try GatewayRuntimeReadiness.inspectRuntimeIdentity(
+            fixture.paths.runtimeIdentity,
+            expectedFingerprint: fingerprint,
+            fileManager: .default
+        )
+    }
+
+    @Test
+    func reportsRuntimeFingerprintMismatch() throws {
+        let fixture = try RuntimeFixture()
+        defer {
+            fixture.remove()
+        }
+        try fixture.writeIdentity(
+            fingerprint: String(repeating: "b", count: 64),
+            processID: UInt32(getpid())
+        )
+
+        #expect(
+            throws: GatewayRuntimeReadinessError.fingerprintMismatch
+        ) {
+            try GatewayRuntimeReadiness.inspectRuntimeIdentity(
+                fixture.paths.runtimeIdentity,
+                expectedFingerprint: fingerprint,
+                fileManager: .default
+            )
+        }
+    }
+
+    @Test
+    func rejectsIdentityForStoppedProcess() throws {
+        let fixture = try RuntimeFixture()
+        defer {
+            fixture.remove()
+        }
+        try fixture.writeIdentity(
+            fingerprint: fingerprint,
+            processID: 42
+        )
+
+        #expect(
+            throws: GatewayRuntimeReadinessError.invalidRuntimeIdentity
+        ) {
+            try GatewayRuntimeReadiness.inspectRuntimeIdentity(
+                fixture.paths.runtimeIdentity,
+                expectedFingerprint: fingerprint,
+                fileManager: .default,
+                processIsAlive: { _ in false }
+            )
+        }
+    }
 }
 
 private struct RuntimeFixture {
@@ -95,5 +166,24 @@ private struct RuntimeFixture {
 
     func remove() {
         try? FileManager.default.removeItem(at: paths.stateDirectory)
+    }
+
+    func writeIdentity(
+        fingerprint: String,
+        processID: UInt32
+    ) throws {
+        let payload: [String: Any] = [
+            "schemaVersion": 1,
+            "bundleFingerprint": fingerprint,
+            "processId": processID,
+            "semanticVersion": "1.0.0",
+            "buildId": "test",
+        ]
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        try data.write(to: paths.runtimeIdentity, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: paths.runtimeIdentity.path
+        )
     }
 }

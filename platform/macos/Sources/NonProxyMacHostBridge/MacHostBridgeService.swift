@@ -42,7 +42,20 @@ enum MacHostBridgeService {
 
         do {
             let gatewayOutcome = try await gatewayController.registerAndWait(
-                approvalHandler: gatewayApprovalHandler
+                approvalHandler: gatewayApprovalHandler,
+                prepareForReplacement: {
+                    sink.progress(BridgeEventPayload(
+                        operation: .installAndEnable,
+                        success: true,
+                        message:
+                            "检测到后台服务需要升级或重启，正在先停用网络接管。",
+                        errorCode: nil,
+                        requiresReboot: false,
+                        state: nil
+                    ))
+                    try await NetworkPreferencesController()
+                        .disableAndRemove()
+                }
             )
             do {
                 try await installNetworkComponents(
@@ -236,6 +249,9 @@ enum MacHostBridgeService {
             || state.dnsExtension.awaitingUserApproval
         {
             return "系统正在等待用户允许 NonProxy 后台项目或网络扩展。"
+        }
+        if state.gatewayAgent.requiresUpgrade {
+            return "后台服务版本与当前安装包不一致，需要安全升级。"
         }
         if state.gatewayAgent.enabled,
            state.gatewayAgent.ready,

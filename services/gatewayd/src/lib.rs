@@ -18,6 +18,7 @@ mod provider_health;
 mod provider_requirements;
 mod provider_service;
 mod provider_session;
+mod runtime_identity;
 mod runtime_policy;
 mod server;
 mod session_capability;

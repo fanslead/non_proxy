@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#define NP_MAC_BRIDGE_ABI_VERSION 3u
+#define NP_MAC_BRIDGE_ABI_VERSION 4u
 
 /**
  * Swift 仅在回调执行期间借出 payload 指针；调用方必须在回调返回前复制字节。

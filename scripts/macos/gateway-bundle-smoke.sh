@@ -8,6 +8,7 @@ fi
 
 app_bundle=${1%/}
 gateway_binary="${app_bundle}/Contents/Resources/nonproxy-gatewayd"
+gateway_agent_plist="${app_bundle}/Contents/Library/LaunchAgents/com.nonproxy.gatewayd.plist"
 state_directory=$(mktemp -d)
 gateway_pid=
 
@@ -31,8 +32,14 @@ if [[ ! -x "${gateway_binary}" || -L "${gateway_binary}" ]]; then
     echo "App Bundle 中缺少有效的 gatewayd 可执行文件" >&2
     exit 65
 fi
+gateway_bundle_fingerprint=$(
+    /usr/libexec/PlistBuddy -c \
+        "Print :EnvironmentVariables:NONPROXY_GATEWAY_BUNDLE_FINGERPRINT" \
+        "${gateway_agent_plist}"
+)
 
 NONPROXY_STATE_DIR="${state_directory}" \
+NONPROXY_GATEWAY_BUNDLE_FINGERPRINT="${gateway_bundle_fingerprint}" \
     "${gateway_binary}" >"${state_directory}/gateway.log" 2>&1 &
 gateway_pid=$!
 
@@ -40,7 +47,8 @@ for _attempt in {1..100}; do
     if [[ -S "${state_directory}/gatewayd.sock" &&
           -S "${state_directory}/gatewayd-flow.sock" &&
           -f "${state_directory}/session.capability" &&
-          -f "${state_directory}/provider.capability" ]]; then
+          -f "${state_directory}/provider.capability" &&
+          -f "${state_directory}/gateway.runtime.json" ]]; then
         break
     fi
     if ! kill -0 "${gateway_pid}" 2>/dev/null; then
@@ -73,12 +81,31 @@ for capability in session.capability provider.capability; do
     fi
 done
 
+runtime_identity="${state_directory}/gateway.runtime.json"
+if [[ ! -f "${runtime_identity}" || -L "${runtime_identity}" ||
+      $(stat -f '%Lp' "${runtime_identity}") != 600 ]]; then
+    echo "gatewayd 运行身份缺失、类型无效或权限不是 0600" >&2
+    exit 67
+fi
+runtime_schema=$(plutil -extract schemaVersion raw -o - "${runtime_identity}")
+runtime_fingerprint=$(
+    plutil -extract bundleFingerprint raw -o - "${runtime_identity}"
+)
+runtime_pid=$(plutil -extract processId raw -o - "${runtime_identity}")
+if [[ "${runtime_schema}" != 1 ||
+      "${runtime_fingerprint}" != "${gateway_bundle_fingerprint}" ||
+      "${runtime_pid}" != "${gateway_pid}" ]]; then
+    echo "gatewayd 运行身份与 LaunchAgent 包指纹或进程不一致" >&2
+    exit 67
+fi
+
 kill -TERM "${gateway_pid}"
 wait "${gateway_pid}"
 gateway_pid=
 if [[ -e "${state_directory}/gatewayd.sock" ||
-      -e "${state_directory}/gatewayd-flow.sock" ]]; then
-    echo "gatewayd 收到 SIGTERM 后未清理 Unix Socket" >&2
+      -e "${state_directory}/gatewayd-flow.sock" ||
+      -e "${runtime_identity}" ]]; then
+    echo "gatewayd 收到 SIGTERM 后未清理 Unix Socket 或运行身份" >&2
     exit 67
 fi
 

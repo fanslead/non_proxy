@@ -1347,7 +1347,7 @@ Mac 宿主目标为 `net10.0-macos`。它通过 `LibraryImport` 调用同包 Swi
 
 macOS 原生桥 ABI 约束：
 
-- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `3`；第二版状态模型加入 `gatewayAgent`，第三版加入官方系统设置导航入口。
+- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `4`；第二版状态模型加入 `gatewayAgent`，第三版加入官方系统设置导航入口，第四版加入后台服务升级状态。
 - Swift 回调只在回调执行期间借出 UTF-8 JSON 字节，C# 必须立即复制；两侧不互相释放内存。
 - C 的 `size_t` 精确映射为 C# `nuint`，回调使用 `UnmanagedCallersOnly`，任何托管异常都不得越过 ABI。
 - 托管 `GCHandle` 必须持有到原生 completed 事件；调用方取消等待不能提前释放仍可能被系统回调使用的上下文。
@@ -1397,18 +1397,20 @@ macOS：
 - `NonProxyTransparentSystemExtension` 与 `NonProxyDNSSystemExtension` 是只负责启动 Provider 的独立 Swift 可执行 target，业务实现仍留在对应 Provider 模块。
 - `NonProxyMacHostBridge` 是动态 Swift target，负责 `SMAppService`、System Extension 请求、审批进度、状态查询以及 Transparent Proxy/DNS Proxy 偏好事务；它不承载策略或流量。
 - `gatewayd` plist 位于 `.app/Contents/Library/LaunchAgents/com.nonproxy.gatewayd.plist`，通过相对 `BundleProgram` 启动 `.app/Contents/Resources/nonproxy-gatewayd`。它是当前用户会话内的后台项目，不是 root daemon；`RunAtLoad` 与 `KeepAlive` 保证 UI 退出后仍可运行，明确卸载使用异步 `unregister` 等待进程终止。
-- UI、LaunchAgent 和 Provider 的默认状态目录统一为 App Group `group.com.nonproxy.shared` 容器内的 `Library/Application Support/NonProxy`。控制 Socket、数据 Socket、UI capability、Provider capability 和 Provider cache 都从这一根目录派生；`NONPROXY_STATE_DIR` 等覆盖只用于开发与测试。
-- 激活先登记 `gatewayd`，并在限定时间内验证两个 Unix Socket 是 Socket、两个 capability 是权限受限的 32 字节普通文件；后台项目未获用户允许时返回可恢复的等待授权状态。后台服务就绪后才依次处理两个扩展；扩展需要重启时不会提前写入网络偏好。
+- UI、LaunchAgent 和 Provider 的默认状态目录统一为 App Group `group.com.nonproxy.shared` 容器内的 `Library/Application Support/NonProxy`。控制 Socket、数据 Socket、UI capability、Provider capability、`gateway.runtime.json` 和 Provider cache 都从这一根目录派生；`NONPROXY_STATE_DIR` 等覆盖只用于开发与测试。
+- 打包时先签名 `gatewayd`，再用已签名二进制和源 LaunchAgent 模板的 SHA-256 生成包指纹并注入 plist 环境变量。服务只在两个 Socket 绑定成功后原子写入权限为 `0600` 的运行身份，内容包括 schema、包指纹、PID、语义版本和构建标识；退出时只清理自己写入且内容未被替换的身份文件。
+- 激活先登记 `gatewayd`，并在限定时间内验证两个 Unix Socket 是 Socket、两个 capability 是权限受限的 32 字节普通文件，同时验证运行身份是同一用户所有的 `0600` 普通文件、PID 仍存活且包指纹与当前 App 完全一致；后台项目未获用户允许时返回可恢复的等待授权状态。后台服务就绪后才依次处理两个扩展；扩展需要重启时不会提前写入网络偏好。
+- `SMAppService.status == enabled` 不能证明运行的是当前包版本。发现旧指纹、旧版缺少运行身份或后台通道异常时，修复事务先移除 Network Extension 偏好，再异步 `unregister` 并等待旧进程退出，登记当前 LaunchAgent，确认新运行身份后重新安装并启用网络组件。替换过程后段失败时保留已登记的新后台服务并保持网络偏好关闭，不回滚到旧进程；仅首次安装失败才撤销本次新登记。
 - 偏好保存前会快照旧值，DNS 保存失败时恢复两份旧配置；重复的透明代理配置会停止并返回稳定错误。后续安装失败时，只回滚本次新登记的 `gatewayd`，不误停先前已运行的服务。
 - 卸载先停用并移除网络偏好，再停用两个扩展和 `gatewayd`；不存在的组件按幂等成功处理，需要重启会明确返回。普通 UI 退出不触发这一流程。
 - `NonProxy.Desktop.Mac` 构建完成后调用 `scripts/macos/package-system-extensions.sh`，把两个 `SYSX` Bundle 放入最终 `.app/Contents/Library/SystemExtensions/`，把原生桥放入 `.app/Contents/Frameworks/`，并嵌入 LaunchAgent plist 与 `gatewayd`。
 - Debug 构建生成当前机器架构；不指定 RID 的 Release 构建同时生成 `arm64` 与 `x86_64`，并要求宿主、原生桥、`gatewayd` 和两个扩展的架构集合完全一致。
 - 默认使用临时签名验证开发包结构，不代表系统会批准真实激活。正式包必须设置 `NONPROXY_RESTRICTED_SIGNING=1`，并提供 `NONPROXY_CODESIGN_IDENTITY`、`NONPROXY_HOST_PROFILE`、`NONPROXY_TRANSPARENT_PROFILE` 与 `NONPROXY_DNS_PROFILE`。
 - 签名按两个 System Extension、原生桥、`gatewayd`、外层 App 的嵌套顺序执行；外层 App 只在正式受限签名时应用安装 System Extension 所需 entitlement。
-- `scripts/macos/verify-system-extension-bundle.sh` 还校验原生桥导出符号、SystemExtensions/NetworkExtension/ServiceManagement 链接、LaunchAgent 的固定字段与签名；`scripts/macos/native-bridge-smoke.sh` 从最终 App 宿主跨 C ABI 验证版本及非 ASCII UTF-8。
-- `scripts/macos/gateway-bundle-smoke.sh` 使用隔离临时目录直接启动包内 `gatewayd`，验证 Socket/capability 类型、长度、`0600` 权限和 SIGTERM 清理。它不调用 `SMAppService.register()`，因此不能代替系统“后台项目”授权与登录重启测试。
+- `scripts/macos/verify-system-extension-bundle.sh` 还校验原生桥导出符号、SystemExtensions/NetworkExtension/ServiceManagement 链接、LaunchAgent 的固定字段、包指纹与签名；`scripts/macos/native-bridge-smoke.sh` 从最终 App 宿主跨 C ABI 验证版本及非 ASCII UTF-8。
+- `scripts/macos/gateway-bundle-smoke.sh` 使用隔离临时目录直接启动包内 `gatewayd`，验证 Socket/capability 类型、长度、`0600` 权限，核对运行身份指纹和 PID，并确认 SIGTERM 清理。它不调用 `SMAppService.register()`，因此不能代替系统“后台项目”授权与登录重启测试。
 - 运行概览把后台服务、Transparent Proxy、DNS Proxy 和网络偏好建模为四段有序状态，不用一个总开关掩盖部分失败；诊断页从同一领域状态生成逐段检查和稳定错误码。
-- 等待授权时，UI 通过 C ABI v3 调用 `SMAppService.openSystemSettingsLoginItems()` 打开官方设置入口；允许后重新执行幂等安装事务。等待授权不显示为红色故障。
+- 等待授权时，UI 通过 C ABI v4 调用 `SMAppService.openSystemSettingsLoginItems()` 打开官方设置入口；允许后重新执行幂等安装事务。等待授权不显示为红色故障。
 - 卸载入口使用页面内二次确认；确认后仍由原生事务先撤销网络偏好，再移除扩展和 LaunchAgent，规则数据库和代理配置不在该动作中删除。
 - 当前证据证明可执行 Bundle 可构建、可嵌入、签名结构自洽，且托管/原生调用链和包内后台二进制真实连通；默认临时签名不能证明系统会接受权限请求。Developer ID 签名、系统审批、真实 `SMAppService` 登记、登录后启动、偏好写入、Provider 启动、升级、卸载和流量路径仍按系统测试门禁验收。
 

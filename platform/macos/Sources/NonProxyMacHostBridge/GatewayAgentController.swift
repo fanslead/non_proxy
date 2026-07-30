@@ -7,31 +7,50 @@ struct GatewayAgentController {
     private static let readinessAttempts = 100
     private static let readinessDelay = Duration.milliseconds(100)
 
-    private let service: SMAppService
+    private let service: any GatewayAgentServicing
+    private let appGroupValidator: () throws -> Void
+    private let fingerprintProvider: () throws -> String
+    private let runtimeInspector: (String) -> GatewayRuntimeState
 
     init(
-        service: SMAppService = .agent(
+        service: any GatewayAgentServicing = SMAppService.agent(
             plistName: MacSharedRuntimePaths.gatewayAgentPlistName
-        )
+        ),
+        appGroupValidator: @escaping () throws -> Void = {
+            try Self.requireLiveAppGroupContainer()
+        },
+        fingerprintProvider: @escaping () throws -> String = {
+            try GatewayBundleFingerprint.live()
+        },
+        runtimeInspector: @escaping (String) -> GatewayRuntimeState = {
+            Self.inspectLiveRuntime(expectedFingerprint: $0)
+        }
     ) {
         self.service = service
+        self.appGroupValidator = appGroupValidator
+        self.fingerprintProvider = fingerprintProvider
+        self.runtimeInspector = runtimeInspector
     }
 
     func query() -> GatewayAgentSnapshot {
         let status = service.status
-        let runtimeReady =
-            status == .enabled && isRuntimeReady()
+        let runtimeState =
+            status == .enabled ? inspectRuntime() : .notReady
         return Self.snapshot(
             status: status,
-            runtimeReady: runtimeReady
+            runtimeReady: runtimeState == .ready,
+            requiresUpgrade: runtimeState == .requiresReplacement
         )
     }
 
     func registerAndWait(
-        approvalHandler: @escaping () -> Void
+        approvalHandler: @escaping () -> Void,
+        prepareForReplacement: @escaping () async throws -> Void
     ) async throws -> GatewayAgentRegistrationOutcome {
         try requireAppGroupContainer()
+        let expectedFingerprint = try expectedFingerprint()
         let initialStatus = service.status
+        let isFreshRegistration = initialStatus == .notRegistered
         switch initialStatus {
         case .notFound:
             throw Self.notPackagedError()
@@ -39,10 +58,15 @@ struct GatewayAgentController {
             approvalHandler()
             throw Self.approvalRequiredError()
         case .enabled:
-            try await waitUntilReady()
-            return GatewayAgentRegistrationOutcome(
-                newlyRegistered: false
-            )
+            if isRuntimeReady(
+                expectedFingerprint: expectedFingerprint
+            ) {
+                return GatewayAgentRegistrationOutcome(
+                    newlyRegistered: false
+                )
+            }
+            try await prepareForReplacement()
+            try await unregister()
         case .notRegistered:
             break
         @unknown default:
@@ -67,9 +91,11 @@ struct GatewayAgentController {
         switch service.status {
         case .enabled:
             do {
-                try await waitUntilReady()
+                try await waitUntilReady(
+                    expectedFingerprint: expectedFingerprint
+                )
             } catch {
-                guard didRegister else {
+                guard didRegister, isFreshRegistration else {
                     throw error
                 }
                 do {
@@ -85,7 +111,7 @@ struct GatewayAgentController {
                 throw error
             }
             return GatewayAgentRegistrationOutcome(
-                newlyRegistered: didRegister
+                newlyRegistered: didRegister && isFreshRegistration
             )
         case .requiresApproval:
             approvalHandler()
@@ -133,7 +159,8 @@ struct GatewayAgentController {
 
     static func snapshot(
         status: SMAppService.Status,
-        runtimeReady: Bool
+        runtimeReady: Bool,
+        requiresUpgrade: Bool = false
     ) -> GatewayAgentSnapshot {
         switch status {
         case .notRegistered:
@@ -142,7 +169,8 @@ struct GatewayAgentController {
                 enabled: false,
                 requiresApproval: false,
                 found: true,
-                ready: false
+                ready: false,
+                requiresUpgrade: false
             )
         case .enabled:
             return GatewayAgentSnapshot(
@@ -150,7 +178,8 @@ struct GatewayAgentController {
                 enabled: true,
                 requiresApproval: false,
                 found: true,
-                ready: runtimeReady
+                ready: runtimeReady,
+                requiresUpgrade: requiresUpgrade
             )
         case .requiresApproval:
             return GatewayAgentSnapshot(
@@ -158,7 +187,8 @@ struct GatewayAgentController {
                 enabled: false,
                 requiresApproval: true,
                 found: true,
-                ready: false
+                ready: false,
+                requiresUpgrade: false
             )
         case .notFound:
             return GatewayAgentSnapshot(
@@ -166,7 +196,8 @@ struct GatewayAgentController {
                 enabled: false,
                 requiresApproval: false,
                 found: false,
-                ready: false
+                ready: false,
+                requiresUpgrade: false
             )
         @unknown default:
             return GatewayAgentSnapshot(
@@ -174,14 +205,19 @@ struct GatewayAgentController {
                 enabled: false,
                 requiresApproval: false,
                 found: false,
-                ready: false
+                ready: false,
+                requiresUpgrade: false
             )
         }
     }
 
-    private func waitUntilReady() async throws {
+    private func waitUntilReady(
+        expectedFingerprint: String
+    ) async throws {
         for attempt in 0..<Self.readinessAttempts {
-            if isRuntimeReady() {
+            if isRuntimeReady(
+                expectedFingerprint: expectedFingerprint
+            ) {
                 return
             }
             if attempt + 1 < Self.readinessAttempts {
@@ -194,27 +230,65 @@ struct GatewayAgentController {
         )
     }
 
-    private func isRuntimeReady() -> Bool {
+    private func inspectRuntime() -> GatewayRuntimeState {
+        guard let fingerprint = try? expectedFingerprint() else {
+            return .notReady
+        }
+        return runtimeInspector(fingerprint)
+    }
+
+    private func isRuntimeReady(
+        expectedFingerprint: String
+    ) -> Bool {
+        runtimeInspector(expectedFingerprint) == .ready
+    }
+
+    private static func inspectLiveRuntime(
+        expectedFingerprint: String
+    ) -> GatewayRuntimeState {
         guard let paths = try? MacSharedRuntimePaths.live() else {
-            return false
+            return .notReady
         }
         do {
-            try GatewayRuntimeReadiness.inspect(paths: paths)
-            return true
+            try GatewayRuntimeReadiness.inspect(
+                paths: paths,
+                expectedFingerprint: expectedFingerprint
+            )
+            return .ready
+        } catch GatewayRuntimeReadinessError.fingerprintMismatch,
+                GatewayRuntimeReadinessError.invalidRuntimeIdentity
+        {
+            return .requiresReplacement
         } catch {
-            return false
+            return .notReady
+        }
+    }
+
+    private func expectedFingerprint() throws -> String {
+        do {
+            return try fingerprintProvider()
+        } catch {
+            throw BridgeError(
+                code: "NP_MAC_GATEWAY_FINGERPRINT_INVALID",
+                message:
+                    "当前 NonProxy 安装包缺少有效的 gatewayd 版本指纹。"
+            )
         }
     }
 
     private func requireAppGroupContainer() throws {
         do {
-            _ = try MacSharedRuntimePaths.live()
+            try appGroupValidator()
         } catch {
             throw BridgeError(
                 code: "NP_MAC_APP_GROUP_UNAVAILABLE",
                 message: "当前应用无法访问 NonProxy 共享 App Group，请检查签名与权限。"
             )
         }
+    }
+
+    private static func requireLiveAppGroupContainer() throws {
+        _ = try MacSharedRuntimePaths.live()
     }
 
     private static func mapRegistrationError(
@@ -268,4 +342,20 @@ struct GatewayAgentController {
             message: "macOS 返回了无法识别的 gatewayd 后台项目状态。"
         )
     }
+}
+
+@MainActor
+protocol GatewayAgentServicing: AnyObject {
+    var status: SMAppService.Status { get }
+
+    func register() throws
+    func unregister() async throws
+}
+
+extension SMAppService: GatewayAgentServicing {}
+
+enum GatewayRuntimeState {
+    case ready
+    case requiresReplacement
+    case notReady
 }

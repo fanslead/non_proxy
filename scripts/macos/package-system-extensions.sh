@@ -257,6 +257,22 @@ fi
 codesign "${bridge_sign_args[@]}" "${bridge_library}"
 codesign "${bridge_sign_args[@]}" "${gateway_binary}"
 
+gateway_binary_digest=$(shasum -a 256 "${gateway_binary}" | awk '{print $1}')
+gateway_plist_digest=$(
+    shasum -a 256 "${packaging_root}/com.nonproxy.gatewayd.plist" |
+        awk '{print $1}'
+)
+gateway_bundle_fingerprint=$(
+    printf '%s%s' "${gateway_binary_digest}" "${gateway_plist_digest}" |
+        shasum -a 256 |
+        awk '{print $1}'
+)
+"${plist_buddy}" -c "Add :EnvironmentVariables dict" \
+    "${gateway_agent_plist}"
+"${plist_buddy}" -c \
+    "Add :EnvironmentVariables:NONPROXY_GATEWAY_BUNDLE_FINGERPRINT string ${gateway_bundle_fingerprint}" \
+    "${gateway_agent_plist}"
+
 host_sign_args=(--force --sign "${signing_identity}")
 if [[ "${restricted_signing}" == 1 ]]; then
     host_sign_args+=(

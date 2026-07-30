@@ -154,6 +154,7 @@ dotnet test apps/desktop/NonProxy.Desktop.Tests -c Release --no-restore
 - `gatewayd` 作为用户级 `SMAppService` LaunchAgent 随最终 App 打包；配置放在 `Contents/Library/LaunchAgents`，可执行文件用 `BundleProgram` 引用，不安装到全局目录，也不要求 root。
 - Mac UI、`gatewayd` 和两个沙盒 Provider 必须从同一 App Group 运行时契约派生 Socket、能力文件和缓存路径；修改任一文件名或组标识时必须同步三种语言的契约测试。
 - 安装必须先确认 `gatewayd` 已登记且私有 Socket/能力文件就绪，再启用 System Extension 和网络偏好；卸载必须先撤销网络偏好，避免停止后台服务后仍把流量导向它。
+- `gatewayd` 升级不得只信任 `SMAppService.status`；必须校验由已签名二进制和 LaunchAgent 模板生成的包指纹及私有运行身份。替换后台服务前先撤销网络偏好，等待旧进程退出，确认新版本就绪后才能恢复网络接管。
 - UI 普通退出不得调用 `SMAppService.unregister()`；只有明确卸载动作可以停止并撤销后台项目登记。
 - macOS 首页必须分别呈现后台服务、Transparent Proxy、DNS Proxy 和网络偏好四段真实状态；“等待系统允许”是可恢复中间态，不得渲染为失败或声称已接管流量。
 - 打开后台项目授权页必须经原生桥调用 `SMAppService.openSystemSettingsLoginItems()`；不要在共享 UI 中硬编码系统设置 URL。

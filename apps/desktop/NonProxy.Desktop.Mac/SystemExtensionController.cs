@@ -238,6 +238,14 @@ internal sealed class SystemExtensionController(
                 SystemComponentStepStatus.AwaitingApproval,
                 "需要在系统设置中允许后台项目。");
         }
+        if (gateway.RequiresUpgrade)
+        {
+            return new SystemComponentStep(
+                "gateway",
+                "后台服务",
+                SystemComponentStepStatus.NeedsRepair,
+                "运行中的后台服务版本较旧，需要安全升级。");
+        }
         if (gateway.Enabled && gateway.Ready)
         {
             return new SystemComponentStep(
