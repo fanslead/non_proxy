@@ -5,13 +5,16 @@ import NonProxyProviderCore
 public struct MacProviderRuntimeComponents: Sendable {
     public let runtime: ProviderPolicyRuntime
     public let lifecycle: ProviderLifecycleCoordinator
+    public let control: ProviderControlClient
 
     public init(
         runtime: ProviderPolicyRuntime,
-        lifecycle: ProviderLifecycleCoordinator
+        lifecycle: ProviderLifecycleCoordinator,
+        control: ProviderControlClient
     ) {
         self.runtime = runtime
         self.lifecycle = lifecycle
+        self.control = control
     }
 }
 
@@ -44,7 +47,7 @@ public enum MacProviderBootstrap {
             semanticVersion: version,
             buildID: buildID
         )
-        let control = ProviderControlClient(
+        let control = try ProviderControlClient(
             configuration: configuration,
             session: session,
             cache: cache
@@ -59,7 +62,8 @@ public enum MacProviderBootstrap {
         )
         return MacProviderRuntimeComponents(
             runtime: runtime,
-            lifecycle: lifecycle
+            lifecycle: lifecycle,
+            control: control
         )
     }
 

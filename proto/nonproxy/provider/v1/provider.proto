@@ -161,6 +161,8 @@ message ResolveDnsRequest {
   string requested_outbound_id = 9;
   repeated DnsUpstreamEndpoint upstreams = 10;
   uint64 snapshot_version = 11;
+  // direct_interface_index 指定 DIRECT 查询必须绑定的物理网卡；零表示未指定。
+  uint32 direct_interface_index = 12;
 }
 
 // DnsUpstreamEndpoint 使用 IP 字面量，避免网关解析 resolver 主机名时再次进入 DNS Proxy。

@@ -99,7 +99,7 @@ namespace NonProxy.Provider.V1 {
             "GAYgASgLMh8ubm9ucHJveHkuY29tbW9uLnYxLkVycm9yRGV0YWlsUgVlcnJv",
             "ciJWChRSZXBvcnRIZWFsdGhSZXNwb25zZRI+Cg1uZXh0X2ludGVydmFsGAEg",
             "ASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uUgxuZXh0SW50ZXJ2YWwi",
-            "mQQKEVJlc29sdmVEbnNSZXF1ZXN0EkYKB2NvbnRleHQYASABKAsyLC5ub25w",
+            "zwQKEVJlc29sdmVEbnNSZXF1ZXN0EkYKB2NvbnRleHQYASABKAsyLC5ub25w",
             "cm94eS5wcm92aWRlci52MS5Qcm92aWRlclJlcXVlc3RDb250ZXh0Ugdjb250",
             "ZXh0EhkKCHF1ZXJ5X2lkGAIgASgJUgdxdWVyeUlkEjEKA2FwcBgDIAEoCzIf",
             "Lm5vbnByb3h5LmNvbW1vbi52MS5BcHBJZGVudGl0eVIDYXBwEhQKBXFuYW1l",
@@ -110,63 +110,64 @@ namespace NonProxy.Provider.V1 {
             "dWVzdGVkUm91dGUSMgoVcmVxdWVzdGVkX291dGJvdW5kX2lkGAkgASgJUhNy",
             "ZXF1ZXN0ZWRPdXRib3VuZElkEkcKCXVwc3RyZWFtcxgKIAMoCzIpLm5vbnBy",
             "b3h5LnByb3ZpZGVyLnYxLkRuc1Vwc3RyZWFtRW5kcG9pbnRSCXVwc3RyZWFt",
-            "cxIpChBzbmFwc2hvdF92ZXJzaW9uGAsgASgEUg9zbmFwc2hvdFZlcnNpb24i",
-            "YwoTRG5zVXBzdHJlYW1FbmRwb2ludBIdCgppcF9hZGRyZXNzGAEgASgJUglp",
-            "cEFkZHJlc3MSEgoEcG9ydBgCIAEoDVIEcG9ydBIZCghzY29wZV9pZBgDIAEo",
-            "DVIHc2NvcGVJZCLJAgoSUmVzb2x2ZURuc1Jlc3BvbnNlEh8KC2Ruc19tZXNz",
-            "YWdlGAEgASgMUgpkbnNNZXNzYWdlEjgKBXJvdXRlGAIgASgOMiIubm9ucHJv",
-            "eHkucHJvdmlkZXIudjEuRG5zUm91dGVLaW5kUgVyb3V0ZRIfCgtvdXRib3Vu",
-            "ZF9pZBgDIAEoCVIKb3V0Ym91bmRJZBI2Cgl2YWxpZF9mb3IYBCABKAsyGS5n",
-            "b29nbGUucHJvdG9idWYuRHVyYXRpb25SCHZhbGlkRm9yEjUKBWVycm9yGAUg",
-            "ASgLMh8ubm9ucHJveHkuY29tbW9uLnYxLkVycm9yRGV0YWlsUgVlcnJvchIb",
-            "CgljYWNoZV9oaXQYBiABKAhSCGNhY2hlSGl0EisKEXJlc29sdmVyX2VuZHBv",
-            "aW50GAcgASgJUhByZXNvbHZlckVuZHBvaW50IvABChRPcGVuUHJveHlGbG93",
-            "UmVxdWVzdBJVCg9yZXF1ZXN0X2NvbnRleHQYASABKAsyLC5ub25wcm94eS5w",
-            "cm92aWRlci52MS5Qcm92aWRlclJlcXVlc3RDb250ZXh0Ug5yZXF1ZXN0Q29u",
-            "dGV4dBJHCgpjb25uZWN0aW9uGAIgASgLMicubm9ucHJveHkucHJvdmlkZXIu",
-            "djEuQ29ubmVjdGlvbkNvbnRleHRSCmNvbm5lY3Rpb24SOAoIZGVjaXNpb24Y",
-            "AyABKAsyHC5ub25wcm94eS5wb2xpY3kudjEuRGVjaXNpb25SCGRlY2lzaW9u",
-            "IoACChVPcGVuUHJveHlGbG93UmVzcG9uc2USGgoIYWNjZXB0ZWQYASABKAhS",
-            "CGFjY2VwdGVkEjQKFmZyYW1lX3Byb3RvY29sX3ZlcnNpb24YAiABKA1SFGZy",
-            "YW1lUHJvdG9jb2xWZXJzaW9uEjAKFGluaXRpYWxfd2luZG93X2J5dGVzGAMg",
-            "ASgEUhJpbml0aWFsV2luZG93Qnl0ZXMSNQoFZXJyb3IYBCABKAsyHy5ub25w",
-            "cm94eS5jb21tb24udjEuRXJyb3JEZXRhaWxSBWVycm9yEiwKEmRhdGFfY2hh",
-            "bm5lbF90b2tlbhgFIAEoDFIQZGF0YUNoYW5uZWxUb2tlbiL3AQoVQ2xvc2VQ",
-            "cm94eUZsb3dSZXF1ZXN0EkYKB2NvbnRleHQYASABKAsyLC5ub25wcm94eS5w",
-            "cm92aWRlci52MS5Qcm92aWRlclJlcXVlc3RDb250ZXh0Ugdjb250ZXh0EhcK",
-            "B2Zsb3dfaWQYAiABKAlSBmZsb3dJZBIkCg5ieXRlc19mcm9tX2FwcBgDIAEo",
-            "BFIMYnl0ZXNGcm9tQXBwEiAKDGJ5dGVzX3RvX2FwcBgEIAEoBFIKYnl0ZXNU",
-            "b0FwcBI1CgVlcnJvchgFIAEoCzIfLm5vbnByb3h5LmNvbW1vbi52MS5FcnJv",
-            "ckRldGFpbFIFZXJyb3IiMAoWQ2xvc2VQcm94eUZsb3dSZXNwb25zZRIWCgZj",
-            "bG9zZWQYASABKAhSBmNsb3NlZCqtAQoMUHJvdmlkZXJLaW5kEh0KGVBST1ZJ",
-            "REVSX0tJTkRfVU5TUEVDSUZJRUQQABIjCh9QUk9WSURFUl9LSU5EX1RSQU5T",
-            "UEFSRU5UX1BST1hZEAESGwoXUFJPVklERVJfS0lORF9ETlNfUFJPWFkQAhId",
-            "ChlQUk9WSURFUl9LSU5EX1dJTkRPV1NfV0ZQEAMSHQoZUFJPVklERVJfS0lO",
-            "RF9XSU5ET1dTX0ROUxAEKn4KDERuc1JvdXRlS2luZBIeChpETlNfUk9VVEVf",
-            "S0lORF9VTlNQRUNJRklFRBAAEhkKFUROU19ST1VURV9LSU5EX0RJUkVDVBAB",
-            "EhgKFEROU19ST1VURV9LSU5EX1BST1hZEAISGQoVRE5TX1JPVVRFX0tJTkRf",
-            "U1lTVEVNEAMylAcKD1Byb3ZpZGVyU2VydmljZRJxChBSZWdpc3RlclByb3Zp",
-            "ZGVyEi0ubm9ucHJveHkucHJvdmlkZXIudjEuUmVnaXN0ZXJQcm92aWRlclJl",
-            "cXVlc3QaLi5ub25wcm94eS5wcm92aWRlci52MS5SZWdpc3RlclByb3ZpZGVy",
-            "UmVzcG9uc2USdwoSR2V0Q3VycmVudFNuYXBzaG90Ei8ubm9ucHJveHkucHJv",
-            "dmlkZXIudjEuR2V0Q3VycmVudFNuYXBzaG90UmVxdWVzdBowLm5vbnByb3h5",
-            "LnByb3ZpZGVyLnYxLkdldEN1cnJlbnRTbmFwc2hvdFJlc3BvbnNlEnoKE0Fj",
-            "a25vd2xlZGdlU25hcHNob3QSMC5ub25wcm94eS5wcm92aWRlci52MS5BY2tu",
-            "b3dsZWRnZVNuYXBzaG90UmVxdWVzdBoxLm5vbnByb3h5LnByb3ZpZGVyLnYx",
-            "LkFja25vd2xlZGdlU25hcHNob3RSZXNwb25zZRJ6ChNSZXBvcnREZWNpc2lv",
-            "bkJhdGNoEjAubm9ucHJveHkucHJvdmlkZXIudjEuUmVwb3J0RGVjaXNpb25C",
-            "YXRjaFJlcXVlc3QaMS5ub25wcm94eS5wcm92aWRlci52MS5SZXBvcnREZWNp",
-            "c2lvbkJhdGNoUmVzcG9uc2USZQoMUmVwb3J0SGVhbHRoEikubm9ucHJveHku",
-            "cHJvdmlkZXIudjEuUmVwb3J0SGVhbHRoUmVxdWVzdBoqLm5vbnByb3h5LnBy",
-            "b3ZpZGVyLnYxLlJlcG9ydEhlYWx0aFJlc3BvbnNlEl8KClJlc29sdmVEbnMS",
-            "Jy5ub25wcm94eS5wcm92aWRlci52MS5SZXNvbHZlRG5zUmVxdWVzdBooLm5v",
-            "bnByb3h5LnByb3ZpZGVyLnYxLlJlc29sdmVEbnNSZXNwb25zZRJoCg1PcGVu",
-            "UHJveHlGbG93Eioubm9ucHJveHkucHJvdmlkZXIudjEuT3BlblByb3h5Rmxv",
-            "d1JlcXVlc3QaKy5ub25wcm94eS5wcm92aWRlci52MS5PcGVuUHJveHlGbG93",
-            "UmVzcG9uc2USawoOQ2xvc2VQcm94eUZsb3cSKy5ub25wcm94eS5wcm92aWRl",
-            "ci52MS5DbG9zZVByb3h5Rmxvd1JlcXVlc3QaLC5ub25wcm94eS5wcm92aWRl",
-            "ci52MS5DbG9zZVByb3h5Rmxvd1Jlc3BvbnNlQheqAhROb25Qcm94eS5Qcm92",
-            "aWRlci5WMWIGcHJvdG8z"));
+            "cxIpChBzbmFwc2hvdF92ZXJzaW9uGAsgASgEUg9zbmFwc2hvdFZlcnNpb24S",
+            "NAoWZGlyZWN0X2ludGVyZmFjZV9pbmRleBgMIAEoDVIUZGlyZWN0SW50ZXJm",
+            "YWNlSW5kZXgiYwoTRG5zVXBzdHJlYW1FbmRwb2ludBIdCgppcF9hZGRyZXNz",
+            "GAEgASgJUglpcEFkZHJlc3MSEgoEcG9ydBgCIAEoDVIEcG9ydBIZCghzY29w",
+            "ZV9pZBgDIAEoDVIHc2NvcGVJZCLJAgoSUmVzb2x2ZURuc1Jlc3BvbnNlEh8K",
+            "C2Ruc19tZXNzYWdlGAEgASgMUgpkbnNNZXNzYWdlEjgKBXJvdXRlGAIgASgO",
+            "MiIubm9ucHJveHkucHJvdmlkZXIudjEuRG5zUm91dGVLaW5kUgVyb3V0ZRIf",
+            "CgtvdXRib3VuZF9pZBgDIAEoCVIKb3V0Ym91bmRJZBI2Cgl2YWxpZF9mb3IY",
+            "BCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25SCHZhbGlkRm9yEjUK",
+            "BWVycm9yGAUgASgLMh8ubm9ucHJveHkuY29tbW9uLnYxLkVycm9yRGV0YWls",
+            "UgVlcnJvchIbCgljYWNoZV9oaXQYBiABKAhSCGNhY2hlSGl0EisKEXJlc29s",
+            "dmVyX2VuZHBvaW50GAcgASgJUhByZXNvbHZlckVuZHBvaW50IvABChRPcGVu",
+            "UHJveHlGbG93UmVxdWVzdBJVCg9yZXF1ZXN0X2NvbnRleHQYASABKAsyLC5u",
+            "b25wcm94eS5wcm92aWRlci52MS5Qcm92aWRlclJlcXVlc3RDb250ZXh0Ug5y",
+            "ZXF1ZXN0Q29udGV4dBJHCgpjb25uZWN0aW9uGAIgASgLMicubm9ucHJveHku",
+            "cHJvdmlkZXIudjEuQ29ubmVjdGlvbkNvbnRleHRSCmNvbm5lY3Rpb24SOAoI",
+            "ZGVjaXNpb24YAyABKAsyHC5ub25wcm94eS5wb2xpY3kudjEuRGVjaXNpb25S",
+            "CGRlY2lzaW9uIoACChVPcGVuUHJveHlGbG93UmVzcG9uc2USGgoIYWNjZXB0",
+            "ZWQYASABKAhSCGFjY2VwdGVkEjQKFmZyYW1lX3Byb3RvY29sX3ZlcnNpb24Y",
+            "AiABKA1SFGZyYW1lUHJvdG9jb2xWZXJzaW9uEjAKFGluaXRpYWxfd2luZG93",
+            "X2J5dGVzGAMgASgEUhJpbml0aWFsV2luZG93Qnl0ZXMSNQoFZXJyb3IYBCAB",
+            "KAsyHy5ub25wcm94eS5jb21tb24udjEuRXJyb3JEZXRhaWxSBWVycm9yEiwK",
+            "EmRhdGFfY2hhbm5lbF90b2tlbhgFIAEoDFIQZGF0YUNoYW5uZWxUb2tlbiL3",
+            "AQoVQ2xvc2VQcm94eUZsb3dSZXF1ZXN0EkYKB2NvbnRleHQYASABKAsyLC5u",
+            "b25wcm94eS5wcm92aWRlci52MS5Qcm92aWRlclJlcXVlc3RDb250ZXh0Ugdj",
+            "b250ZXh0EhcKB2Zsb3dfaWQYAiABKAlSBmZsb3dJZBIkCg5ieXRlc19mcm9t",
+            "X2FwcBgDIAEoBFIMYnl0ZXNGcm9tQXBwEiAKDGJ5dGVzX3RvX2FwcBgEIAEo",
+            "BFIKYnl0ZXNUb0FwcBI1CgVlcnJvchgFIAEoCzIfLm5vbnByb3h5LmNvbW1v",
+            "bi52MS5FcnJvckRldGFpbFIFZXJyb3IiMAoWQ2xvc2VQcm94eUZsb3dSZXNw",
+            "b25zZRIWCgZjbG9zZWQYASABKAhSBmNsb3NlZCqtAQoMUHJvdmlkZXJLaW5k",
+            "Eh0KGVBST1ZJREVSX0tJTkRfVU5TUEVDSUZJRUQQABIjCh9QUk9WSURFUl9L",
+            "SU5EX1RSQU5TUEFSRU5UX1BST1hZEAESGwoXUFJPVklERVJfS0lORF9ETlNf",
+            "UFJPWFkQAhIdChlQUk9WSURFUl9LSU5EX1dJTkRPV1NfV0ZQEAMSHQoZUFJP",
+            "VklERVJfS0lORF9XSU5ET1dTX0ROUxAEKn4KDERuc1JvdXRlS2luZBIeChpE",
+            "TlNfUk9VVEVfS0lORF9VTlNQRUNJRklFRBAAEhkKFUROU19ST1VURV9LSU5E",
+            "X0RJUkVDVBABEhgKFEROU19ST1VURV9LSU5EX1BST1hZEAISGQoVRE5TX1JP",
+            "VVRFX0tJTkRfU1lTVEVNEAMylAcKD1Byb3ZpZGVyU2VydmljZRJxChBSZWdp",
+            "c3RlclByb3ZpZGVyEi0ubm9ucHJveHkucHJvdmlkZXIudjEuUmVnaXN0ZXJQ",
+            "cm92aWRlclJlcXVlc3QaLi5ub25wcm94eS5wcm92aWRlci52MS5SZWdpc3Rl",
+            "clByb3ZpZGVyUmVzcG9uc2USdwoSR2V0Q3VycmVudFNuYXBzaG90Ei8ubm9u",
+            "cHJveHkucHJvdmlkZXIudjEuR2V0Q3VycmVudFNuYXBzaG90UmVxdWVzdBow",
+            "Lm5vbnByb3h5LnByb3ZpZGVyLnYxLkdldEN1cnJlbnRTbmFwc2hvdFJlc3Bv",
+            "bnNlEnoKE0Fja25vd2xlZGdlU25hcHNob3QSMC5ub25wcm94eS5wcm92aWRl",
+            "ci52MS5BY2tub3dsZWRnZVNuYXBzaG90UmVxdWVzdBoxLm5vbnByb3h5LnBy",
+            "b3ZpZGVyLnYxLkFja25vd2xlZGdlU25hcHNob3RSZXNwb25zZRJ6ChNSZXBv",
+            "cnREZWNpc2lvbkJhdGNoEjAubm9ucHJveHkucHJvdmlkZXIudjEuUmVwb3J0",
+            "RGVjaXNpb25CYXRjaFJlcXVlc3QaMS5ub25wcm94eS5wcm92aWRlci52MS5S",
+            "ZXBvcnREZWNpc2lvbkJhdGNoUmVzcG9uc2USZQoMUmVwb3J0SGVhbHRoEiku",
+            "bm9ucHJveHkucHJvdmlkZXIudjEuUmVwb3J0SGVhbHRoUmVxdWVzdBoqLm5v",
+            "bnByb3h5LnByb3ZpZGVyLnYxLlJlcG9ydEhlYWx0aFJlc3BvbnNlEl8KClJl",
+            "c29sdmVEbnMSJy5ub25wcm94eS5wcm92aWRlci52MS5SZXNvbHZlRG5zUmVx",
+            "dWVzdBooLm5vbnByb3h5LnByb3ZpZGVyLnYxLlJlc29sdmVEbnNSZXNwb25z",
+            "ZRJoCg1PcGVuUHJveHlGbG93Eioubm9ucHJveHkucHJvdmlkZXIudjEuT3Bl",
+            "blByb3h5Rmxvd1JlcXVlc3QaKy5ub25wcm94eS5wcm92aWRlci52MS5PcGVu",
+            "UHJveHlGbG93UmVzcG9uc2USawoOQ2xvc2VQcm94eUZsb3cSKy5ub25wcm94",
+            "eS5wcm92aWRlci52MS5DbG9zZVByb3h5Rmxvd1JlcXVlc3QaLC5ub25wcm94",
+            "eS5wcm92aWRlci52MS5DbG9zZVByb3h5Rmxvd1Jlc3BvbnNlQheqAhROb25Q",
+            "cm94eS5Qcm92aWRlci5WMWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.DurationReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::NonProxy.Common.V1.CommonReflection.Descriptor, global::NonProxy.Events.V1.EventsReflection.Descriptor, global::NonProxy.Policy.V1.PolicyReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::NonProxy.Provider.V1.ProviderKind), typeof(global::NonProxy.Provider.V1.DnsRouteKind), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -184,7 +185,7 @@ namespace NonProxy.Provider.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ReportDecisionBatchResponse), global::NonProxy.Provider.V1.ReportDecisionBatchResponse.Parser, new[]{ "AcceptedCount", "Error" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ReportHealthRequest), global::NonProxy.Provider.V1.ReportHealthRequest.Parser, new[]{ "Context", "State", "ActiveSnapshotVersion", "ActiveFlowCount", "QueuedBytes", "Error" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ReportHealthResponse), global::NonProxy.Provider.V1.ReportHealthResponse.Parser, new[]{ "NextInterval" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ResolveDnsRequest), global::NonProxy.Provider.V1.ResolveDnsRequest.Parser, new[]{ "Context", "QueryId", "App", "Qname", "Qtype", "NetworkProfileId", "DnsMessage", "RequestedRoute", "RequestedOutboundId", "Upstreams", "SnapshotVersion" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ResolveDnsRequest), global::NonProxy.Provider.V1.ResolveDnsRequest.Parser, new[]{ "Context", "QueryId", "App", "Qname", "Qtype", "NetworkProfileId", "DnsMessage", "RequestedRoute", "RequestedOutboundId", "Upstreams", "SnapshotVersion", "DirectInterfaceIndex" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.DnsUpstreamEndpoint), global::NonProxy.Provider.V1.DnsUpstreamEndpoint.Parser, new[]{ "IpAddress", "Port", "ScopeId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.ResolveDnsResponse), global::NonProxy.Provider.V1.ResolveDnsResponse.Parser, new[]{ "DnsMessage", "Route", "OutboundId", "ValidFor", "Error", "CacheHit", "ResolverEndpoint" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Provider.V1.OpenProxyFlowRequest), global::NonProxy.Provider.V1.OpenProxyFlowRequest.Parser, new[]{ "RequestContext", "Connection", "Decision" }, null, null, null, null),
@@ -4703,6 +4704,7 @@ namespace NonProxy.Provider.V1 {
       requestedOutboundId_ = other.requestedOutboundId_;
       upstreams_ = other.upstreams_.Clone();
       snapshotVersion_ = other.snapshotVersion_;
+      directInterfaceIndex_ = other.directInterfaceIndex_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -4843,6 +4845,21 @@ namespace NonProxy.Provider.V1 {
       }
     }
 
+    /// <summary>Field number for the "direct_interface_index" field.</summary>
+    public const int DirectInterfaceIndexFieldNumber = 12;
+    private uint directInterfaceIndex_;
+    /// <summary>
+    /// direct_interface_index 指定 DIRECT 查询必须绑定的物理网卡；零表示未指定。
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint DirectInterfaceIndex {
+      get { return directInterfaceIndex_; }
+      set {
+        directInterfaceIndex_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -4869,6 +4886,7 @@ namespace NonProxy.Provider.V1 {
       if (RequestedOutboundId != other.RequestedOutboundId) return false;
       if(!upstreams_.Equals(other.upstreams_)) return false;
       if (SnapshotVersion != other.SnapshotVersion) return false;
+      if (DirectInterfaceIndex != other.DirectInterfaceIndex) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -4887,6 +4905,7 @@ namespace NonProxy.Provider.V1 {
       if (RequestedOutboundId.Length != 0) hash ^= RequestedOutboundId.GetHashCode();
       hash ^= upstreams_.GetHashCode();
       if (SnapshotVersion != 0UL) hash ^= SnapshotVersion.GetHashCode();
+      if (DirectInterfaceIndex != 0) hash ^= DirectInterfaceIndex.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -4946,6 +4965,10 @@ namespace NonProxy.Provider.V1 {
         output.WriteRawTag(88);
         output.WriteUInt64(SnapshotVersion);
       }
+      if (DirectInterfaceIndex != 0) {
+        output.WriteRawTag(96);
+        output.WriteUInt32(DirectInterfaceIndex);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4997,6 +5020,10 @@ namespace NonProxy.Provider.V1 {
         output.WriteRawTag(88);
         output.WriteUInt64(SnapshotVersion);
       }
+      if (DirectInterfaceIndex != 0) {
+        output.WriteRawTag(96);
+        output.WriteUInt32(DirectInterfaceIndex);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -5037,6 +5064,9 @@ namespace NonProxy.Provider.V1 {
       size += upstreams_.CalculateSize(_repeated_upstreams_codec);
       if (SnapshotVersion != 0UL) {
         size += 1 + pb::CodedOutputStream.ComputeUInt64Size(SnapshotVersion);
+      }
+      if (DirectInterfaceIndex != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(DirectInterfaceIndex);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -5086,6 +5116,9 @@ namespace NonProxy.Provider.V1 {
       upstreams_.Add(other.upstreams_);
       if (other.SnapshotVersion != 0UL) {
         SnapshotVersion = other.SnapshotVersion;
+      }
+      if (other.DirectInterfaceIndex != 0) {
+        DirectInterfaceIndex = other.DirectInterfaceIndex;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -5156,6 +5189,10 @@ namespace NonProxy.Provider.V1 {
             SnapshotVersion = input.ReadUInt64();
             break;
           }
+          case 96: {
+            DirectInterfaceIndex = input.ReadUInt32();
+            break;
+          }
         }
       }
     #endif
@@ -5223,6 +5260,10 @@ namespace NonProxy.Provider.V1 {
           }
           case 88: {
             SnapshotVersion = input.ReadUInt64();
+            break;
+          }
+          case 96: {
+            DirectInterfaceIndex = input.ReadUInt32();
             break;
           }
         }

@@ -75,8 +75,13 @@ impl DnsResolutionService {
         let forwarded = timeout(DNS_REQUEST_TIMEOUT, async {
             match request.route() {
                 DnsRoute::Direct | DnsRoute::System => {
-                    resolver::direct(request.upstreams(), request.query(), request.wire_query())
-                        .await
+                    resolver::direct(
+                        request.upstreams(),
+                        request.query(),
+                        request.wire_query(),
+                        request.direct_interface_index(),
+                    )
+                    .await
                 }
                 DnsRoute::Proxy(outbound_id) => {
                     let connector = load_connector(

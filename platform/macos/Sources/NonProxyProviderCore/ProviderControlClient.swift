@@ -1,6 +1,5 @@
 import Foundation
 import GRPCCore
-import GRPCNIOTransportHTTP2Posix
 import NonProxyProviderContracts
 
 public struct ProviderSynchronizationResult: Sendable {
@@ -19,19 +18,27 @@ public struct ProviderSynchronizationResult: Sendable {
     }
 }
 
-public struct ProviderControlClient: ProviderControlServing, Sendable {
+public struct ProviderControlClient:
+    ProviderControlServing,
+    ProviderDNSResolving,
+    Sendable
+{
     private let configuration: ProviderConfiguration
     private let session: ProviderSession
     private let cache: PolicySnapshotCache
+    private let connection: ProviderRPCConnection
 
     public init(
         configuration: ProviderConfiguration,
         session: ProviderSession,
-        cache: PolicySnapshotCache
-    ) {
+        cache: PolicySnapshotCache,
+        connection: ProviderRPCConnection? = nil
+    ) throws {
         self.configuration = configuration
         self.session = session
         self.cache = cache
+        self.connection = try connection
+            ?? ProviderRPCConnection(socketPath: configuration.socketPath)
     }
 
     public func synchronize(
@@ -56,22 +63,39 @@ public struct ProviderControlClient: ProviderControlServing, Sendable {
         )
     }
 
+    public func resolveDNS(
+        _ request: Nonproxy_Provider_V1_ResolveDnsRequest
+    ) async throws -> Nonproxy_Provider_V1_ResolveDnsResponse {
+        var mutableRequest = request
+        mutableRequest.context = try await session.requestContext()
+        let authenticatedRequest = mutableRequest
+        let response = try await connection.perform { client in
+            try await client.resolveDns(
+                request: ClientRequest(message: authenticatedRequest),
+                options: Self.dnsCallOptions
+            )
+        }
+        guard !response.hasError else {
+            throw ProviderError.dnsResolution(
+                code: response.error.code,
+                message: response.error.message.isEmpty
+                    ? "DNS 解析失败"
+                    : response.error.message
+            )
+        }
+        return response
+    }
+
+    public func shutdown() {
+        connection.shutdown()
+    }
+
     private func execute(
         knownSnapshotVersion: UInt64,
         metrics: ProviderHealthMetrics,
         mustRegister: Bool
     ) async throws -> ProviderSynchronizationResult {
-        let transport = try HTTP2ClientTransport.Posix(
-            target: .unixDomainSocket(
-                path: configuration.socketPath,
-                authority: "localhost"
-            ),
-            transportSecurity: .plaintext
-        )
-        return try await withGRPCClient(transport: transport) { grpcClient in
-            let client = Nonproxy_Provider_V1_ProviderService.Client(
-                wrapping: grpcClient
-            )
+        return try await connection.perform { client in
             if mustRegister {
                 let registration = try await register(using: client)
                 try await session.install(response: registration)
@@ -81,7 +105,8 @@ public struct ProviderControlClient: ProviderControlServing, Sendable {
             getRequest.context = try await session.requestContext()
             getRequest.knownSnapshotVersion = knownSnapshotVersion
             let response = try await client.getCurrentSnapshot(
-                request: ClientRequest(message: getRequest)
+                request: ClientRequest(message: getRequest),
+                options: Self.controlCallOptions
             )
             if response.unchanged {
                 try await reportReady(
@@ -141,10 +166,14 @@ public struct ProviderControlClient: ProviderControlServing, Sendable {
         request.kind = configuration.kind
         request.version = configuration.componentVersion
         request.capabilities = ["snapshot-v1", "heartbeat-v1"]
+        if configuration.kind == .dnsProxy {
+            request.capabilities.append("dns-resolve-v1")
+        }
         request.startupNonce = secureRandomBytes(count: 32)
         request.bootstrapCapability = configuration.bootstrapCapability
         return try await client.registerProvider(
-            request: ClientRequest(message: request)
+            request: ClientRequest(message: request),
+            options: Self.controlCallOptions
         )
     }
 
@@ -158,7 +187,8 @@ public struct ProviderControlClient: ProviderControlServing, Sendable {
         request.contentHash = snapshot.contentHash
         request.accepted = true
         let response = try await client.acknowledgeSnapshot(
-            request: ClientRequest(message: request)
+            request: ClientRequest(message: request),
+            options: Self.controlCallOptions
         )
         guard response.hasSnapshot else {
             throw ProviderError.invalidSnapshot("gatewayd 未返回快照发布状态")
@@ -187,7 +217,8 @@ public struct ProviderControlClient: ProviderControlServing, Sendable {
         request.accepted = false
         request.error = detail
         _ = try await client.acknowledgeSnapshot(
-            request: ClientRequest(message: request)
+            request: ClientRequest(message: request),
+            options: Self.controlCallOptions
         )
     }
 
@@ -203,8 +234,27 @@ public struct ProviderControlClient: ProviderControlServing, Sendable {
         request.activeFlowCount = metrics.activeFlowCount
         request.queuedBytes = metrics.queuedBytes
         _ = try await client.reportHealth(
-            request: ClientRequest(message: request)
+            request: ClientRequest(message: request),
+            options: Self.controlCallOptions
         )
+    }
+
+    private static var controlCallOptions: CallOptions {
+        var options = CallOptions.defaults
+        options.timeout = .seconds(10)
+        options.waitForReady = true
+        options.maxRequestMessageBytes = 4 * 1_024 * 1_024
+        options.maxResponseMessageBytes = 4 * 1_024 * 1_024
+        return options
+    }
+
+    private static var dnsCallOptions: CallOptions {
+        var options = CallOptions.defaults
+        options.timeout = .seconds(15)
+        options.waitForReady = true
+        options.maxRequestMessageBytes = 128 * 1_024
+        options.maxResponseMessageBytes = 128 * 1_024
+        return options
     }
 
     private func secureRandomBytes(count: Int) -> Data {

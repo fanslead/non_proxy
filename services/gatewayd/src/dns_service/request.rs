@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     net::{IpAddr, SocketAddr, SocketAddrV6},
+    num::NonZeroU32,
 };
 
 use nonproxy_dns::{DnsCacheKey, DnsName, DnsRoute, ParsedDnsQuery};
@@ -19,6 +20,7 @@ pub struct ValidatedDnsRequest {
     network_profile: Option<NetworkProfileId>,
     upstreams: Vec<SocketAddr>,
     snapshot_version: u64,
+    direct_interface_index: Option<NonZeroU32>,
 }
 
 impl ValidatedDnsRequest {
@@ -34,6 +36,7 @@ impl ValidatedDnsRequest {
             ParsedDnsQuery::parse(&request.dns_message).map_err(DnsServiceError::InvalidQuery)?;
         validate_question(&request, &query)?;
         let route = parse_route(&request)?;
+        let direct_interface_index = parse_direct_interface(&request, &route)?;
         let network_profile = parse_network_profile(&request.network_profile_id)?;
         let upstreams = parse_upstreams(&request)?;
         Ok(Self {
@@ -43,6 +46,7 @@ impl ValidatedDnsRequest {
             network_profile,
             upstreams,
             snapshot_version: request.snapshot_version,
+            direct_interface_index,
         })
     }
 
@@ -75,6 +79,11 @@ impl ValidatedDnsRequest {
     #[must_use]
     pub const fn snapshot_version(&self) -> u64 {
         self.snapshot_version
+    }
+
+    #[must_use]
+    pub const fn direct_interface_index(&self) -> Option<NonZeroU32> {
+        self.direct_interface_index
     }
 }
 
@@ -132,6 +141,23 @@ fn parse_route(request: &ResolveDnsRequest) -> Result<DnsRoute, DnsServiceError>
         DnsRouteKind::Unspecified => Err(DnsServiceError::InvalidRequest("DNS route 未指定")),
         _ => Err(DnsServiceError::InvalidRequest(
             "DNS route 与 outbound_id 不一致",
+        )),
+    }
+}
+
+fn parse_direct_interface(
+    request: &ResolveDnsRequest,
+    route: &DnsRoute,
+) -> Result<Option<NonZeroU32>, DnsServiceError> {
+    let interface = NonZeroU32::new(request.direct_interface_index);
+    match (route, interface) {
+        (DnsRoute::Direct, Some(value)) => Ok(Some(value)),
+        (DnsRoute::Direct, None) => Err(DnsServiceError::InvalidRequest(
+            "DIRECT DNS 必须指定物理网卡",
+        )),
+        (DnsRoute::Proxy(_) | DnsRoute::System, None) => Ok(None),
+        (DnsRoute::Proxy(_) | DnsRoute::System, Some(_)) => Err(DnsServiceError::InvalidRequest(
+            "非 DIRECT DNS 不得指定物理网卡",
         )),
     }
 }

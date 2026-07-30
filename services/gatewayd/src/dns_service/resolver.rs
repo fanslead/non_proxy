@@ -1,11 +1,13 @@
-use std::{io, net::SocketAddr, time::Duration};
+use std::{io, net::SocketAddr, num::NonZeroU32, time::Duration};
 
 use nonproxy_dns::{ParsedDnsQuery, ParsedDnsResponse};
 use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_outbound::OutboundConnector;
+#[cfg(unix)]
+use socket2::SockRef;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    net::{TcpStream, UdpSocket},
+    net::{TcpSocket, UdpSocket},
     time::timeout,
 };
 
@@ -23,9 +25,10 @@ pub async fn direct(
     upstreams: &[SocketAddr],
     parsed_query: &ParsedDnsQuery,
     query: &[u8],
+    interface_index: Option<NonZeroU32>,
 ) -> Result<ForwardedDnsResponse, DnsServiceError> {
     for upstream in upstreams {
-        let response = match udp_exchange(*upstream, query).await {
+        let response = match udp_exchange(*upstream, query, interface_index).await {
             Ok(value) => value,
             Err(_) => continue,
         };
@@ -35,7 +38,7 @@ pub async fn direct(
                 resolver: *upstream,
             });
         }
-        if let Ok(response) = direct_tcp_exchange(*upstream, query).await
+        if let Ok(response) = direct_tcp_exchange(*upstream, query, interface_index).await
             && is_valid_response(parsed_query, &response)
         {
             return Ok(ForwardedDnsResponse {
@@ -97,7 +100,11 @@ pub async fn proxy(
     Err(DnsServiceError::ResolversExhausted)
 }
 
-async fn udp_exchange(upstream: SocketAddr, query: &[u8]) -> Result<Vec<u8>, DnsServiceError> {
+async fn udp_exchange(
+    upstream: SocketAddr,
+    query: &[u8],
+    interface_index: Option<NonZeroU32>,
+) -> Result<Vec<u8>, DnsServiceError> {
     let bind_address = if upstream.is_ipv4() {
         "0.0.0.0:0"
     } else {
@@ -105,6 +112,9 @@ async fn udp_exchange(upstream: SocketAddr, query: &[u8]) -> Result<Vec<u8>, Dns
     };
     let operation = async {
         let socket = UdpSocket::bind(bind_address).await?;
+        if let Some(interface_index) = interface_index {
+            bind_udp_interface(&socket, upstream, interface_index)?;
+        }
         socket.connect(upstream).await?;
         let sent = socket.send(query).await?;
         if sent != query.len() {
@@ -127,15 +137,79 @@ async fn udp_exchange(upstream: SocketAddr, query: &[u8]) -> Result<Vec<u8>, Dns
 async fn direct_tcp_exchange(
     upstream: SocketAddr,
     query: &[u8],
+    interface_index: Option<NonZeroU32>,
 ) -> Result<Vec<u8>, DnsServiceError> {
     let operation = async {
-        let mut stream = TcpStream::connect(upstream).await?;
+        let socket = if upstream.is_ipv4() {
+            TcpSocket::new_v4()?
+        } else {
+            TcpSocket::new_v6()?
+        };
+        if let Some(interface_index) = interface_index {
+            bind_tcp_interface(&socket, upstream, interface_index)?;
+        }
+        let mut stream = socket.connect(upstream).await?;
         dns_tcp_exchange(&mut stream, query).await
     };
     timeout(DNS_TIMEOUT, operation)
         .await
         .map_err(|_| DnsServiceError::ResolverTimeout)?
         .map_err(|_| DnsServiceError::ResolverIo)
+}
+
+#[cfg(unix)]
+fn bind_udp_interface(
+    socket: &UdpSocket,
+    upstream: SocketAddr,
+    interface_index: NonZeroU32,
+) -> io::Result<()> {
+    bind_interface(&SockRef::from(socket), upstream, interface_index)
+}
+
+#[cfg(not(unix))]
+fn bind_udp_interface(
+    _socket: &UdpSocket,
+    _upstream: SocketAddr,
+    _interface_index: NonZeroU32,
+) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "当前平台尚未实现 DNS 物理网卡绑定",
+    ))
+}
+
+#[cfg(unix)]
+fn bind_tcp_interface(
+    socket: &TcpSocket,
+    upstream: SocketAddr,
+    interface_index: NonZeroU32,
+) -> io::Result<()> {
+    bind_interface(&SockRef::from(socket), upstream, interface_index)
+}
+
+#[cfg(not(unix))]
+fn bind_tcp_interface(
+    _socket: &TcpSocket,
+    _upstream: SocketAddr,
+    _interface_index: NonZeroU32,
+) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "当前平台尚未实现 DNS 物理网卡绑定",
+    ))
+}
+
+#[cfg(unix)]
+fn bind_interface(
+    socket: &SockRef<'_>,
+    upstream: SocketAddr,
+    interface_index: NonZeroU32,
+) -> io::Result<()> {
+    if upstream.is_ipv4() {
+        socket.bind_device_by_index_v4(Some(interface_index))
+    } else {
+        socket.bind_device_by_index_v6(Some(interface_index))
+    }
 }
 
 async fn proxy_tcp_exchange(

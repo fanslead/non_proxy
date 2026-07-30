@@ -24,6 +24,10 @@ let package = Package(
             name: "NonProxyTransparentProxy",
             targets: ["NonProxyTransparentProxy"]
         ),
+        .library(
+            name: "NonProxyDNSProxy",
+            targets: ["NonProxyDNSProxy"]
+        ),
         .executable(
             name: "NonProxyProviderSmoke",
             targets: ["NonProxyProviderSmoke"]
@@ -100,6 +104,19 @@ let package = Package(
                 .linkedFramework("NetworkExtension"),
             ]
         ),
+        .target(
+            name: "NonProxyDNSProxy",
+            dependencies: [
+                "NonProxyMacPlatformSupport",
+                "NonProxyProviderCore",
+                "NonProxyProviderContracts",
+            ],
+            linkerSettings: [
+                .linkedFramework("CryptoKit"),
+                .linkedFramework("Network"),
+                .linkedFramework("NetworkExtension"),
+            ]
+        ),
         .executableTarget(
             name: "NonProxyProviderSmoke",
             dependencies: [
@@ -131,6 +148,13 @@ let package = Package(
         .testTarget(
             name: "NonProxyTransparentProxyTests",
             dependencies: ["NonProxyTransparentProxy"]
+        ),
+        .testTarget(
+            name: "NonProxyDNSProxyTests",
+            dependencies: [
+                "NonProxyDNSProxy",
+                "NonProxyProviderContracts",
+            ]
         ),
     ]
 )

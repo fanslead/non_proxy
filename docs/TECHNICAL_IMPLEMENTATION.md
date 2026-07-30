@@ -989,6 +989,10 @@ DIRECT 与 PROXY 不共享解析结果缓存，避免：
 - 直连 DNS 查询泄漏代理域名。
 - 不同企业/家庭网络的 split DNS 混用。
 
+DIRECT DNS 请求必须携带当前首选物理网卡索引，`gatewayd` 在 UDP 和
+TCP socket 建连前绑定该网卡。Provider 无法确定物理网卡时返回
+`SERVFAIL`，不得退回未绑定的系统路由或偷偷经过 VPN。
+
 ### 13.2 观察映射
 
 保存：

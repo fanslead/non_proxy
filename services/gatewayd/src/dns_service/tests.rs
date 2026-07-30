@@ -67,6 +67,7 @@ fn request(query: Vec<u8>, upstream: SocketAddr, route: DnsRouteKind) -> Resolve
             scope_id: 0,
         }],
         snapshot_version: 1,
+        direct_interface_index: if route == DnsRouteKind::Direct { 1 } else { 0 },
     }
 }
 
@@ -160,7 +161,13 @@ async fn direct_udp_truncation_falls_back_to_tcp() -> Result<(), Box<dyn Error>>
 
     let query = query_bytes(0x2233, "dns.example.")?;
     let parsed_query = ParsedDnsQuery::parse(&query)?;
-    let response = resolver::direct(&[upstream], &parsed_query, &query).await?;
+    let response = resolver::direct(
+        &[upstream],
+        &parsed_query,
+        &query,
+        std::num::NonZeroU32::new(1),
+    )
+    .await?;
     udp_fixture.await??;
     tcp_fixture.await??;
     assert_eq!(response.resolver, upstream);
@@ -225,6 +232,20 @@ fn request_rejects_metadata_that_disagrees_with_wire_query() -> Result<(), Box<d
     let query = query_bytes(0x4455, "other.example.")?;
     let error = ValidatedDnsRequest::parse(request(query, upstream, DnsRouteKind::Direct));
     assert!(error.is_err());
+    Ok(())
+}
+
+#[test]
+fn direct_request_requires_a_physical_interface() -> Result<(), Box<dyn Error>> {
+    let upstream = "127.0.0.1:53".parse::<SocketAddr>()?;
+    let query = query_bytes(0x4567, "dns.example.")?;
+    let mut value = request(query, upstream, DnsRouteKind::Direct);
+    value.direct_interface_index = 0;
+    let error = ValidatedDnsRequest::parse(value);
+    assert!(matches!(
+        error,
+        Err(super::DnsServiceError::InvalidRequest(_))
+    ));
     Ok(())
 }
 

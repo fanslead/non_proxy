@@ -60,6 +60,7 @@ public final class TransparentProxyProvider:
                     )
                 } catch {
                     components.lifecycle.stop()
+                    components.control.shutdown()
                     throw error
                 }
                 let runtime = TransparentProviderRuntime(
@@ -79,6 +80,7 @@ public final class TransparentProxyProvider:
                 guard self.providerState.install(runtime, runID: runID) else {
                     flowRelays.stopAcceptingAndCancelAll()
                     components.lifecycle.stop()
+                    components.control.shutdown()
                     throw CancellationError()
                 }
                 completion.complete(with: nil)
@@ -96,6 +98,7 @@ public final class TransparentProxyProvider:
     ) {
         let runtime = providerState.remove()
         runtime?.provider.lifecycle.stop()
+        runtime?.provider.control.shutdown()
         runtime?.interfaces.stop()
         flowRelays.stopAcceptingAndCancelAll()
         rejectedFlows.closeAll()

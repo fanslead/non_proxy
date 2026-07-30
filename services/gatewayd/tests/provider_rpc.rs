@@ -275,6 +275,7 @@ async fn two_authenticated_providers_activate_the_pending_snapshot() {
                 scope_id: 0,
             }],
             snapshot_version: 1,
+            direct_interface_index: 1,
         })
         .await;
     let Ok(resolved) = resolved else {

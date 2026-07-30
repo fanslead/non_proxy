@@ -22,13 +22,14 @@ struct ProviderSmoke {
                 directory: arguments.cacheDirectory,
                 providerName: arguments.providerName
             )
-            let client = ProviderControlClient(
+            let client = try ProviderControlClient(
                 configuration: configuration,
                 session: session,
                 cache: cache
             )
 
             let result = try await client.synchronize(knownSnapshotVersion: 0)
+            client.shutdown()
             guard result.currentSnapshotVersion == 1,
                   result.publicationState == arguments.expectedState
             else {
