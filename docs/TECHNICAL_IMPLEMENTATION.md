@@ -1404,6 +1404,8 @@ unknown
 
 SQLite 是本地权威配置库，只有 `gatewayd` 写入。
 
+首发 Rust 存储层使用随应用构建的 SQLite，文件连接启用 `WAL`、`synchronous=FULL`、`foreign_keys=ON` 和 `trusted_schema=OFF`。`gatewayd` 打开数据库前必须取得同目录写租约；数据库、租约文件和迁移 metadata 备份在 Unix 上使用 `0600`。数据库文件或租约文件为符号链接时拒绝启动。UI、Provider、浏览器扩展和 Adapter 不得绕过控制面直接打开数据库。
+
 核心表：
 
 ```text
@@ -1434,14 +1436,28 @@ schema_migration
 - 迁移失败时不启动写服务，不静默重建数据库。
 - 降级只支持经过明确设计的逆向迁移或从备份恢复。
 
-### 19.2 日志保留
+迁移文件嵌入服务二进制，`schema_migration` 保存版本、名称和 SHA-256；已应用迁移的名称或内容哈希发生变化时启动失败。一次启动中的全部待执行 migration 放在同一个 `BEGIN IMMEDIATE` 事务中，任一条失败则整组回滚。发现无迁移历史但已有业务表的数据库时视为外部或损坏数据库，不自动接管。
+
+策略、出口和网络画像写入使用显式 revision 乐观锁。Wi-Fi 网络画像只保存 SHA-256 指纹，不保存原始 SSID。出口 endpoint 只接受规范化主机名或 IP，不接受可能携带用户名、密码或 Token 的 URI。
+
+### 19.2 快照发布事务
+
+- 快照版本严格单调递增，同时最多一份 `pending` 和一份 `active`。
+- 快照 payload 上限 16 MiB，数据库和领域构造器双重校验。
+- Provider ACK 同时绑定 snapshot version、content hash、provider ID 和单调 generation；同代相同 ACK 可幂等重放，同代不同内容或低代 ACK 被拒绝。
+- 只有全部必需 Provider 返回 `loaded` 后，单个事务才把旧 active 标为 `superseded` 并激活新快照。
+- 任一 Provider 拒绝或控制面主动判定失败时，只把 pending 标为 `rejected`，旧 active 保持不变。
+- 回滚不得重新激活旧版本；必须复制已验证的旧 payload/hash，创建更高的新 snapshot version，重新投递、ACK 后激活。
+
+### 19.3 日志保留
 
 - 决策日志默认 24 小时。
 - DNS observation 默认 24 小时。
 - 聚合指标可保留更久，但不得保留完整域名明细。
 - 清理任务分批执行，避免长事务。
+- 每张明细表单批最多删除 10,000 条，默认保留窗口为 24 小时。
 
-### 19.3 凭据
+### 19.4 凭据
 
 SQLite 只保存：
 

@@ -1,0 +1,113 @@
+use std::{io, path::PathBuf};
+
+use nonproxy_model::ModelError;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum StorageError {
+    #[error("SQLite 操作失败")]
+    Sqlite(#[from] rusqlite::Error),
+    #[error("文件操作失败: {operation}")]
+    Io {
+        operation: &'static str,
+        #[source]
+        source: io::Error,
+    },
+    #[error("领域数据校验失败")]
+    Model(#[from] ModelError),
+    #[error("数据库父目录不存在: {0}")]
+    ParentDirectoryMissing(PathBuf),
+    #[error("数据库或写锁路径不能是符号链接: {0}")]
+    SymlinkPathRejected(PathBuf),
+    #[error("数据库父目录允许组或其他用户访问: {0}")]
+    InsecureParentPermissions(PathBuf),
+    #[error("另一个写入进程已经持有数据库租约")]
+    WriteLeaseUnavailable {
+        #[source]
+        source: io::Error,
+    },
+    #[error("现有数据库没有受支持的迁移历史，拒绝接管")]
+    UnmanagedDatabase,
+    #[error("数据库包含未知迁移版本: {0}")]
+    UnknownMigration(i64),
+    #[error("已应用迁移内容或名称发生变化: {0}")]
+    MigrationDiverged(i64),
+    #[error("迁移版本不连续: 期望 {expected}，实际 {actual}")]
+    MigrationSequence { expected: i64, actual: i64 },
+    #[error("数据库完整性检查失败: {0}")]
+    IntegrityCheck(String),
+    #[error("策略修订冲突")]
+    PolicyRevisionConflict,
+    #[error("出口配置修订冲突")]
+    OutboundRevisionConflict,
+    #[error("出口配置无效")]
+    OutboundInvalid,
+    #[error("凭据引用无效")]
+    CredentialReferenceInvalid,
+    #[error("网络画像无效")]
+    NetworkProfileInvalid,
+    #[error("网络画像修订冲突")]
+    NetworkProfileRevisionConflict,
+    #[error("存储数据损坏或无法识别: {field}")]
+    CorruptData { field: &'static str },
+    #[error("策略快照版本必须单调递增")]
+    SnapshotVersionNotMonotonic,
+    #[error("已有待发布策略快照")]
+    PendingSnapshotExists,
+    #[error("策略快照不存在")]
+    SnapshotNotFound,
+    #[error("策略快照状态不允许当前操作")]
+    SnapshotStateConflict,
+    #[error("策略快照内容哈希不匹配")]
+    SnapshotHashMismatch,
+    #[error("策略快照载荷无效")]
+    SnapshotPayloadInvalid,
+    #[error("Provider ACK 标识无效")]
+    ProviderIdInvalid,
+    #[error("Provider ACK 集合为空")]
+    RequiredProvidersEmpty,
+    #[error("Provider 尚未全部确认策略快照")]
+    ProviderAcknowledgementMissing,
+    #[error("错误码格式无效")]
+    ErrorCodeInvalid,
+    #[error("日志保留参数无效")]
+    RetentionInvalid,
+}
+
+impl StorageError {
+    #[must_use]
+    pub const fn code(&self) -> &'static str {
+        match self {
+            Self::Sqlite(_) => "NP_STORAGE_SQLITE_FAILED",
+            Self::Io { .. } => "NP_STORAGE_IO_FAILED",
+            Self::Model(_) => "NP_STORAGE_MODEL_INVALID",
+            Self::ParentDirectoryMissing(_) => "NP_STORAGE_PARENT_MISSING",
+            Self::SymlinkPathRejected(_) => "NP_STORAGE_SYMLINK_REJECTED",
+            Self::InsecureParentPermissions(_) => "NP_STORAGE_PARENT_PERMISSIONS_INSECURE",
+            Self::WriteLeaseUnavailable { .. } => "NP_STORAGE_WRITER_ALREADY_ACTIVE",
+            Self::UnmanagedDatabase => "NP_STORAGE_UNMANAGED_DATABASE",
+            Self::UnknownMigration(_) => "NP_STORAGE_MIGRATION_UNKNOWN",
+            Self::MigrationDiverged(_) => "NP_STORAGE_MIGRATION_DIVERGED",
+            Self::MigrationSequence { .. } => "NP_STORAGE_MIGRATION_SEQUENCE_INVALID",
+            Self::IntegrityCheck(_) => "NP_STORAGE_INTEGRITY_FAILED",
+            Self::PolicyRevisionConflict => "NP_STORAGE_POLICY_REVISION_CONFLICT",
+            Self::OutboundRevisionConflict => "NP_STORAGE_OUTBOUND_REVISION_CONFLICT",
+            Self::OutboundInvalid => "NP_STORAGE_OUTBOUND_INVALID",
+            Self::CredentialReferenceInvalid => "NP_STORAGE_CREDENTIAL_REFERENCE_INVALID",
+            Self::NetworkProfileInvalid => "NP_STORAGE_NETWORK_PROFILE_INVALID",
+            Self::NetworkProfileRevisionConflict => "NP_STORAGE_NETWORK_PROFILE_REVISION_CONFLICT",
+            Self::CorruptData { .. } => "NP_STORAGE_CORRUPT_DATA",
+            Self::SnapshotVersionNotMonotonic => "NP_STORAGE_SNAPSHOT_VERSION_NOT_MONOTONIC",
+            Self::PendingSnapshotExists => "NP_STORAGE_SNAPSHOT_PENDING_EXISTS",
+            Self::SnapshotNotFound => "NP_STORAGE_SNAPSHOT_NOT_FOUND",
+            Self::SnapshotStateConflict => "NP_STORAGE_SNAPSHOT_STATE_CONFLICT",
+            Self::SnapshotHashMismatch => "NP_STORAGE_SNAPSHOT_HASH_MISMATCH",
+            Self::SnapshotPayloadInvalid => "NP_STORAGE_SNAPSHOT_PAYLOAD_INVALID",
+            Self::ProviderIdInvalid => "NP_STORAGE_PROVIDER_ID_INVALID",
+            Self::RequiredProvidersEmpty => "NP_STORAGE_REQUIRED_PROVIDERS_EMPTY",
+            Self::ProviderAcknowledgementMissing => "NP_STORAGE_PROVIDER_ACK_MISSING",
+            Self::ErrorCodeInvalid => "NP_STORAGE_ERROR_CODE_INVALID",
+            Self::RetentionInvalid => "NP_STORAGE_RETENTION_INVALID",
+        }
+    }
+}

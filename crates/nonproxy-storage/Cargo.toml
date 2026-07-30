@@ -1,0 +1,19 @@
+[package]
+name = "nonproxy-storage"
+description = "NonProxy SQLite 权威配置库、迁移与策略快照发布事务"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+nonproxy-model = { path = "../nonproxy-model" }
+rusqlite.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
