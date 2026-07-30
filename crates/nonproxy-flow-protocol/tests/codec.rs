@@ -65,6 +65,34 @@ fn open_request_round_trip_normalizes_domain_and_redacts_capability() {
 }
 
 #[test]
+fn open_request_matches_swift_golden_payload() {
+    let outbound = match OutboundId::new("primary") {
+        Ok(value) => value,
+        Err(error) => panic!("跨语言测试出口 ID 创建失败: {error}"),
+    };
+    let endpoint = match FlowEndpoint::new("Proxy.Example.com.", 443) {
+        Ok(value) => value,
+        Err(error) => panic!("跨语言测试 endpoint 创建失败: {error}"),
+    };
+    let request = match OpenFlowRequest::new([0xAB; 32], outbound, endpoint, 65_536) {
+        Ok(value) => value,
+        Err(error) => panic!("跨语言测试 OPEN 创建失败: {error}"),
+    };
+    let encoded = match request.encode() {
+        Ok(value) => value,
+        Err(error) => panic!("跨语言测试 OPEN 编码失败: {error}"),
+    };
+    let mut expected = vec![0xAB; 32];
+    expected.push(7);
+    expected.extend_from_slice(b"primary");
+    expected.extend_from_slice(&[3, 17]);
+    expected.extend_from_slice(b"proxy.example.com");
+    expected.extend_from_slice(&[1, 187, 0, 1, 0, 0]);
+
+    assert_eq!(encoded.as_slice(), expected);
+}
+
+#[test]
 fn ipv6_datagram_and_window_use_network_byte_order() {
     let endpoint = FlowEndpoint::Ip(SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 53));
     let datagram = nonproxy_flow_protocol::DatagramPayload::new(endpoint.clone(), vec![0x12, 0x34]);
