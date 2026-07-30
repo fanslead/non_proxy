@@ -47,6 +47,102 @@ struct BridgeModelsTests {
         #expect(error.code == "NP_MAC_MISSING_ENTITLEMENT")
         #expect(error.message.contains("权限"))
     }
+
+    @Test
+    func hostStateJsonIncludesGatewayLifecycle() throws {
+        let extensionSnapshot = SystemExtensionSnapshot(
+            bundleIdentifier: "com.nonproxy.test",
+            installed: true,
+            enabled: true,
+            awaitingUserApproval: false,
+            uninstalling: false,
+            bundleVersion: "1",
+            bundleShortVersion: "0.1.0"
+        )
+        let preference = NetworkPreferenceSnapshot(
+            configured: true,
+            enabled: true
+        )
+        let state = MacHostState(
+            gatewayAgent: GatewayAgentSnapshot(
+                registered: true,
+                enabled: true,
+                requiresApproval: false,
+                found: true,
+                ready: true
+            ),
+            transparentExtension: extensionSnapshot,
+            dnsExtension: extensionSnapshot,
+            transparentPreference: preference,
+            dnsPreference: preference
+        )
+
+        let data = try JSONEncoder().encode(state)
+        let json = String(decoding: data, as: UTF8.self)
+        let decoded = try JSONDecoder().decode(
+            MacHostState.self,
+            from: data
+        )
+
+        #expect(json.contains(#""gatewayAgent""#))
+        #expect(decoded == state)
+    }
+
+    @MainActor
+    @Test
+    func hostStateMessageDoesNotHideMissingPackageOrStalePreferences() {
+        let absentExtension = SystemExtensionSnapshot(
+            bundleIdentifier: "com.nonproxy.test",
+            installed: false,
+            enabled: false,
+            awaitingUserApproval: false,
+            uninstalling: false,
+            bundleVersion: nil,
+            bundleShortVersion: nil
+        )
+        let disabledPreference = NetworkPreferenceSnapshot(
+            configured: false,
+            enabled: false
+        )
+        let missingPackage = MacHostState(
+            gatewayAgent: GatewayAgentSnapshot(
+                registered: false,
+                enabled: false,
+                requiresApproval: false,
+                found: false,
+                ready: false
+            ),
+            transparentExtension: absentExtension,
+            dnsExtension: absentExtension,
+            transparentPreference: disabledPreference,
+            dnsPreference: disabledPreference
+        )
+        let stalePreferences = MacHostState(
+            gatewayAgent: GatewayAgentSnapshot(
+                registered: false,
+                enabled: false,
+                requiresApproval: false,
+                found: true,
+                ready: false
+            ),
+            transparentExtension: absentExtension,
+            dnsExtension: absentExtension,
+            transparentPreference: NetworkPreferenceSnapshot(
+                configured: true,
+                enabled: false
+            ),
+            dnsPreference: disabledPreference
+        )
+
+        #expect(
+            MacHostBridgeService.stateMessage(missingPackage)
+                .contains("缺少")
+        )
+        #expect(
+            MacHostBridgeService.stateMessage(stalePreferences)
+                .contains("部分")
+        )
+    }
 }
 
 @Suite(.serialized)

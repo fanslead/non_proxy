@@ -6,6 +6,23 @@ namespace NonProxy.Desktop.Tests;
 public sealed class ControlTransportTests
 {
     [Fact]
+    public void EndpointDerivesControlFilesFromOneStateDirectory()
+    {
+        var stateDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "nonproxy-control-test");
+
+        var endpoint = LocalControlEndpoint.FromStateDirectory(stateDirectory);
+
+        Assert.Equal(
+            Path.Combine(stateDirectory, "gatewayd.sock"),
+            endpoint.SocketPath);
+        Assert.Equal(
+            Path.Combine(stateDirectory, "session.capability"),
+            endpoint.SessionCapabilityPath);
+    }
+
+    [Fact]
     public async Task CapabilityProviderReadsExactlyThirtyTwoBytes()
     {
         var directory = Directory.CreateTempSubdirectory("nonproxy-token-");

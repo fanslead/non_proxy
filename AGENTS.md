@@ -151,6 +151,10 @@ dotnet test apps/desktop/NonProxy.Desktop.Tests -c Release --no-restore
 - macOS 宿主桥的 C ABI 以 `platform/macos/Interop/NonProxyMacHostBridge.h` 为唯一真源；ABI 变更必须升级版本并同步跨语言冒烟。
 - 裸指针 payload 只能在回调期间借用，C# 立即复制；禁止跨 Swift/.NET 边界互相分配或释放内存。
 - .NET 侧优先使用 `LibraryImport`、精确 `nuint`/固定宽度整数和 `UnmanagedCallersOnly`；回调不得抛出异常，`GCHandle` 必须保留到原生终态。
+- `gatewayd` 作为用户级 `SMAppService` LaunchAgent 随最终 App 打包；配置放在 `Contents/Library/LaunchAgents`，可执行文件用 `BundleProgram` 引用，不安装到全局目录，也不要求 root。
+- Mac UI、`gatewayd` 和两个沙盒 Provider 必须从同一 App Group 运行时契约派生 Socket、能力文件和缓存路径；修改任一文件名或组标识时必须同步三种语言的契约测试。
+- 安装必须先确认 `gatewayd` 已登记且私有 Socket/能力文件就绪，再启用 System Extension 和网络偏好；卸载必须先撤销网络偏好，避免停止后台服务后仍把流量导向它。
+- UI 普通退出不得调用 `SMAppService.unregister()`；只有明确卸载动作可以停止并撤销后台项目登记。
 - 不在 Swift 工程中复制 Avalonia 页面、ViewModel 或产品业务流程。
 - Network Extension Provider 不得依赖 Avalonia。
 - Provider 回调中不得同步访问磁盘、Keychain、数据库或远程网络。
@@ -166,7 +170,7 @@ dotnet test apps/desktop/NonProxy.Desktop.Tests -c Release --no-restore
 - DNS direct/proxy cache 必须分区。
 - 不以 SNI 作为唯一域名来源，不通过解密 TLS 获取域名。
 
-涉及真实 System Extension 的功能必须在真实 macOS 目标运行。仅编译或单元测试不能声明运行完成。
+涉及真实 `SMAppService` 或 System Extension 的功能必须在正式签名的真实 macOS 目标运行。仅编译、临时签名、直接启动 Bundle 内二进制或单元测试不能声明系统登记和网络路径运行完成。
 
 ## 9. Windows
 

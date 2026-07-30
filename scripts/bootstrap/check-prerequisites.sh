@@ -36,6 +36,13 @@ dotnet_actual="$(command_version dotnet dotnet --version)"
 dotnet_workload_actual="$(command_version dotnet dotnet workload --info | awk '/Workload version:/ {print $3}')"
 macos_workload_actual="$(command_version dotnet dotnet workload list | awk '$1 == "macos" {print $1}')"
 rust_actual="$(command_version rustc rustc --version | awk '{print $2}')"
+rust_targets_actual="$(
+  command_version rustup \
+    rustup target list --installed --toolchain "$RUST_VERSION" |
+    awk '/^(aarch64|x86_64)-apple-darwin$/ {print}' |
+    sort |
+    paste -sd, -
+)"
 buf_actual="$(command_version buf buf --version)"
 protoc_actual="$(command_version protoc protoc --version | awk '{print $2}')"
 just_actual="$(command_version just just --version | awk '{print $2}')"
@@ -46,6 +53,9 @@ check_exact dotnet "$DOTNET_VERSION" "$dotnet_actual"
 check_exact workload "$DOTNET_WORKLOAD_VERSION" "$dotnet_workload_actual"
 check_exact macos-workload macos "$macos_workload_actual"
 check_exact rust "$RUST_VERSION" "$rust_actual"
+check_exact rust-targets \
+  "aarch64-apple-darwin,x86_64-apple-darwin" \
+  "$rust_targets_actual"
 check_exact buf "$BUF_VERSION" "$buf_actual"
 check_exact protoc "$PROTOC_VERSION" "$protoc_actual"
 check_exact just "$JUST_VERSION" "$just_actual"

@@ -446,6 +446,8 @@ flowchart LR
     APP["Avalonia Mac Host + Shared UI"] -- "Control RPC" --> D["gatewayd"]
     APP -- "LibraryImport / C ABI" --> BRIDGE["Swift Host Bridge"]
     BRIDGE --> SEC["SystemExtensions + NetworkExtension"]
+    BRIDGE --> SM["SMAppService LaunchAgent"]
+    SM --> D
     EXT["Browser Extension"] --> NMH["Native Messaging Host"]
     NMH -- "Control RPC" --> D
     TP["TransparentProxy System Extension"] -- "Policy Snapshot / Events" --> D
@@ -467,13 +469,14 @@ flowchart LR
 
 `SystemExtensionController`
 
-- 位于 Mac 薄宿主，只执行 macOS System Extension 安装、授权、升级和卸载。
+- 位于 Mac 薄宿主，只编排 `gatewayd` LaunchAgent、macOS System Extension 和网络偏好的安装、授权、升级与卸载。
 - C# 只接收 UTF-8 JSON 领域 DTO；Swift 原生桥持有系统 delegate 并执行框架调用。
 - 向 Avalonia UI 返回结构化状态和需要用户完成的系统操作。
 - 不包含页面、策略、数据库或代理协议逻辑。
 
 `gatewayd`
 
+- 由 `SMAppService` 作为当前用户的 LaunchAgent 登记，用户登录后可独立于 UI 生命周期运行。
 - 单写者策略数据库。
 - 规则编译。
 - 策略快照发布。
@@ -1344,7 +1347,7 @@ Mac 宿主目标为 `net10.0-macos`。它通过 `LibraryImport` 调用同包 Swi
 
 macOS 原生桥 ABI 约束：
 
-- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `1`。
+- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `2`；第二版状态模型加入 `gatewayAgent`。
 - Swift 回调只在回调执行期间借出 UTF-8 JSON 字节，C# 必须立即复制；两侧不互相释放内存。
 - C 的 `size_t` 精确映射为 C# `nuint`，回调使用 `UnmanagedCallersOnly`，任何托管异常都不得越过 ABI。
 - 托管 `GCHandle` 必须持有到原生 completed 事件；调用方取消等待不能提前释放仍可能被系统回调使用的上下文。
@@ -1389,18 +1392,22 @@ macOS：
 - 激活请求必须由 containing app 的 Mac 宿主提交。
 - 共享 UI 可以跨平台编译，但 `net10.0-macos` 宿主及最终签名包必须在 macOS 构建和验证。
 
-当前 System Extension 打包实现：
+当前 macOS 系统组件打包实现：
 
 - `NonProxyTransparentSystemExtension` 与 `NonProxyDNSSystemExtension` 是只负责启动 Provider 的独立 Swift 可执行 target，业务实现仍留在对应 Provider 模块。
-- `NonProxyMacHostBridge` 是动态 Swift target，负责 System Extension 请求、审批进度、状态查询以及 Transparent Proxy/DNS Proxy 偏好事务；它不承载策略或流量。
-- 激活依次处理两个扩展；扩展需要重启时不会提前写入网络偏好。偏好保存前会快照旧值，DNS 保存失败时恢复两份旧配置；重复的透明代理配置会停止并返回稳定错误。
-- 卸载先停用并移除网络偏好，再停用两个扩展；不存在的扩展按幂等成功处理，需要重启会明确返回。
-- `NonProxy.Desktop.Mac` 构建完成后调用 `scripts/macos/package-system-extensions.sh`，把两个 `SYSX` Bundle 放入最终 `.app/Contents/Library/SystemExtensions/`，并把原生桥放入 `.app/Contents/Frameworks/`。
-- Debug 构建生成当前机器架构；不指定 RID 的 Release 构建同时生成 `arm64` 与 `x86_64`，并要求宿主、原生桥和两个扩展的架构集合完全一致。
+- `NonProxyMacHostBridge` 是动态 Swift target，负责 `SMAppService`、System Extension 请求、审批进度、状态查询以及 Transparent Proxy/DNS Proxy 偏好事务；它不承载策略或流量。
+- `gatewayd` plist 位于 `.app/Contents/Library/LaunchAgents/com.nonproxy.gatewayd.plist`，通过相对 `BundleProgram` 启动 `.app/Contents/Resources/nonproxy-gatewayd`。它是当前用户会话内的后台项目，不是 root daemon；`RunAtLoad` 与 `KeepAlive` 保证 UI 退出后仍可运行，明确卸载使用异步 `unregister` 等待进程终止。
+- UI、LaunchAgent 和 Provider 的默认状态目录统一为 App Group `group.com.nonproxy.shared` 容器内的 `Library/Application Support/NonProxy`。控制 Socket、数据 Socket、UI capability、Provider capability 和 Provider cache 都从这一根目录派生；`NONPROXY_STATE_DIR` 等覆盖只用于开发与测试。
+- 激活先登记 `gatewayd`，并在限定时间内验证两个 Unix Socket 是 Socket、两个 capability 是权限受限的 32 字节普通文件；后台项目未获用户允许时返回可恢复的等待授权状态。后台服务就绪后才依次处理两个扩展；扩展需要重启时不会提前写入网络偏好。
+- 偏好保存前会快照旧值，DNS 保存失败时恢复两份旧配置；重复的透明代理配置会停止并返回稳定错误。后续安装失败时，只回滚本次新登记的 `gatewayd`，不误停先前已运行的服务。
+- 卸载先停用并移除网络偏好，再停用两个扩展和 `gatewayd`；不存在的组件按幂等成功处理，需要重启会明确返回。普通 UI 退出不触发这一流程。
+- `NonProxy.Desktop.Mac` 构建完成后调用 `scripts/macos/package-system-extensions.sh`，把两个 `SYSX` Bundle 放入最终 `.app/Contents/Library/SystemExtensions/`，把原生桥放入 `.app/Contents/Frameworks/`，并嵌入 LaunchAgent plist 与 `gatewayd`。
+- Debug 构建生成当前机器架构；不指定 RID 的 Release 构建同时生成 `arm64` 与 `x86_64`，并要求宿主、原生桥、`gatewayd` 和两个扩展的架构集合完全一致。
 - 默认使用临时签名验证开发包结构，不代表系统会批准真实激活。正式包必须设置 `NONPROXY_RESTRICTED_SIGNING=1`，并提供 `NONPROXY_CODESIGN_IDENTITY`、`NONPROXY_HOST_PROFILE`、`NONPROXY_TRANSPARENT_PROFILE` 与 `NONPROXY_DNS_PROFILE`。
-- 签名按两个 System Extension、原生桥、外层 App 的嵌套顺序执行；外层 App 只在正式受限签名时应用安装 System Extension 所需 entitlement。
-- `scripts/macos/verify-system-extension-bundle.sh` 还校验原生桥导出符号、SystemExtensions/NetworkExtension 链接和签名；`scripts/macos/native-bridge-smoke.sh` 从最终 App 宿主跨 C ABI 验证版本及非 ASCII UTF-8。
-- 当前证据证明可执行 Bundle 可构建、可嵌入、签名结构自洽，且托管/原生调用链真实连通；默认临时签名不能证明系统会接受权限请求。Developer ID 签名、系统审批、真实偏好写入、Provider 启动、升级、卸载和流量路径仍按系统测试门禁验收。
+- 签名按两个 System Extension、原生桥、`gatewayd`、外层 App 的嵌套顺序执行；外层 App 只在正式受限签名时应用安装 System Extension 所需 entitlement。
+- `scripts/macos/verify-system-extension-bundle.sh` 还校验原生桥导出符号、SystemExtensions/NetworkExtension/ServiceManagement 链接、LaunchAgent 的固定字段与签名；`scripts/macos/native-bridge-smoke.sh` 从最终 App 宿主跨 C ABI 验证版本及非 ASCII UTF-8。
+- `scripts/macos/gateway-bundle-smoke.sh` 使用隔离临时目录直接启动包内 `gatewayd`，验证 Socket/capability 类型、长度、`0600` 权限和 SIGTERM 清理。它不调用 `SMAppService.register()`，因此不能代替系统“后台项目”授权与登录重启测试。
+- 当前证据证明可执行 Bundle 可构建、可嵌入、签名结构自洽，且托管/原生调用链和包内后台二进制真实连通；默认临时签名不能证明系统会接受权限请求。Developer ID 签名、系统审批、真实 `SMAppService` 登记、登录后启动、偏好写入、Provider 启动、升级、卸载和流量路径仍按系统测试门禁验收。
 
 Windows：
 

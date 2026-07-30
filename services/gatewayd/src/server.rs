@@ -153,6 +153,17 @@ async fn serve_platform(
 }
 
 async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate());
+        if let Ok(mut terminate) = terminate {
+            tokio::select! {
+                _result = tokio::signal::ctrl_c() => {}
+                _result = terminate.recv() => {}
+            }
+            return;
+        }
+    }
     let _result = tokio::signal::ctrl_c().await;
 }
 

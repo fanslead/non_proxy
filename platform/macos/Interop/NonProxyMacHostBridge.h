@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 
+#define NP_MAC_BRIDGE_ABI_VERSION 2u
+
 /**
  * Swift 仅在回调执行期间借出 payload 指针；调用方必须在回调返回前复制字节。
  * payload 是 UTF-8 JSON，不包含结尾空字节，也不能由调用方释放。

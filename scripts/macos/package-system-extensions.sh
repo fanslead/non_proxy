@@ -58,6 +58,54 @@ build_product() {
         --product "${product}"
 }
 
+build_gateway() {
+    local rust_profile_directory=debug
+    local gateway_target_root="${repo_root}/target"
+    if [[ "${configuration}" == Release ]]; then
+        rust_profile_directory=release
+    fi
+
+    build_gateway_target() {
+        local target=$1
+        if [[ "${configuration}" == Release ]]; then
+            CARGO_TARGET_DIR="${gateway_target_root}" cargo build \
+                --manifest-path "${repo_root}/Cargo.toml" \
+                -p nonproxy-gatewayd \
+                --release \
+                --target "${target}"
+        else
+            CARGO_TARGET_DIR="${gateway_target_root}" cargo build \
+                --manifest-path "${repo_root}/Cargo.toml" \
+                -p nonproxy-gatewayd \
+                --target "${target}"
+        fi
+    }
+
+    if [[ "${architecture}" == universal ]]; then
+        build_gateway_target aarch64-apple-darwin
+        build_gateway_target x86_64-apple-darwin
+        gateway_temporary_directory=$(mktemp -d)
+        gateway_source="${gateway_temporary_directory}/nonproxy-gatewayd"
+        lipo -create \
+            "${gateway_target_root}/aarch64-apple-darwin/${rust_profile_directory}/nonproxy-gatewayd" \
+            "${gateway_target_root}/x86_64-apple-darwin/${rust_profile_directory}/nonproxy-gatewayd" \
+            -output "${gateway_source}"
+        return
+    fi
+
+    local rust_target
+    case "${architecture}" in
+        arm64)
+            rust_target=aarch64-apple-darwin
+            ;;
+        x86_64)
+            rust_target=x86_64-apple-darwin
+            ;;
+    esac
+    build_gateway_target "${rust_target}"
+    gateway_source="${gateway_target_root}/${rust_target}/${rust_profile_directory}/nonproxy-gatewayd"
+}
+
 bin_path_for_build() {
     swift build \
         --package-path "${package_root}" \
@@ -73,13 +121,27 @@ fi
 build_product NonProxyTransparentSystemExtension
 build_product NonProxyDNSSystemExtension
 build_product NonProxyMacHostBridge
+gateway_temporary_directory=
+gateway_source=
+cleanup_gateway_build() {
+    if [[ -n "${gateway_temporary_directory}" &&
+          -d "${gateway_temporary_directory}" ]]; then
+        rm -rf "${gateway_temporary_directory}"
+    fi
+}
+trap cleanup_gateway_build EXIT
+build_gateway
 bin_path=$(bin_path_for_build)
 
 extensions_root="${app_bundle}/Contents/Library/SystemExtensions"
 frameworks_root="${app_bundle}/Contents/Frameworks"
+launch_agents_root="${app_bundle}/Contents/Library/LaunchAgents"
+resources_root="${app_bundle}/Contents/Resources"
 transparent_bundle="${extensions_root}/com.nonproxy.desktop.transparent-proxy.systemextension"
 dns_bundle="${extensions_root}/com.nonproxy.desktop.dns-proxy.systemextension"
 bridge_library="${frameworks_root}/libNonProxyMacHostBridge.dylib"
+gateway_agent_plist="${launch_agents_root}/com.nonproxy.gatewayd.plist"
+gateway_binary="${resources_root}/nonproxy-gatewayd"
 
 assemble_bundle() {
     local bundle=$1
@@ -93,12 +155,19 @@ assemble_bundle() {
 }
 
 rm -rf "${extensions_root}"
+rm -rf "${launch_agents_root}"
 install -d -m 0755 "${extensions_root}"
 install -d -m 0755 "${frameworks_root}"
+install -d -m 0755 "${launch_agents_root}" "${resources_root}"
 rm -f "${bridge_library}"
 install -m 0755 \
     "${bin_path}/libNonProxyMacHostBridge.dylib" \
     "${bridge_library}"
+rm -f "${gateway_agent_plist}" "${gateway_binary}"
+install -m 0644 \
+    "${packaging_root}/com.nonproxy.gatewayd.plist" \
+    "${gateway_agent_plist}"
+install -m 0755 "${gateway_source}" "${gateway_binary}"
 assemble_bundle \
     "${transparent_bundle}" \
     NonProxyTransparentSystemExtension \
@@ -186,6 +255,7 @@ else
     bridge_sign_args+=(--options runtime --timestamp)
 fi
 codesign "${bridge_sign_args[@]}" "${bridge_library}"
+codesign "${bridge_sign_args[@]}" "${gateway_binary}"
 
 host_sign_args=(--force --sign "${signing_identity}")
 if [[ "${restricted_signing}" == 1 ]]; then

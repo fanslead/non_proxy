@@ -120,6 +120,10 @@ install_rust() {
   "$CARGO_HOME/bin/rustup" toolchain install "$RUST_VERSION" --profile minimal \
     --component clippy --component rustfmt
   "$CARGO_HOME/bin/rustup" default "$RUST_VERSION"
+  "$CARGO_HOME/bin/rustup" target add \
+    --toolchain "$RUST_VERSION" \
+    aarch64-apple-darwin \
+    x86_64-apple-darwin
 }
 
 install_buf() {

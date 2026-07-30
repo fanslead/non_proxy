@@ -1,15 +1,20 @@
 import Foundation
+import NonProxyMacRuntime
 import NonProxyProviderCore
 
 public struct MacProviderPaths: Sendable {
-    public static let appGroupIdentifier = "group.com.nonproxy.shared"
+    public static let appGroupIdentifier =
+        MacSharedRuntimePaths.appGroupIdentifier
 
     public let stateDirectory: URL
+    private let sharedPaths: MacSharedRuntimePaths
 
     public init(stateDirectory: URL) throws {
-        guard stateDirectory.isFileURL,
-              stateDirectory.path.hasPrefix("/")
-        else {
+        do {
+            sharedPaths = try MacSharedRuntimePaths(
+                stateDirectory: stateDirectory
+            )
+        } catch {
             throw ProviderError.invalidConfiguration("Provider 状态目录必须为绝对文件路径")
         }
         self.stateDirectory = stateDirectory
@@ -18,29 +23,25 @@ public struct MacProviderPaths: Sendable {
     public static func live(
         fileManager: FileManager = .default
     ) throws -> Self {
-        guard let container = fileManager.containerURL(
-            forSecurityApplicationGroupIdentifier: appGroupIdentifier
-        ) else {
+        let paths: MacSharedRuntimePaths
+        do {
+            paths = try MacSharedRuntimePaths.live(fileManager: fileManager)
+        } catch {
             throw ProviderError.invalidConfiguration("Provider 无法访问共享 App Group")
         }
-        return try Self(
-            stateDirectory: container
-                .appendingPathComponent("Library", isDirectory: true)
-                .appendingPathComponent("Application Support", isDirectory: true)
-                .appendingPathComponent("NonProxy", isDirectory: true)
-        )
+        return try Self(stateDirectory: paths.stateDirectory)
     }
 
     public var socketPath: String {
-        stateDirectory.appendingPathComponent("gatewayd.sock").path
+        sharedPaths.controlSocket.path
     }
 
     public var flowSocketPath: String {
-        stateDirectory.appendingPathComponent("gatewayd-flow.sock").path
+        sharedPaths.flowSocket.path
     }
 
     public var cacheDirectory: URL {
-        stateDirectory.appendingPathComponent("provider-cache", isDirectory: true)
+        sharedPaths.providerCacheDirectory
     }
 
     public func readBootstrapCapability(
@@ -54,7 +55,7 @@ public struct MacProviderPaths: Sendable {
         else {
             throw ProviderError.invalidConfiguration("Provider 状态目录类型无效")
         }
-        let file = stateDirectory.appendingPathComponent("provider.capability")
+        let file = sharedPaths.providerCapability
         let values = try file.resourceValues(
             forKeys: [.isRegularFileKey, .isSymbolicLinkKey]
         )

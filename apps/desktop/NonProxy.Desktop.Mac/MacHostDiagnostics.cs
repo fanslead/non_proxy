@@ -24,7 +24,7 @@ internal static class MacHostDiagnostics
             Console.WriteLine(JsonSerializer.Serialize(
                 result,
                 MacNativeJsonContext.Default.MacBridgeProbePayload));
-            return result.AbiVersion == 1
+            return result.AbiVersion == MacNativeBridgeClient.SupportedAbiVersion
                 && result.Message.Contains("原生桥接", StringComparison.Ordinal)
                     ? 0
                     : 1;

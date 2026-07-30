@@ -7,7 +7,7 @@ namespace NonProxy.Desktop.Mac;
 
 internal sealed class MacNativeBridgeClient
 {
-    private const uint SupportedAbiVersion = 1;
+    internal const uint SupportedAbiVersion = 2;
     private const int StartAccepted = 0;
     private long _nextOperationId;
     private int _abiValidated;

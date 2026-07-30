@@ -13,22 +13,35 @@ public sealed record LocalControlEndpoint(
         !string.IsNullOrWhiteSpace(SocketPath)
         && !string.IsNullOrWhiteSpace(SessionCapabilityPath);
 
-    public static LocalControlEndpoint FromUnixEnvironment()
+    public static LocalControlEndpoint FromUnixEnvironment(
+        string? defaultStateDirectory = null)
     {
         var stateDirectory = Environment.GetEnvironmentVariable(StateDirectoryEnvironment);
         if (string.IsNullOrWhiteSpace(stateDirectory))
         {
-            var applicationData = Environment.GetFolderPath(
-                Environment.SpecialFolder.ApplicationData);
-            if (string.IsNullOrWhiteSpace(applicationData))
+            stateDirectory = defaultStateDirectory;
+            if (string.IsNullOrWhiteSpace(stateDirectory))
             {
-                throw new InvalidOperationException("无法定位 Unix 应用数据目录。");
-            }
+                var applicationData = Environment.GetFolderPath(
+                    Environment.SpecialFolder.ApplicationData);
+                if (string.IsNullOrWhiteSpace(applicationData))
+                {
+                    throw new InvalidOperationException("无法定位 Unix 应用数据目录。");
+                }
 
-            stateDirectory = Path.Combine(applicationData, "NonProxy");
+                stateDirectory = Path.Combine(applicationData, "NonProxy");
+            }
         }
 
         var socketPath = Environment.GetEnvironmentVariable(SocketPathEnvironment);
+        return FromStateDirectory(stateDirectory, socketPath);
+    }
+
+    public static LocalControlEndpoint FromStateDirectory(
+        string stateDirectory,
+        string? socketPath = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stateDirectory);
         if (string.IsNullOrWhiteSpace(socketPath))
         {
             socketPath = Path.Combine(stateDirectory, "gatewayd.sock");

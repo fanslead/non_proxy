@@ -21,6 +21,10 @@ let package = Package(
             targets: ["NonProxyMacPlatformSupport"]
         ),
         .library(
+            name: "NonProxyMacRuntime",
+            targets: ["NonProxyMacRuntime"]
+        ),
+        .library(
             name: "NonProxyTransparentProxy",
             targets: ["NonProxyTransparentProxy"]
         ),
@@ -94,8 +98,12 @@ let package = Package(
             ]
         ),
         .target(
+            name: "NonProxyMacRuntime"
+        ),
+        .target(
             name: "NonProxyMacPlatformSupport",
             dependencies: [
+                "NonProxyMacRuntime",
                 "NonProxyProviderCore",
                 "NonProxyProviderContracts",
             ],
@@ -132,8 +140,10 @@ let package = Package(
         ),
         .target(
             name: "NonProxyMacHostBridge",
+            dependencies: ["NonProxyMacRuntime"],
             linkerSettings: [
                 .linkedFramework("NetworkExtension"),
+                .linkedFramework("ServiceManagement"),
                 .linkedFramework("SystemExtensions"),
             ]
         ),
@@ -189,6 +199,10 @@ let package = Package(
                 "NonProxyDNSProxy",
                 "NonProxyProviderContracts",
             ]
+        ),
+        .testTarget(
+            name: "NonProxyMacRuntimeTests",
+            dependencies: ["NonProxyMacRuntime"]
         ),
         .testTarget(
             name: "NonProxyMacHostBridgeTests",

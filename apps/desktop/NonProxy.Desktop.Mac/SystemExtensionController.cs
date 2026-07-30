@@ -7,6 +7,12 @@ internal sealed class SystemExtensionController(
 {
     private const string MissingBridgeCode = "NP_MAC_BRIDGE_LIBRARY_NOT_FOUND";
     private const string MissingEntitlementCode = "NP_MAC_MISSING_ENTITLEMENT";
+    private const string MissingGatewayCode = "NP_MAC_GATEWAY_NOT_PACKAGED";
+    private const string InvalidGatewaySignatureCode =
+        "NP_MAC_GATEWAY_INVALID_SIGNATURE";
+    private const string MissingAppGroupCode =
+        "NP_MAC_APP_GROUP_UNAVAILABLE";
+    private const string GatewayApprovalCode = "NP_MAC_GATEWAY_APPROVAL_REQUIRED";
     private const string BridgeBusyCode = "NP_MAC_BRIDGE_BUSY";
     private int _awaitingApproval;
 
@@ -17,7 +23,7 @@ internal sealed class SystemExtensionController(
         {
             return new SystemComponentState(
                 SystemComponentStatus.AwaitingApproval,
-                "请在系统设置中允许 NonProxy 网络扩展。");
+                "请在系统设置中允许 NonProxy 后台项目或网络扩展。");
         }
 
         try
@@ -34,21 +40,29 @@ internal sealed class SystemExtensionController(
             {
                 return new SystemComponentState(
                     SystemComponentStatus.AwaitingApproval,
-                    "请在系统设置中允许 NonProxy 网络扩展。");
+                    "请在系统设置中允许 NonProxy 后台项目或网络扩展。");
+            }
+
+            if (!state.GatewayAgent.Found)
+            {
+                return new SystemComponentState(
+                    SystemComponentStatus.Unavailable,
+                    "当前安装包缺少 gatewayd 后台项目。",
+                    MissingGatewayCode);
             }
 
             if (IsReady(state))
             {
                 return new SystemComponentState(
                     SystemComponentStatus.Installed,
-                    "系统扩展和网络配置均已就绪。");
+                    "后台服务、系统扩展和网络配置均已就绪。");
             }
 
             if (IsAbsent(state))
             {
                 return new SystemComponentState(
                     SystemComponentStatus.NotInstalled,
-                    "NonProxy 系统扩展尚未安装。");
+                    "NonProxy 系统组件尚未安装。");
             }
 
             return new SystemComponentState(
@@ -107,12 +121,15 @@ internal sealed class SystemExtensionController(
     private static bool IsAwaitingApproval(MacHostState state)
     {
         return state.TransparentExtension.AwaitingUserApproval
-            || state.DnsExtension.AwaitingUserApproval;
+            || state.DnsExtension.AwaitingUserApproval
+            || state.GatewayAgent.RequiresApproval;
     }
 
     private static bool IsReady(MacHostState state)
     {
-        return state.TransparentExtension.Enabled
+        return state.GatewayAgent.Enabled
+            && state.GatewayAgent.Ready
+            && state.TransparentExtension.Enabled
             && state.DnsExtension.Enabled
             && state.TransparentPreference.Enabled
             && state.DnsPreference.Enabled;
@@ -120,7 +137,9 @@ internal sealed class SystemExtensionController(
 
     private static bool IsAbsent(MacHostState state)
     {
-        return !state.TransparentExtension.Installed
+        return !state.GatewayAgent.Registered
+            && state.GatewayAgent.Found
+            && !state.TransparentExtension.Installed
             && !state.DnsExtension.Installed
             && !state.TransparentPreference.Configured
             && !state.DnsPreference.Configured;
@@ -129,13 +148,8 @@ internal sealed class SystemExtensionController(
     private static SystemComponentState FailureState(
         MacBridgeEventPayload result)
     {
-        var status = IsUnavailableCode(result.ErrorCode)
-            ? SystemComponentStatus.Unavailable
-            : result.ErrorCode == BridgeBusyCode
-                ? SystemComponentStatus.Unknown
-            : SystemComponentStatus.Failed;
         return new SystemComponentState(
-            status,
+            StatusForErrorCode(result.ErrorCode),
             result.Message,
             result.ErrorCode);
     }
@@ -143,19 +157,35 @@ internal sealed class SystemExtensionController(
     private static SystemComponentState ExceptionState(
         MacNativeBridgeException exception)
     {
-        var status = IsUnavailableCode(exception.ErrorCode)
-            ? SystemComponentStatus.Unavailable
-            : exception.ErrorCode == BridgeBusyCode
-                ? SystemComponentStatus.Unknown
-            : SystemComponentStatus.Failed;
         return new SystemComponentState(
-            status,
+            StatusForErrorCode(exception.ErrorCode),
             exception.Message,
             exception.ErrorCode);
     }
 
+    private static SystemComponentStatus StatusForErrorCode(string? errorCode)
+    {
+        if (errorCode == GatewayApprovalCode)
+        {
+            return SystemComponentStatus.AwaitingApproval;
+        }
+
+        if (IsUnavailableCode(errorCode))
+        {
+            return SystemComponentStatus.Unavailable;
+        }
+
+        return errorCode == BridgeBusyCode
+            ? SystemComponentStatus.Unknown
+            : SystemComponentStatus.Failed;
+    }
+
     private static bool IsUnavailableCode(string? errorCode)
     {
-        return errorCode is MissingBridgeCode or MissingEntitlementCode;
+        return errorCode is MissingBridgeCode
+            or MissingEntitlementCode
+            or MissingGatewayCode
+            or InvalidGatewaySignatureCode
+            or MissingAppGroupCode;
     }
 }

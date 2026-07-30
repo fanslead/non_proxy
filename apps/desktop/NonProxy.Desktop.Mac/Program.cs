@@ -20,12 +20,22 @@ internal static class Program
 
         using var services = ServiceRegistration.BuildProvider(collection =>
         {
-            collection.AddSingleton<IPlatformInformation, MacPlatformInformation>();
+            collection.AddSingleton<
+                IPlatformInformation,
+                MacPlatformInformation>();
             collection.AddSingleton<MacNativeBridgeClient>();
-            collection.AddSingleton<ISystemComponentInstaller, SystemExtensionController>();
-            collection.AddSingleton(LocalControlEndpoint.FromUnixEnvironment());
-            collection.AddSingleton<IControlChannelFactory, UnixDomainSocketControlChannelFactory>();
-            collection.AddSingleton<ISessionCapabilityProvider, FileSessionCapabilityProvider>();
+            collection.AddSingleton<
+                ISystemComponentInstaller,
+                SystemExtensionController>();
+            collection.AddSingleton(
+                LocalControlEndpoint.FromUnixEnvironment(
+                    MacRuntimePaths.ResolveDefaultStateDirectory()));
+            collection.AddSingleton<
+                IControlChannelFactory,
+                UnixDomainSocketControlChannelFactory>();
+            collection.AddSingleton<
+                ISessionCapabilityProvider,
+                FileSessionCapabilityProvider>();
         });
 
         DesktopBootstrap

@@ -8,6 +8,9 @@ use crate::GatewayError;
 const STATE_DIRECTORY_ENVIRONMENT: &str = "NONPROXY_STATE_DIR";
 const SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_SOCKET_PATH";
 const FLOW_SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_FLOW_SOCKET_PATH";
+#[cfg(target_os = "macos")]
+const MACOS_APP_GROUP_STATE_PATH: &str =
+    "Library/Group Containers/group.com.nonproxy.shared/Library/Application Support/NonProxy";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GatewayConfig {
@@ -158,7 +161,12 @@ fn default_state_directory() -> Result<PathBuf, GatewayError> {
     let home = env::var_os("HOME")
         .map(PathBuf::from)
         .ok_or(GatewayError::InvalidLocalPath("缺少用户主目录"))?;
-    Ok(home.join("Library/Application Support/NonProxy"))
+    Ok(macos_state_directory(&home))
+}
+
+#[cfg(target_os = "macos")]
+fn macos_state_directory(home: &Path) -> PathBuf {
+    home.join(MACOS_APP_GROUP_STATE_PATH)
 }
 
 #[cfg(target_os = "windows")]
@@ -179,9 +187,13 @@ fn default_state_directory() -> Result<PathBuf, GatewayError> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "macos")]
+    use std::path::Path;
     use std::{fs, path::PathBuf};
 
     use super::GatewayConfig;
+    #[cfg(target_os = "macos")]
+    use super::macos_state_directory;
 
     #[test]
     fn rejects_socket_outside_state_directory() {
@@ -239,5 +251,19 @@ mod tests {
         };
 
         assert!(config.prepare().is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_default_uses_the_shared_app_group_container() {
+        let path = macos_state_directory(Path::new("/Users/example"));
+
+        assert_eq!(
+            path,
+            PathBuf::from(
+                "/Users/example/Library/Group Containers/group.com.nonproxy.shared/\
+                 Library/Application Support/NonProxy",
+            )
+        );
     }
 }
