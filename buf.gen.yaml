@@ -1,0 +1,10 @@
+version: v2
+clean: true
+plugins:
+  - protoc_builtin: csharp
+    protoc_path: .tools/bin/protoc
+    out: generated/csharp
+    opt:
+      - base_namespace=NonProxy
+inputs:
+  - directory: proto

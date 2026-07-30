@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+package nonproxy.policy.v1;
+
+import "google/protobuf/timestamp.proto";
+import "nonproxy/common/v1/common.proto";
+
+option csharp_namespace = "NonProxy.Policy.V1";
+
+// PolicySourceKind 表示用户策略的主要来源范围。
+enum PolicySourceKind {
+  POLICY_SOURCE_KIND_UNSPECIFIED = 0;
+  POLICY_SOURCE_KIND_SYSTEM = 1;
+  POLICY_SOURCE_KIND_APP_DESTINATION = 2;
+  POLICY_SOURCE_KIND_APP = 3;
+  POLICY_SOURCE_KIND_SITE = 4;
+  POLICY_SOURCE_KIND_NETWORK = 5;
+  POLICY_SOURCE_KIND_BUILT_IN = 6;
+  POLICY_SOURCE_KIND_CIDR = 7;
+  POLICY_SOURCE_KIND_ADAPTER = 8;
+}
+
+// PolicyOrigin 表示策略内容的信任来源。
+enum PolicyOrigin {
+  POLICY_ORIGIN_UNSPECIFIED = 0;
+  POLICY_ORIGIN_SYSTEM = 1;
+  POLICY_ORIGIN_USER = 2;
+  POLICY_ORIGIN_SIGNED_BUILT_IN = 3;
+  POLICY_ORIGIN_SUBSCRIPTION = 4;
+  POLICY_ORIGIN_ADAPTER = 5;
+}
+
+// DomainMatchKind 表示域名匹配语义。
+enum DomainMatchKind {
+  DOMAIN_MATCH_KIND_UNSPECIFIED = 0;
+  DOMAIN_MATCH_KIND_EXACT = 1;
+  DOMAIN_MATCH_KIND_SUFFIX = 2;
+  DOMAIN_MATCH_KIND_REGISTRABLE_DOMAIN = 3;
+}
+
+// SnapshotState 表示策略快照发布状态。
+enum SnapshotState {
+  SNAPSHOT_STATE_UNSPECIFIED = 0;
+  SNAPSHOT_STATE_DRAFT = 1;
+  SNAPSHOT_STATE_PENDING_ACK = 2;
+  SNAPSHOT_STATE_ACTIVE = 3;
+  SNAPSHOT_STATE_REJECTED = 4;
+  SNAPSHOT_STATE_ROLLED_BACK = 5;
+}
+
+// AppMatcher 使用稳定身份和签名约束匹配应用。
+message AppMatcher {
+  nonproxy.common.v1.Platform platform = 1;
+  string stable_id = 2;
+  string signer_id = 3;
+  bool include_helpers = 4;
+}
+
+// DomainMatcher 保存已经规范化的 ASCII 域名模式。
+message DomainMatcher {
+  DomainMatchKind kind = 1;
+  string ascii_pattern = 2;
+}
+
+// CidrMatcher 保存规范化后的网络前缀。
+message CidrMatcher {
+  string network = 1;
+  uint32 prefix_length = 2;
+}
+
+// PortRange 描述包含首尾端口的闭区间。
+message PortRange {
+  uint32 first = 1;
+  uint32 last = 2;
+}
+
+// NetworkMatcher 绑定用户可理解的网络配置档。
+message NetworkMatcher {
+  string profile_id = 1;
+}
+
+// PolicyMatch 汇总一条策略可以使用的匹配维度。
+message PolicyMatch {
+  AppMatcher app = 1;
+  DomainMatcher domain = 2;
+  CidrMatcher cidr = 3;
+  NetworkMatcher network = 4;
+  repeated nonproxy.common.v1.TransportProtocol transports = 5;
+  repeated PortRange ports = 6;
+}
+
+// DecisionSpec 描述命中策略后的目标路径和失败行为。
+message DecisionSpec {
+  nonproxy.common.v1.RouteAction action = 1;
+  string outbound_id = 2;
+  nonproxy.common.v1.FailureMode failure_mode = 3;
+}
+
+// Policy 是控制面可编辑的权威策略对象。
+message Policy {
+  string id = 1;
+  string display_name = 2;
+  PolicySourceKind source_kind = 3;
+  PolicyMatch match = 4;
+  DecisionSpec decision = 5;
+  int32 priority = 6;
+  bool enabled = 7;
+  PolicyOrigin origin = 8;
+  uint64 revision = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+// PolicyConflict 描述编译阶段发现的语义冲突。
+message PolicyConflict {
+  string code = 1;
+  string message = 2;
+  repeated string policy_ids = 3;
+}
+
+// PolicySnapshotMetadata 描述不可变快照的身份和发布状态。
+message PolicySnapshotMetadata {
+  uint32 schema_version = 1;
+  uint64 snapshot_version = 2;
+  bytes content_hash = 3;
+  SnapshotState state = 4;
+  google.protobuf.Timestamp created_at = 5;
+  uint32 policy_count = 6;
+}
+
+// CompiledPolicySnapshot 是平台 Provider 消费的有界不可变载荷。
+message CompiledPolicySnapshot {
+  PolicySnapshotMetadata metadata = 1;
+  string payload_format = 2;
+  bytes payload = 3;
+  DecisionSpec default_decision = 4;
+}
+
+// Decision 描述一次纯策略判定，不等同于路径或出口证据。
+message Decision {
+  DecisionSpec result = 1;
+  string matched_policy_id = 2;
+  string matched_rule_id = 3;
+  uint64 snapshot_version = 4;
+  string reason_code = 5;
+}

@@ -1,0 +1,280 @@
+syntax = "proto3";
+
+package nonproxy.control.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "nonproxy/common/v1/common.proto";
+import "nonproxy/events/v1/events.proto";
+import "nonproxy/policy/v1/policy.proto";
+
+option csharp_namespace = "NonProxy.Control.V1";
+
+// ControlService 是低权限控制客户端访问 gatewayd 的版本化接口。
+service ControlService {
+  rpc GetSystemStatus(GetSystemStatusRequest) returns (GetSystemStatusResponse);
+  rpc GetCapabilities(GetCapabilitiesRequest) returns (GetCapabilitiesResponse);
+  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
+  rpc UpsertPolicy(UpsertPolicyRequest) returns (UpsertPolicyResponse);
+  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
+  rpc ApplyPolicySnapshot(ApplyPolicySnapshotRequest) returns (ApplyPolicySnapshotResponse);
+  rpc RollbackPolicySnapshot(RollbackPolicySnapshotRequest) returns (RollbackPolicySnapshotResponse);
+  rpc ListOutbounds(ListOutboundsRequest) returns (ListOutboundsResponse);
+  rpc ImportConfiguration(ImportConfigurationRequest) returns (ImportConfigurationResponse);
+  rpc TestOutbound(TestOutboundRequest) returns (TestOutboundResponse);
+  rpc StartLearningSession(StartLearningSessionRequest) returns (StartLearningSessionResponse);
+  rpc StopLearningSession(StopLearningSessionRequest) returns (StopLearningSessionResponse);
+  rpc ExportDiagnostics(ExportDiagnosticsRequest) returns (ExportDiagnosticsResponse);
+  rpc SubscribeEvents(SubscribeEventsRequest) returns (stream SubscribeEventsResponse);
+}
+
+// CapabilityName 表示控制面可以安全展示的后端能力。
+enum CapabilityName {
+  CAPABILITY_NAME_UNSPECIFIED = 0;
+  CAPABILITY_NAME_APP_MATCH = 1;
+  CAPABILITY_NAME_DOMAIN_MATCH = 2;
+  CAPABILITY_NAME_CIDR_MATCH = 3;
+  CAPABILITY_NAME_TCP = 4;
+  CAPABILITY_NAME_UDP = 5;
+  CAPABILITY_NAME_IPV4 = 6;
+  CAPABILITY_NAME_IPV6 = 7;
+  CAPABILITY_NAME_DNS_SPLIT = 8;
+  CAPABILITY_NAME_HOT_RELOAD = 9;
+  CAPABILITY_NAME_PATH_EVIDENCE = 10;
+  CAPABILITY_NAME_EXIT_PROBE = 11;
+}
+
+// OutboundKind 表示控制面支持的出站类型。
+enum OutboundKind {
+  OUTBOUND_KIND_UNSPECIFIED = 0;
+  OUTBOUND_KIND_DIRECT = 1;
+  OUTBOUND_KIND_HTTP_CONNECT = 2;
+  OUTBOUND_KIND_SOCKS5 = 3;
+  OUTBOUND_KIND_WIREGUARD = 4;
+  OUTBOUND_KIND_OPENVPN = 5;
+  OUTBOUND_KIND_EXTERNAL_ADAPTER = 6;
+}
+
+// LearningSessionKind 表示学习会话的上下文。
+enum LearningSessionKind {
+  LEARNING_SESSION_KIND_UNSPECIFIED = 0;
+  LEARNING_SESSION_KIND_APP = 1;
+  LEARNING_SESSION_KIND_SITE = 2;
+}
+
+// DiagnosticRedactionLevel 表示诊断包的脱敏强度。
+enum DiagnosticRedactionLevel {
+  DIAGNOSTIC_REDACTION_LEVEL_UNSPECIFIED = 0;
+  DIAGNOSTIC_REDACTION_LEVEL_STANDARD = 1;
+  DIAGNOSTIC_REDACTION_LEVEL_STRICT = 2;
+}
+
+// OperationContext 为高风险操作携带幂等键和短期授权能力。
+message OperationContext {
+  string operation_id = 1;
+  bytes session_capability_token = 2;
+}
+
+// GetSystemStatusRequest 请求系统状态快照。
+message GetSystemStatusRequest {}
+
+// GetSystemStatusResponse 返回权威状态和最新事件游标。
+message GetSystemStatusResponse {
+  nonproxy.events.v1.RuntimeState state = 1;
+  uint64 active_snapshot_version = 2;
+  bool data_plane_enabled = 3;
+  repeated ComponentStatus components = 4;
+  uint64 latest_event_sequence = 5;
+  nonproxy.common.v1.ErrorDetail error = 6;
+}
+
+// ComponentStatus 描述单个进程或 Provider 的状态。
+message ComponentStatus {
+  nonproxy.common.v1.ComponentKind component = 1;
+  nonproxy.events.v1.RuntimeState state = 2;
+  nonproxy.common.v1.ComponentVersion version = 3;
+  google.protobuf.Timestamp last_seen_at = 4;
+  nonproxy.common.v1.ErrorDetail error = 5;
+}
+
+// GetCapabilitiesRequest 请求当前运行模式能力。
+message GetCapabilitiesRequest {}
+
+// GetCapabilitiesResponse 返回后端声明的能力集合。
+message GetCapabilitiesResponse {
+  repeated CapabilityName capabilities = 1;
+}
+
+// ListPoliciesRequest 请求策略分页列表。
+message ListPoliciesRequest {
+  nonproxy.common.v1.PageRequest page = 1;
+  bool include_disabled = 2;
+}
+
+// ListPoliciesResponse 返回策略和下一页游标。
+message ListPoliciesResponse {
+  repeated nonproxy.policy.v1.Policy policies = 1;
+  nonproxy.common.v1.PageResponse page = 2;
+  uint64 active_snapshot_version = 3;
+}
+
+// UpsertPolicyRequest 使用乐观并发写入策略草稿。
+message UpsertPolicyRequest {
+  OperationContext context = 1;
+  nonproxy.policy.v1.Policy policy = 2;
+  uint64 expected_revision = 3;
+}
+
+// DeletePolicyRequest 使用乐观并发删除策略。
+message DeletePolicyRequest {
+  OperationContext context = 1;
+  string policy_id = 2;
+  uint64 expected_revision = 3;
+}
+
+// ApplyPolicySnapshotRequest 请求编译并发布当前草稿。
+message ApplyPolicySnapshotRequest {
+  OperationContext context = 1;
+}
+
+// RollbackPolicySnapshotRequest 请求回滚到已知有效快照。
+message RollbackPolicySnapshotRequest {
+  OperationContext context = 1;
+  uint64 target_snapshot_version = 2;
+}
+
+// PolicyMutationResult 汇总策略写入和快照发布结果。
+message PolicyMutationResult {
+  nonproxy.policy.v1.Policy policy = 1;
+  nonproxy.policy.v1.PolicySnapshotMetadata snapshot = 2;
+  repeated nonproxy.policy.v1.PolicyConflict conflicts = 3;
+  nonproxy.common.v1.ErrorDetail error = 4;
+}
+
+// UpsertPolicyResponse 返回策略写入结果。
+message UpsertPolicyResponse {
+  PolicyMutationResult result = 1;
+}
+
+// DeletePolicyResponse 返回策略删除结果。
+message DeletePolicyResponse {
+  PolicyMutationResult result = 1;
+}
+
+// ApplyPolicySnapshotResponse 返回快照编译与发布结果。
+message ApplyPolicySnapshotResponse {
+  PolicyMutationResult result = 1;
+}
+
+// RollbackPolicySnapshotResponse 返回快照回滚结果。
+message RollbackPolicySnapshotResponse {
+  PolicyMutationResult result = 1;
+}
+
+// OutboundSummary 返回不含秘密的出站摘要。
+message OutboundSummary {
+  string id = 1;
+  string display_name = 2;
+  OutboundKind kind = 3;
+  bool enabled = 4;
+  nonproxy.events.v1.RuntimeState health = 5;
+  repeated CapabilityName capabilities = 6;
+}
+
+// ListOutboundsRequest 请求出站列表。
+message ListOutboundsRequest {
+  nonproxy.common.v1.PageRequest page = 1;
+}
+
+// ListOutboundsResponse 返回出站摘要。
+message ListOutboundsResponse {
+  repeated OutboundSummary outbounds = 1;
+  nonproxy.common.v1.PageResponse page = 2;
+}
+
+// ImportConfigurationRequest 发送有大小上限且不得记录日志的配置内容。
+message ImportConfigurationRequest {
+  OperationContext context = 1;
+  string format = 2;
+  bytes configuration = 3;
+  bool validate_only = 4;
+}
+
+// ImportConfigurationResponse 返回检测结果和不含秘密的出站摘要。
+message ImportConfigurationResponse {
+  string import_id = 1;
+  repeated OutboundSummary outbounds = 2;
+  repeated string warnings = 3;
+  nonproxy.common.v1.ErrorDetail error = 4;
+}
+
+// TestOutboundRequest 发起不包含用户目标的健康检查。
+message TestOutboundRequest {
+  OperationContext context = 1;
+  string outbound_id = 2;
+  google.protobuf.Duration timeout = 3;
+}
+
+// TestOutboundResponse 返回出站健康检查结果。
+message TestOutboundResponse {
+  bool healthy = 1;
+  google.protobuf.Duration latency = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// StartLearningSessionRequest 启动有时限的学习会话。
+message StartLearningSessionRequest {
+  OperationContext context = 1;
+  LearningSessionKind kind = 2;
+  google.protobuf.Duration duration = 5;
+  oneof subject {
+    nonproxy.common.v1.AppIdentity app = 3;
+    string normalized_site = 4;
+  }
+}
+
+// StartLearningSessionResponse 返回会话身份和截止时间。
+message StartLearningSessionResponse {
+  string session_id = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// StopLearningSessionRequest 停止指定学习会话。
+message StopLearningSessionRequest {
+  OperationContext context = 1;
+  string session_id = 2;
+}
+
+// StopLearningSessionResponse 返回最终候选数量。
+message StopLearningSessionResponse {
+  uint32 candidate_count = 1;
+  nonproxy.common.v1.ErrorDetail error = 2;
+}
+
+// ExportDiagnosticsRequest 请求生成本地诊断包，不自动上传。
+message ExportDiagnosticsRequest {
+  OperationContext context = 1;
+  DiagnosticRedactionLevel redaction_level = 2;
+  nonproxy.common.v1.TimeRange time_range = 3;
+}
+
+// ExportDiagnosticsResponse 返回可供用户预览的本地文件引用。
+message ExportDiagnosticsResponse {
+  string diagnostic_id = 1;
+  string local_path = 2;
+  uint64 size_bytes = 3;
+  bytes sha256 = 4;
+  nonproxy.common.v1.ErrorDetail error = 5;
+}
+
+// SubscribeEventsRequest 从给定游标开始订阅事件。
+message SubscribeEventsRequest {
+  uint64 after_sequence = 1;
+  nonproxy.common.v1.Severity minimum_severity = 2;
+}
+
+// SubscribeEventsResponse 包装单个有序事件。
+message SubscribeEventsResponse {
+  nonproxy.events.v1.EventEnvelope event = 1;
+}

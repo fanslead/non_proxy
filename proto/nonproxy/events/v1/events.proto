@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package nonproxy.events.v1;
+
+import "google/protobuf/timestamp.proto";
+import "nonproxy/common/v1/common.proto";
+import "nonproxy/policy/v1/policy.proto";
+
+option csharp_namespace = "NonProxy.Events.V1";
+
+// RuntimeState 表示后台组件的生命周期状态。
+enum RuntimeState {
+  RUNTIME_STATE_UNSPECIFIED = 0;
+  RUNTIME_STATE_STOPPED = 1;
+  RUNTIME_STATE_STARTING = 2;
+  RUNTIME_STATE_READY = 3;
+  RUNTIME_STATE_DEGRADED = 4;
+  RUNTIME_STATE_DRAINING = 5;
+  RUNTIME_STATE_FAILED = 6;
+}
+
+// LearningCandidateKind 表示学习候选的分类。
+enum LearningCandidateKind {
+  LEARNING_CANDIDATE_KIND_UNSPECIFIED = 0;
+  LEARNING_CANDIDATE_KIND_REQUIRED_FIRST_PARTY = 1;
+  LEARNING_CANDIDATE_KIND_LIKELY_API = 2;
+  LEARNING_CANDIDATE_KIND_LIKELY_AUTH = 3;
+  LEARNING_CANDIDATE_KIND_LIKELY_CDN = 4;
+  LEARNING_CANDIDATE_KIND_THIRD_PARTY = 5;
+  LEARNING_CANDIDATE_KIND_UNKNOWN = 6;
+}
+
+// SystemStateChanged 表示系统聚合状态发生变化。
+message SystemStateChanged {
+  RuntimeState state = 1;
+  uint64 active_snapshot_version = 2;
+  bool data_plane_enabled = 3;
+  nonproxy.common.v1.ErrorDetail error = 4;
+}
+
+// SnapshotStateChanged 表示策略快照发布状态发生变化。
+message SnapshotStateChanged {
+  nonproxy.policy.v1.PolicySnapshotMetadata snapshot = 1;
+  repeated nonproxy.policy.v1.PolicyConflict conflicts = 2;
+}
+
+// DecisionObserved 表示一次连接决策和当前已知证据。
+message DecisionObserved {
+  string flow_id = 1;
+  nonproxy.common.v1.AppIdentity app = 2;
+  nonproxy.common.v1.Destination destination = 3;
+  nonproxy.policy.v1.Decision decision = 4;
+  nonproxy.common.v1.EvidenceLevel evidence_level = 5;
+  string path_interface = 6;
+  string exit_probe_id = 7;
+}
+
+// ComponentHealthChanged 表示单个组件健康状态变化。
+message ComponentHealthChanged {
+  nonproxy.common.v1.ComponentKind component = 1;
+  RuntimeState state = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// LearningCandidateUpdated 表示学习候选或评分发生变化。
+message LearningCandidateUpdated {
+  string session_id = 1;
+  string normalized_domain = 2;
+  LearningCandidateKind kind = 3;
+  float confidence = 4;
+  bool requires_confirmation = 5;
+}
+
+// EventEnvelope 是所有订阅事件的稳定外层信封。
+message EventEnvelope {
+  uint64 sequence = 1;
+  string event_id = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+  nonproxy.common.v1.ComponentKind component = 4;
+  nonproxy.common.v1.Severity severity = 5;
+  string error_code = 6;
+  uint64 snapshot_version = 7;
+  oneof payload {
+    SystemStateChanged system_state_changed = 10;
+    SnapshotStateChanged snapshot_state_changed = 11;
+    DecisionObserved decision_observed = 12;
+    ComponentHealthChanged component_health_changed = 13;
+    LearningCandidateUpdated learning_candidate_updated = 14;
+  }
+}

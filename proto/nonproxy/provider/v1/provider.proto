@@ -1,0 +1,196 @@
+syntax = "proto3";
+
+package nonproxy.provider.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "nonproxy/common/v1/common.proto";
+import "nonproxy/events/v1/events.proto";
+import "nonproxy/policy/v1/policy.proto";
+
+option csharp_namespace = "NonProxy.Provider.V1";
+
+// ProviderService 是高权限平台组件访问 gatewayd 的受控接口。
+service ProviderService {
+  rpc RegisterProvider(RegisterProviderRequest) returns (RegisterProviderResponse);
+  rpc GetCurrentSnapshot(GetCurrentSnapshotRequest) returns (GetCurrentSnapshotResponse);
+  rpc AcknowledgeSnapshot(AcknowledgeSnapshotRequest) returns (AcknowledgeSnapshotResponse);
+  rpc ReportDecisionBatch(ReportDecisionBatchRequest) returns (ReportDecisionBatchResponse);
+  rpc ReportHealth(ReportHealthRequest) returns (ReportHealthResponse);
+  rpc ResolveDns(ResolveDnsRequest) returns (ResolveDnsResponse);
+  rpc OpenProxyFlow(OpenProxyFlowRequest) returns (OpenProxyFlowResponse);
+  rpc CloseProxyFlow(CloseProxyFlowRequest) returns (CloseProxyFlowResponse);
+}
+
+// ProviderKind 表示平台 Provider 的职责。
+enum ProviderKind {
+  PROVIDER_KIND_UNSPECIFIED = 0;
+  PROVIDER_KIND_TRANSPARENT_PROXY = 1;
+  PROVIDER_KIND_DNS_PROXY = 2;
+  PROVIDER_KIND_WINDOWS_WFP = 3;
+  PROVIDER_KIND_WINDOWS_DNS = 4;
+}
+
+// DnsRouteKind 表示 DNS 查询使用的隔离缓存和上游。
+enum DnsRouteKind {
+  DNS_ROUTE_KIND_UNSPECIFIED = 0;
+  DNS_ROUTE_KIND_DIRECT = 1;
+  DNS_ROUTE_KIND_PROXY = 2;
+  DNS_ROUTE_KIND_SYSTEM = 3;
+}
+
+// RegisterProviderRequest 携带版本和一次性启动身份。
+message RegisterProviderRequest {
+  string provider_instance_id = 1;
+  ProviderKind kind = 2;
+  nonproxy.common.v1.ComponentVersion version = 3;
+  repeated string capabilities = 4;
+  bytes startup_nonce = 5;
+}
+
+// RegisterProviderResponse 返回协商结果和当前快照版本。
+message RegisterProviderResponse {
+  bool accepted = 1;
+  uint32 negotiated_protocol_minor = 2;
+  uint64 current_snapshot_version = 3;
+  bytes session_token = 4;
+  nonproxy.common.v1.ErrorDetail error = 5;
+  google.protobuf.Timestamp session_expires_at = 6;
+}
+
+// ProviderRequestContext 验证注册会话并拒绝重放请求。
+message ProviderRequestContext {
+  string provider_instance_id = 1;
+  bytes session_token = 2;
+  uint64 request_sequence = 3;
+}
+
+// GetCurrentSnapshotRequest 请求当前已激活快照。
+message GetCurrentSnapshotRequest {
+  ProviderRequestContext context = 1;
+  uint64 known_snapshot_version = 2;
+}
+
+// GetCurrentSnapshotResponse 返回快照或未变化标志。
+message GetCurrentSnapshotResponse {
+  bool unchanged = 1;
+  nonproxy.policy.v1.CompiledPolicySnapshot snapshot = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// AcknowledgeSnapshotRequest 确认 Provider 已验证并切换快照。
+message AcknowledgeSnapshotRequest {
+  ProviderRequestContext context = 1;
+  uint64 snapshot_version = 2;
+  bytes content_hash = 3;
+  bool accepted = 4;
+  nonproxy.common.v1.ErrorDetail error = 5;
+}
+
+// AcknowledgeSnapshotResponse 返回聚合发布状态。
+message AcknowledgeSnapshotResponse {
+  nonproxy.policy.v1.PolicySnapshotMetadata snapshot = 1;
+}
+
+// ConnectionContext 是纯策略判定的输入。
+message ConnectionContext {
+  string flow_id = 1;
+  nonproxy.common.v1.AppIdentity app = 2;
+  nonproxy.common.v1.Destination destination = 3;
+  string network_profile_id = 4;
+  google.protobuf.Timestamp observed_at = 5;
+}
+
+// DecisionEvidence 表示平台已经观察到的路径证据。
+message DecisionEvidence {
+  nonproxy.common.v1.EvidenceLevel level = 1;
+  string interface_name = 2;
+  string outbound_id = 3;
+  string exit_probe_id = 4;
+}
+
+// DecisionRecord 描述 Provider 的单次判定结果。
+message DecisionRecord {
+  ConnectionContext context = 1;
+  nonproxy.policy.v1.Decision decision = 2;
+  DecisionEvidence evidence = 3;
+  google.protobuf.Duration decision_latency = 4;
+  nonproxy.common.v1.ErrorDetail error = 5;
+}
+
+// ReportDecisionBatchRequest 有界批量上报连接决策。
+message ReportDecisionBatchRequest {
+  ProviderRequestContext context = 1;
+  repeated DecisionRecord decisions = 2;
+  uint64 dropped_debug_events = 3;
+}
+
+// ReportDecisionBatchResponse 返回服务端已接收数量。
+message ReportDecisionBatchResponse {
+  uint32 accepted_count = 1;
+  nonproxy.common.v1.ErrorDetail error = 2;
+}
+
+// ReportHealthRequest 上报 Provider 心跳和有界指标。
+message ReportHealthRequest {
+  ProviderRequestContext context = 1;
+  nonproxy.events.v1.RuntimeState state = 2;
+  uint64 active_snapshot_version = 3;
+  uint64 active_flow_count = 4;
+  uint64 queued_bytes = 5;
+  nonproxy.common.v1.ErrorDetail error = 6;
+}
+
+// ReportHealthResponse 返回下一次期望心跳间隔。
+message ReportHealthResponse {
+  google.protobuf.Duration next_interval = 1;
+}
+
+// ResolveDnsRequest 请求与策略路径一致的 DNS 解析。
+message ResolveDnsRequest {
+  ProviderRequestContext context = 1;
+  string query_id = 2;
+  nonproxy.common.v1.AppIdentity app = 3;
+  string qname = 4;
+  uint32 qtype = 5;
+  string network_profile_id = 6;
+}
+
+// ResolveDnsResponse 返回原始 DNS 消息和路由标签。
+message ResolveDnsResponse {
+  bytes dns_message = 1;
+  DnsRouteKind route = 2;
+  string outbound_id = 3;
+  google.protobuf.Duration valid_for = 4;
+  nonproxy.common.v1.ErrorDetail error = 5;
+}
+
+// OpenProxyFlowRequest 在大流量通道外创建 flow 元数据。
+message OpenProxyFlowRequest {
+  ProviderRequestContext request_context = 1;
+  ConnectionContext connection = 2;
+  nonproxy.policy.v1.Decision decision = 3;
+}
+
+// OpenProxyFlowResponse 返回数据帧通道协商结果。
+message OpenProxyFlowResponse {
+  bool accepted = 1;
+  uint32 frame_protocol_version = 2;
+  uint64 initial_window_bytes = 3;
+  nonproxy.common.v1.ErrorDetail error = 4;
+  bytes data_channel_token = 5;
+}
+
+// CloseProxyFlowRequest 关闭 flow 并携带最终计数。
+message CloseProxyFlowRequest {
+  ProviderRequestContext context = 1;
+  string flow_id = 2;
+  uint64 bytes_from_app = 3;
+  uint64 bytes_to_app = 4;
+  nonproxy.common.v1.ErrorDetail error = 5;
+}
+
+// CloseProxyFlowResponse 确认 flow 已释放。
+message CloseProxyFlowResponse {
+  bool closed = 1;
+}

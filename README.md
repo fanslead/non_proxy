@@ -38,6 +38,8 @@ source ./scripts/bootstrap/env.sh
 ```bash
 source ./scripts/bootstrap/env.sh
 just check-tools
+just generate
+just contracts
 just format-check
 just lint
 just test
@@ -45,6 +47,12 @@ just check
 ```
 
 只有当前已经建立的语言工作区会运行。随着各组件落地，根任务保持同一入口并逐步收紧门禁。
+
+契约基线提交后，可以在修改 `.proto` 文件时运行：
+
+```bash
+just contracts-breaking
+```
 
 ## 平台验收边界
 

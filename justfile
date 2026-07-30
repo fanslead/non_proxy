@@ -11,6 +11,15 @@ bootstrap:
 check-tools:
   source "{{env}}" && ./scripts/bootstrap/check-prerequisites.sh
 
+generate:
+  source "{{env}}" && buf generate
+
+contracts:
+  source "{{env}}" && ./scripts/contracts/check.sh
+
+contracts-breaking:
+  source "{{env}}" && buf breaking --against '.git#ref=HEAD'
+
 format:
   source "{{env}}" && cargo fmt --all
 
@@ -23,7 +32,7 @@ lint:
 test:
   source "{{env}}" && cargo test --workspace
 
-check: check-tools format-check lint test
+check: check-tools contracts format-check lint test
 
 status:
   source "{{env}}" && cargo run --quiet -p xtask -- status

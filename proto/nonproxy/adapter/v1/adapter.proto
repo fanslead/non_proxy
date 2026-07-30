@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package nonproxy.adapter.v1;
+
+import "google/protobuf/timestamp.proto";
+import "nonproxy/common/v1/common.proto";
+
+option csharp_namespace = "NonProxy.Adapter.V1";
+
+// AdapterService 隔离第三方客户端配置和重载操作。
+service AdapterService {
+  rpc Detect(DetectRequest) returns (DetectResponse);
+  rpc ReadCapabilities(ReadCapabilitiesRequest) returns (ReadCapabilitiesResponse);
+  rpc PrepareChange(PrepareChangeRequest) returns (PrepareChangeResponse);
+  rpc ApplyChange(ApplyChangeRequest) returns (ApplyChangeResponse);
+  rpc VerifyChange(VerifyChangeRequest) returns (VerifyChangeResponse);
+  rpc RollbackChange(RollbackChangeRequest) returns (RollbackChangeResponse);
+}
+
+// AdapterCapability 表示第三方客户端可以准确提供的能力。
+enum AdapterCapability {
+  ADAPTER_CAPABILITY_UNSPECIFIED = 0;
+  ADAPTER_CAPABILITY_APP_RULE = 1;
+  ADAPTER_CAPABILITY_DOMAIN_RULE = 2;
+  ADAPTER_CAPABILITY_DNS_SPLIT = 3;
+  ADAPTER_CAPABILITY_HOT_RELOAD = 4;
+  ADAPTER_CAPABILITY_PATH_EVIDENCE = 5;
+  ADAPTER_CAPABILITY_EXIT_PROBE = 6;
+}
+
+// AdapterState 表示第三方客户端当前状态。
+enum AdapterState {
+  ADAPTER_STATE_UNSPECIFIED = 0;
+  ADAPTER_STATE_NOT_INSTALLED = 1;
+  ADAPTER_STATE_UNSUPPORTED = 2;
+  ADAPTER_STATE_AVAILABLE = 3;
+  ADAPTER_STATE_APPLYING = 4;
+  ADAPTER_STATE_READY = 5;
+  ADAPTER_STATE_FAILED = 6;
+}
+
+// DetectRequest 请求只读检测指定适配器。
+message DetectRequest {
+  string adapter_id = 1;
+}
+
+// DetectResponse 返回不含凭据的客户端身份。
+message DetectResponse {
+  AdapterState state = 1;
+  string client_name = 2;
+  string client_version = 3;
+  string installation_id = 4;
+  nonproxy.common.v1.ErrorDetail error = 5;
+}
+
+// ReadCapabilitiesRequest 请求适配器能力。
+message ReadCapabilitiesRequest {
+  string adapter_id = 1;
+  string installation_id = 2;
+}
+
+// ReadCapabilitiesResponse 返回版本限定的能力。
+message ReadCapabilitiesResponse {
+  repeated AdapterCapability capabilities = 1;
+}
+
+// PrepareChangeRequest 请求生成并验证候选配置。
+message PrepareChangeRequest {
+  string operation_id = 1;
+  string adapter_id = 2;
+  string installation_id = 3;
+  bytes normalized_policy = 4;
+  bytes normalized_policy_hash = 5;
+}
+
+// PrepareChangeResponse 返回候选配置和备份引用。
+message PrepareChangeResponse {
+  string change_id = 1;
+  string backup_id = 2;
+  bytes candidate_hash = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  nonproxy.common.v1.ErrorDetail error = 5;
+}
+
+// ApplyChangeRequest 请求原子应用已经准备的变更。
+message ApplyChangeRequest {
+  string operation_id = 1;
+  string change_id = 2;
+  bytes expected_candidate_hash = 3;
+}
+
+// ApplyChangeResponse 返回应用和重载结果。
+message ApplyChangeResponse {
+  bool applied = 1;
+  bool reloaded = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// VerifyChangeRequest 请求真实路径验证。
+message VerifyChangeRequest {
+  string operation_id = 1;
+  string change_id = 2;
+}
+
+// VerifyChangeResponse 返回证据等级而不是配置成功猜测。
+message VerifyChangeResponse {
+  bool verified = 1;
+  nonproxy.common.v1.EvidenceLevel evidence_level = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// RollbackChangeRequest 请求恢复指定备份。
+message RollbackChangeRequest {
+  string operation_id = 1;
+  string change_id = 2;
+  string backup_id = 3;
+}
+
+// RollbackChangeResponse 返回恢复和重载结果。
+message RollbackChangeResponse {
+  bool restored = 1;
+  bool reloaded = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
