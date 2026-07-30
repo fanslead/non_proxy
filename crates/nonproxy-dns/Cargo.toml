@@ -1,0 +1,16 @@
+[package]
+name = "nonproxy-dns"
+description = "NonProxy DNS 消息校验、路由分区缓存与观察提取"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+hickory-proto.workspace = true
+nonproxy-model = { path = "../nonproxy-model" }
+sha2.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
