@@ -16,6 +16,14 @@ let package = Package(
             name: "NonProxyProviderCore",
             targets: ["NonProxyProviderCore"]
         ),
+        .library(
+            name: "NonProxyMacPlatformSupport",
+            targets: ["NonProxyMacPlatformSupport"]
+        ),
+        .library(
+            name: "NonProxyTransparentProxy",
+            targets: ["NonProxyTransparentProxy"]
+        ),
         .executable(
             name: "NonProxyProviderSmoke",
             targets: ["NonProxyProviderSmoke"]
@@ -64,6 +72,30 @@ let package = Package(
                 .linkedFramework("Network"),
             ]
         ),
+        .target(
+            name: "NonProxyMacPlatformSupport",
+            dependencies: [
+                "NonProxyProviderCore",
+                "NonProxyProviderContracts",
+            ],
+            linkerSettings: [
+                .linkedFramework("Network"),
+                .linkedFramework("NetworkExtension"),
+                .linkedFramework("Security"),
+            ]
+        ),
+        .target(
+            name: "NonProxyTransparentProxy",
+            dependencies: [
+                "NonProxyMacPlatformSupport",
+                "NonProxyProviderCore",
+                "NonProxyProviderContracts",
+            ],
+            linkerSettings: [
+                .linkedFramework("Network"),
+                .linkedFramework("NetworkExtension"),
+            ]
+        ),
         .executableTarget(
             name: "NonProxyProviderSmoke",
             dependencies: [
@@ -77,6 +109,17 @@ let package = Package(
                 "NonProxyProviderCore",
                 "NonProxyProviderContracts",
             ]
+        ),
+        .testTarget(
+            name: "NonProxyMacPlatformSupportTests",
+            dependencies: [
+                "NonProxyMacPlatformSupport",
+                "NonProxyProviderContracts",
+            ]
+        ),
+        .testTarget(
+            name: "NonProxyTransparentProxyTests",
+            dependencies: ["NonProxyTransparentProxy"]
         ),
     ]
 )

@@ -96,7 +96,9 @@ public enum ProviderPolicyEngine {
             return domain == matcher.asciiPattern
                 || domain.hasSuffix(".\(matcher.asciiPattern)")
         case .registrableDomain:
-            return destination.registrableDomain == matcher.asciiPattern
+            // 编译器已证明模式本身是可注册域；其子域拥有同一可注册域。
+            return domain == matcher.asciiPattern
+                || domain.hasSuffix(".\(matcher.asciiPattern)")
         default:
             return false
         }

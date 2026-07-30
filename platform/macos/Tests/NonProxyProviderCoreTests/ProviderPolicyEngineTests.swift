@@ -92,6 +92,27 @@ final class ProviderPolicyEngineTests: XCTestCase {
         XCTAssertEqual(decision.matchedPolicyID, "narrow")
     }
 
+    func testRegistrableRuleMatchesAnySubdomainWithoutCallerPslLookup() {
+        let registrable = policy(
+            id: "registrable",
+            source: .site,
+            priority: 10,
+            matcher: domainMatcher("example.co.uk", kind: .registrableDomain),
+            action: .direct
+        )
+
+        let decision = ProviderPolicyEngine.decide(
+            snapshot: snapshot([registrable]),
+            context: context(
+                appID: "unknown-app",
+                domain: "cdn.api.example.co.uk",
+                ip: nil
+            )
+        )
+
+        XCTAssertEqual(decision.matchedPolicyID, "registrable")
+    }
+
     private func policy(
         id: String,
         source: Nonproxy_Policy_V1_PolicySourceKind,
