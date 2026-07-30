@@ -1,0 +1,18 @@
+[package]
+name = "nonproxy-model"
+description = "NonProxy 平台无关领域模型与输入规范化"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+idna.workspace = true
+psl.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

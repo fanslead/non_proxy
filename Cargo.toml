@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+  "crates/*",
   "tools/*",
 ]
 
@@ -9,6 +10,12 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.97.1"
 publish = false
+
+[workspace.dependencies]
+idna = "1.1.0"
+proptest = "1.11.0"
+psl = "2.1.223"
+thiserror = "2.0.19"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
