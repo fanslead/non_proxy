@@ -37,12 +37,13 @@ enum SnapshotFixtures {
 
     static func snapshot(
         payload: Nonproxy_Policy_V1_CompiledPolicyPayload? = nil,
+        version: UInt64 = 1,
         state: Nonproxy_Policy_V1_SnapshotState = .pendingAck
     ) throws -> Nonproxy_Policy_V1_CompiledPolicySnapshot {
         let payload = payload ?? self.payload()
         var metadata = Nonproxy_Policy_V1_PolicySnapshotMetadata()
         metadata.schemaVersion = 1
-        metadata.snapshotVersion = 1
+        metadata.snapshotVersion = version
         metadata.contentHash = try CanonicalSnapshotHasher.hash(
             schemaVersion: 1,
             payload: payload

@@ -6,6 +6,7 @@ public enum ProviderError: Error, Equatable, LocalizedError, Sendable {
     case invalidSession(String)
     case invalidSnapshot(String)
     case snapshotCache(String)
+    case lifecycle(String)
 
     public var code: String {
         switch self {
@@ -19,6 +20,8 @@ public enum ProviderError: Error, Equatable, LocalizedError, Sendable {
             "NP_PROVIDER_SNAPSHOT_INVALID"
         case .snapshotCache:
             "NP_PROVIDER_SNAPSHOT_CACHE_FAILED"
+        case .lifecycle:
+            "NP_PROVIDER_LIFECYCLE_FAILED"
         }
     }
 
@@ -28,7 +31,8 @@ public enum ProviderError: Error, Equatable, LocalizedError, Sendable {
              .registrationRejected(let message),
              .invalidSession(let message),
              .invalidSnapshot(let message),
-             .snapshotCache(let message):
+             .snapshotCache(let message),
+             .lifecycle(let message):
             message
         }
     }

@@ -59,4 +59,13 @@ public actor ProviderSession {
     public func remainingLifetime(now: Date = Date()) -> TimeInterval {
         max(0, expiresAt.timeIntervalSince(now))
     }
+
+    public func isUsable(
+        minimumRemainingLifetime: TimeInterval,
+        now: Date = Date()
+    ) -> Bool {
+        token.count == 32
+            && generation > 0
+            && expiresAt.timeIntervalSince(now) > minimumRemainingLifetime
+    }
 }

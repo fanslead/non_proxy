@@ -19,7 +19,7 @@ public struct ProviderSynchronizationResult: Sendable {
     }
 }
 
-public struct ProviderControlClient: Sendable {
+public struct ProviderControlClient: ProviderControlServing, Sendable {
     private let configuration: ProviderConfiguration
     private let session: ProviderSession
     private let cache: PolicySnapshotCache
@@ -35,7 +35,31 @@ public struct ProviderControlClient: Sendable {
     }
 
     public func synchronize(
-        knownSnapshotVersion: UInt64
+        knownSnapshotVersion: UInt64,
+        metrics: ProviderHealthMetrics = .idle
+    ) async throws -> ProviderSynchronizationResult {
+        try await execute(
+            knownSnapshotVersion: knownSnapshotVersion,
+            metrics: metrics,
+            mustRegister: true
+        )
+    }
+
+    public func refresh(
+        knownSnapshotVersion: UInt64,
+        metrics: ProviderHealthMetrics = .idle
+    ) async throws -> ProviderSynchronizationResult {
+        try await execute(
+            knownSnapshotVersion: knownSnapshotVersion,
+            metrics: metrics,
+            mustRegister: false
+        )
+    }
+
+    private func execute(
+        knownSnapshotVersion: UInt64,
+        metrics: ProviderHealthMetrics,
+        mustRegister: Bool
     ) async throws -> ProviderSynchronizationResult {
         let transport = try HTTP2ClientTransport.Posix(
             target: .unixDomainSocket(
@@ -48,8 +72,10 @@ public struct ProviderControlClient: Sendable {
             let client = Nonproxy_Provider_V1_ProviderService.Client(
                 wrapping: grpcClient
             )
-            let registration = try await register(using: client)
-            try await session.install(response: registration)
+            if mustRegister {
+                let registration = try await register(using: client)
+                try await session.install(response: registration)
+            }
 
             var getRequest = Nonproxy_Provider_V1_GetCurrentSnapshotRequest()
             getRequest.context = try await session.requestContext()
@@ -60,6 +86,7 @@ public struct ProviderControlClient: Sendable {
             if response.unchanged {
                 try await reportReady(
                     version: knownSnapshotVersion,
+                    metrics: metrics,
                     using: client
                 )
                 return ProviderSynchronizationResult(
@@ -93,7 +120,11 @@ public struct ProviderControlClient: Sendable {
             } else {
                 publicationState = .active
             }
-            try await reportReady(version: verified.version, using: client)
+            try await reportReady(
+                version: verified.version,
+                metrics: metrics,
+                using: client
+            )
             return ProviderSynchronizationResult(
                 snapshot: verified,
                 currentSnapshotVersion: verified.version,
@@ -162,14 +193,15 @@ public struct ProviderControlClient: Sendable {
 
     private func reportReady<Transport: ClientTransport>(
         version: UInt64,
+        metrics: ProviderHealthMetrics,
         using client: Nonproxy_Provider_V1_ProviderService.Client<Transport>
     ) async throws {
         var request = Nonproxy_Provider_V1_ReportHealthRequest()
         request.context = try await session.requestContext()
         request.state = .ready
         request.activeSnapshotVersion = version
-        request.activeFlowCount = 0
-        request.queuedBytes = 0
+        request.activeFlowCount = metrics.activeFlowCount
+        request.queuedBytes = metrics.queuedBytes
         _ = try await client.reportHealth(
             request: ClientRequest(message: request)
         )
