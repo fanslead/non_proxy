@@ -7,12 +7,14 @@ use crate::GatewayError;
 
 const STATE_DIRECTORY_ENVIRONMENT: &str = "NONPROXY_STATE_DIR";
 const SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_SOCKET_PATH";
+const FLOW_SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_FLOW_SOCKET_PATH";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GatewayConfig {
     state_directory: PathBuf,
     database_path: PathBuf,
     socket_path: PathBuf,
+    flow_socket_path: PathBuf,
 }
 
 impl GatewayConfig {
@@ -24,7 +26,10 @@ impl GatewayConfig {
         let socket_path = env::var_os(SOCKET_PATH_ENVIRONMENT)
             .map(PathBuf::from)
             .unwrap_or_else(|| state_directory.join("gatewayd.sock"));
-        Self::new(state_directory, socket_path)
+        let flow_socket_path = env::var_os(FLOW_SOCKET_PATH_ENVIRONMENT)
+            .map(PathBuf::from)
+            .unwrap_or_else(|| state_directory.join("gatewayd-flow.sock"));
+        Self::new_with_flow_socket(state_directory, socket_path, flow_socket_path)
     }
 
     pub fn new(
@@ -33,17 +38,34 @@ impl GatewayConfig {
     ) -> Result<Self, GatewayError> {
         let state_directory = state_directory.into();
         let socket_path = socket_path.into();
+        let flow_socket_path = state_directory.join("gatewayd-flow.sock");
+        Self::new_with_flow_socket(state_directory, socket_path, flow_socket_path)
+    }
+
+    pub fn new_with_flow_socket(
+        state_directory: impl Into<PathBuf>,
+        socket_path: impl Into<PathBuf>,
+        flow_socket_path: impl Into<PathBuf>,
+    ) -> Result<Self, GatewayError> {
+        let state_directory = state_directory.into();
+        let socket_path = socket_path.into();
+        let flow_socket_path = flow_socket_path.into();
         validate_absolute(&state_directory)?;
         validate_absolute(&socket_path)?;
-        if socket_path.parent() != Some(state_directory.as_path()) {
+        validate_absolute(&flow_socket_path)?;
+        if socket_path.parent() != Some(state_directory.as_path())
+            || flow_socket_path.parent() != Some(state_directory.as_path())
+            || socket_path == flow_socket_path
+        {
             return Err(GatewayError::InvalidLocalPath(
-                "控制套接字必须位于状态目录中",
+                "控制和数据套接字必须是状态目录内的不同路径",
             ));
         }
         Ok(Self {
             database_path: state_directory.join("policy.sqlite3"),
             state_directory,
             socket_path,
+            flow_socket_path,
         })
     }
 
@@ -71,6 +93,11 @@ impl GatewayConfig {
     #[must_use]
     pub fn socket_path(&self) -> &Path {
         self.socket_path.as_path()
+    }
+
+    #[must_use]
+    pub fn flow_socket_path(&self) -> &Path {
+        self.flow_socket_path.as_path()
     }
 }
 
@@ -161,6 +188,17 @@ mod tests {
         let result = GatewayConfig::new(PathBuf::from("/tmp/nonproxy-a"), "/tmp/nonproxy.sock");
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn rejects_flow_socket_outside_or_equal_to_control_socket() {
+        let state = PathBuf::from("/tmp/nonproxy-a");
+        let control = state.join("gatewayd.sock");
+        assert!(
+            GatewayConfig::new_with_flow_socket(&state, &control, "/tmp/nonproxy-flow.sock")
+                .is_err()
+        );
+        assert!(GatewayConfig::new_with_flow_socket(&state, &control, &control).is_err());
     }
 
     #[test]

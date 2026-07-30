@@ -20,7 +20,7 @@ use crate::{
         empty_mutation, event_meets_minimum, event_response, internal_status, minimum_severity,
         mutation_error, publish_snapshot_event, request_status,
     },
-    credential_store::{CredentialStore, OsCredentialStore},
+    credential_store::CredentialStore,
     outbound_import_service,
     proto_policy::{policy_from_proto, policy_to_proto},
     session_capability::SessionCapability,
@@ -36,17 +36,17 @@ pub struct ControlRpcService {
 }
 
 impl ControlRpcService {
+    #[cfg(test)]
     #[must_use]
     pub fn new(gateway: Gateway, session: SessionCapability) -> Self {
         Self {
             gateway,
             session,
-            credential_store: Arc::new(OsCredentialStore),
+            credential_store: Arc::new(crate::credential_store::OsCredentialStore),
         }
     }
 
-    #[cfg(test)]
-    pub fn with_credential_store(
+    pub(crate) fn with_credential_store(
         gateway: Gateway,
         session: SessionCapability,
         credential_store: Arc<dyn CredentialStore>,

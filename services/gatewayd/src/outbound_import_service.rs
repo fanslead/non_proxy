@@ -222,6 +222,10 @@ mod tests {
             Ok(())
         }
 
+        fn get(&self, _reference: &str) -> Result<Vec<u8>, CredentialStoreError> {
+            Err(CredentialStoreError::Operation("测试读取"))
+        }
+
         fn delete(&self, reference: &str) -> Result<(), CredentialStoreError> {
             self.references
                 .lock()

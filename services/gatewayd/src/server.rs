@@ -1,28 +1,49 @@
+use std::sync::Arc;
+
 use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::control::v1::control_service_server::ControlServiceServer;
 use nonproxy_proto::provider::v1::provider_service_server::ProviderServiceServer;
 
 use crate::{
-    GatewayConfig, GatewayError, control_service::ControlRpcService, gateway::Gateway,
-    provider_service::ProviderRpcService, session_capability::SessionCapability,
+    GatewayConfig, GatewayError,
+    control_service::ControlRpcService,
+    credential_store::{CredentialStore, OsCredentialStore},
+    gateway::Gateway,
+    provider_service::ProviderRpcService,
+    session_capability::SessionCapability,
 };
 
 #[cfg(unix)]
-use std::{
-    fs,
-    future::Future,
-    os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt},
-    path::{Path, PathBuf},
-};
+use std::future::Future;
+
+#[cfg(unix)]
+use crate::flow_server::{FlowConnectionHandler, FlowServer};
+
+#[cfg(unix)]
+use crate::unix_socket::{SocketRole, bind_private_socket};
 
 pub async fn run(config: GatewayConfig) -> Result<(), GatewayError> {
     config.prepare()?;
     let gateway = Gateway::open(config.database_path(), CompileCapabilities::full()).await?;
     let control_capability = SessionCapability::create_control(config.state_directory())?;
     let provider_capability = SessionCapability::create_provider(config.state_directory())?;
-    let control = ControlRpcService::new(gateway.clone(), control_capability);
-    let provider = ProviderRpcService::new(gateway, provider_capability);
-    serve_platform(config, control, provider).await
+    let credential_store: Arc<dyn CredentialStore> = Arc::new(OsCredentialStore);
+    let control = ControlRpcService::with_credential_store(
+        gateway.clone(),
+        control_capability,
+        Arc::clone(&credential_store),
+    );
+    #[cfg(unix)]
+    {
+        let provider = ProviderRpcService::new(gateway.clone(), provider_capability.clone());
+        let flow = FlowConnectionHandler::new(gateway, provider_capability, credential_store);
+        serve_platform(config, control, provider, flow).await
+    }
+    #[cfg(not(unix))]
+    {
+        let provider = ProviderRpcService::new(gateway, provider_capability);
+        serve_platform(config, control, provider).await
+    }
 }
 
 #[cfg(unix)]
@@ -30,8 +51,9 @@ async fn serve_platform(
     config: GatewayConfig,
     control: ControlRpcService,
     provider: ProviderRpcService,
+    flow: FlowConnectionHandler,
 ) -> Result<(), GatewayError> {
-    serve_unix_with_shutdown(config, control, provider, shutdown_signal()).await
+    serve_unix_with_shutdown(config, control, provider, flow, shutdown_signal()).await
 }
 
 #[cfg(unix)]
@@ -39,95 +61,76 @@ async fn serve_unix_with_shutdown(
     config: GatewayConfig,
     control: ControlRpcService,
     provider: ProviderRpcService,
+    flow: FlowConnectionHandler,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), GatewayError> {
-    use tokio::net::UnixListener;
+    use tokio::sync::watch;
     use tokio_stream::wrappers::UnixListenerStream;
     use tonic::transport::Server;
 
-    prepare_socket_path(config.socket_path()).await?;
-    let listener = UnixListener::bind(config.socket_path()).map_err(|source| GatewayError::Io {
-        operation: "绑定控制套接字",
-        source,
-    })?;
-    fs::set_permissions(config.socket_path(), fs::Permissions::from_mode(0o600)).map_err(
-        |source| GatewayError::Io {
-            operation: "限制控制套接字权限",
-            source,
-        },
-    )?;
-    let metadata =
-        fs::symlink_metadata(config.socket_path()).map_err(|source| GatewayError::Io {
-            operation: "读取控制套接字标识",
-            source,
-        })?;
-    let _socket_guard = SocketGuard {
-        path: config.socket_path().to_path_buf(),
-        device: metadata.dev(),
-        inode: metadata.ino(),
-    };
-    let incoming = UnixListenerStream::new(listener);
+    let (control_listener, _control_socket_guard) =
+        bind_private_socket(config.socket_path(), SocketRole::Control).await?;
+    let (flow_listener, _flow_socket_guard) =
+        bind_private_socket(config.flow_socket_path(), SocketRole::Flow).await?;
+    let incoming = UnixListenerStream::new(control_listener);
     let control_rpc = ControlServiceServer::new(control)
         .max_decoding_message_size(ControlRpcService::max_message_bytes())
         .max_encoding_message_size(ControlRpcService::max_message_bytes());
     let provider_rpc = ProviderServiceServer::new(provider)
         .max_decoding_message_size(ControlRpcService::max_message_bytes())
         .max_encoding_message_size(ControlRpcService::max_message_bytes());
-    Server::builder()
+    let (shutdown_sender, shutdown_receiver) = watch::channel(false);
+    let flow_server = FlowServer::new(flow).serve(flow_listener, shutdown_receiver.clone());
+    let control_server = Server::builder()
         .concurrency_limit_per_connection(64)
         .add_service(control_rpc)
         .add_service(provider_rpc)
-        .serve_with_incoming_shutdown(incoming, shutdown)
-        .await?;
-    Ok(())
-}
-
-#[cfg(unix)]
-async fn prepare_socket_path(path: &Path) -> Result<(), GatewayError> {
-    use tokio::net::UnixStream;
-
-    match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.file_type().is_symlink() => {
-            Err(GatewayError::InvalidLocalPath("控制套接字不能是符号链接"))
+        .serve_with_incoming_shutdown(incoming, wait_for_shutdown(shutdown_receiver));
+    tokio::pin!(flow_server);
+    tokio::pin!(control_server);
+    tokio::pin!(shutdown);
+    tokio::select! {
+        () = &mut shutdown => {
+            let _send_result = shutdown_sender.send(true);
+            let (control_result, flow_result) =
+                tokio::join!(&mut control_server, &mut flow_server);
+            combine_server_results(control_result, flow_result)
         }
-        Ok(metadata) if !metadata.file_type().is_socket() => Err(GatewayError::InvalidLocalPath(
-            "控制套接字路径已被普通文件占用",
-        )),
-        Ok(_) => match UnixStream::connect(path).await {
-            Ok(_) => Err(GatewayError::InvalidLocalPath("另一个 gatewayd 已在运行")),
-            Err(_) => fs::remove_file(path).map_err(|source| GatewayError::Io {
-                operation: "移除失效控制套接字",
-                source,
-            }),
-        },
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(source) => Err(GatewayError::Io {
-            operation: "检查控制套接字路径",
-            source,
-        }),
+        control_result = &mut control_server => {
+            let _send_result = shutdown_sender.send(true);
+            let flow_result = flow_server.await;
+            combine_server_results(control_result, flow_result)
+        }
+        flow_result = &mut flow_server => {
+            let _send_result = shutdown_sender.send(true);
+            let control_result = control_server.await;
+            combine_server_results(control_result, flow_result)
+        }
     }
 }
 
 #[cfg(unix)]
-struct SocketGuard {
-    path: PathBuf,
-    device: u64,
-    inode: u64,
-}
-
-#[cfg(unix)]
-impl Drop for SocketGuard {
-    fn drop(&mut self) {
-        let Ok(metadata) = fs::symlink_metadata(&self.path) else {
+async fn wait_for_shutdown(mut receiver: tokio::sync::watch::Receiver<bool>) {
+    if *receiver.borrow() {
+        return;
+    }
+    while receiver.changed().await.is_ok() {
+        if *receiver.borrow() {
             return;
-        };
-        if metadata.file_type().is_socket()
-            && metadata.dev() == self.device
-            && metadata.ino() == self.inode
-        {
-            let _result = fs::remove_file(&self.path);
         }
     }
+}
+
+#[cfg(unix)]
+fn combine_server_results(
+    control: Result<(), tonic::transport::Error>,
+    flow: Result<(), std::io::Error>,
+) -> Result<(), GatewayError> {
+    control?;
+    flow.map_err(|source| GatewayError::Io {
+        operation: "运行数据套接字",
+        source,
+    })
 }
 
 #[cfg(not(unix))]
@@ -165,8 +168,13 @@ mod tests {
 
     use super::serve_unix_with_shutdown;
     use crate::{
-        GatewayConfig, control_service::ControlRpcService, gateway::Gateway,
-        provider_service::ProviderRpcService, session_capability::SessionCapability,
+        GatewayConfig,
+        control_service::ControlRpcService,
+        credential_store::{CredentialStore, tests_support::MemoryCredentialStore},
+        flow_server::FlowConnectionHandler,
+        gateway::Gateway,
+        provider_service::ProviderRpcService,
+        session_capability::SessionCapability,
     };
 
     #[tokio::test]
@@ -176,6 +184,7 @@ mod tests {
             panic!("临时目录创建失败: {directory:?}");
         };
         let socket_path = directory.path().join("gatewayd.sock");
+        let flow_socket_path = directory.path().join("gatewayd-flow.sock");
         let config = GatewayConfig::new(directory.path(), &socket_path);
         let Ok(config) = config else {
             panic!("网关配置创建失败: {config:?}");
@@ -196,19 +205,25 @@ mod tests {
         };
         let gateway = Gateway::new(database, CompileCapabilities::full());
         let control = ControlRpcService::new(gateway.clone(), control_capability);
-        let provider = ProviderRpcService::new(gateway, provider_capability);
+        let provider = ProviderRpcService::new(gateway.clone(), provider_capability.clone());
+        let credential_store: std::sync::Arc<dyn CredentialStore> =
+            std::sync::Arc::new(MemoryCredentialStore::default());
+        let flow = FlowConnectionHandler::new(gateway, provider_capability, credential_store);
         let (shutdown_sender, shutdown_receiver) = oneshot::channel();
         let server = tokio::spawn(serve_unix_with_shutdown(
             config,
             control,
             provider,
+            flow,
             async move {
                 let _shutdown_result = shutdown_receiver.await;
             },
         ));
 
         wait_for_socket(&socket_path).await;
+        wait_for_socket(&flow_socket_path).await;
         assert_socket_permissions(&socket_path);
+        assert_socket_permissions(&flow_socket_path);
         let channel = Endpoint::from_static("http://[::]:50051")
             .connect_with_connector(service_fn({
                 let socket_path = socket_path.clone();
@@ -232,6 +247,7 @@ mod tests {
         let server_result = server.await;
         assert!(matches!(server_result, Ok(Ok(()))));
         assert!(!socket_path.exists());
+        assert!(!flow_socket_path.exists());
     }
 
     async fn wait_for_socket(path: &Path) {

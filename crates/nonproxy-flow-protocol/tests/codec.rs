@@ -89,6 +89,16 @@ fn ipv6_datagram_and_window_use_network_byte_order() {
 }
 
 #[test]
+fn datagram_rejects_content_above_transport_limit() {
+    let endpoint = match FlowEndpoint::new("dns.example", 53) {
+        Ok(value) => value,
+        Err(error) => panic!("测试 endpoint 创建失败: {error}"),
+    };
+
+    assert!(nonproxy_flow_protocol::DatagramPayload::new(endpoint, vec![0_u8; 65_001]).is_err());
+}
+
+#[test]
 fn sequence_tracker_rejects_replay_and_gaps() {
     let mut tracker = SequenceTracker::default();
     assert!(tracker.accept(0).is_ok());

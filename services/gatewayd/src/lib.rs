@@ -7,6 +7,8 @@ mod credential_store;
 mod database_executor;
 mod error;
 mod event_hub;
+#[cfg(unix)]
+mod flow_server;
 mod gateway;
 mod outbound_import;
 mod outbound_import_service;
@@ -19,6 +21,8 @@ mod runtime_policy;
 mod server;
 mod session_capability;
 mod snapshot_payload;
+#[cfg(unix)]
+mod unix_socket;
 
 pub use config::GatewayConfig;
 pub use error::GatewayError;

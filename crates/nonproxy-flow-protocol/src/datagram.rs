@@ -1,6 +1,6 @@
 use crate::{FlowEndpoint, FlowProtocolError};
 
-pub const MAX_DATAGRAM_BYTES: usize = 65_535;
+pub const MAX_DATAGRAM_BYTES: usize = 65_000;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DatagramPayload {

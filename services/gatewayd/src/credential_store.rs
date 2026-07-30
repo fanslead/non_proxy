@@ -4,6 +4,7 @@ const KEYRING_SERVICE: &str = "com.nonproxy.gatewayd.outbound";
 
 pub trait CredentialStore: Send + Sync {
     fn set(&self, reference: &str, secret: &[u8]) -> Result<(), CredentialStoreError>;
+    fn get(&self, reference: &str) -> Result<Vec<u8>, CredentialStoreError>;
     fn delete(&self, reference: &str) -> Result<(), CredentialStoreError>;
 }
 
@@ -15,6 +16,12 @@ impl CredentialStore for OsCredentialStore {
         entry(reference)?
             .set_secret(secret)
             .map_err(|_| CredentialStoreError::Operation("写入"))
+    }
+
+    fn get(&self, reference: &str) -> Result<Vec<u8>, CredentialStoreError> {
+        entry(reference)?
+            .get_secret()
+            .map_err(|_| CredentialStoreError::Operation("读取"))
     }
 
     fn delete(&self, reference: &str) -> Result<(), CredentialStoreError> {
@@ -69,6 +76,15 @@ pub mod tests_support {
                 .map_err(|_| CredentialStoreError::Operation("锁定"))?
                 .insert(reference.to_owned(), secret.to_vec());
             Ok(())
+        }
+
+        fn get(&self, reference: &str) -> Result<Vec<u8>, CredentialStoreError> {
+            self.entries
+                .lock()
+                .map_err(|_| CredentialStoreError::Operation("锁定"))?
+                .get(reference)
+                .cloned()
+                .ok_or(CredentialStoreError::Operation("读取"))
         }
 
         fn delete(&self, reference: &str) -> Result<(), CredentialStoreError> {

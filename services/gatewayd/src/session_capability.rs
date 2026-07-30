@@ -50,11 +50,16 @@ impl SessionCapability {
     }
 
     pub fn validate_token(&self, token: &[u8]) -> Result<(), Status> {
-        if constant_time_equal(&self.token, token) {
+        if self.matches_token(token) {
             Ok(())
         } else {
             Err(Status::permission_denied("会话能力令牌无效"))
         }
+    }
+
+    #[must_use]
+    pub(crate) fn matches_token(&self, token: &[u8]) -> bool {
+        constant_time_equal(&self.token, token)
     }
 
     #[cfg(test)]

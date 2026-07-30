@@ -9,6 +9,8 @@ publish.workspace = true
 getrandom.workspace = true
 keyring.workspace = true
 nonproxy-model = { path = "../../crates/nonproxy-model" }
+nonproxy-flow-protocol = { path = "../../crates/nonproxy-flow-protocol" }
+nonproxy-outbound = { path = "../../crates/nonproxy-outbound" }
 nonproxy-policy = { path = "../../crates/nonproxy-policy" }
 nonproxy-policy-compiler = { path = "../../crates/nonproxy-policy-compiler" }
 nonproxy-proto = { path = "../../crates/nonproxy-proto" }
