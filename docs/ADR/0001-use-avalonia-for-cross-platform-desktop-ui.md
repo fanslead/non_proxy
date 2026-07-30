@@ -49,7 +49,7 @@ apps/desktop/NonProxy.Desktop.Windows
 
 平台高权限实现继续独立：
 
-- macOS：Swift/Objective-C 的 Transparent Proxy、DNS Proxy 和签名打包；安装控制由 macOS Avalonia 宿主通过 .NET macOS API 完成。
+- macOS：Swift 的 Transparent Proxy、DNS Proxy、原生宿主桥和签名打包；Avalonia 宿主通过固定 C ABI 调用原生桥，由原生桥使用 SystemExtensions/NetworkExtension API 完成安装控制。
 - Windows：Windows Service、WFP Controller、必要时的最小 Callout Driver 和安装签名。
 
 Avalonia UI 不直接调用 NetworkExtension 或 WFP。它通过版本化控制契约与 `gatewayd` 通信；需要安装、授权或卸载系统组件时，通过平台桥接服务调用。

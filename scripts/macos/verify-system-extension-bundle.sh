@@ -10,6 +10,7 @@ app_bundle=${1%/}
 extensions_root="${app_bundle}/Contents/Library/SystemExtensions"
 transparent_bundle="${extensions_root}/com.nonproxy.desktop.transparent-proxy.systemextension"
 dns_bundle="${extensions_root}/com.nonproxy.desktop.dns-proxy.systemextension"
+bridge_library="${app_bundle}/Contents/Frameworks/libNonProxyMacHostBridge.dylib"
 
 if [[ ! -d "${app_bundle}" || ! -f "${app_bundle}/Contents/Info.plist" ]]; then
     echo "待验证的 macOS App Bundle 无效：${app_bundle}" >&2
@@ -44,6 +45,32 @@ if [[ "${host_minimum_system_version}" != 15.0 ]]; then
     echo "宿主最低系统版本必须为 macOS 15.0" >&2
     exit 67
 fi
+if [[ ! -f "${bridge_library}" || -L "${bridge_library}" ]]; then
+    echo "macOS App 缺少原生宿主桥接动态库" >&2
+    exit 67
+fi
+file "${bridge_library}" | grep -F "Mach-O" >/dev/null
+bridge_architectures=$(lipo -archs "${bridge_library}")
+if [[ "${host_architectures}" != "${bridge_architectures}" ]]; then
+    echo "宿主与原生桥接动态库架构不一致" >&2
+    exit 67
+fi
+otool -L "${bridge_library}" | grep -F \
+    "/System/Library/Frameworks/NetworkExtension.framework/" >/dev/null
+otool -L "${bridge_library}" | grep -F \
+    "/System/Library/Frameworks/SystemExtensions.framework/" >/dev/null
+for symbol in \
+    _np_mac_bridge_abi_version \
+    _np_mac_bridge_probe \
+    _np_mac_bridge_query \
+    _np_mac_bridge_install_and_enable \
+    _np_mac_bridge_disable_and_uninstall; do
+    if ! nm -g "${bridge_library}" | grep -F "${symbol}" >/dev/null; then
+        echo "原生桥接动态库缺少导出符号：${symbol}" >&2
+        exit 67
+    fi
+done
+codesign --verify --strict --verbose=2 "${bridge_library}"
 
 verification_dir=$(mktemp -d)
 trap 'rm -rf "${verification_dir}"' EXIT

@@ -65,7 +65,10 @@ test-macos:
 verify-macos-bundle: build-desktop
   source "{{env}}" && native_rid="$(dotnet msbuild apps/desktop/NonProxy.Desktop.Mac/NonProxy.Desktop.Mac.csproj -getProperty:NETCoreSdkRuntimeIdentifier)" && ./scripts/macos/verify-system-extension-bundle.sh "apps/desktop/NonProxy.Desktop.Mac/bin/Debug/net10.0-macos/${native_rid}/NonProxy.app"
 
-check: check-tools contracts contracts-swift restore-desktop restore-node format-check lint verify-macos-bundle test test-macos control-e2e provider-e2e
+native-bridge-smoke: verify-macos-bundle
+  source "{{env}}" && native_rid="$(dotnet msbuild apps/desktop/NonProxy.Desktop.Mac/NonProxy.Desktop.Mac.csproj -getProperty:NETCoreSdkRuntimeIdentifier)" && ./scripts/macos/native-bridge-smoke.sh "apps/desktop/NonProxy.Desktop.Mac/bin/Debug/net10.0-macos/${native_rid}/NonProxy.app"
+
+check: check-tools contracts contracts-swift restore-desktop restore-node format-check lint native-bridge-smoke test test-macos control-e2e provider-e2e
 
 status:
   source "{{env}}" && cargo run --quiet -p xtask -- status

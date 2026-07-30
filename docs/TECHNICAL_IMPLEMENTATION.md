@@ -444,7 +444,8 @@ flowchart TD
 ```mermaid
 flowchart LR
     APP["Avalonia Mac Host + Shared UI"] -- "Control RPC" --> D["gatewayd"]
-    APP -- ".NET macOS API" --> SEC["SystemExtensions Framework"]
+    APP -- "LibraryImport / C ABI" --> BRIDGE["Swift Host Bridge"]
+    BRIDGE --> SEC["SystemExtensions + NetworkExtension"]
     EXT["Browser Extension"] --> NMH["Native Messaging Host"]
     NMH -- "Control RPC" --> D
     TP["TransparentProxy System Extension"] -- "Policy Snapshot / Events" --> D
@@ -460,13 +461,14 @@ flowchart LR
 
 - 用户策略、节点和状态界面。
 - macOS 与 Windows 共享 Avalonia 页面、ViewModel 和主题。
-- Mac 薄宿主从最终 containing app 内通过 .NET macOS API 请求安装/管理 System Extension。
+- Mac 薄宿主从最终 containing app 内通过受版本约束的 Swift C ABI 请求安装/管理 System Extension 和 Network Extension 偏好。
 - 不作为权威后台服务。
 - 退出不影响既有数据面。
 
 `SystemExtensionController`
 
 - 位于 Mac 薄宿主，只执行 macOS System Extension 安装、授权、升级和卸载。
+- C# 只接收 UTF-8 JSON 领域 DTO；Swift 原生桥持有系统 delegate 并执行框架调用。
 - 向 Avalonia UI 返回结构化状态和需要用户完成的系统操作。
 - 不包含页面、策略、数据库或代理协议逻辑。
 
@@ -1338,7 +1340,15 @@ public interface ISystemComponentInstaller
 }
 ```
 
-Mac 宿主目标为 `net10.0-macos`，在最终 containing app 进程中通过 SystemExtensions framework 提交激活/卸载请求；Windows 宿主调用 Windows Service/Installer。接口返回领域 DTO，不泄漏 `OSSystemExtensionRequest`、Win32 handle 或 WFP struct。
+Mac 宿主目标为 `net10.0-macos`。它通过 `LibraryImport` 调用同包 Swift 动态库的固定 C ABI，由动态库在最终 containing app 进程中使用 SystemExtensions 和 NetworkExtension framework；Windows 宿主调用 Windows Service/Installer。接口返回领域 DTO，不泄漏 `OSSystemExtensionRequest`、Win32 handle 或 WFP struct。
+
+macOS 原生桥 ABI 约束：
+
+- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `1`。
+- Swift 回调只在回调执行期间借出 UTF-8 JSON 字节，C# 必须立即复制；两侧不互相释放内存。
+- C 的 `size_t` 精确映射为 C# `nuint`，回调使用 `UnmanagedCallersOnly`，任何托管异常都不得越过 ABI。
+- 托管 `GCHandle` 必须持有到原生 completed 事件；调用方取消等待不能提前释放仍可能被系统回调使用的上下文。
+- 同一进程最多执行一个异步系统变更，避免两组 System Extension 请求或偏好事务互相覆盖。
 
 ### 17.5 托盘、菜单和窗口
 
@@ -1382,12 +1392,15 @@ macOS：
 当前 System Extension 打包实现：
 
 - `NonProxyTransparentSystemExtension` 与 `NonProxyDNSSystemExtension` 是只负责启动 Provider 的独立 Swift 可执行 target，业务实现仍留在对应 Provider 模块。
-- `NonProxy.Desktop.Mac` 构建完成后调用 `scripts/macos/package-system-extensions.sh`，把两个 `SYSX` Bundle 放入最终 `.app/Contents/Library/SystemExtensions/`。
-- Debug 构建生成当前机器架构；不指定 RID 的 Release 构建同时生成 `arm64` 与 `x86_64`，并要求宿主和两个扩展的架构集合完全一致。
+- `NonProxyMacHostBridge` 是动态 Swift target，负责 System Extension 请求、审批进度、状态查询以及 Transparent Proxy/DNS Proxy 偏好事务；它不承载策略或流量。
+- 激活依次处理两个扩展；扩展需要重启时不会提前写入网络偏好。偏好保存前会快照旧值，DNS 保存失败时恢复两份旧配置；重复的透明代理配置会停止并返回稳定错误。
+- 卸载先停用并移除网络偏好，再停用两个扩展；不存在的扩展按幂等成功处理，需要重启会明确返回。
+- `NonProxy.Desktop.Mac` 构建完成后调用 `scripts/macos/package-system-extensions.sh`，把两个 `SYSX` Bundle 放入最终 `.app/Contents/Library/SystemExtensions/`，并把原生桥放入 `.app/Contents/Frameworks/`。
+- Debug 构建生成当前机器架构；不指定 RID 的 Release 构建同时生成 `arm64` 与 `x86_64`，并要求宿主、原生桥和两个扩展的架构集合完全一致。
 - 默认使用临时签名验证开发包结构，不代表系统会批准真实激活。正式包必须设置 `NONPROXY_RESTRICTED_SIGNING=1`，并提供 `NONPROXY_CODESIGN_IDENTITY`、`NONPROXY_HOST_PROFILE`、`NONPROXY_TRANSPARENT_PROFILE` 与 `NONPROXY_DNS_PROFILE`。
-- 正式签名按 Transparent Proxy、DNS Proxy、外层 App 的顺序执行；外层 App 只在正式受限签名时应用安装 System Extension 所需 entitlement。
-- `scripts/macos/verify-system-extension-bundle.sh` 校验 Bundle 标识、Extension Point、Principal Class、Mach-O 架构、NetworkExtension 链接、Provider Objective-C 符号、签名 entitlement 和嵌套签名完整性。
-- 当前证据只证明可执行 Bundle 可构建、可嵌入且签名结构自洽；Developer ID 签名、系统审批、Network Extension 配置、启动、升级、卸载和真实流量路径仍按系统测试门禁验收。
+- 签名按两个 System Extension、原生桥、外层 App 的嵌套顺序执行；外层 App 只在正式受限签名时应用安装 System Extension 所需 entitlement。
+- `scripts/macos/verify-system-extension-bundle.sh` 还校验原生桥导出符号、SystemExtensions/NetworkExtension 链接和签名；`scripts/macos/native-bridge-smoke.sh` 从最终 App 宿主跨 C ABI 验证版本及非 ASCII UTF-8。
+- 当前证据证明可执行 Bundle 可构建、可嵌入、签名结构自洽，且托管/原生调用链真实连通；默认临时签名不能证明系统会接受权限请求。Developer ID 签名、系统审批、真实偏好写入、Provider 启动、升级、卸载和流量路径仍按系统测试门禁验收。
 
 Windows：
 

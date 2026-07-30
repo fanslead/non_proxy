@@ -72,11 +72,14 @@ if [[ "${architecture}" == universal ]]; then
 fi
 build_product NonProxyTransparentSystemExtension
 build_product NonProxyDNSSystemExtension
+build_product NonProxyMacHostBridge
 bin_path=$(bin_path_for_build)
 
 extensions_root="${app_bundle}/Contents/Library/SystemExtensions"
+frameworks_root="${app_bundle}/Contents/Frameworks"
 transparent_bundle="${extensions_root}/com.nonproxy.desktop.transparent-proxy.systemextension"
 dns_bundle="${extensions_root}/com.nonproxy.desktop.dns-proxy.systemextension"
+bridge_library="${frameworks_root}/libNonProxyMacHostBridge.dylib"
 
 assemble_bundle() {
     local bundle=$1
@@ -91,6 +94,11 @@ assemble_bundle() {
 
 rm -rf "${extensions_root}"
 install -d -m 0755 "${extensions_root}"
+install -d -m 0755 "${frameworks_root}"
+rm -f "${bridge_library}"
+install -m 0755 \
+    "${bin_path}/libNonProxyMacHostBridge.dylib" \
+    "${bridge_library}"
 assemble_bundle \
     "${transparent_bundle}" \
     NonProxyTransparentSystemExtension \
@@ -170,6 +178,14 @@ sign_bundle \
     "${transparent_bundle}" \
     "${packaging_root}/TransparentProxy.entitlements"
 sign_bundle "${dns_bundle}" "${packaging_root}/DNSProxy.entitlements"
+
+bridge_sign_args=(--force --sign "${signing_identity}")
+if [[ "${signing_identity}" == - ]]; then
+    bridge_sign_args+=(--timestamp=none)
+else
+    bridge_sign_args+=(--options runtime --timestamp)
+fi
+codesign "${bridge_sign_args[@]}" "${bridge_library}"
 
 host_sign_args=(--force --sign "${signing_identity}")
 if [[ "${restricted_signing}" == 1 ]]; then

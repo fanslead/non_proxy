@@ -12,6 +12,7 @@
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CodesignKey Condition="'$(Configuration)' == 'Debug' and '$(CodesignKey)' == ''">-</CodesignKey>
   </PropertyGroup>
 

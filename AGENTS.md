@@ -148,6 +148,9 @@ dotnet test apps/desktop/NonProxy.Desktop.Tests -c Release --no-restore
 
 - Swift 仅用于 Network Extension、Native Messaging Host 和必要的 macOS 平台桥接；System Extension Controller 默认位于 `net10.0-macos` 薄宿主。
 - System Extension 激活/卸载请求必须从最终 containing `.app` 的 Mac 宿主提交；扩展必须嵌入 `Contents/Library/SystemExtensions/`。
+- macOS 宿主桥的 C ABI 以 `platform/macos/Interop/NonProxyMacHostBridge.h` 为唯一真源；ABI 变更必须升级版本并同步跨语言冒烟。
+- 裸指针 payload 只能在回调期间借用，C# 立即复制；禁止跨 Swift/.NET 边界互相分配或释放内存。
+- .NET 侧优先使用 `LibraryImport`、精确 `nuint`/固定宽度整数和 `UnmanagedCallersOnly`；回调不得抛出异常，`GCHandle` 必须保留到原生终态。
 - 不在 Swift 工程中复制 Avalonia 页面、ViewModel 或产品业务流程。
 - Network Extension Provider 不得依赖 Avalonia。
 - Provider 回调中不得同步访问磁盘、Keychain、数据库或远程网络。

@@ -9,11 +9,19 @@ namespace NonProxy.Desktop.Mac;
 internal static class Program
 {
     [STAThread]
-    public static void Main(string[] args)
+    public static int Main(string[] args)
     {
+        if (MacHostDiagnostics.IsNativeBridgeSmoke(args))
+        {
+            return MacHostDiagnostics.RunNativeBridgeSmokeAsync()
+                .GetAwaiter()
+                .GetResult();
+        }
+
         using var services = ServiceRegistration.BuildProvider(collection =>
         {
             collection.AddSingleton<IPlatformInformation, MacPlatformInformation>();
+            collection.AddSingleton<MacNativeBridgeClient>();
             collection.AddSingleton<ISystemComponentInstaller, SystemExtensionController>();
             collection.AddSingleton(LocalControlEndpoint.FromUnixEnvironment());
             collection.AddSingleton<IControlChannelFactory, UnixDomainSocketControlChannelFactory>();
@@ -23,5 +31,6 @@ internal static class Program
         DesktopBootstrap
             .Build(services)
             .StartWithClassicDesktopLifetime(args);
+        return 0;
     }
 }

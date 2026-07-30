@@ -28,6 +28,11 @@ let package = Package(
             name: "NonProxyDNSProxy",
             targets: ["NonProxyDNSProxy"]
         ),
+        .library(
+            name: "NonProxyMacHostBridge",
+            type: .dynamic,
+            targets: ["NonProxyMacHostBridge"]
+        ),
         .executable(
             name: "NonProxyTransparentSystemExtension",
             targets: ["NonProxyTransparentSystemExtension"]
@@ -125,6 +130,13 @@ let package = Package(
                 .linkedFramework("NetworkExtension"),
             ]
         ),
+        .target(
+            name: "NonProxyMacHostBridge",
+            linkerSettings: [
+                .linkedFramework("NetworkExtension"),
+                .linkedFramework("SystemExtensions"),
+            ]
+        ),
         .executableTarget(
             name: "NonProxyTransparentSystemExtension",
             dependencies: ["NonProxyTransparentProxy"],
@@ -177,6 +189,10 @@ let package = Package(
                 "NonProxyDNSProxy",
                 "NonProxyProviderContracts",
             ]
+        ),
+        .testTarget(
+            name: "NonProxyMacHostBridgeTests",
+            dependencies: ["NonProxyMacHostBridge"]
         ),
     ]
 )
