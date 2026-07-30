@@ -1285,6 +1285,7 @@ dependencies = [
  "keyring",
  "nonproxy-dns",
  "nonproxy-flow-protocol",
+ "nonproxy-learning",
  "nonproxy-model",
  "nonproxy-outbound",
  "nonproxy-policy",
@@ -1310,6 +1311,14 @@ name = "nonproxy-http-connect-fixture"
 version = "0.1.0"
 dependencies = [
  "tokio",
+]
+
+[[package]]
+name = "nonproxy-learning"
+version = "0.1.0"
+dependencies = [
+ "nonproxy-model",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -1367,6 +1376,7 @@ dependencies = [
 name = "nonproxy-storage"
 version = "0.1.0"
 dependencies = [
+ "nonproxy-learning",
  "nonproxy-model",
  "rusqlite",
  "sha2 0.11.0",

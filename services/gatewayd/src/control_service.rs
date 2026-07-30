@@ -13,56 +13,17 @@ use tokio_stream::{Stream, StreamExt, wrappers::BroadcastStream};
 use tonic::{Request, Response, Status};
 
 use crate::{
-    Gateway, GatewayError,
+    GatewayError,
     clock::{timestamp_from_unix_ms, unix_time_ms},
     control_mapping,
     control_rpc_helpers::{
         empty_mutation, event_meets_minimum, event_response, internal_status, minimum_severity,
         mutation_error, publish_snapshot_event, request_status,
     },
-    credential_store::CredentialStore,
-    outbound_import_service,
+    control_rpc_service::ControlRpcService,
+    learning_rpc, outbound_import_service,
     proto_policy::{policy_from_proto, policy_to_proto},
-    session_capability::SessionCapability,
 };
-
-const MAX_RPC_MESSAGE_BYTES: usize = 4 * 1024 * 1024;
-
-#[derive(Clone)]
-pub struct ControlRpcService {
-    gateway: Gateway,
-    session: SessionCapability,
-    credential_store: Arc<dyn CredentialStore>,
-}
-
-impl ControlRpcService {
-    #[cfg(test)]
-    #[must_use]
-    pub fn new(gateway: Gateway, session: SessionCapability) -> Self {
-        Self {
-            gateway,
-            session,
-            credential_store: Arc::new(crate::credential_store::OsCredentialStore),
-        }
-    }
-
-    pub(crate) fn with_credential_store(
-        gateway: Gateway,
-        session: SessionCapability,
-        credential_store: Arc<dyn CredentialStore>,
-    ) -> Self {
-        Self {
-            gateway,
-            session,
-            credential_store,
-        }
-    }
-
-    #[must_use]
-    pub const fn max_message_bytes() -> usize {
-        MAX_RPC_MESSAGE_BYTES
-    }
-}
 
 #[tonic::async_trait]
 impl ControlService for ControlRpcService {
@@ -331,11 +292,29 @@ impl ControlService for ControlRpcService {
         request: Request<control_proto::StartLearningSessionRequest>,
     ) -> Result<Response<control_proto::StartLearningSessionResponse>, Status> {
         self.session.validate(request.get_ref().context.as_ref())?;
-        Ok(Response::new(control_proto::StartLearningSessionResponse {
-            session_id: String::new(),
-            expires_at: None,
-            error: Some(control_mapping::feature_unavailable("学习模式")),
-        }))
+        Ok(Response::new(
+            learning_rpc::start(&self.gateway, request.into_inner()).await?,
+        ))
+    }
+
+    async fn record_learning_observation(
+        &self,
+        request: Request<control_proto::RecordLearningObservationRequest>,
+    ) -> Result<Response<control_proto::RecordLearningObservationResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            learning_rpc::record(&self.gateway, request.into_inner()).await?,
+        ))
+    }
+
+    async fn list_learning_candidates(
+        &self,
+        request: Request<control_proto::ListLearningCandidatesRequest>,
+    ) -> Result<Response<control_proto::ListLearningCandidatesResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            learning_rpc::list(&self.gateway, request.into_inner()).await?,
+        ))
     }
 
     async fn stop_learning_session(
@@ -343,10 +322,9 @@ impl ControlService for ControlRpcService {
         request: Request<control_proto::StopLearningSessionRequest>,
     ) -> Result<Response<control_proto::StopLearningSessionResponse>, Status> {
         self.session.validate(request.get_ref().context.as_ref())?;
-        Ok(Response::new(control_proto::StopLearningSessionResponse {
-            candidate_count: 0,
-            error: Some(control_mapping::feature_unavailable("学习模式")),
-        }))
+        Ok(Response::new(
+            learning_rpc::stop(&self.gateway, request.into_inner()).await?,
+        ))
     }
 
     async fn export_diagnostics(

@@ -1,5 +1,6 @@
 use std::{io, path::PathBuf};
 
+use nonproxy_learning::LearningError;
 use nonproxy_model::ModelError;
 use thiserror::Error;
 
@@ -15,6 +16,8 @@ pub enum StorageError {
     },
     #[error("领域数据校验失败")]
     Model(#[from] ModelError),
+    #[error("学习领域数据校验失败")]
+    Learning(#[from] LearningError),
     #[error("数据库父目录不存在: {0}")]
     ParentDirectoryMissing(PathBuf),
     #[error("数据库或写锁路径不能是符号链接: {0}")]
@@ -72,6 +75,14 @@ pub enum StorageError {
     ErrorCodeInvalid,
     #[error("日志保留参数无效")]
     RetentionInvalid,
+    #[error("学习会话不存在")]
+    LearningSessionNotFound,
+    #[error("相同目标已有活动学习会话")]
+    ActiveLearningSessionExists,
+    #[error("学习会话已达到候选数量上限")]
+    LearningCandidateLimitReached,
+    #[error("学习会话已达到观测数量上限")]
+    LearningObservationLimitReached,
 }
 
 impl StorageError {
@@ -81,6 +92,7 @@ impl StorageError {
             Self::Sqlite(_) => "NP_STORAGE_SQLITE_FAILED",
             Self::Io { .. } => "NP_STORAGE_IO_FAILED",
             Self::Model(_) => "NP_STORAGE_MODEL_INVALID",
+            Self::Learning(error) => error.code(),
             Self::ParentDirectoryMissing(_) => "NP_STORAGE_PARENT_MISSING",
             Self::SymlinkPathRejected(_) => "NP_STORAGE_SYMLINK_REJECTED",
             Self::InsecureParentPermissions(_) => "NP_STORAGE_PARENT_PERMISSIONS_INSECURE",
@@ -108,6 +120,10 @@ impl StorageError {
             Self::ProviderAcknowledgementMissing => "NP_STORAGE_PROVIDER_ACK_MISSING",
             Self::ErrorCodeInvalid => "NP_STORAGE_ERROR_CODE_INVALID",
             Self::RetentionInvalid => "NP_STORAGE_RETENTION_INVALID",
+            Self::LearningSessionNotFound => "NP_LEARNING_SESSION_NOT_FOUND",
+            Self::ActiveLearningSessionExists => "NP_LEARNING_SESSION_ALREADY_ACTIVE",
+            Self::LearningCandidateLimitReached => "NP_LEARNING_CANDIDATE_LIMIT_REACHED",
+            Self::LearningObservationLimitReached => "NP_LEARNING_OBSERVATION_LIMIT_REACHED",
         }
     }
 }

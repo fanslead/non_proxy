@@ -572,6 +572,8 @@ ListOutbounds
 ImportConfiguration
 TestOutbound
 StartLearningSession
+RecordLearningObservation
+ListLearningCandidates
 StopLearningSession
 SubscribeEvents
 ExportDiagnostics
@@ -1492,6 +1494,14 @@ unknown
 
 除主域名和高可信一方依赖外，默认要求用户确认。
 
+### 18.4 学习控制面与隐私边界
+
+学习后端使用 `nonproxy-learning` 维护平台无关的会话、观测和候选分类，`gatewayd` 是唯一可信时钟和写入者。网站会话必须绑定扩展随机生成的 `browser_context_id`；该值是短期能力标识，不能使用浏览器真实 tab ID。应用会话不得携带浏览器上下文。
+
+控制 RPC 只接受规范化域名、initiator 域名、资源枚举和事件枚举，不接受完整 URL、路径、query、fragment、页面正文、请求头或由浏览器自报的 CNAME 信任信号。CNAME 相关性只能由 `gatewayd` 根据受信 DNS 观测补充。`observation_id` 在单个会话内幂等，重试不会增加证据计数或重复发布事件。会话默认 60 秒，允许范围为 5 秒到 5 分钟；每个会话最多保存 256 个候选和 4096 个观测收据。
+
+候选按精确域名聚合，并保留可注册域、分类、千分制置信度、确认要求和三类事件计数。同一可注册域只有达到高置信度后才可标记为无需再次确认；跨域 API、登录、CDN、第三方和未知候选始终要求用户确认。评分结果本身不写策略。
+
 ## 19. 存储
 
 SQLite 是本地权威配置库，只有 `gatewayd` 写入。
@@ -1514,6 +1524,7 @@ connection_decision
 dns_observation
 learning_session
 learning_candidate
+learning_observation_receipt
 adapter_state
 health_probe
 schema_migration
@@ -1531,6 +1542,8 @@ schema_migration
 迁移文件嵌入服务二进制，`schema_migration` 保存版本、名称和 SHA-256；已应用迁移的名称或内容哈希发生变化时启动失败。一次启动中的全部待执行 migration 放在同一个 `BEGIN IMMEDIATE` 事务中，任一条失败则整组回滚。发现无迁移历史但已有业务表的数据库时视为外部或损坏数据库，不自动接管。
 
 策略、出口和网络画像写入使用显式 revision 乐观锁。Wi-Fi 网络画像只保存 SHA-256 指纹，不保存原始 SSID。出口 endpoint 只接受规范化主机名或 IP，不接受可能携带用户名、密码或 Token 的 URI。
+
+学习表通过追加的 V4 migration 从首版预留结构升级，增加权威过期时间、应用平台、随机浏览器上下文、候选确认状态和有界幂等收据。过期在任一学习读写事务开始时惰性结算；停止与观测重放均保持幂等。
 
 ### 19.2 快照发布事务
 

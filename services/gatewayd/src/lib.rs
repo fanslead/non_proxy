@@ -2,6 +2,7 @@ mod clock;
 mod config;
 mod control_mapping;
 mod control_rpc_helpers;
+mod control_rpc_service;
 mod control_service;
 mod credential_store;
 mod database_executor;
@@ -11,6 +12,10 @@ mod event_hub;
 #[cfg(unix)]
 mod flow_server;
 mod gateway;
+mod learning_contract;
+mod learning_gateway;
+mod learning_rpc;
+mod outbound_capabilities;
 mod outbound_import;
 mod outbound_import_service;
 mod proto_policy;

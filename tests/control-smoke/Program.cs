@@ -1,8 +1,11 @@
+using Google.Protobuf.WellKnownTypes;
+using NonProxy.Control.V1;
 using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Control;
 using NonProxy.Desktop.Core.Services.Control.Gateway;
 using NonProxy.Desktop.Core.Services.Control.Rpc;
 using NonProxy.Desktop.Core.Services.Control.Transport;
+using NonProxy.Events.V1;
 
 namespace NonProxy.ControlSmoke;
 
@@ -24,6 +27,7 @@ internal static class Program
                 client,
                 new PolicyContractMapper(new SmokePlatformInformation()));
             await ImportSmokeOutboundIfRequestedAsync(client, timeout.Token);
+            await VerifyLearningAsync(client, timeout.Token);
             var initial = await client.GetSystemStatusAsync(timeout.Token);
             if (initial.ActiveSnapshotVersion != 0
                 || initial.PendingSnapshotVersion != 0)
@@ -53,7 +57,8 @@ internal static class Program
                 throw new InvalidOperationException("跨语言规则状态回读不一致。");
             }
 
-            Console.WriteLine("控制平面跨语言联调通过：UDS、会话认证、写入、发布和状态回读一致。");
+            Console.WriteLine(
+                "控制平面跨语言联调通过：UDS、会话认证、写入、发布、学习会话和状态回读一致。");
             return 0;
         }
         catch (Exception exception)
@@ -91,6 +96,68 @@ internal static class Program
         if (imported.Outbounds.SingleOrDefault()?.Id != "smoke-http")
         {
             throw new InvalidOperationException("代理联调出口导入结果不完整。");
+        }
+    }
+
+    private static async Task VerifyLearningAsync(
+        GrpcControlRpcClient client,
+        CancellationToken cancellationToken)
+    {
+        var started = await client.StartLearningSessionAsync(
+            new StartLearningSessionRequest
+            {
+                Kind = LearningSessionKind.Site,
+                Duration = Duration.FromTimeSpan(TimeSpan.FromSeconds(60)),
+                BrowserContextId = "smoke-browser-context",
+                NormalizedSite = "nonproxy.test",
+            },
+            cancellationToken);
+        if (started.Error is not null || string.IsNullOrWhiteSpace(started.SessionId))
+        {
+            throw new InvalidOperationException(
+                $"学习会话启动失败：{started.Error?.Code ?? "missing-session"}");
+        }
+
+        var recorded = await client.RecordLearningObservationAsync(
+            new RecordLearningObservationRequest
+            {
+                SessionId = started.SessionId,
+                ObservationId = "smoke-observation",
+                BrowserContextId = "smoke-browser-context",
+                Kind = LearningObservationKind.Subresource,
+                NormalizedDomain = "api.nonproxy.test",
+                InitiatorDomain = "nonproxy.test",
+                ResourceType = LearningResourceType.Fetch,
+            },
+            cancellationToken);
+        if (recorded.Error is not null
+            || recorded.Duplicate
+            || recorded.Candidate?.Kind != LearningCandidateKind.RequiredFirstParty)
+        {
+            throw new InvalidOperationException(
+                $"学习观测聚合失败：{recorded.Error?.Code ?? "invalid-candidate"}");
+        }
+
+        var candidates = await client.ListLearningCandidatesAsync(
+            started.SessionId,
+            cancellationToken);
+        if (candidates.Error is not null
+            || candidates.Session?.BrowserContextId != "smoke-browser-context"
+            || candidates.Candidates.Count != 1)
+        {
+            throw new InvalidOperationException(
+                $"学习候选查询失败：{candidates.Error?.Code ?? "invalid-list"}");
+        }
+
+        var stopped = await client.StopLearningSessionAsync(
+            started.SessionId,
+            cancellationToken);
+        if (stopped.Error is not null
+            || stopped.CandidateCount != 1
+            || stopped.Session?.State != LearningSessionState.Stopped)
+        {
+            throw new InvalidOperationException(
+                $"学习会话停止失败：{stopped.Error?.Code ?? "invalid-stop"}");
         }
     }
 

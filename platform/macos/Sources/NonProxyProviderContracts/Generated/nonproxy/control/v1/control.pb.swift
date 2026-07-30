@@ -194,6 +194,167 @@ public nonisolated enum Nonproxy_Control_V1_LearningSessionKind: SwiftProtobuf.E
 
 }
 
+/// LearningSessionState 表示学习会话是否仍可接收观测。
+public nonisolated enum Nonproxy_Control_V1_LearningSessionState: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case active // = 1
+  case stopped // = 2
+  case expired // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .active
+    case 2: self = .stopped
+    case 3: self = .expired
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .active: return 1
+    case .stopped: return 2
+    case .expired: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Nonproxy_Control_V1_LearningSessionState] = [
+    .unspecified,
+    .active,
+    .stopped,
+    .expired,
+  ]
+
+}
+
+/// LearningObservationKind 表示浏览器上报的最小化网络事件类别。
+public nonisolated enum Nonproxy_Control_V1_LearningObservationKind: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case mainFrame // = 1
+  case subresource // = 2
+  case redirect // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .mainFrame
+    case 2: self = .subresource
+    case 3: self = .redirect
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .mainFrame: return 1
+    case .subresource: return 2
+    case .redirect: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Nonproxy_Control_V1_LearningObservationKind] = [
+    .unspecified,
+    .mainFrame,
+    .subresource,
+    .redirect,
+  ]
+
+}
+
+/// LearningResourceType 表示不包含页面正文和 URL 路径的资源类别。
+public nonisolated enum Nonproxy_Control_V1_LearningResourceType: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case mainFrame // = 1
+  case subFrame // = 2
+  case script // = 3
+  case styleSheet // = 4
+  case image // = 5
+  case font // = 6
+  case media // = 7
+  case xmlHTTPRequest // = 8
+  case fetch // = 9
+  case webSocket // = 10
+  case other // = 11
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .mainFrame
+    case 2: self = .subFrame
+    case 3: self = .script
+    case 4: self = .styleSheet
+    case 5: self = .image
+    case 6: self = .font
+    case 7: self = .media
+    case 8: self = .xmlHTTPRequest
+    case 9: self = .fetch
+    case 10: self = .webSocket
+    case 11: self = .other
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .mainFrame: return 1
+    case .subFrame: return 2
+    case .script: return 3
+    case .styleSheet: return 4
+    case .image: return 5
+    case .font: return 6
+    case .media: return 7
+    case .xmlHTTPRequest: return 8
+    case .fetch: return 9
+    case .webSocket: return 10
+    case .other: return 11
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Nonproxy_Control_V1_LearningResourceType] = [
+    .unspecified,
+    .mainFrame,
+    .subFrame,
+    .script,
+    .styleSheet,
+    .image,
+    .font,
+    .media,
+    .xmlHTTPRequest,
+    .fetch,
+    .webSocket,
+    .other,
+  ]
+
+}
+
 /// PolicyRuntimeState 表示当前草稿与已激活或待确认快照之间的关系。
 public nonisolated enum Nonproxy_Control_V1_PolicyRuntimeState: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
@@ -961,6 +1122,9 @@ public nonisolated struct Nonproxy_Control_V1_StartLearningSessionRequest: Senda
   /// Clears the value of `duration`. Subsequent reads from it will return its default value.
   public mutating func clearDuration() {self._duration = nil}
 
+  /// browser_context_id 是扩展生成的随机标签页能力标识，不得使用浏览器真实 tab ID。
+  public var browserContextID: String = String()
+
   public var subject: Nonproxy_Control_V1_StartLearningSessionRequest.OneOf_Subject? = nil
 
   public var app: Nonproxy_Common_V1_AppIdentity {
@@ -1027,6 +1191,273 @@ public nonisolated struct Nonproxy_Control_V1_StartLearningSessionResponse: Send
   fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
 }
 
+/// LearningSessionSummary 返回不包含路径、查询参数或页面正文的学习会话。
+public nonisolated struct Nonproxy_Control_V1_LearningSessionSummary: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var sessionID: String {
+    get {_storage._sessionID}
+    set {_uniqueStorage()._sessionID = newValue}
+  }
+
+  public var kind: Nonproxy_Control_V1_LearningSessionKind {
+    get {_storage._kind}
+    set {_uniqueStorage()._kind = newValue}
+  }
+
+  public var state: Nonproxy_Control_V1_LearningSessionState {
+    get {_storage._state}
+    set {_uniqueStorage()._state = newValue}
+  }
+
+  public var browserContextID: String {
+    get {_storage._browserContextID}
+    set {_uniqueStorage()._browserContextID = newValue}
+  }
+
+  public var startedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_storage._startedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._startedAt = newValue}
+  }
+  /// Returns true if `startedAt` has been explicitly set.
+  public var hasStartedAt: Bool {_storage._startedAt != nil}
+  /// Clears the value of `startedAt`. Subsequent reads from it will return its default value.
+  public mutating func clearStartedAt() {_uniqueStorage()._startedAt = nil}
+
+  public var expiresAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_storage._expiresAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._expiresAt = newValue}
+  }
+  /// Returns true if `expiresAt` has been explicitly set.
+  public var hasExpiresAt: Bool {_storage._expiresAt != nil}
+  /// Clears the value of `expiresAt`. Subsequent reads from it will return its default value.
+  public mutating func clearExpiresAt() {_uniqueStorage()._expiresAt = nil}
+
+  public var stoppedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_storage._stoppedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._stoppedAt = newValue}
+  }
+  /// Returns true if `stoppedAt` has been explicitly set.
+  public var hasStoppedAt: Bool {_storage._stoppedAt != nil}
+  /// Clears the value of `stoppedAt`. Subsequent reads from it will return its default value.
+  public mutating func clearStoppedAt() {_uniqueStorage()._stoppedAt = nil}
+
+  public var subject: OneOf_Subject? {
+    get {return _storage._subject}
+    set {_uniqueStorage()._subject = newValue}
+  }
+
+  public var app: Nonproxy_Common_V1_AppIdentity {
+    get {
+      if case .app(let v)? = _storage._subject {return v}
+      return Nonproxy_Common_V1_AppIdentity()
+    }
+    set {_uniqueStorage()._subject = .app(newValue)}
+  }
+
+  public var normalizedSite: String {
+    get {
+      if case .normalizedSite(let v)? = _storage._subject {return v}
+      return String()
+    }
+    set {_uniqueStorage()._subject = .normalizedSite(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public nonisolated enum OneOf_Subject: Equatable, Sendable {
+    case app(Nonproxy_Common_V1_AppIdentity)
+    case normalizedSite(String)
+
+  }
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// LearningCandidate 是按域名聚合的学习结果，不包含原始 URL。
+public nonisolated struct Nonproxy_Control_V1_LearningCandidate: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var normalizedDomain: String = String()
+
+  public var registrableDomain: String = String()
+
+  public var kind: Nonproxy_Events_V1_LearningCandidateKind = .unspecified
+
+  public var confidence: Float = 0
+
+  public var requiresConfirmation: Bool = false
+
+  public var evidenceCount: UInt32 = 0
+
+  public var firstSeenAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_firstSeenAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_firstSeenAt = newValue}
+  }
+  /// Returns true if `firstSeenAt` has been explicitly set.
+  public var hasFirstSeenAt: Bool {self._firstSeenAt != nil}
+  /// Clears the value of `firstSeenAt`. Subsequent reads from it will return its default value.
+  public mutating func clearFirstSeenAt() {self._firstSeenAt = nil}
+
+  public var lastSeenAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_lastSeenAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_lastSeenAt = newValue}
+  }
+  /// Returns true if `lastSeenAt` has been explicitly set.
+  public var hasLastSeenAt: Bool {self._lastSeenAt != nil}
+  /// Clears the value of `lastSeenAt`. Subsequent reads from it will return its default value.
+  public mutating func clearLastSeenAt() {self._lastSeenAt = nil}
+
+  public var mainFrameCount: UInt32 = 0
+
+  public var subresourceCount: UInt32 = 0
+
+  public var redirectCount: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _firstSeenAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _lastSeenAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+/// RecordLearningObservationRequest 仅接受域名和枚举化元数据。
+public nonisolated struct Nonproxy_Control_V1_RecordLearningObservationRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var sessionID: String = String()
+
+  public var observationID: String = String()
+
+  public var browserContextID: String = String()
+
+  public var kind: Nonproxy_Control_V1_LearningObservationKind = .unspecified
+
+  public var normalizedDomain: String = String()
+
+  public var initiatorDomain: String = String()
+
+  public var resourceType: Nonproxy_Control_V1_LearningResourceType = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+}
+
+/// RecordLearningObservationResponse 返回更新后的聚合候选。
+public nonisolated struct Nonproxy_Control_V1_RecordLearningObservationResponse: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var candidate: Nonproxy_Control_V1_LearningCandidate {
+    get {_storage._candidate ?? Nonproxy_Control_V1_LearningCandidate()}
+    set {_uniqueStorage()._candidate = newValue}
+  }
+  /// Returns true if `candidate` has been explicitly set.
+  public var hasCandidate: Bool {_storage._candidate != nil}
+  /// Clears the value of `candidate`. Subsequent reads from it will return its default value.
+  public mutating func clearCandidate() {_uniqueStorage()._candidate = nil}
+
+  public var duplicate: Bool {
+    get {_storage._duplicate}
+    set {_uniqueStorage()._duplicate = newValue}
+  }
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_storage._error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_uniqueStorage()._error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {_storage._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {_uniqueStorage()._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// ListLearningCandidatesRequest 查询单个有界学习会话。
+public nonisolated struct Nonproxy_Control_V1_ListLearningCandidatesRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var sessionID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+}
+
+/// ListLearningCandidatesResponse 返回会话和最多 256 个候选。
+public nonisolated struct Nonproxy_Control_V1_ListLearningCandidatesResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var session: Nonproxy_Control_V1_LearningSessionSummary {
+    get {_session ?? Nonproxy_Control_V1_LearningSessionSummary()}
+    set {_session = newValue}
+  }
+  /// Returns true if `session` has been explicitly set.
+  public var hasSession: Bool {self._session != nil}
+  /// Clears the value of `session`. Subsequent reads from it will return its default value.
+  public mutating func clearSession() {self._session = nil}
+
+  public var candidates: [Nonproxy_Control_V1_LearningCandidate] = []
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _session: Nonproxy_Control_V1_LearningSessionSummary? = nil
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+}
+
 /// StopLearningSessionRequest 停止指定学习会话。
 public nonisolated struct Nonproxy_Control_V1_StopLearningSessionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -1068,11 +1499,21 @@ public nonisolated struct Nonproxy_Control_V1_StopLearningSessionResponse: Senda
   /// Clears the value of `error`. Subsequent reads from it will return its default value.
   public mutating func clearError() {self._error = nil}
 
+  public var session: Nonproxy_Control_V1_LearningSessionSummary {
+    get {_session ?? Nonproxy_Control_V1_LearningSessionSummary()}
+    set {_session = newValue}
+  }
+  /// Returns true if `session` has been explicitly set.
+  public var hasSession: Bool {self._session != nil}
+  /// Clears the value of `session`. Subsequent reads from it will return its default value.
+  public mutating func clearSession() {self._session = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+  fileprivate var _session: Nonproxy_Control_V1_LearningSessionSummary? = nil
 }
 
 /// ExportDiagnosticsRequest 请求生成本地诊断包，不自动上传。
@@ -1190,6 +1631,18 @@ nonisolated extension Nonproxy_Control_V1_OutboundKind: SwiftProtobuf._ProtoName
 
 nonisolated extension Nonproxy_Control_V1_LearningSessionKind: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0LEARNING_SESSION_KIND_UNSPECIFIED\0\u{1}LEARNING_SESSION_KIND_APP\0\u{1}LEARNING_SESSION_KIND_SITE\0")
+}
+
+nonisolated extension Nonproxy_Control_V1_LearningSessionState: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0LEARNING_SESSION_STATE_UNSPECIFIED\0\u{1}LEARNING_SESSION_STATE_ACTIVE\0\u{1}LEARNING_SESSION_STATE_STOPPED\0\u{1}LEARNING_SESSION_STATE_EXPIRED\0")
+}
+
+nonisolated extension Nonproxy_Control_V1_LearningObservationKind: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0LEARNING_OBSERVATION_KIND_UNSPECIFIED\0\u{1}LEARNING_OBSERVATION_KIND_MAIN_FRAME\0\u{1}LEARNING_OBSERVATION_KIND_SUBRESOURCE\0\u{1}LEARNING_OBSERVATION_KIND_REDIRECT\0")
+}
+
+nonisolated extension Nonproxy_Control_V1_LearningResourceType: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0LEARNING_RESOURCE_TYPE_UNSPECIFIED\0\u{1}LEARNING_RESOURCE_TYPE_MAIN_FRAME\0\u{1}LEARNING_RESOURCE_TYPE_SUB_FRAME\0\u{1}LEARNING_RESOURCE_TYPE_SCRIPT\0\u{1}LEARNING_RESOURCE_TYPE_STYLE_SHEET\0\u{1}LEARNING_RESOURCE_TYPE_IMAGE\0\u{1}LEARNING_RESOURCE_TYPE_FONT\0\u{1}LEARNING_RESOURCE_TYPE_MEDIA\0\u{1}LEARNING_RESOURCE_TYPE_XML_HTTP_REQUEST\0\u{1}LEARNING_RESOURCE_TYPE_FETCH\0\u{1}LEARNING_RESOURCE_TYPE_WEB_SOCKET\0\u{1}LEARNING_RESOURCE_TYPE_OTHER\0")
 }
 
 nonisolated extension Nonproxy_Control_V1_PolicyRuntimeState: SwiftProtobuf._ProtoNameProviding {
@@ -2245,7 +2698,7 @@ nonisolated extension Nonproxy_Control_V1_TestOutboundResponse: SwiftProtobuf.Me
 
 nonisolated extension Nonproxy_Control_V1_StartLearningSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StartLearningSessionRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{1}kind\0\u{1}app\0\u{3}normalized_site\0\u{1}duration\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{1}kind\0\u{1}app\0\u{3}normalized_site\0\u{1}duration\0\u{3}browser_context_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2277,6 +2730,7 @@ nonisolated extension Nonproxy_Control_V1_StartLearningSessionRequest: SwiftProt
         }
       }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._duration) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.browserContextID) }()
       default: break
       }
     }
@@ -2307,6 +2761,9 @@ nonisolated extension Nonproxy_Control_V1_StartLearningSessionRequest: SwiftProt
     try { if let v = self._duration {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
+    if !self.browserContextID.isEmpty {
+      try visitor.visitSingularStringField(value: self.browserContextID, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2314,6 +2771,7 @@ nonisolated extension Nonproxy_Control_V1_StartLearningSessionRequest: SwiftProt
     if lhs._context != rhs._context {return false}
     if lhs.kind != rhs.kind {return false}
     if lhs._duration != rhs._duration {return false}
+    if lhs.browserContextID != rhs.browserContextID {return false}
     if lhs.subject != rhs.subject {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -2364,6 +2822,473 @@ nonisolated extension Nonproxy_Control_V1_StartLearningSessionResponse: SwiftPro
   }
 }
 
+nonisolated extension Nonproxy_Control_V1_LearningSessionSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LearningSessionSummary"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{1}kind\0\u{1}state\0\u{3}browser_context_id\0\u{3}started_at\0\u{3}expires_at\0\u{3}stopped_at\0\u{1}app\0\u{3}normalized_site\0")
+
+  fileprivate class _StorageClass {
+    var _sessionID: String = String()
+    var _kind: Nonproxy_Control_V1_LearningSessionKind = .unspecified
+    var _state: Nonproxy_Control_V1_LearningSessionState = .unspecified
+    var _browserContextID: String = String()
+    var _startedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _expiresAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _stoppedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _subject: Nonproxy_Control_V1_LearningSessionSummary.OneOf_Subject?
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _sessionID = source._sessionID
+      _kind = source._kind
+      _state = source._state
+      _browserContextID = source._browserContextID
+      _startedAt = source._startedAt
+      _expiresAt = source._expiresAt
+      _stoppedAt = source._stoppedAt
+      _subject = source._subject
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._sessionID) }()
+        case 2: try { try decoder.decodeSingularEnumField(value: &_storage._kind) }()
+        case 3: try { try decoder.decodeSingularEnumField(value: &_storage._state) }()
+        case 4: try { try decoder.decodeSingularStringField(value: &_storage._browserContextID) }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._startedAt) }()
+        case 6: try { try decoder.decodeSingularMessageField(value: &_storage._expiresAt) }()
+        case 7: try { try decoder.decodeSingularMessageField(value: &_storage._stoppedAt) }()
+        case 8: try {
+          var v: Nonproxy_Common_V1_AppIdentity?
+          var hadOneofValue = false
+          if let current = _storage._subject {
+            hadOneofValue = true
+            if case .app(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._subject = .app(v)
+          }
+        }()
+        case 9: try {
+          var v: String?
+          try decoder.decodeSingularStringField(value: &v)
+          if let v = v {
+            if _storage._subject != nil {try decoder.handleConflictingOneOf()}
+            _storage._subject = .normalizedSite(v)
+          }
+        }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if !_storage._sessionID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._sessionID, fieldNumber: 1)
+      }
+      if _storage._kind != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._kind, fieldNumber: 2)
+      }
+      if _storage._state != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._state, fieldNumber: 3)
+      }
+      if !_storage._browserContextID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._browserContextID, fieldNumber: 4)
+      }
+      try { if let v = _storage._startedAt {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
+      try { if let v = _storage._expiresAt {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+      } }()
+      try { if let v = _storage._stoppedAt {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+      } }()
+      switch _storage._subject {
+      case .app?: try {
+        guard case .app(let v)? = _storage._subject else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      }()
+      case .normalizedSite?: try {
+        guard case .normalizedSite(let v)? = _storage._subject else { preconditionFailure() }
+        try visitor.visitSingularStringField(value: v, fieldNumber: 9)
+      }()
+      case nil: break
+      }
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_LearningSessionSummary, rhs: Nonproxy_Control_V1_LearningSessionSummary) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._sessionID != rhs_storage._sessionID {return false}
+        if _storage._kind != rhs_storage._kind {return false}
+        if _storage._state != rhs_storage._state {return false}
+        if _storage._browserContextID != rhs_storage._browserContextID {return false}
+        if _storage._startedAt != rhs_storage._startedAt {return false}
+        if _storage._expiresAt != rhs_storage._expiresAt {return false}
+        if _storage._stoppedAt != rhs_storage._stoppedAt {return false}
+        if _storage._subject != rhs_storage._subject {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_LearningCandidate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LearningCandidate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}normalized_domain\0\u{3}registrable_domain\0\u{1}kind\0\u{1}confidence\0\u{3}requires_confirmation\0\u{3}evidence_count\0\u{3}first_seen_at\0\u{3}last_seen_at\0\u{3}main_frame_count\0\u{3}subresource_count\0\u{3}redirect_count\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.normalizedDomain) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.registrableDomain) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.kind) }()
+      case 4: try { try decoder.decodeSingularFloatField(value: &self.confidence) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.requiresConfirmation) }()
+      case 6: try { try decoder.decodeSingularUInt32Field(value: &self.evidenceCount) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._firstSeenAt) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._lastSeenAt) }()
+      case 9: try { try decoder.decodeSingularUInt32Field(value: &self.mainFrameCount) }()
+      case 10: try { try decoder.decodeSingularUInt32Field(value: &self.subresourceCount) }()
+      case 11: try { try decoder.decodeSingularUInt32Field(value: &self.redirectCount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.normalizedDomain.isEmpty {
+      try visitor.visitSingularStringField(value: self.normalizedDomain, fieldNumber: 1)
+    }
+    if !self.registrableDomain.isEmpty {
+      try visitor.visitSingularStringField(value: self.registrableDomain, fieldNumber: 2)
+    }
+    if self.kind != .unspecified {
+      try visitor.visitSingularEnumField(value: self.kind, fieldNumber: 3)
+    }
+    if self.confidence.bitPattern != 0 {
+      try visitor.visitSingularFloatField(value: self.confidence, fieldNumber: 4)
+    }
+    if self.requiresConfirmation != false {
+      try visitor.visitSingularBoolField(value: self.requiresConfirmation, fieldNumber: 5)
+    }
+    if self.evidenceCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.evidenceCount, fieldNumber: 6)
+    }
+    try { if let v = self._firstSeenAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    try { if let v = self._lastSeenAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
+    if self.mainFrameCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.mainFrameCount, fieldNumber: 9)
+    }
+    if self.subresourceCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.subresourceCount, fieldNumber: 10)
+    }
+    if self.redirectCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.redirectCount, fieldNumber: 11)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_LearningCandidate, rhs: Nonproxy_Control_V1_LearningCandidate) -> Bool {
+    if lhs.normalizedDomain != rhs.normalizedDomain {return false}
+    if lhs.registrableDomain != rhs.registrableDomain {return false}
+    if lhs.kind != rhs.kind {return false}
+    if lhs.confidence != rhs.confidence {return false}
+    if lhs.requiresConfirmation != rhs.requiresConfirmation {return false}
+    if lhs.evidenceCount != rhs.evidenceCount {return false}
+    if lhs._firstSeenAt != rhs._firstSeenAt {return false}
+    if lhs._lastSeenAt != rhs._lastSeenAt {return false}
+    if lhs.mainFrameCount != rhs.mainFrameCount {return false}
+    if lhs.subresourceCount != rhs.subresourceCount {return false}
+    if lhs.redirectCount != rhs.redirectCount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_RecordLearningObservationRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RecordLearningObservationRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}session_id\0\u{3}observation_id\0\u{3}browser_context_id\0\u{1}kind\0\u{3}normalized_domain\0\u{3}initiator_domain\0\u{3}resource_type\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.observationID) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.browserContextID) }()
+      case 5: try { try decoder.decodeSingularEnumField(value: &self.kind) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.normalizedDomain) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.initiatorDomain) }()
+      case 8: try { try decoder.decodeSingularEnumField(value: &self.resourceType) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.sessionID.isEmpty {
+      try visitor.visitSingularStringField(value: self.sessionID, fieldNumber: 2)
+    }
+    if !self.observationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.observationID, fieldNumber: 3)
+    }
+    if !self.browserContextID.isEmpty {
+      try visitor.visitSingularStringField(value: self.browserContextID, fieldNumber: 4)
+    }
+    if self.kind != .unspecified {
+      try visitor.visitSingularEnumField(value: self.kind, fieldNumber: 5)
+    }
+    if !self.normalizedDomain.isEmpty {
+      try visitor.visitSingularStringField(value: self.normalizedDomain, fieldNumber: 6)
+    }
+    if !self.initiatorDomain.isEmpty {
+      try visitor.visitSingularStringField(value: self.initiatorDomain, fieldNumber: 7)
+    }
+    if self.resourceType != .unspecified {
+      try visitor.visitSingularEnumField(value: self.resourceType, fieldNumber: 8)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_RecordLearningObservationRequest, rhs: Nonproxy_Control_V1_RecordLearningObservationRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.sessionID != rhs.sessionID {return false}
+    if lhs.observationID != rhs.observationID {return false}
+    if lhs.browserContextID != rhs.browserContextID {return false}
+    if lhs.kind != rhs.kind {return false}
+    if lhs.normalizedDomain != rhs.normalizedDomain {return false}
+    if lhs.initiatorDomain != rhs.initiatorDomain {return false}
+    if lhs.resourceType != rhs.resourceType {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_RecordLearningObservationResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RecordLearningObservationResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}candidate\0\u{1}duplicate\0\u{1}error\0")
+
+  fileprivate class _StorageClass {
+    var _candidate: Nonproxy_Control_V1_LearningCandidate? = nil
+    var _duplicate: Bool = false
+    var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _candidate = source._candidate
+      _duplicate = source._duplicate
+      _error = source._error
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._candidate) }()
+        case 2: try { try decoder.decodeSingularBoolField(value: &_storage._duplicate) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._error) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._candidate {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      if _storage._duplicate != false {
+        try visitor.visitSingularBoolField(value: _storage._duplicate, fieldNumber: 2)
+      }
+      try { if let v = _storage._error {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_RecordLearningObservationResponse, rhs: Nonproxy_Control_V1_RecordLearningObservationResponse) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._candidate != rhs_storage._candidate {return false}
+        if _storage._duplicate != rhs_storage._duplicate {return false}
+        if _storage._error != rhs_storage._error {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ListLearningCandidatesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListLearningCandidatesRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}session_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.sessionID.isEmpty {
+      try visitor.visitSingularStringField(value: self.sessionID, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ListLearningCandidatesRequest, rhs: Nonproxy_Control_V1_ListLearningCandidatesRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.sessionID != rhs.sessionID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ListLearningCandidatesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListLearningCandidatesResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}session\0\u{1}candidates\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._session) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.candidates) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._session {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.candidates.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.candidates, fieldNumber: 2)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ListLearningCandidatesResponse, rhs: Nonproxy_Control_V1_ListLearningCandidatesResponse) -> Bool {
+    if lhs._session != rhs._session {return false}
+    if lhs.candidates != rhs.candidates {return false}
+    if lhs._error != rhs._error {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Nonproxy_Control_V1_StopLearningSessionRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StopLearningSessionRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}session_id\0")
@@ -2405,7 +3330,7 @@ nonisolated extension Nonproxy_Control_V1_StopLearningSessionRequest: SwiftProto
 
 nonisolated extension Nonproxy_Control_V1_StopLearningSessionResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StopLearningSessionResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}candidate_count\0\u{1}error\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}candidate_count\0\u{1}error\0\u{1}session\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2415,6 +3340,7 @@ nonisolated extension Nonproxy_Control_V1_StopLearningSessionResponse: SwiftProt
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularUInt32Field(value: &self.candidateCount) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._session) }()
       default: break
       }
     }
@@ -2431,12 +3357,16 @@ nonisolated extension Nonproxy_Control_V1_StopLearningSessionResponse: SwiftProt
     try { if let v = self._error {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    try { if let v = self._session {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Nonproxy_Control_V1_StopLearningSessionResponse, rhs: Nonproxy_Control_V1_StopLearningSessionResponse) -> Bool {
     if lhs.candidateCount != rhs.candidateCount {return false}
     if lhs._error != rhs._error {return false}
+    if lhs._session != rhs._session {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

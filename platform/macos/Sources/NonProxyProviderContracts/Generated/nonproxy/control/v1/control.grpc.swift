@@ -163,6 +163,32 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "RecordLearningObservation" metadata.
+        public enum RecordLearningObservation: Sendable {
+            /// Request type for "RecordLearningObservation".
+            public typealias Input = Nonproxy_Control_V1_RecordLearningObservationRequest
+            /// Response type for "RecordLearningObservation".
+            public typealias Output = Nonproxy_Control_V1_RecordLearningObservationResponse
+            /// Descriptor for "RecordLearningObservation".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "RecordLearningObservation",
+                type: .unary
+            )
+        }
+        /// Namespace for "ListLearningCandidates" metadata.
+        public enum ListLearningCandidates: Sendable {
+            /// Request type for "ListLearningCandidates".
+            public typealias Input = Nonproxy_Control_V1_ListLearningCandidatesRequest
+            /// Response type for "ListLearningCandidates".
+            public typealias Output = Nonproxy_Control_V1_ListLearningCandidatesResponse
+            /// Descriptor for "ListLearningCandidates".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "ListLearningCandidates",
+                type: .unary
+            )
+        }
         /// Namespace for "StopLearningSession" metadata.
         public enum StopLearningSession: Sendable {
             /// Request type for "StopLearningSession".
@@ -215,6 +241,8 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             ImportConfiguration.descriptor,
             TestOutbound.descriptor,
             StartLearningSession.descriptor,
+            RecordLearningObservation.descriptor,
+            ListLearningCandidates.descriptor,
             StopLearningSession.descriptor,
             ExportDiagnostics.descriptor,
             SubscribeEvents.descriptor
@@ -448,6 +476,44 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_StartLearningSessionResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_StartLearningSessionResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "RecordLearningObservation" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_RecordLearningObservationRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_RecordLearningObservationRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_RecordLearningObservationResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func recordLearningObservation<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_RecordLearningObservationRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_RecordLearningObservationRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_RecordLearningObservationResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_RecordLearningObservationResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "ListLearningCandidates" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ListLearningCandidatesRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ListLearningCandidatesRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ListLearningCandidatesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func listLearningCandidates<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListLearningCandidatesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ListLearningCandidatesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListLearningCandidatesResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListLearningCandidatesResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "StopLearningSession" method.
@@ -858,6 +924,66 @@ extension Nonproxy_Control_V1_ControlService {
             )
         }
 
+        /// Call the "RecordLearningObservation" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_RecordLearningObservationRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_RecordLearningObservationRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_RecordLearningObservationResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func recordLearningObservation<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_RecordLearningObservationRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_RecordLearningObservationRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_RecordLearningObservationResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_RecordLearningObservationResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.RecordLearningObservation.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "ListLearningCandidates" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ListLearningCandidatesRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ListLearningCandidatesRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ListLearningCandidatesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func listLearningCandidates<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListLearningCandidatesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ListLearningCandidatesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListLearningCandidatesResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListLearningCandidatesResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.ListLearningCandidates.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
         /// Call the "StopLearningSession" method.
         ///
         /// - Parameters:
@@ -1221,6 +1347,56 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_StartLearningSessionRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_StartLearningSessionResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "RecordLearningObservation" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_RecordLearningObservationRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func recordLearningObservation<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_RecordLearningObservationRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_RecordLearningObservationResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.recordLearningObservation(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_RecordLearningObservationRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_RecordLearningObservationResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListLearningCandidates" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_ListLearningCandidatesRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listLearningCandidates<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListLearningCandidatesRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListLearningCandidatesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.listLearningCandidates(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_ListLearningCandidatesRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_ListLearningCandidatesResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1616,6 +1792,64 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.startLearningSession(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "RecordLearningObservation" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func recordLearningObservation<Result>(
+        _ message: Nonproxy_Control_V1_RecordLearningObservationRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_RecordLearningObservationResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_RecordLearningObservationRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.recordLearningObservation(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListLearningCandidates" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listLearningCandidates<Result>(
+        _ message: Nonproxy_Control_V1_ListLearningCandidatesRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListLearningCandidatesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_ListLearningCandidatesRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.listLearningCandidates(
             request: request,
             options: options,
             onResponse: handleResponse

@@ -36,4 +36,20 @@ public interface IControlRpcClient
     Task<ImportConfigurationResponse> ImportConfigurationAsync(
         byte[] configuration,
         CancellationToken cancellationToken);
+
+    Task<StartLearningSessionResponse> StartLearningSessionAsync(
+        StartLearningSessionRequest request,
+        CancellationToken cancellationToken);
+
+    Task<RecordLearningObservationResponse> RecordLearningObservationAsync(
+        RecordLearningObservationRequest request,
+        CancellationToken cancellationToken);
+
+    Task<ListLearningCandidatesResponse> ListLearningCandidatesAsync(
+        string sessionId,
+        CancellationToken cancellationToken);
+
+    Task<StopLearningSessionResponse> StopLearningSessionAsync(
+        string sessionId,
+        CancellationToken cancellationToken);
 }

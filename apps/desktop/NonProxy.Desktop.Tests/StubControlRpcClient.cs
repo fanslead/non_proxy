@@ -34,6 +34,14 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public ImportConfigurationResponse ImportResponse { get; set; } = new();
 
+    public StartLearningSessionResponse StartLearningResponse { get; set; } = new();
+
+    public RecordLearningObservationResponse RecordLearningResponse { get; set; } = new();
+
+    public ListLearningCandidatesResponse LearningCandidatesResponse { get; set; } = new();
+
+    public StopLearningSessionResponse StopLearningResponse { get; set; } = new();
+
     public string? LastImportedConfiguration { get; private set; }
 
     public ProtoPolicy? LastUpsertedPolicy { get; private set; }
@@ -117,5 +125,37 @@ internal sealed class StubControlRpcClient : IControlRpcClient
         cancellationToken.ThrowIfCancellationRequested();
         LastImportedConfiguration = Encoding.UTF8.GetString(configuration);
         return Task.FromResult(ImportResponse);
+    }
+
+    public Task<StartLearningSessionResponse> StartLearningSessionAsync(
+        StartLearningSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(StartLearningResponse);
+    }
+
+    public Task<RecordLearningObservationResponse> RecordLearningObservationAsync(
+        RecordLearningObservationRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(RecordLearningResponse);
+    }
+
+    public Task<ListLearningCandidatesResponse> ListLearningCandidatesAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(LearningCandidatesResponse);
+    }
+
+    public Task<StopLearningSessionResponse> StopLearningSessionAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(StopLearningResponse);
     }
 }

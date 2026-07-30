@@ -6,13 +6,16 @@ use nonproxy_model::{
 };
 use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::control::v1::{
-    ApplyPolicySnapshotRequest, ImportConfigurationRequest, OperationContext, UpsertPolicyRequest,
-    control_service_server::ControlService,
+    ApplyPolicySnapshotRequest, ImportConfigurationRequest, LearningObservationKind,
+    LearningResourceType, LearningSessionKind, ListLearningCandidatesRequest, OperationContext,
+    RecordLearningObservationRequest, StartLearningSessionRequest, StopLearningSessionRequest,
+    UpsertPolicyRequest, control_service_server::ControlService, start_learning_session_request,
 };
+use nonproxy_proto::events::v1::{LearningCandidateKind, event_envelope};
 use nonproxy_storage::PolicyDatabase;
 use tonic::{Code, Request};
 
-use super::ControlRpcService;
+use crate::control_rpc_service::ControlRpcService;
 use crate::{
     Gateway, credential_store::tests_support::MemoryCredentialStore, proto_policy::policy_to_proto,
     session_capability::SessionCapability,
@@ -160,6 +163,135 @@ async fn validate_only_import_does_not_write_metadata_or_credentials() {
     assert!(credentials.is_empty());
 }
 
+#[tokio::test]
+async fn site_learning_rpc_is_bounded_tab_scoped_and_evented() {
+    let database = PolicyDatabase::open_in_memory(1);
+    let Ok(database) = database else {
+        panic!("学习 RPC 测试数据库打开失败: {database:?}");
+    };
+    let gateway = Gateway::new(database, CompileCapabilities::full());
+    let service = ControlRpcService::new(gateway.clone(), SessionCapability::from_token([7; 32]));
+    let started = service
+        .start_learning_session(Request::new(StartLearningSessionRequest {
+            context: Some(context([7; 32], "start-learning")),
+            kind: LearningSessionKind::Site as i32,
+            duration: Some(prost_types::Duration {
+                seconds: 60,
+                nanos: 0,
+            }),
+            browser_context_id: "browser-context-a".to_owned(),
+            subject: Some(start_learning_session_request::Subject::NormalizedSite(
+                "example.com".to_owned(),
+            )),
+        }))
+        .await;
+    let Ok(started) = started else {
+        panic!("学习会话启动 RPC 失败: {started:?}");
+    };
+    let started = started.into_inner();
+    assert!(started.error.is_none());
+    assert!(!started.session_id.is_empty());
+
+    let record = learning_observation(&started.session_id, "browser-context-a");
+    let recorded = service
+        .record_learning_observation(Request::new(record.clone()))
+        .await;
+    let Ok(recorded) = recorded else {
+        panic!("学习观测 RPC 失败: {recorded:?}");
+    };
+    let recorded = recorded.into_inner();
+    let Some(candidate) = recorded.candidate else {
+        panic!("学习观测必须返回聚合候选");
+    };
+    assert!(!recorded.duplicate);
+    assert_eq!(candidate.normalized_domain, "api.example.com");
+    assert_eq!(
+        candidate.kind,
+        LearningCandidateKind::RequiredFirstParty as i32
+    );
+    assert!(candidate.requires_confirmation);
+
+    let replayed = service
+        .record_learning_observation(Request::new(record))
+        .await;
+    assert!(matches!(
+        replayed,
+        Ok(value) if value.get_ref().duplicate
+    ));
+    let events = gateway.events().subscribe(0);
+    let Ok((events, _receiver)) = events else {
+        panic!("学习候选事件读取失败: {events:?}");
+    };
+    assert_eq!(events.len(), 1);
+    assert!(matches!(
+        events[0].payload.as_ref(),
+        Some(event_envelope::Payload::LearningCandidateUpdated(value))
+            if value.session_id == started.session_id
+    ));
+
+    let listed = service
+        .list_learning_candidates(Request::new(ListLearningCandidatesRequest {
+            context: Some(context([7; 32], "list-learning")),
+            session_id: started.session_id.clone(),
+        }))
+        .await;
+    assert!(matches!(
+        listed,
+        Ok(value) if value.get_ref().candidates.len() == 1
+    ));
+
+    let stopped = service
+        .stop_learning_session(Request::new(StopLearningSessionRequest {
+            context: Some(context([7; 32], "stop-learning")),
+            session_id: started.session_id,
+        }))
+        .await;
+    assert!(matches!(
+        stopped,
+        Ok(value) if value.get_ref().candidate_count == 1
+    ));
+}
+
+#[tokio::test]
+async fn learning_rpc_rejects_cross_tab_and_non_normalized_domains() {
+    let service = service([7; 32]);
+    let mut start = StartLearningSessionRequest {
+        context: Some(context([7; 32], "start-learning")),
+        kind: LearningSessionKind::Site as i32,
+        duration: None,
+        browser_context_id: "browser-context-a".to_owned(),
+        subject: Some(start_learning_session_request::Subject::NormalizedSite(
+            "Example.COM".to_owned(),
+        )),
+    };
+    let invalid = service
+        .start_learning_session(Request::new(start.clone()))
+        .await;
+    assert!(matches!(invalid, Err(status) if status.code() == Code::InvalidArgument));
+
+    start.subject = Some(start_learning_session_request::Subject::NormalizedSite(
+        "example.com".to_owned(),
+    ));
+    let started = service.start_learning_session(Request::new(start)).await;
+    let Ok(started) = started else {
+        panic!("跨标签页测试会话启动失败: {started:?}");
+    };
+    let session_id = started.into_inner().session_id;
+    let result = service
+        .record_learning_observation(Request::new(learning_observation(
+            &session_id,
+            "browser-context-b",
+        )))
+        .await;
+    let Ok(result) = result else {
+        panic!("跨标签页拒绝应返回结构化错误: {result:?}");
+    };
+    assert!(matches!(
+        result.into_inner().error,
+        Some(error) if error.code == "NP_LEARNING_BROWSER_CONTEXT_MISMATCH"
+    ));
+}
+
 fn service(token: [u8; 32]) -> ControlRpcService {
     let database = PolicyDatabase::open_in_memory(1);
     let Ok(database) = database else {
@@ -169,6 +301,22 @@ fn service(token: [u8; 32]) -> ControlRpcService {
         Gateway::new(database, CompileCapabilities::full()),
         SessionCapability::from_token(token),
     )
+}
+
+fn learning_observation(
+    session_id: &str,
+    browser_context_id: &str,
+) -> RecordLearningObservationRequest {
+    RecordLearningObservationRequest {
+        context: Some(context([7; 32], "record-learning")),
+        session_id: session_id.to_owned(),
+        observation_id: "observation-a".to_owned(),
+        browser_context_id: browser_context_id.to_owned(),
+        kind: LearningObservationKind::Subresource as i32,
+        normalized_domain: "api.example.com".to_owned(),
+        initiator_domain: "example.com".to_owned(),
+        resource_type: LearningResourceType::Fetch as i32,
+    }
 }
 
 fn context(token: [u8; 32], operation_id: &str) -> OperationContext {

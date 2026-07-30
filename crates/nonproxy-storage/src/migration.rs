@@ -15,6 +15,7 @@ const POLICY_CATALOG_GENERATION: &str =
     include_str!("../../../migrations/V0002__policy_catalog_generation.sql");
 const PROVIDER_GENERATION: &str =
     include_str!("../../../migrations/V0003__provider_generation.sql");
+const LEARNING_SESSIONS: &str = include_str!("../../../migrations/V0004__learning_sessions.sql");
 
 struct Migration {
     version: i64,
@@ -37,6 +38,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 3,
         name: "provider_generation",
         sql: PROVIDER_GENERATION,
+    },
+    Migration {
+        version: 4,
+        name: "learning_sessions",
+        sql: LEARNING_SESSIONS,
     },
 ];
 
@@ -308,90 +314,5 @@ pub(crate) fn to_sqlite_u64(value: u64) -> Result<i64, StorageError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use rusqlite::Connection;
-
-    use super::*;
-
-    #[test]
-    fn a_failed_migration_rolls_back_the_entire_group() {
-        let mut connection = match Connection::open_in_memory() {
-            Ok(value) => value,
-            Err(error) => panic!("迁移原子性测试数据库打开失败: {error}"),
-        };
-        let migrations = [
-            Migration {
-                version: 1,
-                name: "first",
-                sql: "CREATE TABLE schema_migration (
-                          version INTEGER PRIMARY KEY,
-                          name TEXT NOT NULL,
-                          checksum BLOB NOT NULL,
-                          applied_at_unix_ms INTEGER NOT NULL
-                      );
-                      CREATE TABLE first_table(value TEXT);",
-            },
-            Migration {
-                version: 2,
-                name: "broken",
-                sql: "CREATE TABLE broken(",
-            },
-        ];
-        assert!(migrate_with(&mut connection, None, 1_000, &migrations).is_err());
-        let first_table_exists: bool = match connection.query_row(
-            "SELECT EXISTS(
-                SELECT 1 FROM sqlite_schema
-                WHERE type = 'table' AND name = 'first_table'
-             )",
-            [],
-            |row| row.get(0),
-        ) {
-            Ok(value) => value,
-            Err(error) => panic!("迁移原子性结果读取失败: {error}"),
-        };
-
-        assert!(!first_table_exists);
-    }
-
-    #[test]
-    fn an_existing_v1_database_upgrades_without_reapplying_v1() {
-        let mut connection = match Connection::open_in_memory() {
-            Ok(value) => value,
-            Err(error) => panic!("迁移升级测试数据库打开失败: {error}"),
-        };
-        let v1 = [Migration {
-            version: 1,
-            name: "initial_schema",
-            sql: INITIAL_SCHEMA,
-        }];
-        let first = migrate_with(&mut connection, None, 1_000, &v1);
-        let Ok(first) = first else {
-            panic!("V1 数据库初始化失败: {first:?}");
-        };
-        assert_eq!(first.current_version(), 1);
-
-        let upgraded = migrate_with(&mut connection, None, 2_000, MIGRATIONS);
-        let Ok(upgraded) = upgraded else {
-            panic!("V1 数据库升级失败: {upgraded:?}");
-        };
-        assert_eq!(upgraded.previous_version(), 1);
-        assert_eq!(upgraded.current_version(), 3);
-        assert_eq!(
-            upgraded
-                .applied()
-                .iter()
-                .map(AppliedMigration::version)
-                .collect::<Vec<_>>(),
-            vec![2, 3]
-        );
-        let generation: i64 = match connection.query_row(
-            "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
-            [],
-            |row| row.get(0),
-        ) {
-            Ok(value) => value,
-            Err(error) => panic!("升级后目录代数读取失败: {error}"),
-        };
-        assert_eq!(generation, 0);
-    }
-}
+#[path = "migration_tests.rs"]
+mod tests;

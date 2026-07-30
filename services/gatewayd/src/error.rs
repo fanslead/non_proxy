@@ -1,3 +1,4 @@
+use nonproxy_learning::LearningError;
 use nonproxy_model::ModelError;
 use nonproxy_policy_compiler::CompileError;
 use nonproxy_storage::StorageError;
@@ -7,6 +8,8 @@ use thiserror::Error;
 pub enum GatewayError {
     #[error("领域数据无效: {0}")]
     Model(#[from] ModelError),
+    #[error("学习领域数据无效: {0}")]
+    Learning(#[from] LearningError),
     #[error("持久化操作失败: {0}")]
     Storage(#[from] StorageError),
     #[error("策略编译失败: {0}")]
@@ -52,11 +55,19 @@ impl GatewayError {
             Self::Model(_) | Self::InvalidContract(_) | Self::InvalidRequest(_) => {
                 "NP_REQUEST_INVALID"
             }
+            Self::Learning(error) => error.code(),
             Self::Storage(StorageError::PolicyRevisionConflict) => "NP_POLICY_REVISION_CONFLICT",
             Self::Storage(StorageError::OutboundRevisionConflict) => {
                 "NP_OUTBOUND_REVISION_CONFLICT"
             }
             Self::Storage(StorageError::PendingSnapshotExists) => "NP_SNAPSHOT_ALREADY_PENDING",
+            Self::Storage(
+                error @ (StorageError::LearningSessionNotFound
+                | StorageError::ActiveLearningSessionExists
+                | StorageError::LearningCandidateLimitReached
+                | StorageError::LearningObservationLimitReached
+                | StorageError::Learning(_)),
+            ) => error.code(),
             Self::Storage(_) => "NP_STORAGE_FAILURE",
             Self::Compile(_) => "NP_POLICY_COMPILE_REJECTED",
             Self::SnapshotEncoding(_) | Self::SnapshotDecoding(_) => "NP_SNAPSHOT_CODEC_FAILED",

@@ -1,7 +1,6 @@
 use std::{path::Path, sync::Arc};
 
 use nonproxy_model::{DecisionSpec, OutboundId, Policy, PolicyId};
-use nonproxy_policy::OutboundCapabilities;
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
 use nonproxy_storage::{
     OutboundReference, PolicyDatabase, ProviderAck, ProviderAckState, SnapshotArtifact,
@@ -14,6 +13,7 @@ use crate::{
     clock::unix_time_ms,
     database_executor::DatabaseExecutor,
     event_hub::EventHub,
+    outbound_capabilities,
     provider_health::ProviderHealthRegistry,
     provider_requirements,
     runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, build_runtime_catalog},
@@ -22,9 +22,9 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Gateway {
-    database: DatabaseExecutor,
+    pub(crate) database: DatabaseExecutor,
     capabilities: CompileCapabilities,
-    mutation_gate: Arc<Mutex<()>>,
+    pub(crate) mutation_gate: Arc<Mutex<()>>,
     events: EventHub,
     provider_health: ProviderHealthRegistry,
 }
@@ -170,7 +170,8 @@ impl Gateway {
             .run(move |database| {
                 let policies = database.policies().list()?;
                 let outbounds = database.outbounds().list()?;
-                let capabilities = capabilities_for_outbounds(capabilities, &outbounds);
+                let capabilities =
+                    outbound_capabilities::for_configured_outbounds(capabilities, &outbounds);
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
                 let snapshot_version = current
                     .checked_add(1)
@@ -359,23 +360,6 @@ impl Gateway {
             })
             .await
     }
-}
-
-fn capabilities_for_outbounds(
-    mut capabilities: CompileCapabilities,
-    outbounds: &[OutboundReference],
-) -> CompileCapabilities {
-    for outbound in outbounds.iter().filter(|value| value.enabled()) {
-        let outbound_capabilities = match outbound.kind() {
-            nonproxy_storage::OutboundKind::HttpConnect => {
-                OutboundCapabilities::new(true, false, true, true)
-            }
-            nonproxy_storage::OutboundKind::Socks5 => OutboundCapabilities::full(),
-            nonproxy_storage::OutboundKind::Adapter => continue,
-        };
-        capabilities = capabilities.with_outbound(outbound.id().clone(), outbound_capabilities);
-    }
-    capabilities
 }
 
 impl PublishedSnapshot {

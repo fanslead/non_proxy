@@ -182,6 +182,72 @@ public sealed class GrpcControlRpcClient : IControlRpcClient, IDisposable
         }
     }
 
+    public async Task<StartLearningSessionResponse> StartLearningSessionAsync(
+        StartLearningSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var authenticated = request.Clone();
+        authenticated.Context = await _contextProvider.CreateAsync(
+            "start-learning",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.StartLearningSessionAsync(
+                authenticated,
+                MutationOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public async Task<RecordLearningObservationResponse> RecordLearningObservationAsync(
+        RecordLearningObservationRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var authenticated = request.Clone();
+        authenticated.Context = await _contextProvider.CreateAsync(
+            "record-learning",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.RecordLearningObservationAsync(
+                authenticated,
+                MutationOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public async Task<ListLearningCandidatesResponse> ListLearningCandidatesAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        var context = await _contextProvider.CreateAsync(
+            "list-learning",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.ListLearningCandidatesAsync(
+                new ListLearningCandidatesRequest
+                {
+                    Context = context,
+                    SessionId = sessionId,
+                },
+                ReadOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public async Task<StopLearningSessionResponse> StopLearningSessionAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        var context = await _contextProvider.CreateAsync(
+            "stop-learning",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.StopLearningSessionAsync(
+                new StopLearningSessionRequest
+                {
+                    Context = context,
+                    SessionId = sessionId,
+                },
+                MutationOptions(cancellationToken)).ResponseAsync);
+    }
+
     public void Dispose()
     {
         if (_channel.IsValueCreated)

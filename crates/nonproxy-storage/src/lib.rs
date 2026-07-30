@@ -1,5 +1,7 @@
 mod database;
 mod error;
+mod learning_codec;
+mod learning_repository;
 mod migration;
 mod network_profile;
 mod outbound_repository;
@@ -14,6 +16,7 @@ mod types;
 
 pub use database::PolicyDatabase;
 pub use error::StorageError;
+pub use learning_repository::{LearningObservationResult, LearningRepository, StoppedLearning};
 pub use migration::{AppliedMigration, MigrationReport};
 pub use network_profile::{
     NetworkFingerprint, NetworkFingerprintKind, NetworkProfileReference, NetworkProfileRepository,

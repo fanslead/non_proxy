@@ -23,6 +23,8 @@ service ControlService {
   rpc ImportConfiguration(ImportConfigurationRequest) returns (ImportConfigurationResponse);
   rpc TestOutbound(TestOutboundRequest) returns (TestOutboundResponse);
   rpc StartLearningSession(StartLearningSessionRequest) returns (StartLearningSessionResponse);
+  rpc RecordLearningObservation(RecordLearningObservationRequest) returns (RecordLearningObservationResponse);
+  rpc ListLearningCandidates(ListLearningCandidatesRequest) returns (ListLearningCandidatesResponse);
   rpc StopLearningSession(StopLearningSessionRequest) returns (StopLearningSessionResponse);
   rpc ExportDiagnostics(ExportDiagnosticsRequest) returns (ExportDiagnosticsResponse);
   rpc SubscribeEvents(SubscribeEventsRequest) returns (stream SubscribeEventsResponse);
@@ -60,6 +62,38 @@ enum LearningSessionKind {
   LEARNING_SESSION_KIND_UNSPECIFIED = 0;
   LEARNING_SESSION_KIND_APP = 1;
   LEARNING_SESSION_KIND_SITE = 2;
+}
+
+// LearningSessionState 表示学习会话是否仍可接收观测。
+enum LearningSessionState {
+  LEARNING_SESSION_STATE_UNSPECIFIED = 0;
+  LEARNING_SESSION_STATE_ACTIVE = 1;
+  LEARNING_SESSION_STATE_STOPPED = 2;
+  LEARNING_SESSION_STATE_EXPIRED = 3;
+}
+
+// LearningObservationKind 表示浏览器上报的最小化网络事件类别。
+enum LearningObservationKind {
+  LEARNING_OBSERVATION_KIND_UNSPECIFIED = 0;
+  LEARNING_OBSERVATION_KIND_MAIN_FRAME = 1;
+  LEARNING_OBSERVATION_KIND_SUBRESOURCE = 2;
+  LEARNING_OBSERVATION_KIND_REDIRECT = 3;
+}
+
+// LearningResourceType 表示不包含页面正文和 URL 路径的资源类别。
+enum LearningResourceType {
+  LEARNING_RESOURCE_TYPE_UNSPECIFIED = 0;
+  LEARNING_RESOURCE_TYPE_MAIN_FRAME = 1;
+  LEARNING_RESOURCE_TYPE_SUB_FRAME = 2;
+  LEARNING_RESOURCE_TYPE_SCRIPT = 3;
+  LEARNING_RESOURCE_TYPE_STYLE_SHEET = 4;
+  LEARNING_RESOURCE_TYPE_IMAGE = 5;
+  LEARNING_RESOURCE_TYPE_FONT = 6;
+  LEARNING_RESOURCE_TYPE_MEDIA = 7;
+  LEARNING_RESOURCE_TYPE_XML_HTTP_REQUEST = 8;
+  LEARNING_RESOURCE_TYPE_FETCH = 9;
+  LEARNING_RESOURCE_TYPE_WEB_SOCKET = 10;
+  LEARNING_RESOURCE_TYPE_OTHER = 11;
 }
 
 // PolicyRuntimeState 表示当前草稿与已激活或待确认快照之间的关系。
@@ -252,6 +286,8 @@ message StartLearningSessionRequest {
   OperationContext context = 1;
   LearningSessionKind kind = 2;
   google.protobuf.Duration duration = 5;
+  // browser_context_id 是扩展生成的随机标签页能力标识，不得使用浏览器真实 tab ID。
+  string browser_context_id = 6;
   oneof subject {
     nonproxy.common.v1.AppIdentity app = 3;
     string normalized_site = 4;
@@ -265,6 +301,68 @@ message StartLearningSessionResponse {
   nonproxy.common.v1.ErrorDetail error = 3;
 }
 
+// LearningSessionSummary 返回不包含路径、查询参数或页面正文的学习会话。
+message LearningSessionSummary {
+  string session_id = 1;
+  LearningSessionKind kind = 2;
+  LearningSessionState state = 3;
+  string browser_context_id = 4;
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  google.protobuf.Timestamp stopped_at = 7;
+  oneof subject {
+    nonproxy.common.v1.AppIdentity app = 8;
+    string normalized_site = 9;
+  }
+}
+
+// LearningCandidate 是按域名聚合的学习结果，不包含原始 URL。
+message LearningCandidate {
+  string normalized_domain = 1;
+  string registrable_domain = 2;
+  nonproxy.events.v1.LearningCandidateKind kind = 3;
+  float confidence = 4;
+  bool requires_confirmation = 5;
+  uint32 evidence_count = 6;
+  google.protobuf.Timestamp first_seen_at = 7;
+  google.protobuf.Timestamp last_seen_at = 8;
+  uint32 main_frame_count = 9;
+  uint32 subresource_count = 10;
+  uint32 redirect_count = 11;
+}
+
+// RecordLearningObservationRequest 仅接受域名和枚举化元数据。
+message RecordLearningObservationRequest {
+  OperationContext context = 1;
+  string session_id = 2;
+  string observation_id = 3;
+  string browser_context_id = 4;
+  LearningObservationKind kind = 5;
+  string normalized_domain = 6;
+  string initiator_domain = 7;
+  LearningResourceType resource_type = 8;
+}
+
+// RecordLearningObservationResponse 返回更新后的聚合候选。
+message RecordLearningObservationResponse {
+  LearningCandidate candidate = 1;
+  bool duplicate = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// ListLearningCandidatesRequest 查询单个有界学习会话。
+message ListLearningCandidatesRequest {
+  OperationContext context = 1;
+  string session_id = 2;
+}
+
+// ListLearningCandidatesResponse 返回会话和最多 256 个候选。
+message ListLearningCandidatesResponse {
+  LearningSessionSummary session = 1;
+  repeated LearningCandidate candidates = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
+
 // StopLearningSessionRequest 停止指定学习会话。
 message StopLearningSessionRequest {
   OperationContext context = 1;
@@ -275,6 +373,7 @@ message StopLearningSessionRequest {
 message StopLearningSessionResponse {
   uint32 candidate_count = 1;
   nonproxy.common.v1.ErrorDetail error = 2;
+  LearningSessionSummary session = 3;
 }
 
 // ExportDiagnosticsRequest 请求生成本地诊断包，不自动上传。

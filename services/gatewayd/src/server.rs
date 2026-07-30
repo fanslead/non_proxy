@@ -6,7 +6,7 @@ use nonproxy_proto::provider::v1::provider_service_server::ProviderServiceServer
 
 use crate::{
     GatewayConfig, GatewayError,
-    control_service::ControlRpcService,
+    control_rpc_service::ControlRpcService,
     credential_store::{CredentialStore, OsCredentialStore},
     gateway::Gateway,
     provider_service::ProviderRpcService,
@@ -190,7 +190,7 @@ mod tests {
     use super::serve_unix_with_shutdown;
     use crate::{
         GatewayConfig,
-        control_service::ControlRpcService,
+        control_rpc_service::ControlRpcService,
         credential_store::{CredentialStore, tests_support::MemoryCredentialStore},
         flow_server::FlowConnectionHandler,
         gateway::Gateway,
