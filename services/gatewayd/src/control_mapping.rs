@@ -2,13 +2,19 @@ use nonproxy_model::{IpFamily, Transport};
 use nonproxy_policy_compiler::{CompileCapabilities, CompileError};
 use nonproxy_proto::{
     common::v1::{self as common_proto, ErrorDetail, PageResponse},
-    control::v1::{CapabilityName, OutboundKind as ProtoOutboundKind, OutboundSummary},
+    control::v1::{
+        CapabilityName, OutboundKind as ProtoOutboundKind, OutboundSummary,
+        PolicyRuntimeState as ProtoPolicyRuntimeState, PolicyStatus,
+    },
     events::v1::RuntimeState,
     policy::v1::{PolicyConflict as ProtoPolicyConflict, PolicySnapshotMetadata, SnapshotState},
 };
 use nonproxy_storage::{OutboundKind, OutboundReference, SnapshotArtifact};
 
-use crate::{GatewayError, clock::timestamp_from_unix_ms};
+use crate::{
+    GatewayError, RuntimePolicyRecord, RuntimePolicyState, clock::timestamp_from_unix_ms,
+    proto_policy::policy_to_proto,
+};
 
 pub fn error_detail(error: &GatewayError) -> ErrorDetail {
     ErrorDetail {
@@ -86,6 +92,23 @@ pub fn outbound_summary(value: &OutboundReference) -> OutboundSummary {
         health: RuntimeState::Stopped as i32,
         // 出口适配器完成握手前不能声称已经验证任何能力。
         capabilities: Vec::new(),
+    }
+}
+
+#[must_use]
+pub fn policy_status(value: &RuntimePolicyRecord) -> PolicyStatus {
+    let state = match value.state() {
+        RuntimePolicyState::Draft => ProtoPolicyRuntimeState::Draft,
+        RuntimePolicyState::Pending => ProtoPolicyRuntimeState::Pending,
+        RuntimePolicyState::Active => ProtoPolicyRuntimeState::Active,
+        RuntimePolicyState::PendingRemoval => ProtoPolicyRuntimeState::PendingRemoval,
+    };
+    PolicyStatus {
+        policy: Some(policy_to_proto(value.policy())),
+        state: state as i32,
+        target_snapshot_version: value.target_snapshot_version().unwrap_or(0),
+        effective_revision: value.effective_revision().unwrap_or(0),
+        pending_revision: value.pending_revision().unwrap_or(0),
     }
 }
 

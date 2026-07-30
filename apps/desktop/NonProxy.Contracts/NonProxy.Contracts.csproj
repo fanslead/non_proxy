@@ -10,11 +10,17 @@
 
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Grpc.Tools"
+                      PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../../../generated/csharp/**/*.cs"
-             LinkBase="Generated" />
+    <Protobuf Include="../../../proto/**/*.proto"
+              ProtoRoot="../../../proto"
+              GrpcServices="None" />
+    <Protobuf Update="../../../proto/nonproxy/control/v1/control.proto"
+              GrpcServices="Client" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,211 @@
+using Grpc.Core;
+using Grpc.Net.Client;
+using NonProxy.Common.V1;
+using NonProxy.Control.V1;
+using NonProxy.Desktop.Core.Services.Control.Transport;
+using ProtoPolicy = NonProxy.Policy.V1.Policy;
+
+namespace NonProxy.Desktop.Core.Services.Control.Rpc;
+
+public sealed class GrpcControlRpcClient : IControlRpcClient, IDisposable
+{
+    private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MutationTimeout = TimeSpan.FromSeconds(15);
+
+    private readonly Lazy<GrpcChannel> _channel;
+    private readonly Lazy<ControlService.ControlServiceClient> _client;
+    private readonly OperationContextProvider _contextProvider;
+
+    public GrpcControlRpcClient(
+        IControlChannelFactory channelFactory,
+        OperationContextProvider contextProvider)
+    {
+        ArgumentNullException.ThrowIfNull(channelFactory);
+        _contextProvider = contextProvider;
+        _channel = new Lazy<GrpcChannel>(
+            channelFactory.CreateChannel,
+            LazyThreadSafetyMode.ExecutionAndPublication);
+        _client = new Lazy<ControlService.ControlServiceClient>(
+            () => new ControlService.ControlServiceClient(_channel.Value),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
+    private ControlService.ControlServiceClient Client => _client.Value;
+
+    public Task<GetSystemStatusResponse> GetSystemStatusAsync(
+        CancellationToken cancellationToken)
+    {
+        return ExecuteAsync(
+            () => Client.GetSystemStatusAsync(
+                new GetSystemStatusRequest(),
+                ReadOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public Task<ListPoliciesResponse> ListPoliciesAsync(
+        string pageToken,
+        CancellationToken cancellationToken)
+    {
+        return ExecuteAsync(
+            () => Client.ListPoliciesAsync(
+                new ListPoliciesRequest
+                {
+                    IncludeDisabled = true,
+                    Page = new PageRequest
+                    {
+                        PageSize = 200,
+                        PageToken = pageToken ?? string.Empty,
+                    },
+                },
+                ReadOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public async Task<UpsertPolicyResponse> UpsertPolicyAsync(
+        ProtoPolicy policy,
+        ulong expectedRevision,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        var context = await _contextProvider.CreateAsync(
+            "upsert-policy",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.UpsertPolicyAsync(
+                new UpsertPolicyRequest
+                {
+                    Context = context,
+                    Policy = policy,
+                    ExpectedRevision = expectedRevision,
+                },
+                MutationOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public async Task<DeletePolicyResponse> DeletePolicyAsync(
+        string policyId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(policyId);
+        var context = await _contextProvider.CreateAsync(
+            "delete-policy",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.DeletePolicyAsync(
+                new DeletePolicyRequest
+                {
+                    Context = context,
+                    PolicyId = policyId,
+                    ExpectedRevision = expectedRevision,
+                },
+                MutationOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public async Task<ApplyPolicySnapshotResponse> ApplySnapshotAsync(
+        CancellationToken cancellationToken)
+    {
+        var context = await _contextProvider.CreateAsync(
+            "apply-snapshot",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.ApplyPolicySnapshotAsync(
+                new ApplyPolicySnapshotRequest { Context = context },
+                MutationOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public async Task<RollbackPolicySnapshotResponse> RollBackAsync(
+        ulong snapshotVersion,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(snapshotVersion);
+
+        var context = await _contextProvider.CreateAsync(
+            "rollback-snapshot",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.RollbackPolicySnapshotAsync(
+                new RollbackPolicySnapshotRequest
+                {
+                    Context = context,
+                    TargetSnapshotVersion = snapshotVersion,
+                },
+                MutationOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public Task<ListOutboundsResponse> ListOutboundsAsync(
+        string pageToken,
+        CancellationToken cancellationToken)
+    {
+        return ExecuteAsync(
+            () => Client.ListOutboundsAsync(
+                new ListOutboundsRequest
+                {
+                    Page = new PageRequest
+                    {
+                        PageSize = 200,
+                        PageToken = pageToken ?? string.Empty,
+                    },
+                },
+                ReadOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public void Dispose()
+    {
+        if (_channel.IsValueCreated)
+        {
+            _channel.Value.Dispose();
+        }
+    }
+
+    private static CallOptions ReadOptions(CancellationToken cancellationToken)
+    {
+        return Options(ReadTimeout, cancellationToken);
+    }
+
+    private static CallOptions MutationOptions(CancellationToken cancellationToken)
+    {
+        return Options(MutationTimeout, cancellationToken);
+    }
+
+    private static CallOptions Options(
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        return new CallOptions(
+            deadline: DateTime.UtcNow.Add(timeout),
+            cancellationToken: cancellationToken);
+    }
+
+    private static async Task<TResponse> ExecuteAsync<TResponse>(
+        Func<Task<TResponse>> operation)
+    {
+        try
+        {
+            return await operation();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (ControlServiceException)
+        {
+            throw;
+        }
+        catch (RpcException exception)
+        {
+            throw ControlRpcExceptionMapper.FromRpc(exception);
+        }
+        catch (HttpRequestException exception)
+        {
+            throw new ControlServiceException(
+                "NP_CONTROL_UNAVAILABLE",
+                "控制服务未启动或正在重启，请稍后重试。",
+                exception);
+        }
+        catch (IOException exception)
+        {
+            throw new ControlServiceException(
+                "NP_CONTROL_UNAVAILABLE",
+                "无法连接本地控制套接字，请确认后台服务正在运行。",
+                exception);
+        }
+    }
+}

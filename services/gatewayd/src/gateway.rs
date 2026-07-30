@@ -6,7 +6,11 @@ use nonproxy_storage::{OutboundReference, PolicyDatabase, SnapshotArtifact, Snap
 use tokio::sync::Mutex;
 
 use crate::{
-    GatewayError, clock::unix_time_ms, database_executor::DatabaseExecutor, event_hub::EventHub,
+    GatewayError,
+    clock::unix_time_ms,
+    database_executor::DatabaseExecutor,
+    event_hub::EventHub,
+    runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, build_runtime_catalog},
     snapshot_payload,
 };
 
@@ -82,6 +86,22 @@ impl Gateway {
     pub async fn list_policies(&self) -> Result<Vec<Policy>, GatewayError> {
         self.database
             .run(|database| Ok(database.policies().list()?))
+            .await
+    }
+
+    pub async fn list_runtime_policies(&self) -> Result<Vec<RuntimePolicyRecord>, GatewayError> {
+        Ok(self.runtime_policy_catalog().await?.records().to_vec())
+    }
+
+    pub async fn runtime_policy_catalog(&self) -> Result<RuntimePolicyCatalog, GatewayError> {
+        self.database
+            .run(|database| {
+                let generation = database.policies().catalog_generation()?;
+                let current = database.policies().list()?;
+                let active = database.snapshots().active()?;
+                let pending = database.snapshots().pending()?;
+                build_runtime_catalog(generation, current, active.as_ref(), pending.as_ref())
+            })
             .await
     }
 

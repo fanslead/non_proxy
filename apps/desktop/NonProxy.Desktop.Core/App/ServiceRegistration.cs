@@ -11,6 +11,9 @@ using NonProxy.Desktop.Core.Features.Shell;
 using NonProxy.Desktop.Core.Features.Websites;
 using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Control;
+using NonProxy.Desktop.Core.Services.Control.Gateway;
+using NonProxy.Desktop.Core.Services.Control.Rpc;
+using NonProxy.Desktop.Core.Services.Control.Transport;
 using NonProxy.Desktop.Core.Views;
 
 namespace NonProxy.Desktop.Core.Bootstrap;
@@ -33,12 +36,18 @@ public static class ServiceRegistration
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
-        services.AddSingleton<ISystemStatusService, DisconnectedSystemStatusService>();
-        services.AddSingleton<IPolicyService, DisconnectedPolicyService>();
-        services.AddSingleton<IOutboundService, DisconnectedOutboundService>();
+        services.AddSingleton(LocalControlEndpoint.Unavailable);
+        services.AddSingleton<IControlChannelFactory, UnavailableControlChannelFactory>();
+        services.AddSingleton<ISessionCapabilityProvider, UnavailableSessionCapabilityProvider>();
+        services.AddSingleton<OperationContextProvider>();
+        services.AddSingleton<IControlRpcClient, GrpcControlRpcClient>();
+        services.AddSingleton<PolicyContractMapper>();
+        services.AddSingleton<ISystemStatusService, GatewaySystemStatusService>();
+        services.AddSingleton<IPolicyService, GatewayPolicyService>();
+        services.AddSingleton<IOutboundService, GatewayOutboundService>();
         services.AddSingleton<ILearningService, DisconnectedLearningService>();
         services.AddSingleton<IActivityService, DisconnectedActivityService>();
-        services.AddSingleton<IDiagnosticsService, DisconnectedDiagnosticsService>();
+        services.AddSingleton<IDiagnosticsService, GatewayDiagnosticsService>();
         services.AddSingleton<IDesktopSettingsService, DisconnectedDesktopSettingsService>();
 
         registerPlatformServices(services);

@@ -46,13 +46,16 @@ test:
   source "{{env}}" && pnpm run test
   source "{{env}}" && pnpm run typecheck
 
+control-e2e:
+  source "{{env}}" && ./scripts/smoke/control-plane-e2e.sh
+
 build-desktop:
   source "{{env}}" && dotnet build apps/desktop/NonProxy.Desktop.slnx --no-restore --no-incremental --configuration Debug
 
 verify-macos-bundle: build-desktop
   source "{{env}}" && native_rid="$(dotnet msbuild apps/desktop/NonProxy.Desktop.Mac/NonProxy.Desktop.Mac.csproj -getProperty:NETCoreSdkRuntimeIdentifier)" && codesign --verify --deep --strict --verbose=4 "apps/desktop/NonProxy.Desktop.Mac/bin/Debug/net10.0-macos/${native_rid}/NonProxy.app"
 
-check: check-tools contracts restore-desktop restore-node format-check lint verify-macos-bundle test
+check: check-tools contracts restore-desktop restore-node format-check lint verify-macos-bundle test control-e2e
 
 status:
   source "{{env}}" && cargo run --quiet -p xtask -- status

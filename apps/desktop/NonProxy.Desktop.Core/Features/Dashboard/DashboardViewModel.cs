@@ -44,13 +44,22 @@ public sealed partial class DashboardViewModel : LoadableViewModel
             overview.Detail,
             ToConnectionLabel(overview.Connection),
             ToComponentLabel(overview.Component),
-            overview.ActiveSnapshotVersion is { } version
-                ? $"已激活快照 v{version}"
-                : "尚无已激活快照",
+            SnapshotLabel(overview),
             overview.DirectApplicationCount,
             overview.DirectWebsiteCount,
             overview.RecentDecisionCount,
             overview.RecentDecisionCount > 0);
+    }
+
+    private static string SnapshotLabel(SystemOverview overview)
+    {
+        return (overview.ActiveSnapshotVersion, overview.PendingSnapshotVersion) switch
+        {
+            ({ } active, { } pending) => $"已激活 v{active}，等待确认 v{pending}",
+            ({ } active, null) => $"已激活快照 v{active}",
+            (null, { } pending) => $"快照 v{pending} 等待系统组件确认",
+            _ => "尚无已激活快照",
+        };
     }
 
     private Task InstallComponentAsync(CancellationToken cancellationToken)

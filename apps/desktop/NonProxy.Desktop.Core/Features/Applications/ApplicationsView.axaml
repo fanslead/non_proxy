@@ -3,6 +3,7 @@
              xmlns:applications="using:NonProxy.Desktop.Core.Features.Applications"
              xmlns:control="using:NonProxy.Desktop.Core.Services.Control"
              x:Class="NonProxy.Desktop.Core.Features.Applications.ApplicationsView"
+             x:Name="Root"
              x:DataType="applications:ApplicationsViewModel">
     <ScrollViewer>
         <StackPanel Margin="40"
@@ -54,7 +55,7 @@
                     <ItemsControl ItemsSource="{Binding Items}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="control:PolicyListItem">
-                                <Grid ColumnDefinitions="2*,3*,*"
+                                <Grid ColumnDefinitions="2*,3*,*,Auto"
                                       ColumnSpacing="16"
                                       Margin="0,8">
                                     <TextBlock FontWeight="SemiBold"
@@ -64,6 +65,12 @@
                                                TextTrimming="CharacterEllipsis" />
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding StateLabel}" />
+                                    <Button Grid.Column="3"
+                                            Theme="{StaticResource NpSecondaryButton}"
+                                            Command="{ReflectionBinding DataContext.DeleteCommand, ElementName=Root}"
+                                            CommandParameter="{Binding}"
+                                            Content="删除"
+                                            AutomationProperties.Name="删除应用规则" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

@@ -62,6 +62,16 @@ enum LearningSessionKind {
   LEARNING_SESSION_KIND_SITE = 2;
 }
 
+// PolicyRuntimeState 表示当前草稿与已激活或待确认快照之间的关系。
+enum PolicyRuntimeState {
+  POLICY_RUNTIME_STATE_UNSPECIFIED = 0;
+  POLICY_RUNTIME_STATE_DRAFT = 1;
+  POLICY_RUNTIME_STATE_PENDING = 2;
+  POLICY_RUNTIME_STATE_ACTIVE = 3;
+  POLICY_RUNTIME_STATE_PENDING_REMOVAL = 4;
+  POLICY_RUNTIME_STATE_REJECTED = 5;
+}
+
 // DiagnosticRedactionLevel 表示诊断包的脱敏强度。
 enum DiagnosticRedactionLevel {
   DIAGNOSTIC_REDACTION_LEVEL_UNSPECIFIED = 0;
@@ -86,6 +96,7 @@ message GetSystemStatusResponse {
   repeated ComponentStatus components = 4;
   uint64 latest_event_sequence = 5;
   nonproxy.common.v1.ErrorDetail error = 6;
+  uint64 pending_snapshot_version = 7;
 }
 
 // ComponentStatus 描述单个进程或 Provider 的状态。
@@ -116,6 +127,18 @@ message ListPoliciesResponse {
   repeated nonproxy.policy.v1.Policy policies = 1;
   nonproxy.common.v1.PageResponse page = 2;
   uint64 active_snapshot_version = 3;
+  uint64 pending_snapshot_version = 4;
+  repeated PolicyStatus policy_statuses = 5;
+  uint64 policy_catalog_generation = 6;
+}
+
+// PolicyStatus 保留规则草稿和仍在执行的旧修订之间的真实关系。
+message PolicyStatus {
+  nonproxy.policy.v1.Policy policy = 1;
+  PolicyRuntimeState state = 2;
+  uint64 target_snapshot_version = 3;
+  uint64 effective_revision = 4;
+  uint64 pending_revision = 5;
 }
 
 // UpsertPolicyRequest 使用乐观并发写入策略草稿。

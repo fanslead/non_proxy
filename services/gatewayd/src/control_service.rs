@@ -56,6 +56,10 @@ impl ControlService for ControlRpcService {
             .active
             .as_ref()
             .map_or(0, |record| record.artifact().snapshot_version());
+        let pending_version = status
+            .pending
+            .as_ref()
+            .map_or(0, |record| record.artifact().snapshot_version());
         let state = if status.active.is_some() {
             RuntimeState::Ready
         } else {
@@ -79,6 +83,7 @@ impl ControlService for ControlRpcService {
                 .latest_sequence()
                 .map_err(internal_status)?,
             error: None,
+            pending_snapshot_version: pending_version,
         }))
     }
 
@@ -96,13 +101,19 @@ impl ControlService for ControlRpcService {
         request: Request<control_proto::ListPoliciesRequest>,
     ) -> Result<Response<control_proto::ListPoliciesResponse>, Status> {
         let request = request.into_inner();
-        let mut policies = self
+        let catalog = self
             .gateway
-            .list_policies()
+            .runtime_policy_catalog()
             .await
             .map_err(internal_status)?;
+        let generation = catalog.generation();
+        let active_version = catalog.active_snapshot_version().unwrap_or(0);
+        let pending_version = catalog.pending_snapshot_version().unwrap_or(0);
+        let mut policies = catalog.records().to_vec();
         if !request.include_disabled {
-            policies.retain(nonproxy_model::Policy::enabled);
+            policies.retain(|record| {
+                record.policy().enabled() || record.effective_revision().is_some()
+            });
         }
         let page = request.page.unwrap_or(PageRequest {
             page_size: 0,
@@ -110,17 +121,19 @@ impl ControlService for ControlRpcService {
         });
         let (start, end, page_response) =
             control_mapping::page_bounds(page.page_size, &page.page_token, policies.len())?;
-        let active_version = self
-            .gateway
-            .status()
-            .await
-            .map_err(internal_status)?
-            .active
-            .map_or(0, |record| record.artifact().snapshot_version());
         Ok(Response::new(control_proto::ListPoliciesResponse {
-            policies: policies[start..end].iter().map(policy_to_proto).collect(),
+            policies: policies[start..end]
+                .iter()
+                .map(|record| policy_to_proto(record.policy()))
+                .collect(),
             page: Some(page_response),
             active_snapshot_version: active_version,
+            pending_snapshot_version: pending_version,
+            policy_statuses: policies[start..end]
+                .iter()
+                .map(control_mapping::policy_status)
+                .collect(),
+            policy_catalog_generation: generation,
         }))
     }
 

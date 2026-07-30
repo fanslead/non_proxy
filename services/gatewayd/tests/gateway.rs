@@ -1,4 +1,4 @@
-use nonproxy_gatewayd::{Gateway, GatewayError, decode_snapshot_payload};
+use nonproxy_gatewayd::{Gateway, GatewayError, RuntimePolicyState, decode_snapshot_payload};
 use nonproxy_model::{
     DecisionSpec, DomainMatchKind, DomainMatcher, Policy, PolicyId, PolicyMatch, PolicyMetadata,
     PolicyOrigin, PolicySourceKind,
@@ -117,6 +117,51 @@ async fn second_pending_snapshot_is_not_silently_replaced() {
     assert!(matches!(
         second,
         Err(GatewayError::Storage(StorageError::PendingSnapshotExists))
+    ));
+}
+
+#[tokio::test]
+async fn runtime_status_distinguishes_draft_pending_and_newer_deletion() {
+    let gateway = gateway();
+    let policy = site_policy("policy-a", "example.com", 1);
+    if let Err(error) = gateway.save_policy(policy, None).await {
+        panic!("策略草稿保存失败: {error}");
+    }
+    let draft = gateway.list_runtime_policies().await;
+    assert!(matches!(
+        draft,
+        Ok(records) if records.len() == 1
+            && records[0].state() == RuntimePolicyState::Draft
+    ));
+
+    if let Err(error) = gateway.compile_and_stage().await {
+        panic!("策略快照暂存失败: {error}");
+    }
+    let pending_catalog = gateway.runtime_policy_catalog().await;
+    assert!(matches!(
+        pending_catalog,
+        Ok(catalog) if catalog.records().len() == 1
+            && catalog.active_snapshot_version().is_none()
+            && catalog.pending_snapshot_version() == Some(1)
+            && catalog.records()[0].state() == RuntimePolicyState::Pending
+            && catalog.records()[0].pending_revision() == Some(1)
+    ));
+
+    let policy_id = PolicyId::new("policy-a");
+    let Ok(policy_id) = policy_id else {
+        panic!("测试策略 ID 创建失败: {policy_id:?}");
+    };
+    if let Err(error) = gateway.delete_policy(policy_id, 1).await {
+        panic!("待确认策略删除草稿保存失败: {error}");
+    }
+    let removed = gateway.list_runtime_policies().await;
+    assert!(matches!(
+        removed,
+        Ok(records) if records.len() == 1
+            && records[0].state() == RuntimePolicyState::PendingRemoval
+            && records[0].target_snapshot_version().is_none()
+            && records[0].effective_revision().is_none()
+            && records[0].pending_revision() == Some(1)
     ));
 }
 

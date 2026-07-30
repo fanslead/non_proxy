@@ -19,7 +19,8 @@ public sealed record SystemOverview(
     int DirectApplicationCount,
     int DirectWebsiteCount,
     int RecentDecisionCount,
-    DateTimeOffset CapturedAt)
+    DateTimeOffset CapturedAt,
+    ulong? PendingSnapshotVersion = null)
 {
     public static SystemOverview Unavailable(SystemComponentState component)
     {
@@ -55,6 +56,7 @@ public enum PolicyApplyState
     Draft,
     Pending,
     Active,
+    PendingRemoval,
     Rejected,
 }
 
@@ -66,7 +68,10 @@ public sealed record PolicyListItem(
     PolicyAction Action,
     PolicyApplyState State,
     ulong? SnapshotVersion,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset? UpdatedAt,
+    ulong Revision = 1,
+    ulong? EffectiveRevision = null,
+    ulong? PendingRevision = null)
 {
     public string ScopeLabel => Scope switch
     {
@@ -88,6 +93,7 @@ public sealed record PolicyListItem(
     {
         PolicyApplyState.Active => "已应用",
         PolicyApplyState.Pending => "等待系统组件确认",
+        PolicyApplyState.PendingRemoval => "等待从数据面移除",
         PolicyApplyState.Rejected => "应用失败",
         _ => "草稿",
     };
@@ -96,7 +102,8 @@ public sealed record PolicyListItem(
 public sealed record PolicyCatalog(
     IReadOnlyList<PolicyListItem> Items,
     ulong? ActiveSnapshotVersion,
-    DateTimeOffset CapturedAt)
+    DateTimeOffset CapturedAt,
+    ulong? PendingSnapshotVersion = null)
 {
     public static PolicyCatalog Empty { get; } = new(
         Array.Empty<PolicyListItem>(),
@@ -109,7 +116,10 @@ public sealed record PolicyDraft(
     string Name,
     PolicyScope Scope,
     string MatchValue,
-    PolicyAction Action);
+    PolicyAction Action,
+    ulong? ExistingRevision = null,
+    string? Destination = null,
+    string? OutboundId = null);
 
 public sealed record ApplyResult(
     bool Accepted,

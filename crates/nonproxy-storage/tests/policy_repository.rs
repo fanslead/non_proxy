@@ -77,3 +77,24 @@ fn delete_requires_the_current_revision() {
 
     assert!(matches!(database.policies().get(&id), Ok(None)));
 }
+
+#[test]
+fn catalog_generation_changes_only_after_committed_mutation() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    assert!(matches!(database.policies().catalog_generation(), Ok(0)));
+    let policy = must_policy(1, "目录代数策略");
+    if let Err(error) = database.policies().save(&policy, None, 1_100) {
+        panic!("目录代数策略保存失败: {error}");
+    }
+    assert!(matches!(database.policies().catalog_generation(), Ok(1)));
+    let stale = database.policies().delete(policy.id(), 9, 1_200);
+    assert!(matches!(stale, Err(StorageError::PolicyRevisionConflict)));
+    assert!(matches!(database.policies().catalog_generation(), Ok(1)));
+    if let Err(error) = database.policies().delete(policy.id(), 1, 1_300) {
+        panic!("目录代数策略删除失败: {error}");
+    }
+    assert!(matches!(database.policies().catalog_generation(), Ok(2)));
+}

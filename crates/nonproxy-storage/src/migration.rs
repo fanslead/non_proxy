@@ -11,6 +11,8 @@ use sha2::{Digest, Sha256};
 use crate::StorageError;
 
 const INITIAL_SCHEMA: &str = include_str!("../../../migrations/V0001__initial_schema.sql");
+const POLICY_CATALOG_GENERATION: &str =
+    include_str!("../../../migrations/V0002__policy_catalog_generation.sql");
 
 struct Migration {
     version: i64,
@@ -18,11 +20,18 @@ struct Migration {
     sql: &'static str,
 }
 
-const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    name: "initial_schema",
-    sql: INITIAL_SCHEMA,
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        name: "initial_schema",
+        sql: INITIAL_SCHEMA,
+    },
+    Migration {
+        version: 2,
+        name: "policy_catalog_generation",
+        sql: POLICY_CATALOG_GENERATION,
+    },
+];
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AppliedMigration {
@@ -335,5 +344,47 @@ mod tests {
         };
 
         assert!(!first_table_exists);
+    }
+
+    #[test]
+    fn an_existing_v1_database_upgrades_to_v2_without_reapplying_v1() {
+        let mut connection = match Connection::open_in_memory() {
+            Ok(value) => value,
+            Err(error) => panic!("迁移升级测试数据库打开失败: {error}"),
+        };
+        let v1 = [Migration {
+            version: 1,
+            name: "initial_schema",
+            sql: INITIAL_SCHEMA,
+        }];
+        let first = migrate_with(&mut connection, None, 1_000, &v1);
+        let Ok(first) = first else {
+            panic!("V1 数据库初始化失败: {first:?}");
+        };
+        assert_eq!(first.current_version(), 1);
+
+        let upgraded = migrate_with(&mut connection, None, 2_000, MIGRATIONS);
+        let Ok(upgraded) = upgraded else {
+            panic!("V1 数据库升级失败: {upgraded:?}");
+        };
+        assert_eq!(upgraded.previous_version(), 1);
+        assert_eq!(upgraded.current_version(), 2);
+        assert_eq!(
+            upgraded
+                .applied()
+                .iter()
+                .map(AppliedMigration::version)
+                .collect::<Vec<_>>(),
+            vec![2]
+        );
+        let generation: i64 = match connection.query_row(
+            "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
+            [],
+            |row| row.get(0),
+        ) {
+            Ok(value) => value,
+            Err(error) => panic!("升级后目录代数读取失败: {error}"),
+        };
+        assert_eq!(generation, 0);
     }
 }

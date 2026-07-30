@@ -25,11 +25,16 @@ public sealed partial class WebsitesViewModel : LoadableViewModel
     {
         _policyService = policyService;
         AddCommand = new AsyncRelayCommand(AddAsync, CanAdd);
+        DeleteCommand = new AsyncRelayCommand<PolicyListItem>(
+            DeleteAsync,
+            CanDelete);
     }
 
     public ObservableCollection<PolicyListItem> Items { get; } = [];
 
     public IAsyncRelayCommand AddCommand { get; }
+
+    public IAsyncRelayCommand<PolicyListItem> DeleteCommand { get; }
 
     partial void OnDomainChanged(string value)
     {
@@ -83,6 +88,32 @@ public sealed partial class WebsitesViewModel : LoadableViewModel
                     Domain = string.Empty;
                     await LoadCoreAsync(token);
                 }
+            },
+            cancellationToken);
+    }
+
+    private bool CanDelete(PolicyListItem? item)
+    {
+        return !IsBusy
+            && item is not null
+            && item.State != PolicyApplyState.PendingRemoval;
+    }
+
+    private Task DeleteAsync(
+        PolicyListItem? item,
+        CancellationToken cancellationToken)
+    {
+        if (item is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunOperationAsync(
+            async token =>
+            {
+                var result = await _policyService.DeleteAsync(item.Id, token);
+                OperationMessage = result.Message;
+                await LoadCoreAsync(token);
             },
             cancellationToken);
     }

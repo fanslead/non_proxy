@@ -41,6 +41,7 @@ impl<'connection> PolicyRepository<'connection> {
         upsert_policy(&transaction, policy, updated_at_unix_ms)?;
         replace_matcher_children(&transaction, policy)?;
         insert_policy_audit(&transaction, "policy_saved", policy, updated_at_unix_ms)?;
+        increment_catalog_generation(&transaction)?;
         transaction.commit()?;
         Ok(())
     }
@@ -105,9 +106,36 @@ impl<'connection> PolicyRepository<'connection> {
                 policy_id.as_str()
             ],
         )?;
+        increment_catalog_generation(&transaction)?;
         transaction.commit()?;
         Ok(())
     }
+
+    pub fn catalog_generation(&self) -> Result<u64, StorageError> {
+        let value: i64 = self.connection.query_row(
+            "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
+            [],
+            |row| row.get(0),
+        )?;
+        u64::try_from(value).map_err(|_| StorageError::CorruptData {
+            field: "control_generation.value",
+        })
+    }
+}
+
+fn increment_catalog_generation(transaction: &Transaction<'_>) -> Result<(), StorageError> {
+    let changed = transaction.execute(
+        "UPDATE control_generation
+         SET value = value + 1
+         WHERE name = 'policy_catalog'",
+        [],
+    )?;
+    if changed != 1 {
+        return Err(StorageError::CorruptData {
+            field: "control_generation.policy_catalog",
+        });
+    }
+    Ok(())
 }
 
 fn validate_revision(

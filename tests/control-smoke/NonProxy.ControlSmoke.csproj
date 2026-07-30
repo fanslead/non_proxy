@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>NonProxy.ControlSmoke</RootNamespace>
+    <AssemblyName>NonProxy.ControlSmoke</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../apps/desktop/NonProxy.Desktop.Core/NonProxy.Desktop.Core.csproj" />
+  </ItemGroup>
+</Project>
