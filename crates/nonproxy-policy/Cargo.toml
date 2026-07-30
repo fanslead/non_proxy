@@ -1,0 +1,13 @@
+[package]
+name = "nonproxy-policy"
+description = "NonProxy 无副作用策略快照与连接决策引擎"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+nonproxy-model = { path = "../nonproxy-model" }
+
+[lints]
+workspace = true

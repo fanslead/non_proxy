@@ -43,7 +43,7 @@ impl NetworkMatcher {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct PolicyMatch {
     app: Option<AppMatcher>,
     domain: Option<DomainMatcher>,

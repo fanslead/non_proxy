@@ -1,0 +1,19 @@
+[package]
+name = "nonproxy-policy-compiler"
+description = "NonProxy 策略冲突校验、能力检查与确定性快照编译"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+nonproxy-model = { path = "../nonproxy-model" }
+nonproxy-policy = { path = "../nonproxy-policy" }
+sha2.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

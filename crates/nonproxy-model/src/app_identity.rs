@@ -137,7 +137,7 @@ impl AppIdentity {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct AppMatcher {
     platform: Platform,
     stable_id: String,
