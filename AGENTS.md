@@ -236,6 +236,8 @@ buf breaking --against '.git#branch=main'
 - 网站学习使用扩展生成的随机短期上下文，不把浏览器真实 tab ID 持久化或发送给 `gatewayd`。
 - Native Messaging 上报只能包含规范化域名和枚举化元数据；`gatewayd` 必须再次校验，且单会话候选、观测和时长都要有硬上限。
 - 学习观测必须带会话内幂等 ID；重放不得重复计数、重复发事件或隐式写策略。
+- Native Messaging Host 的 stdout 只能输出 4 字节小端长度前缀协议帧，诊断写 stderr 且不得回显浏览器输入。
+- Chromium 本地宿主必须同时校验固定扩展 origin 与清单 `allowed_origins`；能力文件必须拒绝符号链接、非当前用户、宽松权限和非 32 字节内容。
 
 ## 13. 第三方适配器
 

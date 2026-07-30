@@ -39,6 +39,7 @@ enum MacHostBridgeService {
                 state: nil
             ))
         }
+        let manifestController = NativeMessagingManifestController()
 
         do {
             let gatewayOutcome = try await gatewayController.registerAndWait(
@@ -57,13 +58,11 @@ enum MacHostBridgeService {
                         .disableAndRemove()
                 }
             )
+            let manifestBackups: [
+                NativeMessagingManifestController.Backup
+            ]
             do {
-                try await installNetworkComponents(
-                    systemController: systemController,
-                    systemExtensionApprovalHandler:
-                        systemExtensionApprovalHandler,
-                    sink: sink
-                )
+                manifestBackups = try manifestController.install()
             } catch {
                 guard gatewayOutcome.newlyRegistered else {
                     throw error
@@ -76,6 +75,43 @@ enum MacHostBridgeService {
                         message:
                             "\(error.localizedDescription)；gatewayd 回滚失败："
                             + rollbackError.localizedDescription
+                    )
+                }
+                throw error
+            }
+            do {
+                try await installNetworkComponents(
+                    systemController: systemController,
+                    systemExtensionApprovalHandler:
+                        systemExtensionApprovalHandler,
+                    sink: sink
+                )
+            } catch {
+                var rollbackErrors: [String] = []
+                do {
+                    try manifestController.restore(manifestBackups)
+                } catch let manifestError {
+                    rollbackErrors.append(
+                        "浏览器宿主清单回滚失败："
+                            + manifestError.localizedDescription
+                    )
+                }
+                if gatewayOutcome.newlyRegistered {
+                    do {
+                        try await gatewayController.unregister()
+                    } catch let rollbackError {
+                        rollbackErrors.append(
+                            "gatewayd 回滚失败："
+                                + rollbackError.localizedDescription
+                        )
+                    }
+                }
+                if !rollbackErrors.isEmpty {
+                    throw BridgeError(
+                        code: "NP_MAC_INSTALL_ROLLBACK_FAILED",
+                        message:
+                            "\(error.localizedDescription)；"
+                            + rollbackErrors.joined(separator: "；")
                     )
                 }
                 throw error
@@ -192,6 +228,11 @@ enum MacHostBridgeService {
             }
             do {
                 try await GatewayAgentController().unregister()
+            } catch {
+                errors.append(error.localizedDescription)
+            }
+            do {
+                try NativeMessagingManifestController().uninstall()
             } catch {
                 errors.append(error.localizedDescription)
             }

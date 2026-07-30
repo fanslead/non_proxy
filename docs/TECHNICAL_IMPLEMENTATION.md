@@ -1502,6 +1502,16 @@ unknown
 
 候选按精确域名聚合，并保留可注册域、分类、千分制置信度、确认要求和三类事件计数。同一可注册域只有达到高置信度后才可标记为无需再次确认；跨域 API、登录、CDN、第三方和未知候选始终要求用户确认。评分结果本身不写策略。
 
+### 18.5 macOS Native Messaging Host
+
+`NonProxyNativeMessagingHost` 是随主应用签名和嵌入的 Swift 可执行文件。Chromium 启动宿主时传入的扩展 origin 必须与仓库固定公钥对应的扩展 ID 完全一致；浏览器清单自身也使用相同 `allowed_origins` 做第一层限制。宿主不监听 TCP、不访问 SQLite、不保存规则。
+
+stdin/stdout 使用浏览器规定的 4 字节小端长度前缀 JSON 帧。输入硬上限为 128 KiB，输出硬上限为 1 MiB，stdout 只写协议帧；错误日志只能写 stderr 且不包含输入内容。JSON 契约只包含协议版本、幂等请求 ID、学习动作，以及规范化域名和枚举元数据，不定义完整 URL、路径、query、fragment、正文或请求头字段。
+
+宿主使用 `O_NOFOLLOW` 打开 `session.capability`，并校验它是当前用户拥有、无 group/other 权限、精确 32 字节的普通文件。随后通过明文仅限本机文件系统权限保护的 Unix Domain Socket 调用 `gatewayd`；每次 RPC 都生成新的安全 operation ID，并携带内存中的能力 Token。
+
+主应用安装事务为 Chrome、Chromium、Edge 和 Brave 写入用户级 `com.nonproxy.browser.json`。清单中的宿主路径指向当前 `.app/Contents/Resources/nonproxy-native-messaging-host`；更新会原子替换，后续系统组件安装失败会恢复既有清单，明确卸载会移除 NonProxy 自有清单。打包门禁检查宿主与主程序架构一致且代码签名有效；跨语言冒烟使用真实长度前缀和 stdin/stdout 完成开始、观测、查询、停止全生命周期。
+
 ## 19. 存储
 
 SQLite 是本地权威配置库，只有 `gatewayd` 写入。

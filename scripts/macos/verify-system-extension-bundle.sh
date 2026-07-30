@@ -16,6 +16,7 @@ bridge_library="${app_bundle}/Contents/Frameworks/libNonProxyMacHostBridge.dylib
 launch_agents_root="${app_bundle}/Contents/Library/LaunchAgents"
 gateway_agent_plist="${launch_agents_root}/com.nonproxy.gatewayd.plist"
 gateway_binary="${app_bundle}/Contents/Resources/nonproxy-gatewayd"
+native_messaging_host="${app_bundle}/Contents/Resources/nonproxy-native-messaging-host"
 
 assert_plist_value() {
     local plist=$1
@@ -150,6 +151,17 @@ if [[ "${host_architectures}" != "${gateway_architectures}" ]]; then
     exit 67
 fi
 codesign --verify --strict --verbose=2 "${gateway_binary}"
+if [[ ! -x "${native_messaging_host}" || -L "${native_messaging_host}" ]]; then
+    echo "macOS App 缺少 Native Messaging Host" >&2
+    exit 67
+fi
+file "${native_messaging_host}" | grep -F "Mach-O" >/dev/null
+native_host_architectures=$(lipo -archs "${native_messaging_host}")
+if [[ "${host_architectures}" != "${native_host_architectures}" ]]; then
+    echo "宿主与 Native Messaging Host 架构不一致" >&2
+    exit 67
+fi
+codesign --verify --strict --verbose=2 "${native_messaging_host}"
 gateway_binary_digest=$(shasum -a 256 "${gateway_binary}" | awk '{print $1}')
 gateway_plist_digest=$(shasum -a 256 "${gateway_plist_template}" | awk '{print $1}')
 expected_gateway_fingerprint=$(
@@ -303,4 +315,4 @@ assert_plist_value \
     NSSystemExtensionUsageDescription \
     "NonProxy 需要安装网络系统扩展，以便按应用和网站选择直连或指定代理。"
 codesign --verify --deep --strict --verbose=2 "${app_bundle}"
-echo "macOS App 已包含签名有效的 System Extension、宿主桥接与 gatewayd LaunchAgent。"
+echo "macOS App 已包含签名有效的 System Extension、宿主桥接、Native Messaging Host 与 gatewayd LaunchAgent。"

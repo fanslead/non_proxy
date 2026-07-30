@@ -121,6 +121,7 @@ fi
 build_product NonProxyTransparentSystemExtension
 build_product NonProxyDNSSystemExtension
 build_product NonProxyMacHostBridge
+build_product NonProxyNativeMessagingHost
 gateway_temporary_directory=
 gateway_source=
 cleanup_gateway_build() {
@@ -142,6 +143,7 @@ dns_bundle="${extensions_root}/com.nonproxy.desktop.dns-proxy.systemextension"
 bridge_library="${frameworks_root}/libNonProxyMacHostBridge.dylib"
 gateway_agent_plist="${launch_agents_root}/com.nonproxy.gatewayd.plist"
 gateway_binary="${resources_root}/nonproxy-gatewayd"
+native_messaging_host="${resources_root}/nonproxy-native-messaging-host"
 
 assemble_bundle() {
     local bundle=$1
@@ -163,11 +165,17 @@ rm -f "${bridge_library}"
 install -m 0755 \
     "${bin_path}/libNonProxyMacHostBridge.dylib" \
     "${bridge_library}"
-rm -f "${gateway_agent_plist}" "${gateway_binary}"
+rm -f \
+    "${gateway_agent_plist}" \
+    "${gateway_binary}" \
+    "${native_messaging_host}"
 install -m 0644 \
     "${packaging_root}/com.nonproxy.gatewayd.plist" \
     "${gateway_agent_plist}"
 install -m 0755 "${gateway_source}" "${gateway_binary}"
+install -m 0755 \
+    "${bin_path}/NonProxyNativeMessagingHost" \
+    "${native_messaging_host}"
 assemble_bundle \
     "${transparent_bundle}" \
     NonProxyTransparentSystemExtension \
@@ -256,6 +264,7 @@ else
 fi
 codesign "${bridge_sign_args[@]}" "${bridge_library}"
 codesign "${bridge_sign_args[@]}" "${gateway_binary}"
+codesign "${bridge_sign_args[@]}" "${native_messaging_host}"
 
 gateway_binary_digest=$(shasum -a 256 "${gateway_binary}" | awk '{print $1}')
 gateway_plist_digest=$(

@@ -9,6 +9,10 @@ public struct MacSharedRuntimePaths: Equatable, Sendable {
     public static let controlCapabilityFileName = "session.capability"
     public static let providerCapabilityFileName = "provider.capability"
     public static let runtimeIdentityFileName = "gateway.runtime.json"
+    public static let nativeMessagingHostFileName =
+        "nonproxy-native-messaging-host"
+    public static let chromiumExtensionID =
+        "ldiadofihjimpkhchjicmgcfgjlgidha"
 
     public let stateDirectory: URL
 

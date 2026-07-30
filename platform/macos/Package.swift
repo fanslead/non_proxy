@@ -25,6 +25,10 @@ let package = Package(
             targets: ["NonProxyMacRuntime"]
         ),
         .library(
+            name: "NonProxyNativeMessaging",
+            targets: ["NonProxyNativeMessaging"]
+        ),
+        .library(
             name: "NonProxyTransparentProxy",
             targets: ["NonProxyTransparentProxy"]
         ),
@@ -52,6 +56,10 @@ let package = Package(
         .executable(
             name: "NonProxyFlowSmoke",
             targets: ["NonProxyFlowSmoke"]
+        ),
+        .executable(
+            name: "NonProxyNativeMessagingHost",
+            targets: ["NonProxyNativeMessagingHost"]
         ),
     ],
     dependencies: [
@@ -99,6 +107,19 @@ let package = Package(
         ),
         .target(
             name: "NonProxyMacRuntime"
+        ),
+        .target(
+            name: "NonProxyNativeMessaging",
+            dependencies: [
+                "NonProxyMacRuntime",
+                "NonProxyProviderContracts",
+                .product(name: "GRPCCore", package: "grpc-swift-2"),
+                .product(
+                    name: "GRPCNIOTransportHTTP2Posix",
+                    package: "grpc-swift-nio-transport"
+                ),
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+            ]
         ),
         .target(
             name: "NonProxyMacPlatformSupport",
@@ -175,6 +196,10 @@ let package = Package(
                 .linkedFramework("Network"),
             ]
         ),
+        .executableTarget(
+            name: "NonProxyNativeMessagingHost",
+            dependencies: ["NonProxyNativeMessaging"]
+        ),
         .testTarget(
             name: "NonProxyProviderCoreTests",
             dependencies: [
@@ -207,6 +232,10 @@ let package = Package(
         .testTarget(
             name: "NonProxyMacHostBridgeTests",
             dependencies: ["NonProxyMacHostBridge"]
+        ),
+        .testTarget(
+            name: "NonProxyNativeMessagingTests",
+            dependencies: ["NonProxyNativeMessaging"]
         ),
     ]
 )
