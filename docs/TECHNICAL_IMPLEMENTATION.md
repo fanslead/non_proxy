@@ -1379,6 +1379,16 @@ macOS：
 - 激活请求必须由 containing app 的 Mac 宿主提交。
 - 共享 UI 可以跨平台编译，但 `net10.0-macos` 宿主及最终签名包必须在 macOS 构建和验证。
 
+当前 System Extension 打包实现：
+
+- `NonProxyTransparentSystemExtension` 与 `NonProxyDNSSystemExtension` 是只负责启动 Provider 的独立 Swift 可执行 target，业务实现仍留在对应 Provider 模块。
+- `NonProxy.Desktop.Mac` 构建完成后调用 `scripts/macos/package-system-extensions.sh`，把两个 `SYSX` Bundle 放入最终 `.app/Contents/Library/SystemExtensions/`。
+- Debug 构建生成当前机器架构；不指定 RID 的 Release 构建同时生成 `arm64` 与 `x86_64`，并要求宿主和两个扩展的架构集合完全一致。
+- 默认使用临时签名验证开发包结构，不代表系统会批准真实激活。正式包必须设置 `NONPROXY_RESTRICTED_SIGNING=1`，并提供 `NONPROXY_CODESIGN_IDENTITY`、`NONPROXY_HOST_PROFILE`、`NONPROXY_TRANSPARENT_PROFILE` 与 `NONPROXY_DNS_PROFILE`。
+- 正式签名按 Transparent Proxy、DNS Proxy、外层 App 的顺序执行；外层 App 只在正式受限签名时应用安装 System Extension 所需 entitlement。
+- `scripts/macos/verify-system-extension-bundle.sh` 校验 Bundle 标识、Extension Point、Principal Class、Mach-O 架构、NetworkExtension 链接、Provider Objective-C 符号、签名 entitlement 和嵌套签名完整性。
+- 当前证据只证明可执行 Bundle 可构建、可嵌入且签名结构自洽；Developer ID 签名、系统审批、Network Extension 配置、启动、升级、卸载和真实流量路径仍按系统测试门禁验收。
+
 Windows：
 
 - `dotnet publish` 从 `NonProxy.Desktop.Windows` 生成 `win-x64`/`win-arm64` self-contained UI。

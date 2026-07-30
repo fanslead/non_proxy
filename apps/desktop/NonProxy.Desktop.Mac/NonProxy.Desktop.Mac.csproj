@@ -11,12 +11,24 @@
     <ApplicationTitle>NonProxy</ApplicationTitle>
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
-    <SupportedOSPlatformVersion>14.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
     <CodesignKey Condition="'$(Configuration)' == 'Debug' and '$(CodesignKey)' == ''">-</CodesignKey>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="../NonProxy.Desktop.Core/NonProxy.Desktop.Core.csproj" />
   </ItemGroup>
+
+  <Target Name="PackageNonProxySystemExtensions"
+          AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(IsMacEnabled)' == 'true' and ('$(Configuration)' != 'Release' or '$(RuntimeIdentifier)' == '')">
+    <PropertyGroup>
+      <_NonProxyMacArchitecture Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == ''">universal</_NonProxyMacArchitecture>
+      <_NonProxyMacArchitecture Condition="'$(_NonProxyMacArchitecture)' == ''">$([System.String]::Copy('$(NETCoreSdkRuntimeIdentifier)').Replace('osx-', ''))</_NonProxyMacArchitecture>
+      <_NonProxyAppBundle>$([System.IO.Path]::GetFullPath('$(_AppBundlePath)'))</_NonProxyAppBundle>
+      <_NonProxyPackagingScript>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../../scripts/macos/package-system-extensions.sh'))</_NonProxyPackagingScript>
+    </PropertyGroup>
+    <Exec Command="&quot;$(_NonProxyPackagingScript)&quot; &quot;$(_NonProxyAppBundle)&quot; &quot;$(Configuration)&quot; &quot;$(_NonProxyMacArchitecture)&quot;" />
+  </Target>
 
 </Project>

@@ -24,7 +24,8 @@ contracts-breaking:
   source "{{env}}" && buf breaking --against '.git#ref=HEAD'
 
 restore-desktop:
-  source "{{env}}" && dotnet restore apps/desktop/NonProxy.Desktop.slnx --locked-mode
+  # macOS Release 是 Universal，锁文件以 Release 的双 RID 依赖图为基线。
+  source "{{env}}" && dotnet restore apps/desktop/NonProxy.Desktop.slnx --locked-mode -p:Configuration=Release
 
 restore-node:
   source "{{env}}" && pnpm install --frozen-lockfile
@@ -62,7 +63,7 @@ test-macos:
   source "{{env}}" && swift test --package-path platform/macos --disable-sandbox
 
 verify-macos-bundle: build-desktop
-  source "{{env}}" && native_rid="$(dotnet msbuild apps/desktop/NonProxy.Desktop.Mac/NonProxy.Desktop.Mac.csproj -getProperty:NETCoreSdkRuntimeIdentifier)" && codesign --verify --deep --strict --verbose=4 "apps/desktop/NonProxy.Desktop.Mac/bin/Debug/net10.0-macos/${native_rid}/NonProxy.app"
+  source "{{env}}" && native_rid="$(dotnet msbuild apps/desktop/NonProxy.Desktop.Mac/NonProxy.Desktop.Mac.csproj -getProperty:NETCoreSdkRuntimeIdentifier)" && ./scripts/macos/verify-system-extension-bundle.sh "apps/desktop/NonProxy.Desktop.Mac/bin/Debug/net10.0-macos/${native_rid}/NonProxy.app"
 
 check: check-tools contracts contracts-swift restore-desktop restore-node format-check lint verify-macos-bundle test test-macos control-e2e provider-e2e
 

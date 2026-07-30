@@ -29,6 +29,14 @@ let package = Package(
             targets: ["NonProxyDNSProxy"]
         ),
         .executable(
+            name: "NonProxyTransparentSystemExtension",
+            targets: ["NonProxyTransparentSystemExtension"]
+        ),
+        .executable(
+            name: "NonProxyDNSSystemExtension",
+            targets: ["NonProxyDNSSystemExtension"]
+        ),
+        .executable(
             name: "NonProxyProviderSmoke",
             targets: ["NonProxyProviderSmoke"]
         ),
@@ -114,6 +122,20 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("CryptoKit"),
                 .linkedFramework("Network"),
+                .linkedFramework("NetworkExtension"),
+            ]
+        ),
+        .executableTarget(
+            name: "NonProxyTransparentSystemExtension",
+            dependencies: ["NonProxyTransparentProxy"],
+            linkerSettings: [
+                .linkedFramework("NetworkExtension"),
+            ]
+        ),
+        .executableTarget(
+            name: "NonProxyDNSSystemExtension",
+            dependencies: ["NonProxyDNSProxy"],
+            linkerSettings: [
                 .linkedFramework("NetworkExtension"),
             ]
         ),
