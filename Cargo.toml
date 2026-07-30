@@ -13,6 +13,7 @@ rust-version = "1.97.1"
 publish = false
 
 [workspace.dependencies]
+base64 = { version = "0.23.0", default-features = false, features = ["std"] }
 idna = "1.1.0"
 getrandom = "0.4.3"
 hyper-util = { version = "0.1.20", features = ["tokio"] }
@@ -27,8 +28,9 @@ serde_json = "1.0.150"
 sha2 = "0.11.0"
 tempfile = "3.27.0"
 thiserror = "2.0.19"
-tokio = { version = "1.53.1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-stream = { version = "0.1.18", features = ["net", "sync"] }
+tokio-socks = "0.5.3"
 tonic = { version = "0.14.6", features = ["transport"] }
 tonic-prost = "0.14.6"
 tower = { version = "0.5.3", features = ["util"] }

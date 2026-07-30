@@ -1,0 +1,18 @@
+[package]
+name = "nonproxy-outbound"
+description = "NonProxy 可复用代理出口连接器"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64.workspace = true
+nonproxy-flow-protocol = { path = "../nonproxy-flow-protocol" }
+thiserror.workspace = true
+tokio.workspace = true
+tokio-socks.workspace = true
+zeroize.workspace = true
+
+[lints]
+workspace = true

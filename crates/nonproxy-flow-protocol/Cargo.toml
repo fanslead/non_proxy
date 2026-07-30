@@ -1,0 +1,16 @@
+[package]
+name = "nonproxy-flow-protocol"
+description = "NonProxy Provider 与 gatewayd 之间的有界数据面帧协议"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+nonproxy-model = { path = "../nonproxy-model" }
+thiserror.workspace = true
+tokio.workspace = true
+zeroize.workspace = true
+
+[lints]
+workspace = true
