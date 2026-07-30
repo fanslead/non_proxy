@@ -812,7 +812,7 @@ Adapter 输入不拥有单独的优先级层。Compiler 根据它实际包含的
 9. 达到所需 ACK 策略后标记 active。
 10. 失败则继续使用上一份快照。
 
-Provider 在内存中使用 `Arc`/不可变引用切换，不暂停所有流量。
+Rust 服务使用 `Arc`，Swift Provider 使用不可变值和同步只读引用完成原子切换；两端都不得为切换快照暂停全部流量。
 
 ## 12. macOS Transparent Proxy 实现
 
@@ -839,7 +839,9 @@ TransparentProxyExtension/
 │   └── IdentityCache.swift
 ├── Policy/
 │   ├── PolicySnapshotStore.swift
-│   ├── RustPolicyBridge.swift
+│   ├── SnapshotValidator.swift
+│   ├── CanonicalSnapshotHasher.swift
+│   ├── ProviderPolicyEngine.swift
 │   └── DecisionMapper.swift
 ├── IPC/
 │   ├── GatewayConnection.swift
@@ -890,7 +892,7 @@ failed
 1. 提取 TCP/UDP、远端 endpoint、hostname。
 2. 解析来源应用身份。
 3. 构造 `ConnectionContext`。
-4. 调用 Rust Policy Bridge。
+4. 调用经过跨语言黄金向量验证的 Swift 纯函数策略运行时。
 5. 记录轻量 decision event。
 6. DIRECT：
    - 对 Transparent Proxy 返回 `false`。
@@ -1570,6 +1572,10 @@ Provider 不逐条同步写日志：
 - 不使用无认证的 localhost HTTP 管理口。
 - 每次连接有 nonce 和版本协商。
 - 高风险写操作需要 UI session capability token。
+- Control 与 Provider 使用不同的 `0600` 引导能力文件，不能互相代用。
+- Provider 注册使用一次性 32 字节启动 nonce，成功后换取 15 分钟短会话；每个请求携带严格递增序号以拒绝重放。
+- Provider generation 跨 `gatewayd` 重启持久化，旧代 ACK 和健康状态不能覆盖新会话。
+- 引导能力不能替代发行包中的 UDS 对端代码签名校验；最终 System Extension 验收必须同时证明签名身份。
 
 ### 21.3 更新
 
@@ -1928,7 +1934,7 @@ Windows：
 9. 当前性能和内存基线。
 10. Avalonia macOS self-contained `.app` 的启动、托盘、NativeMenu、主题和窗口恢复证据。
 11. Avalonia UI 通过平台桥接查询、安装和卸载 System Extension 的证据。
-12. macOS 14/15/26 实际支持矩阵，无法获取的系统版本明确标记未验收。
+12. macOS 15/26 实际支持矩阵，无法获取的系统版本明确标记未验收。
 13. 未解决限制及是否阻塞正式开发。
 
 只有 Spike 证明系统通路成立，才进入完整 UI、协议和适配器开发。

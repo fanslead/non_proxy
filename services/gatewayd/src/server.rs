@@ -1,9 +1,10 @@
 use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::control::v1::control_service_server::ControlServiceServer;
+use nonproxy_proto::provider::v1::provider_service_server::ProviderServiceServer;
 
 use crate::{
     GatewayConfig, GatewayError, control_service::ControlRpcService, gateway::Gateway,
-    session_capability::SessionCapability,
+    provider_service::ProviderRpcService, session_capability::SessionCapability,
 };
 
 #[cfg(unix)]
@@ -17,22 +18,27 @@ use std::{
 pub async fn run(config: GatewayConfig) -> Result<(), GatewayError> {
     config.prepare()?;
     let gateway = Gateway::open(config.database_path(), CompileCapabilities::full()).await?;
-    let session = SessionCapability::create(config.state_directory())?;
-    serve_platform(config, ControlRpcService::new(gateway, session)).await
+    let control_capability = SessionCapability::create_control(config.state_directory())?;
+    let provider_capability = SessionCapability::create_provider(config.state_directory())?;
+    let control = ControlRpcService::new(gateway.clone(), control_capability);
+    let provider = ProviderRpcService::new(gateway, provider_capability);
+    serve_platform(config, control, provider).await
 }
 
 #[cfg(unix)]
 async fn serve_platform(
     config: GatewayConfig,
-    service: ControlRpcService,
+    control: ControlRpcService,
+    provider: ProviderRpcService,
 ) -> Result<(), GatewayError> {
-    serve_unix_with_shutdown(config, service, shutdown_signal()).await
+    serve_unix_with_shutdown(config, control, provider, shutdown_signal()).await
 }
 
 #[cfg(unix)]
 async fn serve_unix_with_shutdown(
     config: GatewayConfig,
-    service: ControlRpcService,
+    control: ControlRpcService,
+    provider: ProviderRpcService,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), GatewayError> {
     use tokio::net::UnixListener;
@@ -61,12 +67,16 @@ async fn serve_unix_with_shutdown(
         inode: metadata.ino(),
     };
     let incoming = UnixListenerStream::new(listener);
-    let rpc = ControlServiceServer::new(service)
+    let control_rpc = ControlServiceServer::new(control)
+        .max_decoding_message_size(ControlRpcService::max_message_bytes())
+        .max_encoding_message_size(ControlRpcService::max_message_bytes());
+    let provider_rpc = ProviderServiceServer::new(provider)
         .max_decoding_message_size(ControlRpcService::max_message_bytes())
         .max_encoding_message_size(ControlRpcService::max_message_bytes());
     Server::builder()
         .concurrency_limit_per_connection(64)
-        .add_service(rpc)
+        .add_service(control_rpc)
+        .add_service(provider_rpc)
         .serve_with_incoming_shutdown(incoming, shutdown)
         .await?;
     Ok(())
@@ -123,7 +133,8 @@ impl Drop for SocketGuard {
 #[cfg(not(unix))]
 async fn serve_platform(
     _config: GatewayConfig,
-    _service: ControlRpcService,
+    _control: ControlRpcService,
+    _provider: ProviderRpcService,
 ) -> Result<(), GatewayError> {
     Err(GatewayError::InvalidLocalPath(
         "当前目标尚未实现命名管道控制传输",
@@ -155,7 +166,7 @@ mod tests {
     use super::serve_unix_with_shutdown;
     use crate::{
         GatewayConfig, control_service::ControlRpcService, gateway::Gateway,
-        session_capability::SessionCapability,
+        provider_service::ProviderRpcService, session_capability::SessionCapability,
     };
 
     #[tokio::test]
@@ -176,16 +187,25 @@ mod tests {
         let Ok(database) = database else {
             panic!("测试数据库打开失败: {database:?}");
         };
-        let session = SessionCapability::create(config.state_directory());
-        let Ok(session) = session else {
-            panic!("测试会话令牌创建失败");
+        let control_capability = SessionCapability::create_control(config.state_directory());
+        let provider_capability = SessionCapability::create_provider(config.state_directory());
+        let (Ok(control_capability), Ok(provider_capability)) =
+            (control_capability, provider_capability)
+        else {
+            panic!("测试控制面或 Provider 能力令牌创建失败");
         };
-        let service =
-            ControlRpcService::new(Gateway::new(database, CompileCapabilities::full()), session);
+        let gateway = Gateway::new(database, CompileCapabilities::full());
+        let control = ControlRpcService::new(gateway.clone(), control_capability);
+        let provider = ProviderRpcService::new(gateway, provider_capability);
         let (shutdown_sender, shutdown_receiver) = oneshot::channel();
-        let server = tokio::spawn(serve_unix_with_shutdown(config, service, async move {
-            let _shutdown_result = shutdown_receiver.await;
-        }));
+        let server = tokio::spawn(serve_unix_with_shutdown(
+            config,
+            control,
+            provider,
+            async move {
+                let _shutdown_result = shutdown_receiver.await;
+            },
+        ));
 
         wait_for_socket(&socket_path).await;
         assert_socket_permissions(&socket_path);

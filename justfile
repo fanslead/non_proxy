@@ -17,6 +17,9 @@ generate:
 contracts:
   source "{{env}}" && ./scripts/contracts/check.sh
 
+contracts-swift:
+  source "{{env}}" && ./scripts/contracts/check-swift.sh
+
 contracts-breaking:
   source "{{env}}" && buf breaking --against '.git#ref=HEAD'
 
@@ -49,13 +52,19 @@ test:
 control-e2e:
   source "{{env}}" && ./scripts/smoke/control-plane-e2e.sh
 
+provider-e2e:
+  source "{{env}}" && ./scripts/smoke/provider-cross-language-e2e.sh
+
 build-desktop:
   source "{{env}}" && dotnet build apps/desktop/NonProxy.Desktop.slnx --no-restore --no-incremental --configuration Debug
+
+test-macos:
+  source "{{env}}" && swift test --package-path platform/macos --disable-sandbox
 
 verify-macos-bundle: build-desktop
   source "{{env}}" && native_rid="$(dotnet msbuild apps/desktop/NonProxy.Desktop.Mac/NonProxy.Desktop.Mac.csproj -getProperty:NETCoreSdkRuntimeIdentifier)" && codesign --verify --deep --strict --verbose=4 "apps/desktop/NonProxy.Desktop.Mac/bin/Debug/net10.0-macos/${native_rid}/NonProxy.app"
 
-check: check-tools contracts restore-desktop restore-node format-check lint verify-macos-bundle test control-e2e
+check: check-tools contracts contracts-swift restore-desktop restore-node format-check lint verify-macos-bundle test test-macos control-e2e provider-e2e
 
 status:
   source "{{env}}" && cargo run --quiet -p xtask -- status

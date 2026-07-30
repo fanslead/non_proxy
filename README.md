@@ -4,6 +4,8 @@ NonProxy 是一个本地优先的跨平台智能分流网关。用户选择应�
 
 当前状态：按 `docs/TECHNICAL_IMPLEMENTATION.md` 实施中。仓库内的构建通过不代表 macOS System Extension、Windows WFP 或真实网络路径已经验收。
 
+已经落地的基础包括版本化契约、Rust 策略模型/编译器/SQLite 权威存储、认证 UDS 控制面、Avalonia 共享产品工作区，以及 macOS Swift Provider 的快照校验、缓存、纯函数决策和 Provider RPC 客户端。Transparent Proxy、DNS Proxy、代理数据通道、浏览器学习与 Windows WFP 仍按里程碑继续实现；尚未启用的 RPC 会返回明确的不可用错误，不伪造成功。
+
 ## 架构
 
 - `apps/desktop/`：唯一的 Avalonia 跨平台桌面 UI。
@@ -19,6 +21,8 @@ NonProxy 是一个本地优先的跨平台智能分流网关。用户选择应�
 - [产品方案](NONPROXY_PRODUCT_SOLUTION.md)
 - [技术实现](docs/TECHNICAL_IMPLEMENTATION.md)
 - [桌面 UI ADR](docs/ADR/0001-use-avalonia-for-cross-platform-desktop-ui.md)
+- [macOS Provider 策略运行时 ADR](docs/ADR/0002-use-native-provider-policy-runtime.md)
+- [macOS 最低版本 ADR](docs/ADR/0003-set-macos-15-minimum.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链

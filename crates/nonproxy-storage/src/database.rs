@@ -8,7 +8,7 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::{
     MigrationReport, NetworkProfileRepository, OutboundRepository, PolicyRepository,
-    RetentionRepository, SnapshotRepository, StorageError, migration::migrate,
+    ProviderRepository, RetentionRepository, SnapshotRepository, StorageError, migration::migrate,
 };
 
 #[derive(Debug)]
@@ -81,6 +81,11 @@ impl PolicyDatabase {
     #[must_use]
     pub fn snapshots(&mut self) -> SnapshotRepository<'_> {
         SnapshotRepository::new(&mut self.connection)
+    }
+
+    #[must_use]
+    pub fn providers(&mut self) -> ProviderRepository<'_> {
+        ProviderRepository::new(&mut self.connection)
     }
 
     #[must_use]

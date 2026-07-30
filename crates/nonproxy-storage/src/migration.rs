@@ -13,6 +13,8 @@ use crate::StorageError;
 const INITIAL_SCHEMA: &str = include_str!("../../../migrations/V0001__initial_schema.sql");
 const POLICY_CATALOG_GENERATION: &str =
     include_str!("../../../migrations/V0002__policy_catalog_generation.sql");
+const PROVIDER_GENERATION: &str =
+    include_str!("../../../migrations/V0003__provider_generation.sql");
 
 struct Migration {
     version: i64,
@@ -30,6 +32,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 2,
         name: "policy_catalog_generation",
         sql: POLICY_CATALOG_GENERATION,
+    },
+    Migration {
+        version: 3,
+        name: "provider_generation",
+        sql: PROVIDER_GENERATION,
     },
 ];
 
@@ -347,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn an_existing_v1_database_upgrades_to_v2_without_reapplying_v1() {
+    fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         let mut connection = match Connection::open_in_memory() {
             Ok(value) => value,
             Err(error) => panic!("迁移升级测试数据库打开失败: {error}"),
@@ -368,14 +375,14 @@ mod tests {
             panic!("V1 数据库升级失败: {upgraded:?}");
         };
         assert_eq!(upgraded.previous_version(), 1);
-        assert_eq!(upgraded.current_version(), 2);
+        assert_eq!(upgraded.current_version(), 3);
         assert_eq!(
             upgraded
                 .applied()
                 .iter()
                 .map(AppliedMigration::version)
                 .collect::<Vec<_>>(),
-            vec![2]
+            vec![2, 3]
         );
         let generation: i64 = match connection.query_row(
             "SELECT value FROM control_generation WHERE name = 'policy_catalog'",

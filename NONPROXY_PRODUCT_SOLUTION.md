@@ -544,7 +544,7 @@ DNS 是完整效果的核心，不能作为附属功能。
 - 使用 self-contained 发布，不要求普通用户预装 .NET。
 - 平台差异通过 `IPlatformShell`、`ISystemComponentInstaller` 等小接口注入，禁止在 ViewModel 中堆积系统判断。
 
-Avalonia 官方当前把 macOS 26 和 Windows 11 24H2 列为 Tier 1；macOS 14/15 属于 Tier 2，因此这些旧系统需要由项目自己的真实设备和 CI 回归矩阵补足：
+Avalonia 官方当前把 macOS 26 和 Windows 11 24H2 列为 Tier 1；首发最低版本 macOS 15 仍需要由项目自己的真实设备和 CI 回归矩阵补足：
 
 - [Avalonia 支持平台](https://docs.avaloniaui.net/docs/supported-platforms)
 - [Avalonia macOS 平台能力](https://docs.avaloniaui.net/docs/platform-specific-guides/macos)
@@ -641,11 +641,11 @@ IPv4/IPv6：IPv4
 
 - Apple Silicon。
 - Intel Mac（若决定支持）。
-- macOS 14、15、26。
+- macOS 15、26。
 - 普通用户、管理员用户、多用户切换。
 - 有线、Wi-Fi、手机热点。
 
-建议首发只支持 Apple Silicon + macOS 14 及以上，Intel 作为市场需求确认后的扩展范围。
+首发只支持 Apple Silicon + macOS 15 及以上，Intel 和 macOS 14 作为市场需求确认后的扩展范围。
 
 ### 13.2 应用类型
 
@@ -822,7 +822,7 @@ IPv4/IPv6：IPv4
 | 高并发 UDP/QUIC | 性能和稳定性 | 独立压力测试、背压、连接上限和快路径 |
 | 企业安全策略冲突 | 合规风险 | 检测 MDM/Always-On，拒绝绕过 |
 | 浏览器扩展权限过大 | 隐私与商店审核 | 优先 activeTab、可选权限、无正文采集 |
-| Avalonia 在 macOS 14/15 为 Tier 2 | UI 回归风险 | 项目自建真实设备矩阵，必要时购买商业支持 |
+| macOS 15 需要项目自建回归矩阵 | UI 与 System Extension 回归风险 | 项目自建真实设备矩阵，必要时购买商业支持 |
 | 误认为跨平台 UI 等于无平台代码 | System Extension/WFP 无法落地 | UI 统一，平台高权限捕获和安装层继续隔离 |
 
 ## 18. 最终推荐范围
@@ -830,7 +830,7 @@ IPv4/IPv6：IPv4
 为了既达到完整效果，又避免项目无限膨胀，首个正式产品建议锁定：
 
 - Apple Silicon。
-- macOS 14 及以上。
+- macOS 15 及以上。
 - 完整网关模式为主。
 - Transparent Proxy + DNS Proxy。
 - 默认全局 PROXY，用户选择应用/网站 DIRECT。

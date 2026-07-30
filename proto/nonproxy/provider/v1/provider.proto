@@ -46,6 +46,7 @@ message RegisterProviderRequest {
   nonproxy.common.v1.ComponentVersion version = 3;
   repeated string capabilities = 4;
   bytes startup_nonce = 5;
+  bytes bootstrap_capability = 6;
 }
 
 // RegisterProviderResponse 返回协商结果和当前快照版本。
@@ -56,6 +57,7 @@ message RegisterProviderResponse {
   bytes session_token = 4;
   nonproxy.common.v1.ErrorDetail error = 5;
   google.protobuf.Timestamp session_expires_at = 6;
+  uint64 provider_generation = 7;
 }
 
 // ProviderRequestContext 验证注册会话并拒绝重放请求。

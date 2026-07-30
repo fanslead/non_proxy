@@ -9,7 +9,8 @@ use tonic::Status;
 
 use crate::GatewayError;
 
-pub const SESSION_TOKEN_FILE_NAME: &str = "session.capability";
+pub const CONTROL_CAPABILITY_FILE_NAME: &str = "session.capability";
+pub const PROVIDER_CAPABILITY_FILE_NAME: &str = "provider.capability";
 const SESSION_TOKEN_LENGTH: usize = 32;
 const MAX_OPERATION_ID_LENGTH: usize = 128;
 const TEMPORARY_FILE_ATTEMPTS: usize = 4;
@@ -20,11 +21,19 @@ pub struct SessionCapability {
 }
 
 impl SessionCapability {
-    pub fn create(state_directory: &Path) -> Result<Self, GatewayError> {
+    pub fn create_control(state_directory: &Path) -> Result<Self, GatewayError> {
+        Self::create_named(state_directory, CONTROL_CAPABILITY_FILE_NAME)
+    }
+
+    pub fn create_provider(state_directory: &Path) -> Result<Self, GatewayError> {
+        Self::create_named(state_directory, PROVIDER_CAPABILITY_FILE_NAME)
+    }
+
+    fn create_named(state_directory: &Path, file_name: &str) -> Result<Self, GatewayError> {
         let mut token = [0_u8; SESSION_TOKEN_LENGTH];
         getrandom::fill(&mut token).map_err(|error| GatewayError::Random(error.to_string()))?;
         let capability = Self { token };
-        capability.write_to(state_directory)?;
+        capability.write_to(state_directory, file_name)?;
         Ok(capability)
     }
 
@@ -37,10 +46,15 @@ impl SessionCapability {
     pub fn validate(&self, context: Option<&OperationContext>) -> Result<(), Status> {
         let context = context.ok_or_else(|| Status::unauthenticated("缺少操作上下文"))?;
         validate_operation_id(&context.operation_id)?;
-        if !constant_time_equal(&self.token, &context.session_capability_token) {
-            return Err(Status::permission_denied("会话能力令牌无效"));
+        self.validate_token(&context.session_capability_token)
+    }
+
+    pub fn validate_token(&self, token: &[u8]) -> Result<(), Status> {
+        if constant_time_equal(&self.token, token) {
+            Ok(())
+        } else {
+            Err(Status::permission_denied("会话能力令牌无效"))
         }
-        Ok(())
     }
 
     #[cfg(test)]
@@ -49,10 +63,10 @@ impl SessionCapability {
         &self.token
     }
 
-    fn write_to(&self, state_directory: &Path) -> Result<(), GatewayError> {
-        let path = state_directory.join(SESSION_TOKEN_FILE_NAME);
+    fn write_to(&self, state_directory: &Path, file_name: &str) -> Result<(), GatewayError> {
+        let path = state_directory.join(file_name);
         reject_symlink(&path)?;
-        let (temporary_path, mut file) = create_temporary_file(state_directory)?;
+        let (temporary_path, mut file) = create_temporary_file(state_directory, file_name)?;
         let write_result = file
             .write_all(&self.token)
             .and_then(|()| file.sync_all())
@@ -73,7 +87,10 @@ impl SessionCapability {
     }
 }
 
-fn create_temporary_file(state_directory: &Path) -> Result<(PathBuf, File), GatewayError> {
+fn create_temporary_file(
+    state_directory: &Path,
+    file_name: &str,
+) -> Result<(PathBuf, File), GatewayError> {
     for _attempt in 0..TEMPORARY_FILE_ATTEMPTS {
         let mut nonce = [0_u8; 8];
         getrandom::fill(&mut nonce).map_err(|error| GatewayError::Random(error.to_string()))?;
@@ -81,7 +98,7 @@ fn create_temporary_file(state_directory: &Path) -> Result<(PathBuf, File), Gate
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>();
-        let path = state_directory.join(format!(".session.capability.{suffix}.tmp"));
+        let path = state_directory.join(format!(".{file_name}.{suffix}.tmp"));
         match open_private_file(&path) {
             Ok(file) => return Ok((path, file)),
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
@@ -173,7 +190,10 @@ fn reject_symlink(path: &Path) -> Result<(), GatewayError> {
 mod tests {
     use std::{fs, path::PathBuf};
 
-    use super::{SESSION_TOKEN_FILE_NAME, SESSION_TOKEN_LENGTH, SessionCapability};
+    use super::{
+        CONTROL_CAPABILITY_FILE_NAME, PROVIDER_CAPABILITY_FILE_NAME, SESSION_TOKEN_LENGTH,
+        SessionCapability,
+    };
 
     #[test]
     fn creates_private_token_file_with_matching_bytes() {
@@ -182,18 +202,35 @@ mod tests {
             panic!("临时目录创建失败: {directory:?}");
         };
 
-        let capability = match SessionCapability::create(directory.path()) {
+        let capability = match SessionCapability::create_control(directory.path()) {
             Ok(capability) => capability,
             Err(error) => panic!("会话能力令牌创建失败: {error}"),
         };
-        let bytes = fs::read(directory.path().join(SESSION_TOKEN_FILE_NAME));
+        let bytes = fs::read(directory.path().join(CONTROL_CAPABILITY_FILE_NAME));
         let Ok(bytes) = bytes else {
             panic!("会话能力令牌读取失败: {bytes:?}");
         };
 
         assert_eq!(bytes.len(), SESSION_TOKEN_LENGTH);
         assert_eq!(bytes, capability.token());
-        assert_private_permissions(directory.path().join(SESSION_TOKEN_FILE_NAME));
+        assert_private_permissions(directory.path().join(CONTROL_CAPABILITY_FILE_NAME));
+    }
+
+    #[test]
+    fn creates_distinct_provider_capability() {
+        let directory = tempfile::tempdir();
+        let Ok(directory) = directory else {
+            panic!("临时目录创建失败: {directory:?}");
+        };
+
+        let control = SessionCapability::create_control(directory.path());
+        let provider = SessionCapability::create_provider(directory.path());
+        let (Ok(control), Ok(provider)) = (control, provider) else {
+            panic!("控制面或 Provider 能力令牌创建失败");
+        };
+
+        assert_ne!(control.token(), provider.token());
+        assert_private_permissions(directory.path().join(PROVIDER_CAPABILITY_FILE_NAME));
     }
 
     #[cfg(unix)]
@@ -206,12 +243,12 @@ mod tests {
         let (Ok(directory), Ok(target)) = (directory, target) else {
             panic!("符号链接测试夹具创建失败");
         };
-        let link = directory.path().join(SESSION_TOKEN_FILE_NAME);
+        let link = directory.path().join(CONTROL_CAPABILITY_FILE_NAME);
         if let Err(error) = symlink(target.path(), &link) {
             panic!("测试符号链接创建失败: {error}");
         }
 
-        let result = SessionCapability::create(directory.path());
+        let result = SessionCapability::create_control(directory.path());
 
         assert!(result.is_err());
         let target_bytes = fs::read(target.path());

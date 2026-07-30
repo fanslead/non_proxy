@@ -134,7 +134,7 @@ cargo test --workspace
 - 发布使用 self-contained runtime；普通用户不应被要求预装 .NET。
 - 首发不启用 NativeAOT，除非单独验证反射、序列化、诊断和打包链路。
 - 公共页面必须在 macOS 和 Windows 都有 UI 自动化覆盖。
-- macOS 14/15 当前属于 Avalonia Tier 2，相关支持声明必须有项目自己的真实设备回归证据。
+- macOS 15 的相关支持声明必须有项目自己的真实设备回归证据。
 
 验证至少包括：
 

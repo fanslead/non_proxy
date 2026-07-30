@@ -60,7 +60,7 @@ impl ControlService for ControlRpcService {
             .pending
             .as_ref()
             .map_or(0, |record| record.artifact().snapshot_version());
-        let state = if status.active.is_some() {
+        let state = if status.data_plane_ready {
             RuntimeState::Ready
         } else {
             RuntimeState::Degraded
@@ -75,7 +75,7 @@ impl ControlService for ControlRpcService {
         Ok(Response::new(control_proto::GetSystemStatusResponse {
             state: state as i32,
             active_snapshot_version: active_version,
-            data_plane_enabled: status.active.is_some(),
+            data_plane_enabled: status.data_plane_ready,
             components: vec![component],
             latest_event_sequence: self
                 .gateway

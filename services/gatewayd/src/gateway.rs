@@ -2,7 +2,10 @@ use std::{path::Path, sync::Arc};
 
 use nonproxy_model::{DecisionSpec, Policy, PolicyId};
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
-use nonproxy_storage::{OutboundReference, PolicyDatabase, SnapshotArtifact, SnapshotRecord};
+use nonproxy_storage::{
+    OutboundReference, PolicyDatabase, ProviderAck, ProviderAckState, SnapshotArtifact,
+    SnapshotRecord, StorageError,
+};
 use tokio::sync::Mutex;
 
 use crate::{
@@ -10,6 +13,8 @@ use crate::{
     clock::unix_time_ms,
     database_executor::DatabaseExecutor,
     event_hub::EventHub,
+    provider_health::ProviderHealthRegistry,
+    provider_requirements,
     runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, build_runtime_catalog},
     snapshot_payload,
 };
@@ -20,6 +25,7 @@ pub struct Gateway {
     capabilities: CompileCapabilities,
     mutation_gate: Arc<Mutex<()>>,
     events: EventHub,
+    provider_health: ProviderHealthRegistry,
 }
 
 #[derive(Clone, Debug)]
@@ -29,10 +35,17 @@ pub struct PublishedSnapshot {
 }
 
 #[derive(Clone, Debug)]
+pub struct ProviderSnapshot {
+    record: SnapshotRecord,
+    default_decision: DecisionSpec,
+}
+
+#[derive(Clone, Debug)]
 pub struct GatewayStatus {
     pub active: Option<SnapshotRecord>,
     pub pending: Option<SnapshotRecord>,
     pub policy_count: usize,
+    pub data_plane_ready: bool,
 }
 
 impl Gateway {
@@ -55,6 +68,7 @@ impl Gateway {
             capabilities,
             mutation_gate: Arc::new(Mutex::new(())),
             events: EventHub::new(),
+            provider_health: ProviderHealthRegistry::new(),
         }
     }
 
@@ -69,7 +83,8 @@ impl Gateway {
     }
 
     pub async fn status(&self) -> Result<GatewayStatus, GatewayError> {
-        self.database
+        let mut status = self
+            .database
             .run(|database| {
                 let active = database.snapshots().active()?;
                 let pending = database.snapshots().pending()?;
@@ -78,9 +93,18 @@ impl Gateway {
                     active,
                     pending,
                     policy_count,
+                    data_plane_ready: false,
                 })
             })
-            .await
+            .await?;
+        if let Some(active) = status.active.as_ref() {
+            status.data_plane_ready = self.provider_health.all_ready(
+                provider_requirements::required_provider_ids(),
+                active.artifact().snapshot_version(),
+                unix_time_ms()?,
+            )?;
+        }
+        Ok(status)
     }
 
     pub async fn list_policies(&self) -> Result<Vec<Policy>, GatewayError> {
@@ -205,12 +229,117 @@ impl Gateway {
             .run(|database| Ok(database.outbounds().list()?))
             .await
     }
+
+    pub async fn next_provider_generation(&self, provider_id: String) -> Result<u64, GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        self.database
+            .run(move |database| Ok(database.providers().next_generation(&provider_id)?))
+            .await
+    }
+
+    pub fn mark_provider_registered(
+        &self,
+        provider_id: &str,
+        generation: u64,
+        now_unix_ms: u64,
+    ) -> Result<(), GatewayError> {
+        self.provider_health
+            .registered(provider_id, generation, now_unix_ms)
+    }
+
+    pub fn report_provider_health(
+        &self,
+        provider_id: &str,
+        generation: u64,
+        state: nonproxy_proto::events::v1::RuntimeState,
+        active_snapshot_version: u64,
+        now_unix_ms: u64,
+    ) -> Result<(), GatewayError> {
+        self.provider_health.update(
+            provider_id,
+            generation,
+            state,
+            active_snapshot_version,
+            now_unix_ms,
+        )
+    }
+
+    pub async fn provider_snapshot(
+        &self,
+        known_snapshot_version: u64,
+    ) -> Result<Option<ProviderSnapshot>, GatewayError> {
+        self.database
+            .run(move |database| {
+                let candidate = database
+                    .snapshots()
+                    .pending()?
+                    .or(database.snapshots().active()?);
+                let Some(record) = candidate else {
+                    return Ok(None);
+                };
+                if record.status() == nonproxy_storage::SnapshotStatus::Active
+                    && record.artifact().snapshot_version() == known_snapshot_version
+                {
+                    return Ok(None);
+                }
+                let (_policies, _capabilities, default_decision) =
+                    snapshot_payload::decode(record.artifact().payload())?;
+                Ok(Some(ProviderSnapshot {
+                    record,
+                    default_decision,
+                }))
+            })
+            .await
+    }
+
+    pub async fn acknowledge_provider_snapshot(
+        &self,
+        snapshot_version: u64,
+        acknowledgement: ProviderAck,
+        required_provider_ids: Vec<String>,
+    ) -> Result<SnapshotRecord, GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        let now = unix_time_ms()?;
+        self.database
+            .run(move |database| {
+                database
+                    .snapshots()
+                    .record_ack(snapshot_version, &acknowledgement)?;
+                if acknowledgement.state() == ProviderAckState::Loaded {
+                    match database.snapshots().activate(
+                        snapshot_version,
+                        &required_provider_ids,
+                        now,
+                    ) {
+                        Ok(()) | Err(StorageError::ProviderAcknowledgementMissing) => {}
+                        Err(error) => return Err(error.into()),
+                    }
+                }
+                database
+                    .snapshots()
+                    .get(snapshot_version)?
+                    .ok_or_else(|| StorageError::SnapshotNotFound.into())
+            })
+            .await
+    }
 }
 
 impl PublishedSnapshot {
     #[must_use]
     pub const fn artifact(&self) -> &SnapshotArtifact {
         &self.artifact
+    }
+
+    #[must_use]
+    pub const fn default_decision(&self) -> &DecisionSpec {
+        &self.default_decision
+    }
+}
+
+impl ProviderSnapshot {
+    #[must_use]
+    pub const fn record(&self) -> &SnapshotRecord {
+        &self.record
     }
 
     #[must_use]
