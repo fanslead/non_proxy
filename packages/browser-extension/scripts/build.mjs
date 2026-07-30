@@ -24,6 +24,10 @@ for (const target of targets) {
     resolve(root, "src", "popup", "popup.css"),
     resolve(output, "popup", "popup.css"),
   );
+  await cp(
+    resolve(root, "src", "popup", "candidate-review.css"),
+    resolve(output, "popup", "candidate-review.css"),
+  );
 }
 
 await rm(compiled, { recursive: true, force: true });

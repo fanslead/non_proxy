@@ -37,10 +37,10 @@ export class BackgroundApp {
       { urls: [learningOriginPattern] },
     );
     this.#browser.tabs.onRemoved.addListener((tabID) => {
-      void this.#learning.stop(tabID).catch(() => {});
+      void this.#learning.release(tabID).catch(() => {});
     });
     setInterval(() => {
-      this.#learning.expire(Date.now());
+      void this.#learning.expire(Date.now());
     }, 1_000);
   }
 
@@ -60,6 +60,15 @@ export class BackgroundApp {
           break;
         case "stop":
           state = await this.#learning.stop(request.tabID);
+          break;
+        case "confirm":
+          state = await this.#learning.confirm(
+            request.tabID,
+            request.selectedDomains,
+          );
+          break;
+        case "discard":
+          state = await this.#learning.discard(request.tabID);
           break;
       }
       if (this.#learning.sessionCount === 0) {

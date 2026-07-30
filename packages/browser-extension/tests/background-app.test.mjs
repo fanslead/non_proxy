@@ -69,3 +69,80 @@ test("未授权或不支持的页面不能启动学习", async () => {
     { ok: false, error: "NP_EXTENSION_SITE_UNSUPPORTED" },
   );
 });
+
+test("后台只转发经过校验的候选选择并支持丢弃审核", async () => {
+  const browser = fakeBrowser();
+  const calls = [];
+  const learning = {
+    sessionCount: 0,
+    async confirm(tabID, selectedDomains) {
+      calls.push(["confirm", tabID, [...selectedDomains]]);
+      return {
+        active: false,
+        candidateCount: selectedDomains.length,
+        confirmation: {
+          policyCount: selectedDomains.length,
+          snapshotVersion: 7,
+          snapshotState: "pendingAck",
+          replayed: false,
+        },
+      };
+    },
+    discard(tabID) {
+      calls.push(["discard", tabID]);
+      return { active: false, candidateCount: 0 };
+    },
+  };
+  const app = new BackgroundApp(browser.api, learning);
+
+  const confirmed = await app.handleMessage({
+    type: "confirm",
+    tabID: 11,
+    selectedDomains: ["example.com", "api.example.com"],
+    sessionID: "must-not-cross-boundary",
+    confirmationID: "must-not-cross-boundary",
+  });
+  assert.equal(confirmed.ok, true);
+  assert.deepEqual(calls[0], [
+    "confirm",
+    11,
+    ["example.com", "api.example.com"],
+  ]);
+
+  assert.deepEqual(
+    await app.handleMessage({ type: "discard", tabID: 11 }),
+    {
+      ok: true,
+      state: { active: false, candidateCount: 0 },
+    },
+  );
+  assert.deepEqual(calls[1], ["discard", 11]);
+});
+
+test("后台拒绝空选择、重复域名和超出上限的确认消息", async () => {
+  const browser = fakeBrowser();
+  const learning = {
+    sessionCount: 0,
+    async confirm() {
+      throw new Error("must not confirm");
+    },
+  };
+  const app = new BackgroundApp(browser.api, learning);
+  const invalid = [
+    [],
+    ["example.com", "example.com"],
+    Array.from({ length: 257 }, (_, index) => `${index}.example.com`),
+    ["x".repeat(254)],
+  ];
+
+  for (const selectedDomains of invalid) {
+    assert.deepEqual(
+      await app.handleMessage({
+        type: "confirm",
+        tabID: 11,
+        selectedDomains,
+      }),
+      { ok: false, error: "NP_EXTENSION_REQUEST_INVALID" },
+    );
+  }
+});

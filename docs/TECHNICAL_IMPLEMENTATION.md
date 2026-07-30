@@ -1521,13 +1521,15 @@ stdin/stdout 使用浏览器规定的 4 字节小端长度前缀 JSON 帧。输�
 
 `packages/browser-extension` 使用 TypeScript 7 严格模式维护一套后台、弹窗、域名规范化和 Native Messaging 契约。构建输出分别位于 `dist/chromium` 与 `dist/safari`，目标目录只提供 Manifest 差异；macOS 打包会把两份可复现产物嵌入 `.app/Contents/Resources/BrowserExtensions/`，签名验证器逐文件比对当前构建产物。
 
-Chromium 使用 Manifest V3 service worker。清单常驻权限只有 `activeTab`、`nativeMessaging` 和 `webRequest`，不声明 `host_permissions`；用户点击“开始识别”时才请求可选的 `*://*/*`，最后一个会话停止、过期或后台状态重建时立即回收。持续 Native Messaging 端口在活动会话期间保持 worker 存活。
+Chromium 使用 Manifest V3 service worker。清单常驻权限只有 `activeTab`、`nativeMessaging` 和 `webRequest`，不声明 `host_permissions`；用户点击“开始识别”时才请求可选的 `*://*/*`，最后一个活动会话停止、过期或后台状态重建时立即回收。停止或权威截止时间到达后，会话先进入当前标签页专属的待审核状态；此时不再保留全站读取权限，但持续 Native Messaging 端口会保持到用户确认、丢弃或关闭标签页，避免普通的弹窗关闭/重开丢失审核上下文。
 
-真实 `tabId` 只作为进程内 `Map` 的键，不写 `storage`，也不进入 Native Messaging payload。每个标签页生成独立随机 `browserContextID`；网络事件先按 `details.tabId` 查找会话，再把 URL 瞬时收敛为域名。非 HTTP(S)、IP 地址、路径、查询参数、fragment 和页面内容不会上报。同一 `requestId` 的跨域主文档重定向链可以继续学习；新的直接跨站导航会停止当前标签页会话，不影响其他标签页。
+真实 `tabId` 只作为进程内 `Map` 的键，不写 `storage`，也不进入 Native Messaging payload。每个标签页生成独立随机 `browserContextID`；网络事件先按 `details.tabId` 查找会话，再把 URL 瞬时收敛为域名。非 HTTP(S)、IP 地址、路径、查询参数、fragment 和页面内容不会上报。同一 `requestId` 的跨域主文档重定向链可以继续学习；新的直接跨站导航会停止当前标签页会话并展示原站审核，不影响其他标签页。标签页关闭时会停止活动会话或丢弃待审核状态，不把标签身份遗留到持久化层。
 
-Native Messaging 客户端按 `requestID` 关联并发响应，设置 12 秒超时。只有端口断开或超时可以使用同一个请求身份重试一次；服务端业务错误不重放。自动化测试覆盖多标签页隔离、去敏、过期权限回收、固定 Chromium 扩展 ID、最小权限、双目标代码一致性和重试语义。
+候选审核只显示规范化域名、本地分类、可信提示和证据次数。主站默认勾选且不可取消；无需额外确认的候选默认勾选，登录、CDN、第三方及未知候选默认留给用户判断。弹窗只提交所选域名，不接触后端会话 ID 或确认 ID。后台再次验证非空、数量上限、去重、候选归属和主站必选，然后使用仅存内存的稳定确认 ID 调用 `confirmLearning`。业务失败保留原勾选和确认身份供安全重试；成功页区分快照正在同步与已经生效。
 
-当前边界：Chromium/Safari 共享代码和分发资产、候选确认控制契约、服务端原子规则批次和 Native Messaging 转发已经建立；浏览器弹窗的候选逐项选择、Safari App Extension 容器，以及真实浏览器隐私窗口和多标签页 UI 验收属于后续交付。
+Native Messaging 客户端按 `requestID` 关联并发响应，设置 12 秒超时。只有端口断开或超时可以使用同一个请求身份重试一次；服务端业务错误不重放。自动化测试覆盖多标签页候选隔离、主站强制、会话外域名拒绝、确认幂等身份、到期审核、标签页清理、去敏、权限回收、固定 Chromium 扩展 ID、最小权限、双目标代码一致性和传输重试。候选组件还通过本地真实浏览器渲染检查滚动、默认选择、计数联动和禁用主站。
+
+当前边界：Chromium/Safari 共享候选确认 UI、控制契约、服务端原子规则批次和 Native Messaging 转发已经建立。由于标签映射有意不持久化，整个浏览器进程崩溃或重启会丢弃未确认 UI 上下文；后端不会因此自动创建任何规则，用户需重新识别。Safari App Extension 容器，以及签名发行环境中的 Chromium/Safari 隐私窗口和真实多标签页生命周期验收属于后续交付。
 
 ## 19. 存储
 

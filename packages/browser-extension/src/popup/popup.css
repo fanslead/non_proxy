@@ -11,7 +11,7 @@
 }
 
 body {
-  width: 356px;
+  width: 372px;
   min-height: 410px;
   margin: 0;
   background: #0d1718;
@@ -69,6 +69,11 @@ h1 {
   background: #5be0bd;
 }
 
+.status-dot.ready {
+  border-color: #f2c66d;
+  background: #f2c66d;
+}
+
 .site-card {
   padding: 16px 0;
   border-top: 1px solid #263536;
@@ -97,6 +102,11 @@ h1 {
   padding: 22px 0 18px;
 }
 
+.review-panel,
+.success-panel {
+  padding: 20px 0 18px;
+}
+
 .panel-title {
   margin: 0 0 7px;
   font-size: 14px;
@@ -117,6 +127,12 @@ button {
   cursor: pointer;
 }
 
+button:focus-visible,
+input:focus-visible + .route-selector {
+  outline: 2px solid #f2c66d;
+  outline-offset: 3px;
+}
+
 button:disabled {
   cursor: wait;
   opacity: 0.55;
@@ -132,6 +148,14 @@ button:disabled {
   border: 1px solid #3d5150;
   background: transparent;
   color: #d8e5e2;
+}
+
+.quiet {
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  color: #8da5a1;
+  font-size: 12px;
 }
 
 .active-row {
@@ -202,5 +226,24 @@ footer {
   .secondary {
     border-color: #8ba09b;
     color: #223633;
+  }
+
+  .quiet {
+    color: #5d716d;
+  }
+
+  .brand-mark {
+    border-color: #17725e;
+    color: #17725e;
+  }
+
+  .error {
+    border-color: #b84432;
+    color: #8f3022;
+  }
+
+  button:focus-visible,
+  input:focus-visible + .route-selector {
+    outline-color: #855b08;
   }
 }

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>NonProxy 智能直连</title>
     <link rel="stylesheet" href="./popup.css" />
+    <link rel="stylesheet" href="./candidate-review.css" />
   </head>
   <body>
     <main class="shell">
@@ -48,6 +49,44 @@
         </p>
         <button id="stop-button" class="secondary" type="button">
           提前结束
+        </button>
+      </section>
+
+      <section id="review-panel" class="review-panel" hidden>
+        <div class="review-heading">
+          <div>
+            <p class="panel-title">选择要直连的域名</p>
+            <p class="panel-copy">
+              勾选项将直接连接；未勾选项保持当前网络方式。
+            </p>
+          </div>
+          <span id="selection-summary" class="selection-summary">
+            已选择 0 个域名
+          </span>
+        </div>
+        <fieldset id="candidate-list" class="candidate-list">
+          <legend>识别到的候选域名</legend>
+        </fieldset>
+        <div class="review-actions">
+          <button id="confirm-button" class="primary" type="button">
+            添加直连规则
+          </button>
+          <button id="discard-button" class="quiet" type="button">
+            暂不添加
+          </button>
+        </div>
+      </section>
+
+      <section id="success-panel" class="success-panel" hidden>
+        <span class="success-mark" aria-hidden="true">✓</span>
+        <p id="success-title" class="panel-title">
+          已创建直连规则
+        </p>
+        <p id="success-copy" class="panel-copy">
+          正在同步到网络组件。
+        </p>
+        <button id="done-button" class="secondary" type="button">
+          完成
         </button>
       </section>
 

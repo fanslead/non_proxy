@@ -1,0 +1,176 @@
+.review-heading {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.review-heading .panel-copy {
+  min-height: auto;
+  margin-bottom: 14px;
+}
+
+.selection-summary {
+  padding-top: 2px;
+  color: #5be0bd;
+  font: 600 10px/1.4 "SF Mono", "Roboto Mono", monospace;
+  white-space: nowrap;
+}
+
+.candidate-list {
+  max-height: 230px;
+  margin: 0 0 14px;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid #2a3b3c;
+  border-radius: 12px;
+  background: #111e1f;
+}
+
+.candidate-list legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.candidate-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  align-items: center;
+  min-height: 60px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.candidate-row + .candidate-row {
+  border-top: 1px solid #263536;
+}
+
+.candidate-row:hover {
+  background: rgb(91 224 189 / 5%);
+}
+
+.candidate-row input {
+  position: absolute;
+  opacity: 0;
+}
+
+.route-selector {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid #4c6260;
+  border-radius: 5px;
+}
+
+.candidate-row input:checked + .route-selector {
+  border-color: #5be0bd;
+  background: #5be0bd;
+}
+
+.candidate-row input:checked + .route-selector::after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border-bottom: 2px solid #09201a;
+  border-left: 2px solid #09201a;
+  transform: translateY(-1px) rotate(-45deg);
+}
+
+.candidate-row.mandatory {
+  cursor: default;
+}
+
+.candidate-details {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+  min-width: 0;
+}
+
+.candidate-domain {
+  overflow: hidden;
+  font: 600 12px/1.4 "SF Mono", "Roboto Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidate-kind,
+.candidate-evidence {
+  color: #8da5a1;
+  font-size: 10px;
+}
+
+.candidate-trust {
+  color: #5be0bd;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.candidate-trust.caution {
+  color: #f2c66d;
+}
+
+.candidate-evidence {
+  text-align: right;
+}
+
+.review-actions {
+  display: grid;
+  gap: 4px;
+}
+
+.success-panel {
+  text-align: center;
+}
+
+.success-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 14px;
+  place-items: center;
+  border: 1px solid #5be0bd;
+  border-radius: 50%;
+  color: #5be0bd;
+  font: 700 20px/1 "SF Mono", monospace;
+}
+
+.success-panel .panel-copy {
+  margin-bottom: 16px;
+}
+
+@media (prefers-color-scheme: light) {
+  .candidate-list,
+  .candidate-row + .candidate-row {
+    border-color: #cad8d4;
+  }
+
+  .candidate-list {
+    background: #edf3f0;
+  }
+
+  .candidate-kind,
+  .candidate-evidence {
+    color: #5d716d;
+  }
+
+  .selection-summary,
+  .candidate-trust,
+  .success-mark {
+    border-color: #17725e;
+    color: #17725e;
+  }
+
+  .candidate-trust.caution {
+    color: #855b08;
+  }
+}

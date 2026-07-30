@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
@@ -37,17 +37,33 @@ test("Chromium 公钥稳定生成 Native Host 允许的固定扩展 ID", async (
 });
 
 test("Chromium 与 Safari 分发相同的隐私处理代码", async () => {
-  for (const relative of [
-    "background/learning-controller.js",
-    "background/native-port-client.js",
-    "shared/domain.js",
-    "shared/native-contract.js",
-    "popup/popup.js",
-  ]) {
+  const [chromiumFiles, safariFiles] = await Promise.all([
+    distributionFiles("dist/chromium"),
+    distributionFiles("dist/safari"),
+  ]);
+  assert.deepEqual(chromiumFiles, safariFiles);
+  for (const relative of chromiumFiles) {
     const [chromium, safari] = await Promise.all([
-      readFile(new URL(`dist/chromium/${relative}`, root), "utf8"),
-      readFile(new URL(`dist/safari/${relative}`, root), "utf8"),
+      readFile(new URL(`dist/chromium/${relative}`, root)),
+      readFile(new URL(`dist/safari/${relative}`, root)),
     ]);
-    assert.equal(chromium, safari);
+    assert.deepEqual(chromium, safari);
   }
 });
+
+async function distributionFiles(relativeRoot, relative = "") {
+  const entries = await readdir(
+    new URL(`${relativeRoot}/${relative}`, root),
+    { withFileTypes: true },
+  );
+  const files = [];
+  for (const entry of entries) {
+    const path = relative ? `${relative}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...(await distributionFiles(relativeRoot, path)));
+    } else if (path !== "manifest.json") {
+      files.push(path);
+    }
+  }
+  return files.sort();
+}
