@@ -153,7 +153,8 @@ dotnet test apps/desktop/NonProxy.Desktop.Tests -c Release --no-restore
 - Provider 回调中不得同步访问磁盘、Keychain、数据库或远程网络。
 - 来源应用身份使用 bundle/signing/audit identity；PID 和路径不能作为唯一长期身份。
 - Provider 只使用不可变策略快照。
-- DIRECT 决策在 Transparent Proxy 中交还系统；PROXY 决策进入有界 flow relay。
+- DIRECT 决策进入绑定物理网卡且禁用 tunnel/loopback 的有界 relay；只有明确排除的系统控制流量才可交还系统。
+- PROXY 决策进入独立的有界 outbound relay，不能复用 DIRECT 出口。
 - TCP 必须保留 half-close 语义。
 - UDP 队列必须有界。
 - 所有 flow 必须有关闭、取消、超时和 backpressure 路径。

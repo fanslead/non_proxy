@@ -48,7 +48,7 @@
 | BASE-002 | macOS 默认数据通路使用 Transparent Proxy + DNS Proxy System Extension |
 | BASE-003 | 共享领域模型、策略引擎、规则编译器和网关接口使用 Rust |
 | BASE-004 | 跨进程、跨语言控制契约使用版本化 Protobuf；大流量转发不走通用 RPC |
-| BASE-005 | 完整网关模式下主机基础网络保持直连，NonProxy 只接管需要代理的连接 |
+| BASE-005 | 完整网关模式捕获策略范围内的连接；DIRECT 由 NonProxy 绑定物理网卡转发，PROXY 进入独立出口 |
 | BASE-006 | 数据面使用不可变策略快照，不为每条连接同步查询 UI 或数据库 |
 | BASE-007 | Windows 使用 WFP ALE 识别应用；内核驱动只做不可由用户态完成的重定向 |
 | BASE-008 | 平台捕获层不实现产品规则语义，协议网关不依赖平台 UI |
@@ -71,6 +71,18 @@ ADR-0001 的完整权衡见：
 - [Handling Flow Copying](https://developer.apple.com/documentation/networkextension/handling-flow-copying)
 - [NETransparentProxyNetworkSettings](https://developer.apple.com/documentation/networkextension/netransparentproxynetworksettings)
 - [Network Extension provider deployment](https://developer.apple.com/documentation/technotes/tn3134-network-extension-provider-deployment)
+
+但把 DIRECT flow 直接交还系统，仍可能被另一条已启用的 VPN 路由再次捕获，不能满足“明确不走第三方 VPN”的核心目标。因此完整网关模式由 NonProxy 接收 DIRECT flow，并使用 `NWConnection` 重新连接：
+
+- `NWParameters.requiredInterface` 固定当前首选的有线、Wi-Fi 或蜂窝物理接口：
+  [NWParameters.requiredInterface](https://developer.apple.com/documentation/network/nwparameters/requiredinterface)
+- `prohibitedInterfaceTypes` 禁止 `.other` 和 `.loopback`，避免把 tunnel interface 当作 DIRECT 出口：
+  [NWParameters](https://developer.apple.com/documentation/network/nwparameters)
+- 所有 TCP/UDP relay 使用全局流数量、全局缓冲和单 flow 缓冲上限。
+- 无可用物理接口时明确拒绝，不静默交回可能受 VPN 接管的系统路径。
+
+该方案不承诺绕过 MDM、Always-On VPN 或系统强制的 `includeAllNetworks` 策略，也不假定多个 Network Extension 的执行顺序。与第三方 VPN 的兼容性必须通过真实软件矩阵和出口证据验收：
+[TN3120](https://developer.apple.com/documentation/technotes/tn3120-expected-use-cases-for-network-extension-packet-tunnel-providers)。
 
 `NEDNSProxyProvider` 用于接管系统 DNS 查询：
 
@@ -472,7 +484,7 @@ flowchart LR
 - 接收 `NEAppProxyFlow`。
 - 解析平台应用身份。
 - 对不可变快照执行快速决策。
-- DIRECT：返回 `false`，由系统继续处理。
+- DIRECT：返回 `true`，通过绑定物理网卡的本地 TCP/UDP relay 转发。
 - PROXY：返回 `true`，通过本地数据通道交给 `gatewayd`。
 - 不访问 SQLite，不调用远程 API，不加载订阅。
 
@@ -895,7 +907,10 @@ failed
 4. 调用经过跨语言黄金向量验证的 Swift 纯函数策略运行时。
 5. 记录轻量 decision event。
 6. DIRECT：
-   - 对 Transparent Proxy 返回 `false`。
+   - 返回 `true`。
+   - 选择当前首选物理网卡。
+   - 使用设置了 `requiredInterface` 且禁止 tunnel/loopback 类型的连接转发。
+   - 没有物理网卡或达到有界资源上限时以稳定错误码关闭。
 7. PROXY：
    - 返回 `true`。
    - 建立本地 flow relay。
@@ -1688,7 +1703,8 @@ Windows POC 先验证：
 真实 System Extension 环境验证：
 
 - 应用身份。
-- DIRECT 返回系统。
+- DIRECT relay 的 socket 确实绑定物理网卡。
+- 第三方 VPN 开启时 DIRECT 与 PROXY 的出口 IP 证据不同。
 - PROXY flow copy。
 - TCP/UDP。
 - IPv4/IPv6。

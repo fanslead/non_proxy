@@ -4,7 +4,7 @@ import NonProxyProviderCore
 import XCTest
 
 final class TransparentFlowPlannerTests: XCTestCase {
-    func testDirectIsHandedBackToTheSystem() {
+    func testDirectSelectsTheDedicatedDirectRelay() {
         XCTAssertEqual(
             TransparentFlowPlanner.plan(
                 decision: decision(action: .direct, failureMode: .closed),

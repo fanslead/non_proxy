@@ -12,6 +12,7 @@ public final class TransparentProxyProvider:
 {
     private let providerState = TransparentProviderState()
     private let rejectedFlows = RejectedFlowRegistry()
+    private let flowRelays = FlowRelayRegistry()
     private let contextFactory = MacFlowContextFactory()
 
     public override func startProxy(
@@ -27,6 +28,7 @@ public final class TransparentProxyProvider:
             return
         }
         Task { [weak self] in
+            var startedInterfaces: PhysicalInterfaceCatalog?
             guard let self else {
                 completion.complete(
                     with: ProviderError.lifecycle("Transparent Provider 已释放")
@@ -35,13 +37,19 @@ public final class TransparentProxyProvider:
             }
             do {
                 let paths = try MacProviderPaths.live()
+                let interfaces = PhysicalInterfaceCatalog()
+                startedInterfaces = interfaces
+                await interfaces.start()
                 let rejectedFlows = self.rejectedFlows
+                let flowRelays = self.flowRelays
                 let components = try MacProviderBootstrap.make(
                     kind: .transparentProxy,
                     paths: paths,
                     metricsReader: {
                         ProviderHealthMetrics(
                             activeFlowCount: rejectedFlows.activeFlowCount
+                                + flowRelays.activeFlowCount,
+                            queuedBytes: flowRelays.queuedBytes
                         )
                     }
                 )
@@ -54,12 +62,23 @@ public final class TransparentProxyProvider:
                     components.lifecycle.stop()
                     throw error
                 }
-                guard self.providerState.install(components, runID: runID) else {
+                let runtime = TransparentProviderRuntime(
+                    provider: components,
+                    interfaces: interfaces,
+                    directRelays: DirectFlowRelayCoordinator(
+                        interfaces: interfaces,
+                        registry: flowRelays
+                    )
+                )
+                flowRelays.beginAccepting()
+                guard self.providerState.install(runtime, runID: runID) else {
+                    flowRelays.stopAcceptingAndCancelAll()
                     components.lifecycle.stop()
                     throw CancellationError()
                 }
                 completion.complete(with: nil)
             } catch {
+                startedInterfaces?.stop()
                 self.providerState.failStart(runID: runID)
                 completion.complete(with: error)
             }
@@ -70,7 +89,10 @@ public final class TransparentProxyProvider:
         with reason: NEProviderStopReason,
         completionHandler: @escaping () -> Void
     ) {
-        providerState.remove()?.lifecycle.stop()
+        let runtime = providerState.remove()
+        runtime?.provider.lifecycle.stop()
+        runtime?.interfaces.stop()
+        flowRelays.stopAcceptingAndCancelAll()
         rejectedFlows.closeAll()
         completionHandler()
     }
@@ -98,7 +120,7 @@ public final class TransparentProxyProvider:
         endpoint: NWEndpoint,
         transport: Nonproxy_Common_V1_TransportProtocol
     ) -> Bool {
-        guard let components = providerState.runtimeComponents() else {
+        guard let runtime = providerState.runtime() else {
             return reject(flow, code: "NP_PROVIDER_NOT_READY")
         }
         do {
@@ -107,13 +129,18 @@ public final class TransparentProxyProvider:
                 endpoint: endpoint,
                 transport: transport
             )
-            let decision = try components.runtime.decide(context: context)
+            let decision = try runtime.provider.runtime.decide(context: context)
             switch TransparentFlowPlanner.plan(
                 decision: decision,
                 proxyRelayAvailable: false
             ) {
             case .direct:
-                return false
+                return startDirectRelay(
+                    runtime: runtime,
+                    flow: flow,
+                    endpoint: endpoint,
+                    transport: transport
+                )
             case .proxy:
                 return reject(flow, code: "NP_PROXY_RELAY_UNAVAILABLE")
             case .reject(let errorCode):
@@ -123,6 +150,38 @@ public final class TransparentProxyProvider:
             return reject(flow, code: error.code)
         } catch {
             return reject(flow, code: "NP_FLOW_DECISION_FAILED")
+        }
+    }
+
+    private func startDirectRelay(
+        runtime: TransparentProviderRuntime,
+        flow: NEAppProxyFlow,
+        endpoint: NWEndpoint,
+        transport: Nonproxy_Common_V1_TransportProtocol
+    ) -> Bool {
+        let result: DirectRelayStartResult
+        switch transport {
+        case .tcp:
+            result = (flow as? NEAppProxyTCPFlow).map {
+                runtime.directRelays.startTCP(flow: $0, endpoint: endpoint)
+            } ?? .capacityExceeded
+        case .udp:
+            result = (flow as? NEAppProxyUDPFlow).map {
+                runtime.directRelays.startUDP(flow: $0)
+            } ?? .capacityExceeded
+        default:
+            result = .capacityExceeded
+        }
+        switch result {
+        case .accepted:
+            return true
+        case .physicalInterfaceUnavailable:
+            return reject(
+                flow,
+                code: "NP_DIRECT_PHYSICAL_INTERFACE_UNAVAILABLE"
+            )
+        case .capacityExceeded:
+            return reject(flow, code: "NP_DIRECT_RELAY_CAPACITY_EXCEEDED")
         }
     }
 
