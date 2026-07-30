@@ -4,7 +4,7 @@ NonProxy 是一个本地优先的跨平台智能分流网关。用户选择应�
 
 当前状态：按 `docs/TECHNICAL_IMPLEMENTATION.md` 实施中。仓库内的构建通过不代表 macOS System Extension、Windows WFP 或真实网络路径已经验收。
 
-已经落地的基础包括版本化契约、Rust 策略模型/编译器/SQLite 权威存储、认证 UDS 控制面、Avalonia 共享产品工作区，以及 macOS Swift Provider 的快照校验、缓存、纯函数决策和 Provider RPC 客户端。桌面端可以结构化导入 SOCKS5/HTTP CONNECT 出口，密码进入系统凭据库，数据库只保存版本化引用，导入后的能力会参与策略编译。`gatewayd` 已具备受限 UDS 上的 NPF1 TCP/UDP 数据通道、窗口背压和 SOCKS5/HTTP CONNECT 出口连接器。Transparent Proxy 已具备真实 Provider 入口、来源签名身份、TCP/UDP 目标解析、绑定物理接口的 DIRECT relay、BLOCK 与显式失败模式；Provider 到 NPF1 的代理 relay、DNS Proxy、浏览器学习与 Windows WFP 仍按里程碑继续实现。尚未启用的数据路径和 RPC 会明确失败，不伪造成功。
+已经落地的基础包括版本化契约、Rust 策略模型/编译器/SQLite 权威存储、认证 UDS 控制面、Avalonia 共享产品工作区，以及 macOS Swift Provider 的快照校验、缓存、纯函数决策和 Provider RPC 客户端。桌面端可以结构化导入 SOCKS5/HTTP CONNECT 出口，密码进入系统凭据库，数据库只保存版本化引用，导入后的能力会参与策略编译。`gatewayd` 已具备受限 UDS 上的 NPF1 TCP/UDP 数据通道、窗口背压和 SOCKS5/HTTP CONNECT 出口连接器。Transparent Proxy 已具备真实 Provider 入口、来源签名身份、TCP/UDP 目标解析、绑定物理接口的 DIRECT relay，以及通过 NPF1 连接所选代理出口的 TCP/UDP relay；BLOCK 与显式失败模式也已接入。自动化冒烟会让 Swift `NWConnection` 经真实 Unix Socket、Rust 数据面和 HTTP CONNECT 夹具完成回显，但真实 System Extension 网络路径仍需签名安装验收。DNS Proxy、浏览器学习与 Windows WFP 仍按里程碑继续实现，尚未启用的数据路径和 RPC 会明确失败，不伪造成功。
 
 ## 架构
 

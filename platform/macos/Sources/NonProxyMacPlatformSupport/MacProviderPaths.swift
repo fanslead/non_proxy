@@ -35,6 +35,10 @@ public struct MacProviderPaths: Sendable {
         stateDirectory.appendingPathComponent("gatewayd.sock").path
     }
 
+    public var flowSocketPath: String {
+        stateDirectory.appendingPathComponent("gatewayd-flow.sock").path
+    }
+
     public var cacheDirectory: URL {
         stateDirectory.appendingPathComponent("provider-cache", isDirectory: true)
     }

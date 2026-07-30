@@ -12,6 +12,10 @@ final class MacProviderPathsTests: XCTestCase {
         let capability = try fixture.paths.readBootstrapCapability()
 
         XCTAssertEqual(capability, Data(repeating: 9, count: 32))
+        XCTAssertEqual(
+            fixture.paths.flowSocketPath,
+            fixture.root.appendingPathComponent("gatewayd-flow.sock").path
+        )
     }
 
     func testRejectsGroupReadableCapability() throws {

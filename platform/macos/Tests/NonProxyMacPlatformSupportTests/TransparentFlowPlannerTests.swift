@@ -31,6 +31,16 @@ final class TransparentFlowPlannerTests: XCTestCase {
         )
     }
 
+    func testAvailableProxyKeepsSelectedOutbound() {
+        XCTAssertEqual(
+            TransparentFlowPlanner.plan(
+                decision: decision(action: .proxy, failureMode: .closed),
+                proxyRelayAvailable: true
+            ),
+            .proxy(outboundID: "proxy")
+        )
+    }
+
     func testBlockIsNeverHandedBackAsDirect() {
         XCTAssertEqual(
             TransparentFlowPlanner.plan(

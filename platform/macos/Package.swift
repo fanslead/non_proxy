@@ -28,6 +28,10 @@ let package = Package(
             name: "NonProxyProviderSmoke",
             targets: ["NonProxyProviderSmoke"]
         ),
+        .executable(
+            name: "NonProxyFlowSmoke",
+            targets: ["NonProxyFlowSmoke"]
+        ),
     ],
     dependencies: [
         .package(
@@ -101,6 +105,13 @@ let package = Package(
             dependencies: [
                 "NonProxyProviderCore",
                 "NonProxyProviderContracts",
+            ]
+        ),
+        .executableTarget(
+            name: "NonProxyFlowSmoke",
+            dependencies: ["NonProxyProviderCore"],
+            linkerSettings: [
+                .linkedFramework("Network"),
             ]
         ),
         .testTarget(

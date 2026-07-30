@@ -1176,6 +1176,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "nonproxy-http-connect-fixture"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "nonproxy-model"
 version = "0.1.0"
 dependencies = [

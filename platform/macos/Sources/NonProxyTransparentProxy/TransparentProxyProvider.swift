@@ -68,6 +68,11 @@ public final class TransparentProxyProvider:
                     directRelays: DirectFlowRelayCoordinator(
                         interfaces: interfaces,
                         registry: flowRelays
+                    ),
+                    proxyRelays: try ProxyFlowRelayCoordinator(
+                        socketPath: paths.flowSocketPath,
+                        capability: paths.readBootstrapCapability(),
+                        registry: flowRelays
                     )
                 )
                 flowRelays.beginAccepting()
@@ -132,7 +137,7 @@ public final class TransparentProxyProvider:
             let decision = try runtime.provider.runtime.decide(context: context)
             switch TransparentFlowPlanner.plan(
                 decision: decision,
-                proxyRelayAvailable: false
+                proxyRelayAvailable: true
             ) {
             case .direct:
                 return startDirectRelay(
@@ -141,8 +146,14 @@ public final class TransparentProxyProvider:
                     endpoint: endpoint,
                     transport: transport
                 )
-            case .proxy:
-                return reject(flow, code: "NP_PROXY_RELAY_UNAVAILABLE")
+            case .proxy(let outboundID):
+                return startProxyRelay(
+                    runtime: runtime,
+                    flow: flow,
+                    destination: context.destination,
+                    transport: transport,
+                    outboundID: outboundID
+                )
             case .reject(let errorCode):
                 return reject(flow, code: errorCode)
             }
@@ -150,6 +161,44 @@ public final class TransparentProxyProvider:
             return reject(flow, code: error.code)
         } catch {
             return reject(flow, code: "NP_FLOW_DECISION_FAILED")
+        }
+    }
+
+    private func startProxyRelay(
+        runtime: TransparentProviderRuntime,
+        flow: NEAppProxyFlow,
+        destination: PolicyDestination,
+        transport: Nonproxy_Common_V1_TransportProtocol,
+        outboundID: String
+    ) -> Bool {
+        let result: ProxyRelayStartResult
+        switch transport {
+        case .tcp:
+            result = (flow as? NEAppProxyTCPFlow).map {
+                runtime.proxyRelays.startTCP(
+                    flow: $0,
+                    destination: destination,
+                    outboundID: outboundID
+                )
+            } ?? .invalidEndpoint
+        case .udp:
+            result = (flow as? NEAppProxyUDPFlow).map {
+                runtime.proxyRelays.startUDP(
+                    flow: $0,
+                    destination: destination,
+                    outboundID: outboundID
+                )
+            } ?? .invalidEndpoint
+        default:
+            result = .invalidEndpoint
+        }
+        switch result {
+        case .accepted:
+            return true
+        case .invalidEndpoint:
+            return reject(flow, code: "NP_PROXY_ENDPOINT_INVALID")
+        case .capacityExceeded:
+            return reject(flow, code: "NP_PROXY_RELAY_CAPACITY_EXCEEDED")
         }
     }
 

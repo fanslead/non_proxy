@@ -7,6 +7,7 @@ struct TransparentProviderRuntime: Sendable {
     let provider: MacProviderRuntimeComponents
     let interfaces: PhysicalInterfaceCatalog
     let directRelays: DirectFlowRelayCoordinator
+    let proxyRelays: ProxyFlowRelayCoordinator
 }
 
 final class TransparentProviderState: Sendable {

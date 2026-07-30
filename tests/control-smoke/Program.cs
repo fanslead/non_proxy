@@ -23,6 +23,7 @@ internal static class Program
             var policies = new GatewayPolicyService(
                 client,
                 new PolicyContractMapper(new SmokePlatformInformation()));
+            await ImportSmokeOutboundIfRequestedAsync(client, timeout.Token);
             var initial = await client.GetSystemStatusAsync(timeout.Token);
             if (initial.ActiveSnapshotVersion != 0
                 || initial.PendingSnapshotVersion != 0)
@@ -59,6 +60,37 @@ internal static class Program
         {
             Console.Error.WriteLine($"控制平面跨语言联调失败：{exception.Message}");
             return 1;
+        }
+    }
+
+    private static async Task ImportSmokeOutboundIfRequestedAsync(
+        IControlRpcClient client,
+        CancellationToken cancellationToken)
+    {
+        var rawPort = Environment.GetEnvironmentVariable(
+            "NONPROXY_SMOKE_PROXY_PORT");
+        if (string.IsNullOrWhiteSpace(rawPort))
+        {
+            return;
+        }
+        if (!ushort.TryParse(rawPort, out var port) || port == 0)
+        {
+            throw new InvalidOperationException("代理联调端口无效。");
+        }
+
+        var service = new GatewayOutboundService(client);
+        var imported = await service.ImportAsync(
+            new OutboundImportDraft(
+                "smoke-http",
+                OutboundProxyKind.HttpConnect,
+                "127.0.0.1",
+                port,
+                null,
+                null),
+            cancellationToken);
+        if (imported.Outbounds.SingleOrDefault()?.Id != "smoke-http")
+        {
+            throw new InvalidOperationException("代理联调出口导入结果不完整。");
         }
     }
 
