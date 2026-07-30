@@ -13,15 +13,22 @@ pub use error::FlowServiceError;
 use outbound_factory::load_connector;
 use tcp::relay_tcp;
 use tokio::{
-    net::UnixListener,
+    io::{AsyncRead, AsyncWrite},
     sync::{Semaphore, watch},
     task::JoinSet,
 };
+use tokio_stream::{Stream, StreamExt};
 use udp::relay_udp;
 use window::FlowWindow;
 use writer::FlowFrameSender;
 
 const MAXIMUM_ACTIVE_FLOWS: usize = 2_048;
+
+pub trait FlowTransport: AsyncRead + AsyncWrite + Unpin + Send + 'static {}
+
+impl<T> FlowTransport for T where T: AsyncRead + AsyncWrite + Unpin + Send + 'static {}
+
+pub type BoxedFlowTransport = Box<dyn FlowTransport>;
 
 pub struct FlowServer {
     handler: FlowConnectionHandler,
@@ -36,7 +43,7 @@ impl FlowServer {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     fn with_maximum_active_flows(handler: FlowConnectionHandler, maximum: usize) -> Self {
         Self {
             handler,
@@ -44,11 +51,15 @@ impl FlowServer {
         }
     }
 
-    pub async fn serve(
+    pub async fn serve<S, T>(
         self,
-        listener: UnixListener,
+        mut incoming: S,
         mut shutdown: watch::Receiver<bool>,
-    ) -> Result<(), std::io::Error> {
+    ) -> Result<(), std::io::Error>
+    where
+        S: Stream<Item = Result<T, std::io::Error>> + Unpin,
+        T: FlowTransport,
+    {
         let mut tasks = JoinSet::new();
         loop {
             tokio::select! {
@@ -57,8 +68,11 @@ impl FlowServer {
                         break;
                     }
                 }
-                accepted = listener.accept() => {
-                    let (stream, _) = accepted?;
+                accepted = incoming.next() => {
+                    let Some(stream) = accepted else {
+                        break;
+                    };
+                    let stream = stream?;
                     let Ok(permit) = Arc::clone(&self.capacity).try_acquire_owned() else {
                         drop(stream);
                         continue;
@@ -80,7 +94,7 @@ impl FlowServer {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod udp_tests;

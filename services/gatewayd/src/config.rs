@@ -4,6 +4,8 @@ use std::{
 };
 
 use crate::GatewayError;
+#[cfg(windows)]
+use crate::WindowsTransportConfig;
 
 const STATE_DIRECTORY_ENVIRONMENT: &str = "NONPROXY_STATE_DIR";
 const SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_SOCKET_PATH";
@@ -21,6 +23,8 @@ pub struct GatewayConfig {
     socket_path: PathBuf,
     flow_socket_path: PathBuf,
     bundle_fingerprint: String,
+    #[cfg(windows)]
+    windows_transport: WindowsTransportConfig,
 }
 
 impl GatewayConfig {
@@ -98,6 +102,8 @@ impl GatewayConfig {
             socket_path,
             flow_socket_path,
             bundle_fingerprint,
+            #[cfg(windows)]
+            windows_transport: WindowsTransportConfig::from_process()?,
         })
     }
 
@@ -135,6 +141,12 @@ impl GatewayConfig {
     #[must_use]
     pub fn bundle_fingerprint(&self) -> &str {
         self.bundle_fingerprint.as_str()
+    }
+
+    #[must_use]
+    #[cfg(windows)]
+    pub fn windows_transport(&self) -> &WindowsTransportConfig {
+        &self.windows_transport
     }
 }
 
@@ -218,9 +230,9 @@ fn macos_state_directory(home: &Path) -> PathBuf {
 
 #[cfg(target_os = "windows")]
 fn default_state_directory() -> Result<PathBuf, GatewayError> {
-    let root = env::var_os("LOCALAPPDATA")
+    let root = env::var_os("PROGRAMDATA")
         .map(PathBuf::from)
-        .ok_or(GatewayError::InvalidLocalPath("缺少 LOCALAPPDATA"))?;
+        .ok_or(GatewayError::InvalidLocalPath("缺少 PROGRAMDATA"))?;
     Ok(root.join("NonProxy"))
 }
 

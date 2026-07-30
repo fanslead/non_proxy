@@ -1,11 +1,11 @@
 use nonproxy_flow_protocol::{FlowFrame, FlowId, FrameType, write_frame};
 use tokio::{
-    net::unix::OwnedWriteHalf,
+    io::WriteHalf,
     sync::{mpsc, oneshot},
     task::JoinHandle,
 };
 
-use super::FlowServiceError;
+use super::{BoxedFlowTransport, FlowServiceError};
 
 const WRITER_QUEUE_FRAMES: usize = 64;
 
@@ -22,7 +22,7 @@ struct WriteRequest {
 
 impl FlowFrameSender {
     pub fn start(
-        writer: OwnedWriteHalf,
+        writer: WriteHalf<BoxedFlowTransport>,
         flow_id: FlowId,
     ) -> (Self, JoinHandle<Result<(), FlowServiceError>>) {
         let (sender, receiver) = mpsc::channel(WRITER_QUEUE_FRAMES);
@@ -49,7 +49,7 @@ impl FlowFrameSender {
 }
 
 async fn run_writer(
-    mut writer: OwnedWriteHalf,
+    mut writer: WriteHalf<BoxedFlowTransport>,
     flow_id: FlowId,
     mut receiver: mpsc::Receiver<WriteRequest>,
 ) -> Result<(), FlowServiceError> {

@@ -5,21 +5,21 @@ use nonproxy_flow_protocol::{
     WindowUpdate, read_frame,
 };
 use nonproxy_outbound::OutboundConnector;
-use tokio::net::{UnixStream, unix::OwnedReadHalf};
+use tokio::io::ReadHalf;
 
-use super::{FlowFrameSender, FlowServiceError, FlowWindow};
+use super::{BoxedFlowTransport, FlowFrameSender, FlowServiceError, FlowWindow};
 
 const SERVER_RECEIVE_WINDOW_BYTES: u32 = 256 * 1024;
 
 pub async fn relay_udp(
-    stream: UnixStream,
+    stream: BoxedFlowTransport,
     flow_id: FlowId,
     sequence: SequenceTracker,
     client_window_bytes: u32,
     connector: OutboundConnector,
 ) -> Result<(), FlowServiceError> {
     let association = Arc::new(connector.open_udp().await?);
-    let (reader, writer) = stream.into_split();
+    let (reader, writer) = tokio::io::split(stream);
     let (sender, writer_task) = FlowFrameSender::start(writer, flow_id);
     sender
         .send(
@@ -57,7 +57,7 @@ pub async fn relay_udp(
 }
 
 async fn run_pumps(
-    reader: OwnedReadHalf,
+    reader: ReadHalf<BoxedFlowTransport>,
     flow_id: FlowId,
     sequence: SequenceTracker,
     association: Arc<nonproxy_outbound::Socks5UdpAssociation>,
@@ -82,7 +82,7 @@ async fn run_pumps(
 }
 
 async fn client_to_proxy(
-    mut reader: OwnedReadHalf,
+    mut reader: ReadHalf<BoxedFlowTransport>,
     flow_id: FlowId,
     mut sequence: SequenceTracker,
     association: Arc<nonproxy_outbound::Socks5UdpAssociation>,

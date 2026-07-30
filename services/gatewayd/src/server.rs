@@ -1,7 +1,9 @@
-use std::sync::Arc;
+use std::{future::Future, sync::Arc};
 
 use nonproxy_policy_compiler::CompileCapabilities;
+#[cfg(unix)]
 use nonproxy_proto::control::v1::control_service_server::ControlServiceServer;
+#[cfg(unix)]
 use nonproxy_proto::provider::v1::provider_service_server::ProviderServiceServer;
 
 use crate::{
@@ -10,20 +12,36 @@ use crate::{
     credential_store::{CredentialStore, OsCredentialStore},
     gateway::Gateway,
     provider_service::ProviderRpcService,
-    runtime_identity::RuntimeIdentityGuard,
     session_capability::SessionCapability,
 };
 
+#[cfg(any(unix, windows))]
+use crate::flow_server::FlowConnectionHandler;
 #[cfg(unix)]
-use std::future::Future;
-
-#[cfg(unix)]
-use crate::flow_server::{FlowConnectionHandler, FlowServer};
+use crate::{flow_server::FlowServer, runtime_identity::RuntimeIdentityGuard};
 
 #[cfg(unix)]
 use crate::unix_socket::{SocketRole, bind_private_socket};
 
 pub async fn run(config: GatewayConfig) -> Result<(), GatewayError> {
+    run_with_lifecycle(config, shutdown_signal(), None).await
+}
+
+#[cfg(windows)]
+pub(crate) async fn run_windows_service(
+    config: GatewayConfig,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+    ready: tokio::sync::oneshot::Sender<()>,
+) -> Result<(), GatewayError> {
+    config.windows_transport().require_production_security()?;
+    run_with_lifecycle(config, shutdown, Some(ready)).await
+}
+
+async fn run_with_lifecycle(
+    config: GatewayConfig,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+    ready: Option<tokio::sync::oneshot::Sender<()>>,
+) -> Result<(), GatewayError> {
     config.prepare()?;
     let gateway = Gateway::open(config.database_path(), CompileCapabilities::full()).await?;
     let control_capability = SessionCapability::create_control(config.state_directory())?;
@@ -34,7 +52,7 @@ pub async fn run(config: GatewayConfig) -> Result<(), GatewayError> {
         control_capability,
         Arc::clone(&credential_store),
     );
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     {
         let provider = ProviderRpcService::with_credential_store(
             gateway.clone(),
@@ -42,18 +60,21 @@ pub async fn run(config: GatewayConfig) -> Result<(), GatewayError> {
             Arc::clone(&credential_store),
         );
         let flow = FlowConnectionHandler::new(gateway, provider_capability, credential_store);
-        serve_platform(config, control, provider, flow).await
+        serve_platform(config, control, provider, flow, shutdown, ready).await
     }
-    #[cfg(not(unix))]
+    #[cfg(not(any(unix, windows)))]
     {
         let provider = ProviderRpcService::with_credential_store(
             gateway,
             provider_capability,
             credential_store,
         );
-        serve_platform(config, control, provider).await
+        serve_platform(config, control, provider, shutdown, ready).await
     }
 }
+
+#[cfg(windows)]
+mod windows;
 
 #[cfg(unix)]
 async fn serve_platform(
@@ -61,8 +82,22 @@ async fn serve_platform(
     control: ControlRpcService,
     provider: ProviderRpcService,
     flow: FlowConnectionHandler,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+    ready: Option<tokio::sync::oneshot::Sender<()>>,
 ) -> Result<(), GatewayError> {
-    serve_unix_with_shutdown(config, control, provider, flow, shutdown_signal()).await
+    serve_unix_with_shutdown(config, control, provider, flow, shutdown, ready).await
+}
+
+#[cfg(windows)]
+async fn serve_platform(
+    config: GatewayConfig,
+    control: ControlRpcService,
+    provider: ProviderRpcService,
+    flow: FlowConnectionHandler,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+    ready: Option<tokio::sync::oneshot::Sender<()>>,
+) -> Result<(), GatewayError> {
+    windows::serve(config, control, provider, flow, shutdown, ready).await
 }
 
 #[cfg(unix)]
@@ -72,6 +107,7 @@ async fn serve_unix_with_shutdown(
     provider: ProviderRpcService,
     flow: FlowConnectionHandler,
     shutdown: impl Future<Output = ()> + Send + 'static,
+    ready: Option<tokio::sync::oneshot::Sender<()>>,
 ) -> Result<(), GatewayError> {
     use tokio::sync::watch;
     use tokio_stream::wrappers::UnixListenerStream;
@@ -82,6 +118,9 @@ async fn serve_unix_with_shutdown(
     let (flow_listener, _flow_socket_guard) =
         bind_private_socket(config.flow_socket_path(), SocketRole::Flow).await?;
     let _runtime_identity_guard = RuntimeIdentityGuard::create(&config)?;
+    if let Some(sender) = ready {
+        let _send_result = sender.send(());
+    }
     let incoming = UnixListenerStream::new(control_listener);
     let control_rpc = ControlServiceServer::new(control)
         .max_decoding_message_size(ControlRpcService::max_message_bytes())
@@ -90,7 +129,10 @@ async fn serve_unix_with_shutdown(
         .max_decoding_message_size(ControlRpcService::max_message_bytes())
         .max_encoding_message_size(ControlRpcService::max_message_bytes());
     let (shutdown_sender, shutdown_receiver) = watch::channel(false);
-    let flow_server = FlowServer::new(flow).serve(flow_listener, shutdown_receiver.clone());
+    let flow_server = FlowServer::new(flow).serve(
+        UnixListenerStream::new(flow_listener),
+        shutdown_receiver.clone(),
+    );
     let control_server = Server::builder()
         .concurrency_limit_per_connection(64)
         .add_service(control_rpc)
@@ -119,7 +161,7 @@ async fn serve_unix_with_shutdown(
     }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 async fn wait_for_shutdown(mut receiver: tokio::sync::watch::Receiver<bool>) {
     if *receiver.borrow() {
         return;
@@ -131,7 +173,7 @@ async fn wait_for_shutdown(mut receiver: tokio::sync::watch::Receiver<bool>) {
     }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 fn combine_server_results(
     control: Result<(), tonic::transport::Error>,
     flow: Result<(), std::io::Error>,
@@ -143,11 +185,13 @@ fn combine_server_results(
     })
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 async fn serve_platform(
     _config: GatewayConfig,
     _control: ControlRpcService,
     _provider: ProviderRpcService,
+    _shutdown: impl Future<Output = ()> + Send + 'static,
+    _ready: Option<tokio::sync::oneshot::Sender<()>>,
 ) -> Result<(), GatewayError> {
     Err(GatewayError::InvalidLocalPath(
         "当前目标尚未实现命名管道控制传输",
@@ -235,6 +279,7 @@ mod tests {
         );
         let flow = FlowConnectionHandler::new(gateway, provider_capability, credential_store);
         let (shutdown_sender, shutdown_receiver) = oneshot::channel();
+        let (ready_sender, ready_receiver) = oneshot::channel();
         let server = tokio::spawn(serve_unix_with_shutdown(
             config,
             control,
@@ -243,8 +288,11 @@ mod tests {
             async move {
                 let _shutdown_result = shutdown_receiver.await;
             },
+            Some(ready_sender),
         ));
 
+        let ready_result = tokio::time::timeout(Duration::from_secs(1), ready_receiver).await;
+        assert!(matches!(ready_result, Ok(Ok(()))));
         wait_for_socket(&socket_path).await;
         wait_for_socket(&flow_socket_path).await;
         assert_socket_permissions(&socket_path);

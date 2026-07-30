@@ -12,6 +12,7 @@ use tokio::{
     net::{TcpListener, TcpStream, UnixStream},
     time::{Duration, timeout},
 };
+use tokio_stream::wrappers::UnixListenerStream;
 
 use super::{FlowConnectionHandler, FlowServer, FlowWindow};
 use crate::{
@@ -164,7 +165,8 @@ async fn server_drops_connections_above_active_flow_limit() {
     let (shutdown_sender, shutdown_receiver) = tokio::sync::watch::channel(false);
     let flow_server = FlowServer::with_maximum_active_flows(handler, 1);
     let capacity = Arc::clone(&flow_server.capacity);
-    let server_task = tokio::spawn(flow_server.serve(listener, shutdown_receiver));
+    let server_task =
+        tokio::spawn(flow_server.serve(UnixListenerStream::new(listener), shutdown_receiver));
     let _first = match UnixStream::connect(&socket_path).await {
         Ok(value) => value,
         Err(error) => panic!("第一个数据面测试连接失败: {error}"),

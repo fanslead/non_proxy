@@ -1739,6 +1739,16 @@ Provider 不逐条同步写日志：
 
 ## 22. Windows 实现预留
 
+当前已落地的可移植基础：
+
+- `gatewayd` 的控制面和 NPF1 数据面不再绑定 Unix Stream；Windows 使用两条独立的字节模式命名管道。
+- 命名管道首实例独占、拒绝远程客户端，并通过安装器下发的 SDDL 创建显式 DACL；Service 模式缺少生产 DACL 时拒绝启动。
+- 同一个 `gatewayd` 二进制支持 SCM 生命周期；只有状态目录、能力令牌、运行身份和两条管道全部就绪后才上报 `Running`。
+- Avalonia Windows 宿主使用 `NamedPipeClientStream` 连接认证 gRPC 控制面，继续复用与 macOS 相同的页面、ViewModel 和控制契约。
+- x64 与 ARM64 Windows target 都进入编译门禁；这只能证明平台代码可构建，不能替代 SCM、ACL 或真实流量验收。
+
+尚未完成的系统数据面是 WFP filter/callout、redirect records、DNS 接管、安装签名和真实 Windows 生命周期验收。Windows UI 在这些组件可验证之前继续将系统组件标记为不可用。
+
 ### 22.1 用户态优先
 
 Windows POC 先验证：

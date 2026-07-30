@@ -28,6 +28,10 @@ tokio-stream.workspace = true
 tonic.workspace = true
 zeroize.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+nonproxy-windows-ipc = { path = "../../crates/nonproxy-windows-ipc" }
+windows-service.workspace = true
+
 [dev-dependencies]
 hickory-proto.workspace = true
 hyper-util.workspace = true

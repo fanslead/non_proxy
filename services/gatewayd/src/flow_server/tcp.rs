@@ -6,18 +6,17 @@ use nonproxy_flow_protocol::{
 use nonproxy_outbound::{BoxedProxyStream, OutboundConnector};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
-    net::{UnixStream, unix::OwnedReadHalf},
     time::timeout,
 };
 
-use super::{FlowFrameSender, FlowServiceError, FlowWindow};
+use super::{BoxedFlowTransport, FlowFrameSender, FlowServiceError, FlowWindow};
 
 const SERVER_RECEIVE_WINDOW_BYTES: u32 = 256 * 1024;
 const MAXIMUM_READ_BYTES: usize = 64 * 1024;
 const REMOTE_HALF_CLOSE_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub async fn relay_tcp(
-    stream: UnixStream,
+    stream: BoxedFlowTransport,
     flow_id: FlowId,
     sequence: SequenceTracker,
     client_window_bytes: u32,
@@ -25,7 +24,7 @@ pub async fn relay_tcp(
     target: &nonproxy_flow_protocol::FlowEndpoint,
 ) -> Result<(), FlowServiceError> {
     let proxy = connector.connect_tcp(target).await?;
-    let (reader, writer) = stream.into_split();
+    let (reader, writer) = tokio::io::split(stream);
     let (proxy_reader, proxy_writer) = tokio::io::split(proxy);
     let (sender, writer_task) = FlowFrameSender::start(writer, flow_id);
     sender
@@ -65,7 +64,7 @@ pub async fn relay_tcp(
 }
 
 async fn run_pumps(
-    reader: OwnedReadHalf,
+    reader: ReadHalf<BoxedFlowTransport>,
     proxy_reader: ReadHalf<BoxedProxyStream>,
     proxy_writer: WriteHalf<BoxedProxyStream>,
     flow_id: FlowId,
@@ -96,7 +95,7 @@ async fn run_pumps(
 }
 
 async fn client_to_proxy(
-    mut reader: OwnedReadHalf,
+    mut reader: ReadHalf<BoxedFlowTransport>,
     mut proxy_writer: WriteHalf<BoxedProxyStream>,
     flow_id: FlowId,
     mut sequence: SequenceTracker,

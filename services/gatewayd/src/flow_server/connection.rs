@@ -4,11 +4,13 @@ use nonproxy_flow_protocol::{
     FlowFrame, FlowId, FrameType, OpenFlowRequest, SequenceTracker, read_frame, write_frame,
 };
 use nonproxy_outbound::OutboundConnector;
-use tokio::{net::UnixStream, time::timeout};
+use tokio::time::timeout;
 
 use crate::{Gateway, credential_store::CredentialStore, session_capability::SessionCapability};
 
-use super::{FlowServiceError, load_connector, relay_tcp, relay_udp};
+use super::{
+    BoxedFlowTransport, FlowServiceError, FlowTransport, load_connector, relay_tcp, relay_udp,
+};
 
 const OPEN_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -32,7 +34,14 @@ impl FlowConnectionHandler {
         }
     }
 
-    pub async fn handle(&self, mut stream: UnixStream) {
+    pub async fn handle<T>(&self, stream: T)
+    where
+        T: FlowTransport,
+    {
+        self.handle_boxed(Box::new(stream)).await;
+    }
+
+    async fn handle_boxed(&self, mut stream: BoxedFlowTransport) {
         let first = match read_open_frame(&mut stream).await {
             Ok(first) => first,
             Err(_) => return,
@@ -45,17 +54,10 @@ impl FlowConnectionHandler {
                 return;
             }
         };
-        let owned_stream = match take_stream(&mut stream) {
-            Ok(value) => value,
-            Err(error) => {
-                let _error_result = send_setup_error(&mut stream, flow_id, error.code()).await;
-                return;
-            }
-        };
         match prepared.frame_type {
             FrameType::OpenTcp => {
                 let _relay_result = relay_tcp(
-                    owned_stream,
+                    stream,
                     flow_id,
                     prepared.sequence,
                     prepared.initial_window_bytes,
@@ -66,7 +68,7 @@ impl FlowConnectionHandler {
             }
             FrameType::OpenUdp => {
                 let _relay_result = relay_udp(
-                    owned_stream,
+                    stream,
                     flow_id,
                     prepared.sequence,
                     prepared.initial_window_bytes,
@@ -116,21 +118,15 @@ struct PreparedFlow {
     connector: OutboundConnector,
 }
 
-async fn read_open_frame(stream: &mut UnixStream) -> Result<FlowFrame, FlowServiceError> {
+async fn read_open_frame(stream: &mut BoxedFlowTransport) -> Result<FlowFrame, FlowServiceError> {
     timeout(OPEN_FRAME_TIMEOUT, read_frame(stream))
         .await
         .map_err(|_| FlowServiceError::PeerClosed)?
         .map_err(FlowServiceError::from)
 }
 
-fn take_stream(stream: &mut UnixStream) -> Result<UnixStream, FlowServiceError> {
-    let (replacement, peer) = UnixStream::pair()?;
-    drop(peer);
-    Ok(std::mem::replace(stream, replacement))
-}
-
 async fn send_setup_error(
-    stream: &mut UnixStream,
+    stream: &mut BoxedFlowTransport,
     flow_id: FlowId,
     code: &str,
 ) -> Result<(), FlowServiceError> {
