@@ -129,6 +129,7 @@ build_product NonProxyTransparentSystemExtension
 build_product NonProxyDNSSystemExtension
 build_product NonProxyMacHostBridge
 build_product NonProxyNativeMessagingHost
+build_product NonProxySafariWebExtension
 build_browser_extensions
 gateway_temporary_directory=
 gateway_source=
@@ -154,6 +155,7 @@ gateway_binary="${resources_root}/nonproxy-gatewayd"
 native_messaging_host="${resources_root}/nonproxy-native-messaging-host"
 browser_extensions_source="${repo_root}/packages/browser-extension/dist"
 browser_extensions_root="${resources_root}/BrowserExtensions"
+safari_extension_bundle="${app_bundle}/Contents/PlugIns/NonProxySafariWebExtension.appex"
 
 assemble_bundle() {
     local bundle=$1
@@ -216,6 +218,10 @@ for bundle in "${transparent_bundle}" "${dns_bundle}"; do
         "Set :CFBundleVersion ${host_build}" \
         "${bundle}/Contents/Info.plist"
 done
+"${script_dir}/assemble-safari-web-extension.sh" \
+    "${app_bundle}" \
+    "${bin_path}/NonProxySafariWebExtension" \
+    "${browser_extensions_source}/safari"
 
 if "${plist_buddy}" -c "Print :NSSystemExtensionUsageDescription" \
     "${app_bundle}/Contents/Info.plist" >/dev/null 2>&1; then
@@ -251,6 +257,9 @@ if [[ "${restricted_signing}" == 1 ]]; then
         "${NONPROXY_TRANSPARENT_PROFILE:-}" \
         "${transparent_bundle}"
     embed_profile "${NONPROXY_DNS_PROFILE:-}" "${dns_bundle}"
+    embed_profile \
+        "${NONPROXY_SAFARI_PROFILE:-}" \
+        "${safari_extension_bundle}"
     embed_profile "${NONPROXY_HOST_PROFILE:-}" "${app_bundle}"
 fi
 
@@ -274,6 +283,9 @@ sign_bundle \
     "${transparent_bundle}" \
     "${packaging_root}/TransparentProxy.entitlements"
 sign_bundle "${dns_bundle}" "${packaging_root}/DNSProxy.entitlements"
+sign_bundle \
+    "${safari_extension_bundle}" \
+    "${packaging_root}/SafariWebExtension.entitlements"
 
 bridge_sign_args=(--force --sign "${signing_identity}")
 if [[ "${signing_identity}" == - ]]; then

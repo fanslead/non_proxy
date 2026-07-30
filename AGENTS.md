@@ -178,6 +178,8 @@ dotnet test apps/desktop/NonProxy.Desktop.Tests -c Release --no-restore
 
 真实系统生命周期验收使用 `scripts/macos/system-lifecycle-e2e.sh`。查询保持只读；安装、升级、卸载必须显式设置 `NONPROXY_ALLOW_SYSTEM_MUTATION=1`，使用新的空证据目录并保留结果。不得为了让脚本通过而放宽 `/Applications`、TeamIdentifier、provisioning profile、重启中间态或发布候选 Gatekeeper/公证门禁。
 
+Safari Web Extension 必须作为真实 `.appex` 嵌入 containing app；`Contents/Resources/BrowserExtensions/safari` 只能作为可复现源码产物，不能冒充 Safari 安装容器。Safari 的 Native Messaging 必须经 `NSExtensionRequestHandling` 和 `SFExtensionMessageKey`，不得假设 Safari 会启动 Chromium stdin/stdout Host。正式 Safari 验收使用 `scripts/macos/safari-extension-e2e.sh` 与新的空证据目录；不得自动修改 Safari 扩展或无痕浏览设置，也不得用单元测试替代人工多标签页和隐私证据。
+
 ## 9. Windows
 
 - UI 复用 `apps/desktop/NonProxy.Desktop.Core`，不得另建 WinUI/WPF 页面复制产品功能。
@@ -245,6 +247,8 @@ buf breaking --against '.git#branch=main'
 - 弹窗不得接触学习会话 ID 或确认 ID；主站必须勾选且不可取消，默认只能自动选择无需额外确认的候选。后台仍须验证数量、去重、候选归属和主站必选。
 - 确认业务失败必须保留用户勾选及同一个确认 ID；成功、明确丢弃或标签页关闭后才能清理审核上下文。
 - Native Messaging 只有传输断开或超时可以使用相同请求身份重试；服务端业务错误不得重放。
+- Safari 后台入口必须是无模块加载依赖的单文件构建产物；共享 TypeScript 仍是唯一业务真源，禁止维护第二套 Safari 学习逻辑。
+- Safari `.appex` 必须校验 `XPC!`、Web Extension 扩展点、principal class、宿主版本/架构、资源一致性、App Sandbox、App Group、网络客户端权限、profile 与嵌套签名。
 
 扩展变更至少验证：
 

@@ -36,19 +36,41 @@ test("Chromium 公钥稳定生成 Native Host 允许的固定扩展 ID", async (
   assert.equal(extensionID, "ldiadofihjimpkhchjicmgcfgjlgidha");
 });
 
-test("Chromium 与 Safari 分发相同的隐私处理代码", async () => {
+test("Chromium 与 Safari 分发相同的共享隐私处理代码", async () => {
   const [chromiumFiles, safariFiles] = await Promise.all([
     distributionFiles("dist/chromium"),
     distributionFiles("dist/safari"),
   ]);
   assert.deepEqual(chromiumFiles, safariFiles);
   for (const relative of chromiumFiles) {
+    if (relative === "background/background.js") {
+      continue;
+    }
     const [chromium, safari] = await Promise.all([
       readFile(new URL(`dist/chromium/${relative}`, root)),
       readFile(new URL(`dist/safari/${relative}`, root)),
     ]);
     assert.deepEqual(chromium, safari);
   }
+});
+
+test("Safari 后台入口是不依赖模块加载的单文件产物", async () => {
+  const manifest = await json("dist/safari/manifest.json");
+  assert.deepEqual(manifest.background, {
+    scripts: ["background/background.js"],
+  });
+  const background = await readFile(
+    new URL("dist/safari/background/background.js", root),
+    "utf8",
+  );
+  assert.equal(/^\s*(?:import|export)\s/m.test(background), false);
+  assert.match(background, /connectNative/);
+  assert.match(background, /confirmLearning/);
+  assert.equal(manifest.icons["512"], "icons/nonproxy.svg");
+  assert.equal(
+    manifest.action.default_icon["32"],
+    "icons/nonproxy.svg",
+  );
 });
 
 async function distributionFiles(relativeRoot, relative = "") {

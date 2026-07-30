@@ -1,6 +1,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = resolve(root, "dist");
@@ -28,7 +29,23 @@ for (const target of targets) {
     resolve(root, "src", "popup", "candidate-review.css"),
     resolve(output, "popup", "candidate-review.css"),
   );
+  await cp(
+    resolve(root, "src", "icons"),
+    resolve(output, "icons"),
+    { recursive: true },
+  );
 }
+
+await build({
+  entryPoints: [resolve(dist, "_compiled", "background", "background.js")],
+  outfile: resolve(dist, "safari", "background", "background.js"),
+  bundle: true,
+  format: "iife",
+  platform: "browser",
+  target: ["safari15"],
+  legalComments: "none",
+  sourcemap: false,
+});
 
 await rm(compiled, { recursive: true, force: true });
 

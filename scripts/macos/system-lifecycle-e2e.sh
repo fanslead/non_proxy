@@ -68,8 +68,9 @@ if [[ -e "${evidence_directory}" ]]; then
         echo "证据目录必须为空，避免覆盖既有验收记录" >&2
         exit 65
     fi
+else
+    mkdir "${evidence_directory}"
 fi
-mkdir "${evidence_directory}"
 
 NONPROXY_RESTRICTED_SIGNING=1 \
     "${script_dir}/verify-system-extension-bundle.sh" "${app_bundle}"
@@ -150,6 +151,10 @@ validate_profile \
     "${extensions_root}/com.nonproxy.desktop.dns-proxy.systemextension" \
     com.nonproxy.desktop.dns-proxy \
     dns-proxy
+validate_profile \
+    "${app_bundle}/Contents/PlugIns/NonProxySafariWebExtension.appex" \
+    com.nonproxy.desktop.safari-web-extension \
+    safari-web-extension
 
 if [[ "${NONPROXY_REQUIRE_DEVELOPER_ID:-0}" == 1 ]]; then
     if ! grep -F "Authority=Developer ID Application:" \

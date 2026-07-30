@@ -7,8 +7,8 @@ Unix Socket 冒烟都不能替代本流程。
 ## 1. 前置条件
 
 - 目标电脑运行 macOS 15 或更高版本。
-- App 使用同一 Team 下有效的宿主、Transparent Proxy 和 DNS Proxy
-  provisioning profile 签名。
+- App 使用同一 Team 下有效的宿主、Transparent Proxy、DNS Proxy 和
+  Safari Web Extension provisioning profile 签名。
 - App 已由签名安装器或 Finder 放入 `/Applications`，不能从构建目录运行。
 - 测试人员可以在“系统设置 → 通用 → 登录项与扩展”完成系统审批。
 - 执行安装、升级、卸载或完整生命周期测试前，先确认允许短暂改变本机网络
@@ -116,3 +116,7 @@ NONPROXY_REQUIRE_DEVELOPER_ID=1 \
 
 本流程仍不证明 DIRECT 流量绕过任意第三方 VPN。VPN 共存需要另行记录
 测试矩阵、出口 IP/接口路径和失败策略证据。
+
+Safari 扩展的登记、启用、普通/无痕窗口多标签页隔离与隐私验收使用
+[Safari Web Extension 正式验收](SAFARI_EXTENSION_ACCEPTANCE.md)。系统组件
+生命周期通过不能自动推导 Safari 已启用或允许无痕浏览。

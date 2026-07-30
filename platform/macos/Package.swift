@@ -61,6 +61,14 @@ let package = Package(
             name: "NonProxyNativeMessagingHost",
             targets: ["NonProxyNativeMessagingHost"]
         ),
+        .executable(
+            name: "NonProxySafariWebExtension",
+            targets: ["NonProxySafariWebExtension"]
+        ),
+        .executable(
+            name: "NonProxySafariStateProbe",
+            targets: ["NonProxySafariStateProbe"]
+        ),
     ],
     dependencies: [
         .package(
@@ -107,6 +115,13 @@ let package = Package(
         ),
         .target(
             name: "NonProxyMacRuntime"
+        ),
+        .target(
+            name: "NonProxySafariStateBridge",
+            publicHeadersPath: "include",
+            linkerSettings: [
+                .linkedFramework("SafariServices"),
+            ]
         ),
         .target(
             name: "NonProxyNativeMessaging",
@@ -199,6 +214,26 @@ let package = Package(
         .executableTarget(
             name: "NonProxyNativeMessagingHost",
             dependencies: ["NonProxyNativeMessaging"]
+        ),
+        .executableTarget(
+            name: "NonProxySafariWebExtension",
+            dependencies: ["NonProxyNativeMessaging"],
+            swiftSettings: [
+                .unsafeFlags(["-application-extension"]),
+            ],
+            linkerSettings: [
+                .linkedFramework("SafariServices"),
+                .unsafeFlags([
+                    "-Xlinker",
+                    "-e",
+                    "-Xlinker",
+                    "_NSExtensionMain",
+                ]),
+            ]
+        ),
+        .executableTarget(
+            name: "NonProxySafariStateProbe",
+            dependencies: ["NonProxySafariStateBridge"]
         ),
         .testTarget(
             name: "NonProxyProviderCoreTests",

@@ -4,6 +4,14 @@
   "short_name": "NonProxy",
   "version": "0.1.0",
   "description": "只在你主动开启时识别当前标签页需要直连的域名。",
+  "icons": {
+    "48": "icons/nonproxy.svg",
+    "64": "icons/nonproxy.svg",
+    "96": "icons/nonproxy.svg",
+    "128": "icons/nonproxy.svg",
+    "256": "icons/nonproxy.svg",
+    "512": "icons/nonproxy.svg"
+  },
   "permissions": [
     "activeTab",
     "nativeMessaging",
@@ -11,11 +19,16 @@
   ],
   "optional_host_permissions": ["*://*/*"],
   "background": {
-    "scripts": ["background/background.js"],
-    "type": "module"
+    "scripts": ["background/background.js"]
   },
   "action": {
     "default_title": "NonProxy 智能直连",
-    "default_popup": "popup/popup.html"
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/nonproxy.svg",
+      "19": "icons/nonproxy.svg",
+      "32": "icons/nonproxy.svg",
+      "38": "icons/nonproxy.svg"
+    }
   }
 }

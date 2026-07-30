@@ -82,6 +82,31 @@ final class NativeHostRuntimeConfigurationTests: XCTestCase {
         )
     }
 
+    func testBuildsAppExtensionPathsInsideAppGroupContainer() throws {
+        let container = URL(
+            fileURLWithPath: "/tmp/nonproxy-app-group",
+            isDirectory: true
+        )
+
+        let configuration = try NativeHostRuntimeConfiguration.appExtension(
+            appGroupContainer: container
+        )
+
+        XCTAssertEqual(
+            configuration.controlSocket.path,
+            "/tmp/nonproxy-app-group/Library/Application Support/NonProxy/gatewayd.sock"
+        )
+        XCTAssertEqual(
+            configuration.controlCapability.path,
+            "/tmp/nonproxy-app-group/Library/Application Support/NonProxy/session.capability"
+        )
+        XCTAssertThrowsError(
+            try NativeHostRuntimeConfiguration.appExtension(
+                appGroupContainer: nil
+            )
+        )
+    }
+
     private func temporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(

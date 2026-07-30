@@ -69,6 +69,32 @@ public struct NativeHostRuntimeConfiguration: Equatable, Sendable {
         )
     }
 
+    public static func appExtension(
+        appGroupContainer: URL?
+    ) throws -> Self {
+        guard let appGroupContainer,
+              appGroupContainer.isFileURL,
+              appGroupContainer.path.hasPrefix("/")
+        else {
+            throw NativeMessagingError.runtimeUnavailable(
+                "无法访问 NonProxy App Group 状态目录。"
+            )
+        }
+        let stateDirectory = appGroupContainer
+            .appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent(
+                "Application Support",
+                isDirectory: true
+            )
+            .appendingPathComponent("NonProxy", isDirectory: true)
+        return try Self(
+            controlSocket: stateDirectory
+                .appendingPathComponent("gatewayd.sock"),
+            controlCapability: stateDirectory
+                .appendingPathComponent("session.capability")
+        )
+    }
+
     public func readControlCapability() throws -> Data {
         let descriptor = open(
             controlCapability.path,

@@ -1388,7 +1388,7 @@ macOS 原生桥 ABI 约束：
 macOS：
 
 - `dotnet publish` 从 `NonProxy.Desktop.Mac` 生成 `osx-arm64`/需要时 `osx-x64` self-contained UI。
-- 发布脚本组装 Avalonia `.app`、Swift 平台组件、System Extension、Native Messaging Host 和 `gatewayd`。
+- 发布脚本组装 Avalonia `.app`、Swift 平台组件、System Extension、Safari Web Extension `.appex`、Native Messaging Host 和 `gatewayd`。
 - 按嵌套组件到外层 App 的顺序签名，最后 notarize。
 - System Extension 必须位于 containing `.app/Contents/Library/SystemExtensions/`。
 - 激活请求必须由 containing app 的 Mac 宿主提交。
@@ -1405,10 +1405,10 @@ macOS：
 - `SMAppService.status == enabled` 不能证明运行的是当前包版本。发现旧指纹、旧版缺少运行身份或后台通道异常时，修复事务先移除 Network Extension 偏好，再异步 `unregister` 并等待旧进程退出，登记当前 LaunchAgent，确认新运行身份后重新安装并启用网络组件。替换过程后段失败时保留已登记的新后台服务并保持网络偏好关闭，不回滚到旧进程；仅首次安装失败才撤销本次新登记。
 - 偏好保存前会快照旧值，DNS 保存失败时恢复两份旧配置；重复的透明代理配置会停止并返回稳定错误。后续安装失败时，只回滚本次新登记的 `gatewayd`，不误停先前已运行的服务。
 - 卸载先停用并移除网络偏好，再停用两个扩展和 `gatewayd`；不存在的组件按幂等成功处理，需要重启会明确返回。普通 UI 退出不触发这一流程。
-- `NonProxy.Desktop.Mac` 构建完成后调用 `scripts/macos/package-system-extensions.sh`，把两个 `SYSX` Bundle 放入最终 `.app/Contents/Library/SystemExtensions/`，把原生桥放入 `.app/Contents/Frameworks/`，并嵌入 LaunchAgent plist 与 `gatewayd`。
-- Debug 构建生成当前机器架构；不指定 RID 的 Release 构建同时生成 `arm64` 与 `x86_64`，并要求宿主、原生桥、`gatewayd` 和两个扩展的架构集合完全一致。
-- 默认使用临时签名验证开发包结构，不代表系统会批准真实激活。正式包必须设置 `NONPROXY_RESTRICTED_SIGNING=1`，并提供 `NONPROXY_CODESIGN_IDENTITY`、`NONPROXY_HOST_PROFILE`、`NONPROXY_TRANSPARENT_PROFILE` 与 `NONPROXY_DNS_PROFILE`。
-- 签名按两个 System Extension、原生桥、`gatewayd`、外层 App 的嵌套顺序执行；外层 App 只在正式受限签名时应用安装 System Extension 所需 entitlement。
+- `NonProxy.Desktop.Mac` 构建完成后调用 `scripts/macos/package-system-extensions.sh`，把两个 `SYSX` Bundle 放入最终 `.app/Contents/Library/SystemExtensions/`，把真实 Safari Web Extension 放入 `.app/Contents/PlugIns/NonProxySafariWebExtension.appex`，把原生桥放入 `.app/Contents/Frameworks/`，并嵌入 LaunchAgent plist 与 `gatewayd`。
+- Debug 构建生成当前机器架构；不指定 RID 的 Release 构建同时生成 `arm64` 与 `x86_64`，并要求宿主、原生桥、`gatewayd`、两个 System Extension 和 Safari `.appex` 的架构集合完全一致。
+- 默认使用临时签名验证开发包结构，不代表系统会批准真实激活。正式包必须设置 `NONPROXY_RESTRICTED_SIGNING=1`，并提供 `NONPROXY_CODESIGN_IDENTITY`、`NONPROXY_HOST_PROFILE`、`NONPROXY_TRANSPARENT_PROFILE`、`NONPROXY_DNS_PROFILE` 与 `NONPROXY_SAFARI_PROFILE`。
+- 签名按两个 System Extension、Safari `.appex`、原生桥、`gatewayd`、外层 App 的嵌套顺序执行；Safari 扩展启用 App Sandbox、App Group 和仅用于认证本地 UDS 的网络客户端权限，外层 App 只在正式受限签名时应用安装 System Extension 所需 entitlement。
 - `scripts/macos/verify-system-extension-bundle.sh` 还校验原生桥导出符号、SystemExtensions/NetworkExtension/ServiceManagement 链接、LaunchAgent 的固定字段、包指纹与签名；`scripts/macos/native-bridge-smoke.sh` 从最终 App 宿主跨 C ABI 验证版本及非 ASCII UTF-8。
 - `scripts/macos/gateway-bundle-smoke.sh` 使用隔离临时目录直接启动包内 `gatewayd`，验证 Socket/capability 类型、长度、`0600` 权限，核对运行身份指纹和 PID，并确认 SIGTERM 清理。它不调用 `SMAppService.register()`，因此不能代替系统“后台项目”授权与登录重启测试。
 - 运行概览把后台服务、Transparent Proxy、DNS Proxy 和网络偏好建模为四段有序状态，不用一个总开关掩盖部分失败；诊断页从同一领域状态生成逐段检查和稳定错误码。
@@ -1456,7 +1456,7 @@ Windows：
 
 平台差异：
 
-- Safari 权限和宿主打包。
+- Safari 经典后台入口、App Extension 消息适配、权限和宿主打包。
 - Chromium Manifest V3 service worker。
 - Firefox API 差异。
 
@@ -1519,7 +1519,7 @@ stdin/stdout 使用浏览器规定的 4 字节小端长度前缀 JSON 帧。输�
 
 ### 18.6 共享 WebExtension 实现
 
-`packages/browser-extension` 使用 TypeScript 7 严格模式维护一套后台、弹窗、域名规范化和 Native Messaging 契约。构建输出分别位于 `dist/chromium` 与 `dist/safari`，目标目录只提供 Manifest 差异；macOS 打包会把两份可复现产物嵌入 `.app/Contents/Resources/BrowserExtensions/`，签名验证器逐文件比对当前构建产物。
+`packages/browser-extension` 使用 TypeScript 7 严格模式维护一套后台、弹窗、域名规范化和 Native Messaging 契约。构建输出分别位于 `dist/chromium` 与 `dist/safari`，目标目录只提供 Manifest 差异；Safari 的 Manifest 不声明转换器不支持的模块后台，构建使用锁定的 esbuild 把相同后台入口收敛为不含 `import`/`export` 的单文件 IIFE。两份目标仍保留相同共享模块和隐私逻辑，Safari 另外在 Manifest 中声明可缩放扩展与工具栏图标。macOS 打包会把两份可复现产物嵌入 `.app/Contents/Resources/BrowserExtensions/`，签名验证器逐文件比对当前构建产物。
 
 Chromium 使用 Manifest V3 service worker。清单常驻权限只有 `activeTab`、`nativeMessaging` 和 `webRequest`，不声明 `host_permissions`；用户点击“开始识别”时才请求可选的 `*://*/*`，最后一个活动会话停止、过期或后台状态重建时立即回收。停止或权威截止时间到达后，会话先进入当前标签页专属的待审核状态；此时不再保留全站读取权限，但持续 Native Messaging 端口会保持到用户确认、丢弃或关闭标签页，避免普通的弹窗关闭/重开丢失审核上下文。
 
@@ -1529,7 +1529,17 @@ Chromium 使用 Manifest V3 service worker。清单常驻权限只有 `activeTab
 
 Native Messaging 客户端按 `requestID` 关联并发响应，设置 12 秒超时。只有端口断开或超时可以使用同一个请求身份重试一次；服务端业务错误不重放。自动化测试覆盖多标签页候选隔离、主站强制、会话外域名拒绝、确认幂等身份、到期审核、标签页清理、去敏、权限回收、固定 Chromium 扩展 ID、最小权限、双目标代码一致性和传输重试。候选组件还通过本地真实浏览器渲染检查滚动、默认选择、计数联动和禁用主站。
 
-当前边界：Chromium/Safari 共享候选确认 UI、控制契约、服务端原子规则批次和 Native Messaging 转发已经建立。由于标签映射有意不持久化，整个浏览器进程崩溃或重启会丢弃未确认 UI 上下文；后端不会因此自动创建任何规则，用户需重新识别。Safari App Extension 容器，以及签名发行环境中的 Chromium/Safari 隐私窗口和真实多标签页生命周期验收属于后续交付。
+### 18.7 Safari App Extension 容器
+
+Safari 不启动 Chromium 的独立 stdin/stdout Host。`NonProxySafariWebExtension` 是以 `_NSExtensionMain` 为真实入口的 Swift App Extension 可执行文件，`SafariWebExtensionHandler` 从 `SFExtensionMessageKey` 取得属性列表消息，转为与 Chromium 完全相同的版本化 JSON 请求，经共享 `NativeRequestProcessor` 调用认证控制面，再把响应写回 `SFExtensionMessageKey`。无效消息和本地服务不可用都会返回稳定错误 envelope，不能静默成功或回显输入。
+
+Safari 扩展通过 `FileManager.containerURL(forSecurityApplicationGroupIdentifier:)` 定位 `group.com.nonproxy.shared`，随后复用 Native Host 对 owner-only Socket、`O_NOFOLLOW` capability、32 字节长度和 RPC 能力 Token 的全部校验。它不直接打开 SQLite，也不保存浏览器消息。扩展进程内复用一个 gRPC UDS 连接；进程退出由系统回收连接。
+
+`scripts/macos/assemble-safari-web-extension.sh` 只把当前 Swift 二进制、固定 Info.plist 和 `dist/safari` 组装进唯一的 `.appex`。`scripts/macos/verify-safari-web-extension.sh` 校验 `XPC!`、扩展点、principal class、版本、最低系统、资源逐文件一致、经典后台、架构、`SafariServices` 链接、App Sandbox/App Group/网络客户端 entitlement、profile 和签名。当前 Safari 转换器验证无兼容告警。
+
+正式验收使用 `scripts/macos/safari-extension-e2e.sh`。只读 `query` 记录 `pluginkit` 与 `SFSafariExtensionManager` 状态；`accept` 还要求扩展真实启用，并绑定普通窗口、无痕窗口、多标签页隔离、候选确认、域名最小采集和临时权限回收的人工证据。Safari 的安全设置由用户控制，脚本不得代替用户启用扩展或允许无痕浏览。操作手册见 `docs/SAFARI_EXTENSION_ACCEPTANCE.md`。
+
+当前边界：Chromium/Safari 共享候选确认 UI、控制契约、服务端原子规则批次，以及两种浏览器各自正确的 Native Messaging 入口已经建立。由于标签映射有意不持久化，整个浏览器进程崩溃或重启会丢弃未确认 UI 上下文；后端不会因此自动创建任何规则，用户需重新识别。签名发行环境中的真实验收必须按手册执行，未取得 Team/profile、Safari 启用状态和人工浏览器证据时不得声明通过。
 
 ## 19. 存储
 

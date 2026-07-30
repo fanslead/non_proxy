@@ -214,6 +214,7 @@ if ! cmp -s \
     echo "浏览器扩展构建信息与当前源码构建不一致" >&2
     exit 67
 fi
+"${script_dir}/verify-safari-web-extension.sh" "${app_bundle}"
 gateway_binary_digest=$(shasum -a 256 "${gateway_binary}" | awk '{print $1}')
 gateway_plist_digest=$(shasum -a 256 "${gateway_plist_template}" | awk '{print $1}')
 expected_gateway_fingerprint=$(
@@ -353,7 +354,8 @@ if [[ "${NONPROXY_RESTRICTED_SIGNING:-0}" == 1 ]]; then
     for bundle in \
         "${app_bundle}" \
         "${transparent_bundle}" \
-        "${dns_bundle}"; do
+        "${dns_bundle}" \
+        "${app_bundle}/Contents/PlugIns/NonProxySafariWebExtension.appex"; do
         if [[ ! -f "${bundle}/Contents/embedded.provisionprofile" ||
               -L "${bundle}/Contents/embedded.provisionprofile" ]]; then
             echo "正式签名 Bundle 缺少有效 provisioning profile：${bundle}" >&2
@@ -367,4 +369,4 @@ assert_plist_value \
     NSSystemExtensionUsageDescription \
     "NonProxy 需要安装网络系统扩展，以便按应用和网站选择直连或指定代理。"
 codesign --verify --deep --strict --verbose=2 "${app_bundle}"
-echo "macOS App 已包含签名有效的系统扩展、浏览器扩展、Native Messaging Host 与 gatewayd。"
+echo "macOS App 已包含签名有效的系统扩展、Safari .appex、浏览器资产、Native Messaging Host 与 gatewayd。"
