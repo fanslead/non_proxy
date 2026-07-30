@@ -16,4 +16,10 @@ pub enum DnsError {
     CacheCapacity,
     #[error("DNS 缓存锁不可用")]
     CacheLock,
+    #[error("合成地址空间配置无效")]
+    SyntheticAddressSpace,
+    #[error("合成地址空间已耗尽")]
+    SyntheticAddressExhausted,
+    #[error("DNS 查询类型与合成地址族不匹配")]
+    SyntheticAddressFamilyMismatch,
 }

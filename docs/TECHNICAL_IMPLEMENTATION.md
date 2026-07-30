@@ -535,6 +535,14 @@ Windows Service 的 DIRECT 出口不能复用系统默认路由。`nonproxy-wind
 
 接口索引是运行时易变值，不进入策略、数据库或长期配置。Windows DIRECT DNS UDP/TCP 与 TCP relay 复用同一 socket 绑定实现。完整决策和限制见 [ADR-0005](ADR/0005-bind-windows-direct-to-physical-interface.md)。
 
+网站规则不能把 DNS 观察到的 CDN IP 永久归类，也不能依赖可能被 ECH 隐藏的
+TLS SNI。Windows 采用选择性合成 DNS：只有活动快照中确实存在域名匹配的
+A/AAAA 查询才分配 `198.18.0.0/15` 或安装级 IPv6 ULA 地址；30 秒 DNS TTL
+和 24 小时 SQLite 绑定使 WFP 代理可以在连接时恢复原始域名。DIRECT 必须另走
+绑定物理接口的真实 DNS，PROXY 则把域名交给所选出口解析。启用前必须检测地址
+池路由冲突；DoH/DNSSEC/HTTPS-SVCB 的兼容边界不得隐藏。组件边界、失败语义
+和依据见 [ADR-0006](ADR/0006-use-selective-synthetic-dns-on-windows.md)。
+
 驱动不得：
 
 - 解析域名订阅。
@@ -1769,8 +1777,9 @@ Provider 不逐条同步写日志：
 - 用户态用不可变活动快照执行 App/CIDR/端口策略；DIRECT、PROXY、BLOCK 和代理失败的显式 fail-open/fail-closed 都在 Service 内完成。
 - 所有连接、队列和元数据均有上限；驱动内部失败采用有计数的 fail-open，避免 Service/Driver 异常造成整机断网。
 - GitHub CI 已配置 Windows 2022 + WDK 的 x64/ARM64 独立驱动构建；首次远端运行通过前只视为待验证门禁。Rust 用户态同时经过 x64 clippy 和 ARM64 check。
+- 共享策略快照能判断任意层级是否需要域名身份；`nonproxy-dns` 已实现有界、确定性的 IPv4/IPv6 合成地址空间和 30 秒回答；SQLite V6 迁移以事务保存安装级 ULA 与 24 小时可恢复绑定，并处理散列碰撞。
 
-尚未完成的 Windows 系统能力是 DNS 接管和域名到连接的可靠关联、UDP/QUIC、安装器/升级回滚、生产驱动签名、Driver Verifier 与真实 VPN 共存路径验收。只有 App/CIDR TCP 路径已进入代码，不能把当前构建结果表述为完整 Windows 产品验收；Windows UI 在安装与系统验收完成前继续将系统组件标记为不可用。
+尚未完成的 Windows 系统能力是本地 DNS listener、网卡 DNS 配置事务、合成地址到 WFP 连接的运行时反查和真实地址解析，以及 UDP/QUIC、安装器/升级回滚、生产驱动签名、Driver Verifier 与真实 VPN 共存路径验收。只有 App/CIDR TCP 路径和域名关联的共享核心/持久化进入代码，不能把当前构建结果表述为完整 Windows 产品验收；Windows UI 在安装与系统验收完成前继续将系统组件标记为不可用。
 
 ### 22.1 用户态优先
 
@@ -1780,9 +1789,9 @@ Windows POC 已确认：
 - TCP accepted socket 可以查询原始 redirect context 和 records，并把 records 传递给新建出口 socket。
 - ALE App ID 可作为规范化应用路径身份；打包应用身份/签名增强仍属于后续 Windows 身份解析层。
 - UDP connect redirect 与无连接 `sendto` 语义不同，不能复用 TCP 实现或宣称已支持。
-- 可靠网站规则需要 Windows DNS 归属和短期 IP 关联，不能只依赖 TLS SNI。
+- 可靠网站规则需要 Windows DNS 归属和可恢复的选择性合成地址关联，不能只依赖短期真实 IP 或 TLS SNI。
 
-因此采用 [ADR-0004：最小 WFP Connect Redirect Callout](ADR/0004-use-minimal-wfp-connect-redirect-callout.md)。复杂策略、出口协议、DNS、存储与遥测继续严格留在用户态。
+因此采用 [ADR-0004：最小 WFP Connect Redirect Callout](ADR/0004-use-minimal-wfp-connect-redirect-callout.md) 与 [ADR-0006：选择性合成 DNS](ADR/0006-use-selective-synthetic-dns-on-windows.md)。复杂策略、出口协议、DNS、存储与遥测继续严格留在用户态。
 
 ### 22.2 WFP 层
 

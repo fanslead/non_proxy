@@ -9,7 +9,7 @@ use rusqlite::{Connection, OpenFlags};
 use crate::{
     LearningConfirmationRepository, LearningRepository, MigrationReport, NetworkProfileRepository,
     OutboundRepository, PolicyRepository, ProviderRepository, RetentionRepository,
-    SnapshotRepository, StorageError, migration::migrate,
+    SnapshotRepository, StorageError, SyntheticDnsRepository, migration::migrate,
 };
 
 #[derive(Debug)]
@@ -102,6 +102,11 @@ impl PolicyDatabase {
     #[must_use]
     pub fn learning_confirmations(&mut self) -> LearningConfirmationRepository<'_> {
         LearningConfirmationRepository::new(&mut self.connection)
+    }
+
+    #[must_use]
+    pub fn synthetic_dns(&mut self) -> SyntheticDnsRepository<'_> {
+        SyntheticDnsRepository::new(&mut self.connection)
     }
 
     #[must_use]

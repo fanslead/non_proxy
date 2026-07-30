@@ -18,6 +18,8 @@ const PROVIDER_GENERATION: &str =
 const LEARNING_SESSIONS: &str = include_str!("../../../migrations/V0004__learning_sessions.sql");
 const LEARNING_CONFIRMATIONS: &str =
     include_str!("../../../migrations/V0005__learning_confirmations.sql");
+const SYNTHETIC_DNS_BINDINGS: &str =
+    include_str!("../../../migrations/V0006__synthetic_dns_bindings.sql");
 
 struct Migration {
     version: i64,
@@ -50,6 +52,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 5,
         name: "learning_confirmations",
         sql: LEARNING_CONFIRMATIONS,
+    },
+    Migration {
+        version: 6,
+        name: "synthetic_dns_bindings",
+        sql: SYNTHETIC_DNS_BINDINGS,
     },
 ];
 

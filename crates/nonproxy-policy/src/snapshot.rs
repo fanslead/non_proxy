@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use nonproxy_model::{DecisionSpec, OutboundId};
+use nonproxy_model::{DecisionSpec, DomainName, OutboundId};
 
 use crate::{
     CompiledRule, OutboundCapabilities, RuleTier,
@@ -115,6 +115,21 @@ impl CompiledPolicySnapshot {
     #[must_use]
     pub const fn outbound_capabilities(&self) -> &BTreeMap<OutboundId, OutboundCapabilities> {
         &self.outbound_capabilities
+    }
+
+    #[must_use]
+    pub fn requires_domain_identity(&self, domain: &DomainName) -> bool {
+        self.domain_rules.contains_domain(domain)
+            || self.app_destination_rules.contains_domain(domain)
+            || self
+                .system_rules
+                .iter()
+                .chain(&self.built_in_rules)
+                .any(|rule| {
+                    rule.matcher()
+                        .domain()
+                        .is_some_and(|matcher| matcher.matches(domain))
+                })
     }
 
     fn insert(&mut self, rule: CompiledRule) {

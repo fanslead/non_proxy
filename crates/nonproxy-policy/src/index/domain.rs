@@ -45,6 +45,14 @@ impl DomainRuleIndex {
         preferred_matching_rule(candidates, context)
     }
 
+    pub(crate) fn contains_domain(&self, domain: &DomainName) -> bool {
+        self.exact.contains_key(domain.as_ascii())
+            || domain
+                .registrable()
+                .is_some_and(|registrable| self.registrable.contains_key(registrable))
+            || self.suffix.contains(domain.as_ascii())
+    }
+
     fn extend_suffix_candidates<'a>(
         &'a self,
         domain: &DomainName,
@@ -72,6 +80,20 @@ impl DomainTrieNode {
             node = child;
             candidates.extend(&node.rules);
         }
+    }
+
+    fn contains(&self, domain: &str) -> bool {
+        let mut node = self;
+        for label in domain.split('.').rev() {
+            let Some(child) = node.children.get(label) else {
+                return false;
+            };
+            node = child;
+            if !node.rules.is_empty() {
+                return true;
+            }
+        }
+        false
     }
 }
 

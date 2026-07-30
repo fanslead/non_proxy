@@ -10,7 +10,10 @@ use hickory_proto::{
         rdata::{A, AAAA, CNAME, SOA},
     },
 };
-use nonproxy_dns::{DnsRoute, ParsedDnsQuery, ParsedDnsResponse, PartitionedDnsCache};
+use nonproxy_dns::{
+    DnsRoute, ParsedDnsQuery, ParsedDnsResponse, PartitionedDnsCache, SYNTHETIC_DNS_TTL_SECONDS,
+    synthetic_address_response,
+};
 use nonproxy_model::{NetworkProfileId, OutboundId};
 
 fn query_message(id: u16, qname: &str) -> Result<Vec<u8>, Box<dyn Error>> {
@@ -210,5 +213,41 @@ fn dns_names_accept_service_labels_and_root() -> Result<(), Box<dyn Error>> {
     assert_eq!(service.question().qname().as_ascii(), "_dns-sd._udp.local");
     let root = ParsedDnsQuery::parse(&query_message(23, ".")?)?;
     assert!(root.question().qname().is_root());
+    Ok(())
+}
+
+#[test]
+fn synthetic_response_preserves_query_flags_and_edns() -> Result<(), Box<dyn Error>> {
+    let mut query = Message::new(24, MessageType::Query, OpCode::Query);
+    query.metadata.recursion_desired = true;
+    query.metadata.checking_disabled = true;
+    query.add_query(Query::query(
+        Name::from_ascii("direct.example.")?,
+        RecordType::A,
+    ));
+    let mut edns = hickory_proto::op::Edns::new();
+    edns.set_max_payload(1_232);
+    query.set_edns(edns);
+    let response = Message::from_vec(&synthetic_address_response(
+        &query.to_vec()?,
+        IpAddr::V4(Ipv4Addr::new(198, 18, 1, 8)),
+    )?)?;
+
+    assert_eq!(response.id, 24);
+    assert!(response.recursion_desired);
+    assert!(response.recursion_available);
+    assert!(response.checking_disabled);
+    assert!(!response.authentic_data);
+    assert_eq!(response.answers.len(), 1);
+    assert_eq!(response.answers[0].ttl, SYNTHETIC_DNS_TTL_SECONDS);
+    assert!(response.edns.is_some());
+    Ok(())
+}
+
+#[test]
+fn synthetic_response_rejects_address_family_mismatch() -> Result<(), Box<dyn Error>> {
+    let query = query_message(25, "direct.example.")?;
+
+    assert!(synthetic_address_response(&query, IpAddr::V6(Ipv6Addr::LOCALHOST)).is_err());
     Ok(())
 }

@@ -1380,6 +1380,7 @@ dependencies = [
 name = "nonproxy-storage"
 version = "0.1.0"
 dependencies = [
+ "nonproxy-dns",
  "nonproxy-learning",
  "nonproxy-model",
  "rusqlite",

@@ -29,6 +29,10 @@ impl DestinationRuleIndex {
             self.cidr.best_match(context),
         )
     }
+
+    fn contains_domain(&self, domain: &nonproxy_model::DomainName) -> bool {
+        self.domain.contains_domain(domain)
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -59,6 +63,12 @@ impl AppDestinationRuleIndex {
                 prefer_optional_rules(best, self.best_for_key(identity.platform(), group, context));
         }
         best
+    }
+
+    pub(crate) fn contains_domain(&self, domain: &nonproxy_model::DomainName) -> bool {
+        self.rules
+            .values()
+            .any(|index| index.contains_domain(domain))
     }
 
     fn best_for_key(

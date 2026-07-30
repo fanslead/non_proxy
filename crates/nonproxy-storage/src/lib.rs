@@ -14,6 +14,7 @@ mod provider_repository;
 mod retention;
 mod snapshot_query;
 mod snapshot_repository;
+mod synthetic_dns_repository;
 mod types;
 
 pub use database::PolicyDatabase;
@@ -33,4 +34,7 @@ pub use policy_repository::PolicyRepository;
 pub use provider_repository::ProviderRepository;
 pub use retention::{DEFAULT_DETAIL_RETENTION_MS, RetentionRepository, RetentionResult};
 pub use snapshot_repository::SnapshotRepository;
+pub use synthetic_dns_repository::{
+    SYNTHETIC_BINDING_RETENTION_MS, SyntheticDnsBinding, SyntheticDnsRepository,
+};
 pub use types::{ProviderAck, ProviderAckState, SnapshotArtifact, SnapshotRecord, SnapshotStatus};

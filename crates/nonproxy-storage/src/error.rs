@@ -91,6 +91,12 @@ pub enum StorageError {
     LearningSessionAlreadyConfirmed,
     #[error("学习确认幂等请求与既有收据不一致")]
     LearningConfirmationReplayMismatch,
+    #[error("合成 DNS 配置无效")]
+    SyntheticDnsConfigInvalid,
+    #[error("合成 DNS 绑定数量无效")]
+    SyntheticDnsLimitInvalid,
+    #[error("合成 DNS 地址空间已耗尽")]
+    SyntheticDnsAddressExhausted,
 }
 
 impl StorageError {
@@ -136,6 +142,9 @@ impl StorageError {
             Self::LearningConfirmationInvalid => "NP_LEARNING_CONFIRMATION_INVALID",
             Self::LearningSessionAlreadyConfirmed => "NP_LEARNING_SESSION_ALREADY_CONFIRMED",
             Self::LearningConfirmationReplayMismatch => "NP_LEARNING_CONFIRMATION_REPLAY_MISMATCH",
+            Self::SyntheticDnsConfigInvalid => "NP_STORAGE_SYNTHETIC_DNS_CONFIG_INVALID",
+            Self::SyntheticDnsLimitInvalid => "NP_STORAGE_SYNTHETIC_DNS_LIMIT_INVALID",
+            Self::SyntheticDnsAddressExhausted => "NP_STORAGE_SYNTHETIC_DNS_EXHAUSTED",
         }
     }
 }
