@@ -155,6 +155,32 @@ fn outbound_list_is_stable_and_contains_no_credential_value() {
     );
 }
 
+#[test]
+fn outbound_batch_rolls_back_every_item_on_revision_conflict() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let existing = outbound_with_id("existing", 1, None);
+    if let Err(error) = database.outbounds().save(&existing, None, 1) {
+        panic!("保存初始出口失败: {error}");
+    }
+    let new_outbound = outbound_with_id("new-proxy", 1, None);
+    let invalid_update = outbound_with_id("existing", 2, None);
+
+    let result = database.outbounds().save_batch(
+        &[(new_outbound.clone(), None), (invalid_update, Some(9))],
+        2,
+    );
+
+    assert!(matches!(
+        result,
+        Err(StorageError::OutboundRevisionConflict)
+    ));
+    let loaded = database.outbounds().get(new_outbound.id());
+    assert!(matches!(loaded, Ok(None)));
+}
+
 fn proxy_policy(outbound_id: OutboundId) -> Policy {
     let app = match AppMatcher::new(Platform::MacOs, "com.example.proxy") {
         Ok(value) => value,

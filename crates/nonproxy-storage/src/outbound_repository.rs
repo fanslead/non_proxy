@@ -21,63 +21,29 @@ impl<'connection> OutboundRepository<'connection> {
         expected_current_revision: Option<u64>,
         updated_at_unix_ms: u64,
     ) -> Result<(), StorageError> {
+        self.save_batch(
+            &[(outbound.clone(), expected_current_revision)],
+            updated_at_unix_ms,
+        )
+    }
+
+    pub fn save_batch(
+        &mut self,
+        outbounds: &[(OutboundReference, Option<u64>)],
+        updated_at_unix_ms: u64,
+    ) -> Result<(), StorageError> {
+        if outbounds.is_empty() {
+            return Err(StorageError::OutboundInvalid);
+        }
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        validate_revision(&transaction, outbound, expected_current_revision)?;
-        let credential = outbound.credential();
-        transaction.execute(
-            "INSERT INTO outbound(
-                id, kind, endpoint_host, endpoint_port, credential_reference,
-                credential_kind, credential_label, credential_version,
-                enabled, revision, updated_at_unix_ms
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
-             ON CONFLICT(id) DO UPDATE SET
-                kind = excluded.kind,
-                endpoint_host = excluded.endpoint_host,
-                endpoint_port = excluded.endpoint_port,
-                credential_reference = excluded.credential_reference,
-                credential_kind = excluded.credential_kind,
-                credential_label = excluded.credential_label,
-                credential_version = excluded.credential_version,
-                enabled = excluded.enabled,
-                revision = excluded.revision,
-                updated_at_unix_ms = excluded.updated_at_unix_ms",
-            params![
-                outbound.id().as_str(),
-                outbound.kind().as_str(),
-                outbound.endpoint_host(),
-                outbound.endpoint_port().map(i64::from),
-                credential.map(CredentialReference::item_reference),
-                credential.map(|value| value.kind().as_str()),
-                credential.map(CredentialReference::display_label),
-                credential
-                    .map(CredentialReference::version)
-                    .map(to_sqlite_u64)
-                    .transpose()?,
-                i64::from(outbound.enabled()),
-                to_sqlite_u64(outbound.revision())?,
-                to_sqlite_u64(updated_at_unix_ms)?
-            ],
-        )?;
-        transaction.execute(
-            "INSERT INTO audit_event(
-                event_id, event_type, occurred_at_unix_ms, details
-             ) VALUES (?1, 'outbound_saved', ?2, ?3)",
-            params![
-                format!(
-                    "outbound_saved:{}:r{}",
-                    outbound.id().as_str(),
-                    outbound.revision()
-                ),
-                to_sqlite_u64(updated_at_unix_ms)?,
-                format!(
-                    "outbound_id={};revision={}",
-                    outbound.id().as_str(),
-                    outbound.revision()
-                )
-            ],
-        )?;
+        for (outbound, expected_revision) in outbounds {
+            validate_revision(&transaction, outbound, *expected_revision)?;
+        }
+        for (outbound, _) in outbounds {
+            save_outbound(&transaction, outbound, updated_at_unix_ms)?;
+        }
         transaction.commit()?;
         Ok(())
     }
@@ -128,6 +94,67 @@ impl<'connection> OutboundRepository<'connection> {
             })
             .collect()
     }
+}
+
+fn save_outbound(
+    transaction: &Transaction<'_>,
+    outbound: &OutboundReference,
+    updated_at_unix_ms: u64,
+) -> Result<(), StorageError> {
+    let credential = outbound.credential();
+    transaction.execute(
+        "INSERT INTO outbound(
+                id, kind, endpoint_host, endpoint_port, credential_reference,
+                credential_kind, credential_label, credential_version,
+                enabled, revision, updated_at_unix_ms
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+             ON CONFLICT(id) DO UPDATE SET
+                kind = excluded.kind,
+                endpoint_host = excluded.endpoint_host,
+                endpoint_port = excluded.endpoint_port,
+                credential_reference = excluded.credential_reference,
+                credential_kind = excluded.credential_kind,
+                credential_label = excluded.credential_label,
+                credential_version = excluded.credential_version,
+                enabled = excluded.enabled,
+                revision = excluded.revision,
+                updated_at_unix_ms = excluded.updated_at_unix_ms",
+        params![
+            outbound.id().as_str(),
+            outbound.kind().as_str(),
+            outbound.endpoint_host(),
+            outbound.endpoint_port().map(i64::from),
+            credential.map(CredentialReference::item_reference),
+            credential.map(|value| value.kind().as_str()),
+            credential.map(CredentialReference::display_label),
+            credential
+                .map(CredentialReference::version)
+                .map(to_sqlite_u64)
+                .transpose()?,
+            i64::from(outbound.enabled()),
+            to_sqlite_u64(outbound.revision())?,
+            to_sqlite_u64(updated_at_unix_ms)?
+        ],
+    )?;
+    transaction.execute(
+        "INSERT INTO audit_event(
+                event_id, event_type, occurred_at_unix_ms, details
+             ) VALUES (?1, 'outbound_saved', ?2, ?3)",
+        params![
+            format!(
+                "outbound_saved:{}:r{}",
+                outbound.id().as_str(),
+                outbound.revision()
+            ),
+            to_sqlite_u64(updated_at_unix_ms)?,
+            format!(
+                "outbound_id={};revision={}",
+                outbound.id().as_str(),
+                outbound.revision()
+            )
+        ],
+    )?;
+    Ok(())
 }
 
 type RawOutbound = (

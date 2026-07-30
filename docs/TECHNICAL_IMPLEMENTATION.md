@@ -1133,6 +1133,31 @@ pub trait OutboundConnector: Send + Sync {
 - 已建立 TCP 不自动迁移。
 - UDP session 根据协议能力决定重建。
 
+### 15.2 标准本地代理导入
+
+首版导入契约固定为 `nonproxy-json-v1`，请求体上限 256 KiB，单次最多 100 个出口，未知字段、重复标识和不完整凭据对均被拒绝。桌面端不要求普通用户编写 JSON，而是把结构化表单转换为该内部契约：
+
+```json
+{
+  "version": 1,
+  "outbounds": [
+    {
+      "id": "local-proxy",
+      "kind": "socks5",
+      "host": "127.0.0.1",
+      "port": 1080,
+      "username": "alice",
+      "password": "secret",
+      "enabled": true
+    }
+  ]
+}
+```
+
+导入采用补偿事务：先把新凭据写入 macOS Keychain、Windows Credential Manager 或对应平台安全存储，再在一个 `BEGIN IMMEDIATE` 事务中校验全部 revision 并保存全部出口；数据库失败时删除新凭据，数据库成功后再清理旧凭据。SQLite、审计日志、RPC 响应和出口列表只包含版本化凭据引用，不包含用户名或密码。配置缓冲区在客户端和服务端完成处理后归零。
+
+`SOCKS5` 声明 TCP、UDP、IPv4 和 IPv6 能力；`HTTP CONNECT` 只声明 TCP、IPv4 和 IPv6，并在导入结果中给出 TCP-only 提示。这里只表示协议能力，不表示健康检查已通过；在真实 connector 和探针完成前，出口健康状态保持 `stopped`。
+
 ## 16. 第三方客户端适配器
 
 适配器接口：

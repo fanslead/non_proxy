@@ -144,6 +144,25 @@ public sealed record OutboundListItem(
     string Health,
     DateTimeOffset? LastCheckedAt);
 
+public enum OutboundProxyKind
+{
+    Socks5,
+    HttpConnect,
+}
+
+public sealed record OutboundImportDraft(
+    string Id,
+    OutboundProxyKind Kind,
+    string Host,
+    uint Port,
+    string? Username,
+    string? Password);
+
+public sealed record OutboundImportResult(
+    string ImportId,
+    IReadOnlyList<OutboundListItem> Outbounds,
+    IReadOnlyList<string> Warnings);
+
 public sealed record LearningStatus(
     bool IsRunning,
     int CandidateCount,

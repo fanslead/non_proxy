@@ -24,6 +24,86 @@
 
             <Border Theme="{StaticResource NpCard}">
                 <StackPanel Spacing="14">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="添加本地代理" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="只需填写本机代理监听信息；账号和密码会存入系统凭据库，不会写入规则数据库。" />
+                    <Grid ColumnDefinitions="*,*"
+                          RowDefinitions="Auto,Auto,Auto"
+                          ColumnSpacing="16"
+                          RowSpacing="12">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="配置标识" />
+                            <TextBox Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding OutboundId}"
+                                     PlaceholderText="例如：local-proxy"
+                                     AutomationProperties.Name="代理配置标识" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1"
+                                    Spacing="6">
+                            <TextBlock Text="代理类型" />
+                            <ComboBox ItemsSource="{Binding KindOptions}"
+                                      SelectedItem="{Binding SelectedKind}"
+                                      AutomationProperties.Name="代理类型">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="outbounds:OutboundKindOption">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding DisplayName}" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       Text="{Binding CapabilityHint}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1"
+                                    Spacing="6">
+                            <TextBlock Text="服务器地址" />
+                            <TextBox Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding Host}"
+                                     PlaceholderText="例如：127.0.0.1"
+                                     AutomationProperties.Name="代理服务器地址" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="1"
+                                    Grid.Column="1"
+                                    Spacing="6">
+                            <TextBlock Text="端口" />
+                            <TextBox Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding Port}"
+                                     PlaceholderText="例如：1080"
+                                     AutomationProperties.Name="代理服务器端口" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="2"
+                                    Spacing="6">
+                            <TextBlock Text="账号（可选）" />
+                            <TextBox Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding Username}"
+                                     AutomationProperties.Name="代理账号" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="2"
+                                    Grid.Column="1"
+                                    Spacing="6">
+                            <TextBlock Text="密码（可选）" />
+                            <TextBox Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding Password}"
+                                     PasswordChar="●"
+                                     AutomationProperties.Name="代理密码" />
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                               Text="{Binding ValidationMessage}" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="{Binding OperationMessage}" />
+                    <Button HorizontalAlignment="Left"
+                            Theme="{StaticResource NpPrimaryButton}"
+                            Command="{Binding ImportCommand}"
+                            Content="安全保存代理"
+                            AutomationProperties.Name="安全保存代理配置" />
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="14">
                     <Grid ColumnDefinitions="2*,*,3*,*"
                           ColumnSpacing="16">
                         <TextBlock FontWeight="SemiBold"

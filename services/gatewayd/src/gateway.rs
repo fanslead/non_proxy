@@ -1,6 +1,7 @@
 use std::{path::Path, sync::Arc};
 
-use nonproxy_model::{DecisionSpec, Policy, PolicyId};
+use nonproxy_model::{DecisionSpec, OutboundId, Policy, PolicyId};
+use nonproxy_policy::OutboundCapabilities;
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
 use nonproxy_storage::{
     OutboundReference, PolicyDatabase, ProviderAck, ProviderAckState, SnapshotArtifact,
@@ -168,6 +169,8 @@ impl Gateway {
         self.database
             .run(move |database| {
                 let policies = database.policies().list()?;
+                let outbounds = database.outbounds().list()?;
+                let capabilities = capabilities_for_outbounds(capabilities, &outbounds);
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
                 let snapshot_version = current
                     .checked_add(1)
@@ -227,6 +230,29 @@ impl Gateway {
     pub async fn list_outbounds(&self) -> Result<Vec<OutboundReference>, GatewayError> {
         self.database
             .run(|database| Ok(database.outbounds().list()?))
+            .await
+    }
+
+    pub async fn outbound(
+        &self,
+        outbound_id: OutboundId,
+    ) -> Result<Option<OutboundReference>, GatewayError> {
+        self.database
+            .run(move |database| Ok(database.outbounds().get(&outbound_id)?))
+            .await
+    }
+
+    pub async fn save_outbounds(
+        &self,
+        outbounds: Vec<(OutboundReference, Option<u64>)>,
+    ) -> Result<(), GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        let now = unix_time_ms()?;
+        self.database
+            .run(move |database| {
+                database.outbounds().save_batch(&outbounds, now)?;
+                Ok(())
+            })
             .await
     }
 
@@ -322,6 +348,23 @@ impl Gateway {
             })
             .await
     }
+}
+
+fn capabilities_for_outbounds(
+    mut capabilities: CompileCapabilities,
+    outbounds: &[OutboundReference],
+) -> CompileCapabilities {
+    for outbound in outbounds.iter().filter(|value| value.enabled()) {
+        let outbound_capabilities = match outbound.kind() {
+            nonproxy_storage::OutboundKind::HttpConnect => {
+                OutboundCapabilities::new(true, false, true, true)
+            }
+            nonproxy_storage::OutboundKind::Socks5 => OutboundCapabilities::full(),
+            nonproxy_storage::OutboundKind::Adapter => continue,
+        };
+        capabilities = capabilities.with_outbound(outbound.id().clone(), outbound_capabilities);
+    }
+    capabilities
 }
 
 impl PublishedSnapshot {

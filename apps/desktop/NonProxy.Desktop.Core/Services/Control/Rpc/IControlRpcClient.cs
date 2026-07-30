@@ -32,4 +32,8 @@ public interface IControlRpcClient
     Task<ListOutboundsResponse> ListOutboundsAsync(
         string pageToken,
         CancellationToken cancellationToken);
+
+    Task<ImportConfigurationResponse> ImportConfigurationAsync(
+        byte[] configuration,
+        CancellationToken cancellationToken);
 }

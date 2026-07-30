@@ -25,6 +25,10 @@ public interface IPolicyService
 public interface IOutboundService
 {
     Task<IReadOnlyList<OutboundListItem>> ListAsync(CancellationToken cancellationToken);
+
+    Task<OutboundImportResult> ImportAsync(
+        OutboundImportDraft draft,
+        CancellationToken cancellationToken);
 }
 
 public interface ILearningService

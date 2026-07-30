@@ -756,6 +756,10 @@ public nonisolated struct Nonproxy_Control_V1_OutboundSummary: Sendable {
 
   public var capabilities: [Nonproxy_Control_V1_CapabilityName] = []
 
+  public var endpointHost: String = String()
+
+  public var endpointPort: UInt32 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1917,7 +1921,7 @@ nonisolated extension Nonproxy_Control_V1_RollbackPolicySnapshotResponse: SwiftP
 
 nonisolated extension Nonproxy_Control_V1_OutboundSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OutboundSummary"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{1}kind\0\u{1}enabled\0\u{1}health\0\u{1}capabilities\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{1}kind\0\u{1}enabled\0\u{1}health\0\u{1}capabilities\0\u{3}endpoint_host\0\u{3}endpoint_port\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1931,6 +1935,8 @@ nonisolated extension Nonproxy_Control_V1_OutboundSummary: SwiftProtobuf.Message
       case 4: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
       case 5: try { try decoder.decodeSingularEnumField(value: &self.health) }()
       case 6: try { try decoder.decodeRepeatedEnumField(value: &self.capabilities) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.endpointHost) }()
+      case 8: try { try decoder.decodeSingularUInt32Field(value: &self.endpointPort) }()
       default: break
       }
     }
@@ -1955,6 +1961,12 @@ nonisolated extension Nonproxy_Control_V1_OutboundSummary: SwiftProtobuf.Message
     if !self.capabilities.isEmpty {
       try visitor.visitPackedEnumField(value: self.capabilities, fieldNumber: 6)
     }
+    if !self.endpointHost.isEmpty {
+      try visitor.visitSingularStringField(value: self.endpointHost, fieldNumber: 7)
+    }
+    if self.endpointPort != 0 {
+      try visitor.visitSingularUInt32Field(value: self.endpointPort, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1965,6 +1977,8 @@ nonisolated extension Nonproxy_Control_V1_OutboundSummary: SwiftProtobuf.Message
     if lhs.enabled != rhs.enabled {return false}
     if lhs.health != rhs.health {return false}
     if lhs.capabilities != rhs.capabilities {return false}
+    if lhs.endpointHost != rhs.endpointHost {return false}
+    if lhs.endpointPort != rhs.endpointPort {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

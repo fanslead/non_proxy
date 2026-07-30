@@ -51,6 +51,9 @@ impl GatewayError {
                 "NP_REQUEST_INVALID"
             }
             Self::Storage(StorageError::PolicyRevisionConflict) => "NP_POLICY_REVISION_CONFLICT",
+            Self::Storage(StorageError::OutboundRevisionConflict) => {
+                "NP_OUTBOUND_REVISION_CONFLICT"
+            }
             Self::Storage(StorageError::PendingSnapshotExists) => "NP_SNAPSHOT_ALREADY_PENDING",
             Self::Storage(_) => "NP_STORAGE_FAILURE",
             Self::Compile(_) => "NP_POLICY_COMPILE_REJECTED",

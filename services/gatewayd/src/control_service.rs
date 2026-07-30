@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use std::{pin::Pin, sync::Arc};
 
 use nonproxy_model::PolicyId;
 use nonproxy_proto::{
@@ -20,6 +20,8 @@ use crate::{
         empty_mutation, event_meets_minimum, event_response, internal_status, minimum_severity,
         mutation_error, publish_snapshot_event, request_status,
     },
+    credential_store::{CredentialStore, OsCredentialStore},
+    outbound_import_service,
     proto_policy::{policy_from_proto, policy_to_proto},
     session_capability::SessionCapability,
 };
@@ -30,12 +32,30 @@ const MAX_RPC_MESSAGE_BYTES: usize = 4 * 1024 * 1024;
 pub struct ControlRpcService {
     gateway: Gateway,
     session: SessionCapability,
+    credential_store: Arc<dyn CredentialStore>,
 }
 
 impl ControlRpcService {
     #[must_use]
-    pub const fn new(gateway: Gateway, session: SessionCapability) -> Self {
-        Self { gateway, session }
+    pub fn new(gateway: Gateway, session: SessionCapability) -> Self {
+        Self {
+            gateway,
+            session,
+            credential_store: Arc::new(OsCredentialStore),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn with_credential_store(
+        gateway: Gateway,
+        session: SessionCapability,
+        credential_store: Arc<dyn CredentialStore>,
+    ) -> Self {
+        Self {
+            gateway,
+            session,
+            credential_store,
+        }
     }
 
     #[must_use]
@@ -282,13 +302,16 @@ impl ControlService for ControlRpcService {
         &self,
         request: Request<control_proto::ImportConfigurationRequest>,
     ) -> Result<Response<control_proto::ImportConfigurationResponse>, Status> {
-        self.session.validate(request.get_ref().context.as_ref())?;
-        Ok(Response::new(control_proto::ImportConfigurationResponse {
-            import_id: String::new(),
-            outbounds: Vec::new(),
-            warnings: Vec::new(),
-            error: Some(control_mapping::feature_unavailable("配置导入")),
-        }))
+        let request = request.into_inner();
+        self.session.validate(request.context.as_ref())?;
+        Ok(Response::new(
+            outbound_import_service::import(
+                &self.gateway,
+                Arc::clone(&self.credential_store),
+                request,
+            )
+            .await,
+        ))
     }
 
     async fn test_outbound(

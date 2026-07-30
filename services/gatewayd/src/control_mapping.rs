@@ -79,10 +79,25 @@ pub fn capability_names(capabilities: &CompileCapabilities) -> Vec<i32> {
 
 #[must_use]
 pub fn outbound_summary(value: &OutboundReference) -> OutboundSummary {
-    let kind = match value.kind() {
-        OutboundKind::HttpConnect => ProtoOutboundKind::HttpConnect,
-        OutboundKind::Socks5 => ProtoOutboundKind::Socks5,
-        OutboundKind::Adapter => ProtoOutboundKind::ExternalAdapter,
+    let (kind, capabilities) = match value.kind() {
+        OutboundKind::HttpConnect => (
+            ProtoOutboundKind::HttpConnect,
+            vec![
+                CapabilityName::Tcp as i32,
+                CapabilityName::Ipv4 as i32,
+                CapabilityName::Ipv6 as i32,
+            ],
+        ),
+        OutboundKind::Socks5 => (
+            ProtoOutboundKind::Socks5,
+            vec![
+                CapabilityName::Tcp as i32,
+                CapabilityName::Udp as i32,
+                CapabilityName::Ipv4 as i32,
+                CapabilityName::Ipv6 as i32,
+            ],
+        ),
+        OutboundKind::Adapter => (ProtoOutboundKind::ExternalAdapter, Vec::new()),
     };
     OutboundSummary {
         id: value.id().as_str().to_owned(),
@@ -90,8 +105,9 @@ pub fn outbound_summary(value: &OutboundReference) -> OutboundSummary {
         kind: kind as i32,
         enabled: value.enabled(),
         health: RuntimeState::Stopped as i32,
-        // 出口适配器完成握手前不能声称已经验证任何能力。
-        capabilities: Vec::new(),
+        capabilities,
+        endpoint_host: value.endpoint_host().unwrap_or_default().to_owned(),
+        endpoint_port: value.endpoint_port().map_or(0, u32::from),
     }
 }
 

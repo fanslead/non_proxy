@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Net.Client;
 using NonProxy.Common.V1;
@@ -145,6 +147,39 @@ public sealed class GrpcControlRpcClient : IControlRpcClient, IDisposable
                     },
                 },
                 ReadOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public async Task<ImportConfigurationResponse> ImportConfigurationAsync(
+        byte[] configuration,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        if (configuration.Length == 0)
+        {
+            throw new ArgumentException("代理配置不能为空。", nameof(configuration));
+        }
+
+        try
+        {
+            var context = await _contextProvider.CreateAsync(
+                "import-outbound",
+                cancellationToken);
+            var request = new ImportConfigurationRequest
+            {
+                Context = context,
+                Format = "nonproxy-json-v1",
+                Configuration = UnsafeByteOperations.UnsafeWrap(configuration),
+                ValidateOnly = false,
+            };
+            return await ExecuteAsync(
+                () => Client.ImportConfigurationAsync(
+                    request,
+                    MutationOptions(cancellationToken)).ResponseAsync);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(configuration);
+        }
     }
 
     public void Dispose()

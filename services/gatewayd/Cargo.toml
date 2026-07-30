@@ -7,6 +7,7 @@ publish.workspace = true
 
 [dependencies]
 getrandom.workspace = true
+keyring.workspace = true
 nonproxy-model = { path = "../../crates/nonproxy-model" }
 nonproxy-policy = { path = "../../crates/nonproxy-policy" }
 nonproxy-policy-compiler = { path = "../../crates/nonproxy-policy-compiler" }
@@ -14,10 +15,13 @@ nonproxy-proto = { path = "../../crates/nonproxy-proto" }
 nonproxy-storage = { path = "../../crates/nonproxy-storage" }
 prost.workspace = true
 prost-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tonic.workspace = true
+zeroize.workspace = true
 
 [dev-dependencies]
 hyper-util.workspace = true

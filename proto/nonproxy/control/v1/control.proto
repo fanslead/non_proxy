@@ -202,6 +202,8 @@ message OutboundSummary {
   bool enabled = 4;
   nonproxy.events.v1.RuntimeState health = 5;
   repeated CapabilityName capabilities = 6;
+  string endpoint_host = 7;
+  uint32 endpoint_port = 8;
 }
 
 // ListOutboundsRequest 请求出站列表。

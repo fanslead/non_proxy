@@ -65,6 +65,17 @@ public sealed class DisconnectedOutboundService : IOutboundService
         return Task.FromResult<IReadOnlyList<OutboundListItem>>(
             Array.Empty<OutboundListItem>());
     }
+
+    public Task<OutboundImportResult> ImportAsync(
+        OutboundImportDraft draft,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new ControlServiceException(
+            "NP_CONTROL_UNAVAILABLE",
+            "控制服务尚未连接，代理配置没有保存。");
+    }
 }
 
 public sealed class DisconnectedLearningService : ILearningService

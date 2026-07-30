@@ -1,3 +1,4 @@
+using System.Text;
 using NonProxy.Control.V1;
 using NonProxy.Desktop.Core.Services.Control;
 using NonProxy.Desktop.Core.Services.Control.Rpc;
@@ -30,6 +31,10 @@ internal sealed class StubControlRpcClient : IControlRpcClient
     {
         Page = new NonProxy.Common.V1.PageResponse(),
     };
+
+    public ImportConfigurationResponse ImportResponse { get; set; } = new();
+
+    public string? LastImportedConfiguration { get; private set; }
 
     public ProtoPolicy? LastUpsertedPolicy { get; private set; }
 
@@ -103,5 +108,14 @@ internal sealed class StubControlRpcClient : IControlRpcClient
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(OutboundsResponse);
+    }
+
+    public Task<ImportConfigurationResponse> ImportConfigurationAsync(
+        byte[] configuration,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastImportedConfiguration = Encoding.UTF8.GetString(configuration);
+        return Task.FromResult(ImportResponse);
     }
 }
