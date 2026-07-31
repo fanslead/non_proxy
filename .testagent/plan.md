@@ -184,6 +184,12 @@
 | 服务不信任转发头且只签公网 peer | probe server handler 测试 |
 | C#/Swift/Rust 契约一致 | 生成检查和 Buf breaking check |
 | 真实 TLS 请求可验签 | 本地 TLS fixture 或部署前服务集成测试 |
+| 网络验证成功但持久化失败不得声明成功 | gateway `does_not_claim_verified_when_receipt_persistence_fails` |
+| 回执精确幂等、冲突拒绝并有界保留 | storage repository integration tests |
+| DIRECT/PROXY 历史回执按路由隔离 | Control RPC 与 Desktop service tests |
+| 未配置探针仍读历史但禁用新验证 | Control RPC、ViewModel 与 headless UI tests |
+| 即时/历史协议拒绝地址族、路由或时间畸形 | Gateway/Desktop 负向 contract tests |
+| UI 区分握手健康和最近签名回执 | macOS/Windows 共享 headless view tests |
 
 ### 执行顺序
 

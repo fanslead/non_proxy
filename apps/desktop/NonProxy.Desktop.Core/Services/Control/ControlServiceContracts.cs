@@ -30,6 +30,10 @@ public interface IOutboundService
         string outboundId,
         CancellationToken cancellationToken);
 
+    Task<ExitVerificationResult> VerifyExitAsync(
+        string? outboundId,
+        CancellationToken cancellationToken);
+
     Task<ApplyResult> SetDefaultAsync(
         string outboundId,
         ulong expectedRoutingRevision,

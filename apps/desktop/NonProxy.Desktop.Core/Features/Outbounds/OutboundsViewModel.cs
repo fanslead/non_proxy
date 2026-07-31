@@ -39,6 +39,12 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
     [ObservableProperty]
     private string _defaultRouteSummary = "配置：读取中";
 
+    [ObservableProperty]
+    private bool _exitVerificationAvailable;
+
+    [ObservableProperty]
+    private ExitVerificationReceipt? _directExitReceipt;
+
     private bool _usesDirectByDefault = true;
 
     public OutboundsViewModel(IOutboundService outboundService)
@@ -47,6 +53,12 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
         _outboundService = outboundService;
         ImportCommand = new AsyncRelayCommand(ImportAsync, CanImport);
         TestCommand = new AsyncRelayCommand<OutboundListItem>(TestAsync);
+        VerifyExitCommand = new AsyncRelayCommand<OutboundListItem>(
+            VerifyProxyExitAsync,
+            CanVerifyProxyExit);
+        VerifyDirectExitCommand = new AsyncRelayCommand(
+            VerifyDirectExitAsync,
+            CanVerifyDirectExit);
         SetDefaultCommand = new AsyncRelayCommand<OutboundListItem>(
             SetDefaultAsync,
             CanSetDefault);
@@ -67,9 +79,28 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
 
     public IAsyncRelayCommand<OutboundListItem> TestCommand { get; }
 
+    public IAsyncRelayCommand<OutboundListItem> VerifyExitCommand { get; }
+
+    public IAsyncRelayCommand VerifyDirectExitCommand { get; }
+
     public IAsyncRelayCommand<OutboundListItem> SetDefaultCommand { get; }
 
     public IAsyncRelayCommand SetDirectCommand { get; }
+
+    public string ExitVerificationAvailabilityMessage =>
+        ExitVerificationAvailable
+            ? "可信签名探针已就绪。验证只发送随机 nonce，不发送应用、网站或规则信息。"
+            : "当前安装尚未配置可信签名探针；历史回执仍可查看，但不能发起新的公网出口验证。";
+
+    public string DirectExitStatusLabel => DirectExitReceipt is { } value
+        ? $"最近签名回执 · {value.ObservedIp}"
+        : "尚无签名回执";
+
+    public string DirectExitCheckedLabel => DirectExitReceipt is { } value
+        ? value.VerifiedAt.ToLocalTime().ToString(
+            "MM-dd HH:mm:ss",
+            CultureInfo.CurrentCulture)
+        : "—";
 
     partial void OnOutboundIdChanged(string value)
     {
@@ -96,11 +127,26 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
         InputChanged();
     }
 
+    partial void OnExitVerificationAvailableChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ExitVerificationAvailabilityMessage));
+        VerifyDirectExitCommand.NotifyCanExecuteChanged();
+        VerifyExitCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnDirectExitReceiptChanged(ExitVerificationReceipt? value)
+    {
+        OnPropertyChanged(nameof(DirectExitStatusLabel));
+        OnPropertyChanged(nameof(DirectExitCheckedLabel));
+    }
+
     protected override async Task LoadCoreAsync(CancellationToken cancellationToken)
     {
         var catalog = await _outboundService.ListAsync(cancellationToken);
         _routingRevision = catalog.RoutingRevision;
         _usesDirectByDefault = catalog.UsesDirectByDefault;
+        ExitVerificationAvailable = catalog.ExitVerificationAvailable;
+        DirectExitReceipt = catalog.DirectExitReceipt;
         DefaultRouteSummary = _routingRevision == 0
             ? "配置：暂时无法读取"
             : catalog.DefaultOutboundId is { } outboundId
@@ -113,6 +159,8 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
         }
         SetDefaultCommand.NotifyCanExecuteChanged();
         SetDirectCommand.NotifyCanExecuteChanged();
+        VerifyExitCommand.NotifyCanExecuteChanged();
+        VerifyDirectExitCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanImport()
@@ -195,6 +243,55 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
     private bool CanSetDefault(OutboundListItem? item)
     {
         return item is { CanSetAsDefault: true } && _routingRevision > 0;
+    }
+
+    private bool CanVerifyProxyExit(OutboundListItem? item)
+    {
+        return ExitVerificationAvailable && item is { CanVerifyExit: true };
+    }
+
+    private bool CanVerifyDirectExit()
+    {
+        return ExitVerificationAvailable;
+    }
+
+    private Task VerifyDirectExitAsync(CancellationToken cancellationToken)
+    {
+        return VerifyExitAsync(null, cancellationToken);
+    }
+
+    private Task VerifyProxyExitAsync(
+        OutboundListItem? item,
+        CancellationToken cancellationToken)
+    {
+        if (!CanVerifyProxyExit(item))
+        {
+            return Task.CompletedTask;
+        }
+        return VerifyExitAsync(item!.Id, cancellationToken);
+    }
+
+    private Task VerifyExitAsync(
+        string? outboundId,
+        CancellationToken cancellationToken)
+    {
+        if (!ExitVerificationAvailable)
+        {
+            return Task.CompletedTask;
+        }
+        return RunOperationAsync(
+            async token =>
+            {
+                var result = await _outboundService.VerifyExitAsync(
+                    outboundId,
+                    token);
+                OperationMessage = result.Message;
+                if (result.Verified)
+                {
+                    await LoadCoreAsync(token);
+                }
+            },
+            cancellationToken);
     }
 
     private Task SetDefaultAsync(

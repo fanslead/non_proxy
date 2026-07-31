@@ -38,12 +38,21 @@ public interface IControlRpcClient
         string pageToken,
         CancellationToken cancellationToken);
 
+    Task<ListExitProbesResponse> ListExitProbesAsync(
+        int pageSize,
+        string pageToken,
+        CancellationToken cancellationToken);
+
     Task<ImportConfigurationResponse> ImportConfigurationAsync(
         byte[] configuration,
         CancellationToken cancellationToken);
 
     Task<TestOutboundResponse> TestOutboundAsync(
         string outboundId,
+        CancellationToken cancellationToken);
+
+    Task<VerifyExitResponse> VerifyExitAsync(
+        string? outboundId,
         CancellationToken cancellationToken);
 
     Task<SetDefaultRouteResponse> SetDefaultRouteAsync(

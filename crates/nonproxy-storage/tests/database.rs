@@ -19,8 +19,8 @@ fn file_database_migrates_once_and_backs_up_metadata() {
     };
 
     assert_eq!(database.migration_report().previous_version(), 0);
-    assert_eq!(database.migration_report().current_version(), 9);
-    assert_eq!(database.migration_report().applied().len(), 9);
+    assert_eq!(database.migration_report().current_version(), 10);
+    assert_eq!(database.migration_report().applied().len(), 10);
     let Some(backup_path) = database.migration_report().metadata_backup_path() else {
         panic!("首次迁移应生成 metadata 备份");
     };
@@ -32,7 +32,7 @@ fn file_database_migrates_once_and_backs_up_metadata() {
     let Ok(reopened) = reopened else {
         panic!("数据库重新打开失败: {reopened:?}");
     };
-    assert_eq!(reopened.migration_report().previous_version(), 9);
+    assert_eq!(reopened.migration_report().previous_version(), 10);
     assert!(reopened.migration_report().applied().is_empty());
     assert!(reopened.migration_report().metadata_backup_path().is_none());
 }

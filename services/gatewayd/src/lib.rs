@@ -19,6 +19,8 @@ mod error;
 mod event_hub;
 mod exit_probe;
 mod exit_probe_direct;
+mod exit_probe_gateway;
+mod exit_probe_rpc;
 #[cfg(any(unix, windows))]
 mod flow_server;
 mod gateway;

@@ -55,6 +55,10 @@ pub enum StorageError {
     DecisionEvidenceInvalid,
     #[error("连接决策幂等重放内容不一致")]
     ConnectionDecisionReplayMismatch,
+    #[error("出口探针回执无效")]
+    ExitProbeInvalid,
+    #[error("出口探针回执幂等重放内容不一致")]
+    ExitProbeReplayMismatch,
     #[error("凭据引用无效")]
     CredentialReferenceInvalid,
     #[error("网络画像无效")]
@@ -136,6 +140,8 @@ impl StorageError {
             Self::ConnectionDecisionReplayMismatch => {
                 "NP_STORAGE_CONNECTION_DECISION_REPLAY_MISMATCH"
             }
+            Self::ExitProbeInvalid => "NP_STORAGE_EXIT_PROBE_INVALID",
+            Self::ExitProbeReplayMismatch => "NP_STORAGE_EXIT_PROBE_REPLAY_MISMATCH",
             Self::CredentialReferenceInvalid => "NP_STORAGE_CREDENTIAL_REFERENCE_INVALID",
             Self::NetworkProfileInvalid => "NP_STORAGE_NETWORK_PROFILE_INVALID",
             Self::NetworkProfileRevisionConflict => "NP_STORAGE_NETWORK_PROFILE_REVISION_CONFLICT",

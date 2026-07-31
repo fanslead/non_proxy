@@ -86,6 +86,74 @@ public sealed class OutboundsViewModelTests
     }
 
     [Fact]
+    public async Task ExitVerificationRefreshesOnlyTheSelectedRoute()
+    {
+        var outboundService = new RecordingOutboundService();
+        outboundService.Seed(
+            new OutboundListItem(
+                "office",
+                "Office",
+                "SOCKS5",
+                "127.0.0.1:1080",
+                "未验证",
+                null,
+                null,
+                CanVerifyExit: true));
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+                collection.AddSingleton<IOutboundService>(outboundService));
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        await viewModel.VerifyExitCommand.ExecuteAsync(viewModel.Items[0]);
+
+        Assert.Equal("office", outboundService.LastVerifiedOutboundId);
+        Assert.False(outboundService.LastExitRouteWasDirect);
+        Assert.Equal("8.8.8.8", Assert.Single(viewModel.Items).ExitReceipt?.ObservedIp);
+        Assert.Null(viewModel.DirectExitReceipt);
+
+        await viewModel.VerifyDirectExitCommand.ExecuteAsync(null);
+
+        Assert.True(outboundService.LastExitRouteWasDirect);
+        Assert.Null(outboundService.LastVerifiedOutboundId);
+        Assert.Equal("1.1.1.1", viewModel.DirectExitReceipt?.ObservedIp);
+        Assert.Equal("8.8.8.8", Assert.Single(viewModel.Items).ExitReceipt?.ObservedIp);
+        Assert.Contains("签名验证", viewModel.OperationMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExitVerificationCommandsStayDisabledWithoutTrustedProbe()
+    {
+        var outboundService = new RecordingOutboundService
+        {
+            ExitVerificationAvailable = false,
+        };
+        outboundService.Seed(
+            new OutboundListItem(
+                "office",
+                "Office",
+                "SOCKS5",
+                "127.0.0.1:1080",
+                "未验证",
+                null,
+                null,
+                CanVerifyExit: true));
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+                collection.AddSingleton<IOutboundService>(outboundService));
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        Assert.False(viewModel.VerifyDirectExitCommand.CanExecute(null));
+        Assert.False(viewModel.VerifyExitCommand.CanExecute(viewModel.Items[0]));
+        Assert.Contains(
+            "尚未配置",
+            viewModel.ExitVerificationAvailabilityMessage,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SetDefaultReloadsOnlyAfterServerAcceptsPendingSnapshot()
     {
         var outboundService = new RecordingOutboundService();
@@ -155,6 +223,7 @@ public sealed class OutboundsViewModelTests
 
         Assert.Contains("无法读取", viewModel.DefaultRouteSummary, StringComparison.Ordinal);
         Assert.False(viewModel.SetDirectCommand.CanExecute(null));
+        Assert.False(viewModel.VerifyDirectExitCommand.CanExecute(null));
     }
 
     private sealed class RecordingOutboundService : IOutboundService
@@ -165,11 +234,17 @@ public sealed class OutboundsViewModelTests
 
         public string? LastTestedOutboundId { get; private set; }
 
+        public string? LastVerifiedOutboundId { get; private set; }
+
+        public bool LastExitRouteWasDirect { get; private set; }
+
         public string? LastDefaultOutboundId { get; private set; }
 
         public ulong LastExpectedRoutingRevision { get; private set; }
 
         public bool LastRouteWasDirect { get; private set; }
+
+        public bool ExitVerificationAvailable { get; init; } = true;
 
         private ulong RoutingRevision { get; set; } = 1;
 
@@ -185,7 +260,9 @@ public sealed class OutboundsViewModelTests
             return Task.FromResult(new OutboundCatalog(
                 _items.ToArray(),
                 RoutingRevision,
-                _items.SingleOrDefault(item => item.IsDefault)?.Id));
+                _items.SingleOrDefault(item => item.IsDefault)?.Id,
+                ExitVerificationAvailable,
+                DirectExitReceipt: DirectReceipt));
         }
 
         public Task<OutboundImportResult> ImportAsync(
@@ -225,6 +302,52 @@ public sealed class OutboundsViewModelTests
                     CultureInfo.InvariantCulture),
                 "代理握手成功；该结果不代表公网出口 IP 或最终规则路径已经验证。"));
         }
+
+        public Task<ExitVerificationResult> VerifyExitAsync(
+            string? outboundId,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LastVerifiedOutboundId = outboundId;
+            LastExitRouteWasDirect = string.IsNullOrWhiteSpace(outboundId);
+            var receipt = new ExitVerificationReceipt(
+                1,
+                "A".PadRight(43, 'A'),
+                outboundId is null ? "1.1.1.1" : "8.8.8.8",
+                DateTimeOffset.Parse(
+                    "2026-07-31T01:02:03Z",
+                    CultureInfo.InvariantCulture),
+                DateTimeOffset.Parse(
+                    "2026-07-31T01:02:04Z",
+                    CultureInfo.InvariantCulture),
+                outboundId);
+            if (outboundId is null)
+            {
+                DirectReceipt = receipt;
+            }
+            else
+            {
+                for (var index = 0; index < _items.Count; index++)
+                {
+                    if (string.Equals(
+                            _items[index].Id,
+                            outboundId,
+                            StringComparison.Ordinal))
+                    {
+                        _items[index] = _items[index] with
+                        {
+                            ExitReceipt = receipt,
+                        };
+                    }
+                }
+            }
+            return Task.FromResult(new ExitVerificationResult(
+                true,
+                "NP_EXIT_PROBE_VERIFIED",
+                $"公网出口已签名验证：{receipt.ObservedIp}"));
+        }
+
+        private ExitVerificationReceipt? DirectReceipt { get; set; }
 
         public Task<ApplyResult> SetDefaultAsync(
             string outboundId,

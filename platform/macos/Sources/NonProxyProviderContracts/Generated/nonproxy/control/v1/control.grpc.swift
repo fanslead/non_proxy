@@ -137,6 +137,19 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "ListExitProbes" metadata.
+        public enum ListExitProbes: Sendable {
+            /// Request type for "ListExitProbes".
+            public typealias Input = Nonproxy_Control_V1_ListExitProbesRequest
+            /// Response type for "ListExitProbes".
+            public typealias Output = Nonproxy_Control_V1_ListExitProbesResponse
+            /// Descriptor for "ListExitProbes".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "ListExitProbes",
+                type: .unary
+            )
+        }
         /// Namespace for "ImportConfiguration" metadata.
         public enum ImportConfiguration: Sendable {
             /// Request type for "ImportConfiguration".
@@ -291,6 +304,7 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             RollbackPolicySnapshot.descriptor,
             ListOutbounds.descriptor,
             ListConnectionDecisions.descriptor,
+            ListExitProbes.descriptor,
             ImportConfiguration.descriptor,
             TestOutbound.descriptor,
             VerifyExit.descriptor,
@@ -494,6 +508,25 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListConnectionDecisionsResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListConnectionDecisionsResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "ListExitProbes" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ListExitProbesRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ListExitProbesRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ListExitProbesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func listExitProbes<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListExitProbesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ListExitProbesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListExitProbesResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListExitProbesResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "ImportConfiguration" method.
@@ -989,6 +1022,36 @@ extension Nonproxy_Control_V1_ControlService {
             try await self.client.unary(
                 request: request,
                 descriptor: Nonproxy_Control_V1_ControlService.Method.ListConnectionDecisions.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "ListExitProbes" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ListExitProbesRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ListExitProbesRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ListExitProbesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func listExitProbes<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListExitProbesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ListExitProbesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListExitProbesResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListExitProbesResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.ListExitProbes.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1554,6 +1617,31 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
         )
     }
 
+    /// Call the "ListExitProbes" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_ListExitProbesRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listExitProbes<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListExitProbesRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListExitProbesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.listExitProbes(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_ListExitProbesRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_ListExitProbesResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "ImportConfiguration" method.
     ///
     /// - Parameters:
@@ -2086,6 +2174,35 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.listConnectionDecisions(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListExitProbes" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listExitProbes<Result>(
+        _ message: Nonproxy_Control_V1_ListExitProbesRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListExitProbesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_ListExitProbesRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.listExitProbes(
             request: request,
             options: options,
             onResponse: handleResponse

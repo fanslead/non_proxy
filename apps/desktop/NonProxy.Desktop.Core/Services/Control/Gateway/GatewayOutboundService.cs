@@ -5,7 +5,7 @@ using NonProxy.Desktop.Core.Services.Control.Rpc;
 
 namespace NonProxy.Desktop.Core.Services.Control.Gateway;
 
-public sealed class GatewayOutboundService : IOutboundService
+public sealed partial class GatewayOutboundService : IOutboundService
 {
     private const int MaximumPages = 100;
     private const int MaximumCredentialLength = 255;
@@ -53,10 +53,14 @@ public sealed class GatewayOutboundService : IOutboundService
                     throw InvalidPaging();
                 }
 
+                var exitCatalog = await LoadExitProbesAsync(cancellationToken);
                 return new OutboundCatalog(
-                    items,
+                    AttachExitReceipts(items, exitCatalog.Receipts),
                     routingRevision.Value,
-                    items.SingleOrDefault(item => item.IsDefault)?.Id);
+                    items.SingleOrDefault(item => item.IsDefault)?.Id,
+                    exitCatalog.Available,
+                    exitCatalog.Receipts.FirstOrDefault(
+                        receipt => receipt.OutboundId is null));
             }
         }
 

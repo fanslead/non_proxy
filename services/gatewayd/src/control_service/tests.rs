@@ -8,7 +8,7 @@ use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::control::v1::{
     ApplyPolicySnapshotRequest, CapabilityName, ConfirmLearningCandidatesRequest, DefaultRouteKind,
     ExitProbeRouteKind, GetCapabilitiesRequest, GetSystemStatusRequest, ImportConfigurationRequest,
-    LearningObservationKind, LearningResourceType, LearningSessionKind,
+    LearningObservationKind, LearningResourceType, LearningSessionKind, ListExitProbesRequest,
     ListLearningCandidatesRequest, ListOutboundsRequest, OperationContext,
     RecordLearningObservationRequest, SetDefaultRouteRequest, StartLearningSessionRequest,
     StopLearningSessionRequest, TestOutboundRequest, UpsertPolicyRequest, VerifyExitRequest,
@@ -16,7 +16,7 @@ use nonproxy_proto::control::v1::{
     start_learning_session_request,
 };
 use nonproxy_proto::events::v1::{LearningCandidateKind, RuntimeState, event_envelope};
-use nonproxy_storage::{OutboundKind, OutboundReference, PolicyDatabase};
+use nonproxy_storage::{ExitProbeRoute, OutboundKind, OutboundReference, PolicyDatabase};
 use tonic::{Code, Request};
 
 use crate::control_rpc_service::ControlRpcService;
@@ -141,6 +141,52 @@ async fn exit_probe_capability_is_only_advertised_when_trust_is_configured() {
         with.capabilities
             .contains(&(CapabilityName::ExitProbe as i32))
     );
+}
+
+#[tokio::test]
+async fn list_exit_probes_returns_persisted_receipt_and_configuration_state() {
+    let service = service([7; 32]);
+    let verified = verified_exit_fixture();
+    service
+        .gateway
+        .save_exit_probe(ExitProbeRoute::Direct, &verified)
+        .await
+        .unwrap_or_else(|error| panic!("测试出口回执保存失败: {error}"));
+    let without = service
+        .list_exit_probes(Request::new(ListExitProbesRequest { page: None }))
+        .await
+        .unwrap_or_else(|error| panic!("未配置出口回执查询失败: {error}"))
+        .into_inner();
+
+    assert!(!without.verification_available);
+    assert_eq!(without.total_count, 1);
+    let receipt = without
+        .probes
+        .first()
+        .unwrap_or_else(|| panic!("缺少已持久化的出口回执"));
+    assert_eq!(receipt.observed_ip, "8.8.8.8");
+    assert_eq!(receipt.route(), ExitProbeRouteKind::Direct);
+    assert!(receipt.observed_at.is_some());
+    assert!(receipt.verified_at.is_some());
+
+    let signer = nonproxy_exit_probe::ExitProbeSigner::from_secret_bytes(&[7; 32])
+        .unwrap_or_else(|error| panic!("测试探针签名器创建失败: {error}"));
+    let verifier =
+        nonproxy_exit_probe::ExitProbeVerifier::from_public_key_base64(&signer.public_key_base64())
+            .unwrap_or_else(|error| panic!("测试探针验证器创建失败: {error}"));
+    let endpoint = nonproxy_exit_probe::ExitProbeEndpoint::parse("https://probe.example/v1/exit")
+        .unwrap_or_else(|error| panic!("测试探针地址无效: {error}"));
+    let client = nonproxy_exit_probe::ExitProbeClient::new(endpoint, verifier)
+        .unwrap_or_else(|error| panic!("测试探针客户端创建失败: {error}"));
+    let with = service
+        .with_exit_probe_client(Some(client))
+        .list_exit_probes(Request::new(ListExitProbesRequest { page: None }))
+        .await
+        .unwrap_or_else(|error| panic!("已配置出口回执查询失败: {error}"))
+        .into_inner();
+
+    assert!(with.verification_available);
+    assert_eq!(with.total_count, 1);
 }
 
 #[tokio::test]
@@ -692,6 +738,29 @@ fn service(token: [u8; 32]) -> ControlRpcService {
         Gateway::new(database, CompileCapabilities::full()),
         SessionCapability::from_token(token),
     )
+}
+
+fn verified_exit_fixture() -> nonproxy_exit_probe::VerifiedExitProbe {
+    let signer = nonproxy_exit_probe::ExitProbeSigner::from_secret_bytes(&[9; 32])
+        .unwrap_or_else(|error| panic!("测试出口签名器创建失败: {error}"));
+    let verifier =
+        nonproxy_exit_probe::ExitProbeVerifier::from_public_key_base64(&signer.public_key_base64())
+            .unwrap_or_else(|error| panic!("测试出口验证器创建失败: {error}"));
+    let nonce =
+        nonproxy_exit_probe::ProbeNonce::from_base64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+            .unwrap_or_else(|error| panic!("测试出口 nonce 无效: {error}"));
+    let observed_at = crate::clock::unix_time_ms()
+        .unwrap_or_else(|error| panic!("测试出口时间读取失败: {error}"));
+    let receipt = signer
+        .sign(
+            nonce,
+            std::net::Ipv4Addr::new(8, 8, 8, 8).into(),
+            observed_at,
+        )
+        .unwrap_or_else(|error| panic!("测试出口回执签名失败: {error}"));
+    verifier
+        .verify(nonce, receipt, observed_at)
+        .unwrap_or_else(|error| panic!("测试出口回执验证失败: {error}"))
 }
 
 fn learning_observation(

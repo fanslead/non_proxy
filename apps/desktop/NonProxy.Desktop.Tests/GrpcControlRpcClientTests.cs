@@ -29,6 +29,44 @@ public sealed class GrpcControlRpcClientTests
         Assert.Equal(32, request.Context.SessionCapabilityToken.Length);
     }
 
+    [Theory]
+    [InlineData(null, ExitProbeRouteKind.Direct, "")]
+    [InlineData("office", ExitProbeRouteKind.Proxy, "office")]
+    public void VerifyExitBuildsAuthenticatedFixedTargetRequest(
+        string? outboundId,
+        ExitProbeRouteKind expectedRoute,
+        string expectedOutboundId)
+    {
+        var context = new OperationContext
+        {
+            OperationId = "desktop:verify-exit:operation",
+            SessionCapabilityToken = ByteString.CopyFrom(new byte[32]),
+        };
+
+        var request = GrpcControlRpcClient.CreateVerifyExitRequest(
+            outboundId,
+            context);
+
+        Assert.Same(context, request.Context);
+        Assert.Equal(expectedRoute, request.Route);
+        Assert.Equal(expectedOutboundId, request.OutboundId);
+        Assert.Equal(10, request.Timeout.Seconds);
+        Assert.Equal(0, request.Timeout.Nanos);
+    }
+
+    [Fact]
+    public void VerifyExitDoesNotInterpretWhitespaceAsDirectRoute()
+    {
+        var context = new OperationContext
+        {
+            OperationId = "desktop:verify-exit:operation",
+            SessionCapabilityToken = ByteString.CopyFrom(new byte[32]),
+        };
+
+        Assert.Throws<ArgumentException>(() =>
+            GrpcControlRpcClient.CreateVerifyExitRequest(" ", context));
+    }
+
     [Fact]
     public void SetDefaultRouteBuildsAuthenticatedOptimisticRequest()
     {

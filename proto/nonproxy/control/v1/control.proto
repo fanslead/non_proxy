@@ -21,6 +21,7 @@ service ControlService {
   rpc RollbackPolicySnapshot(RollbackPolicySnapshotRequest) returns (RollbackPolicySnapshotResponse);
   rpc ListOutbounds(ListOutboundsRequest) returns (ListOutboundsResponse);
   rpc ListConnectionDecisions(ListConnectionDecisionsRequest) returns (ListConnectionDecisionsResponse);
+  rpc ListExitProbes(ListExitProbesRequest) returns (ListExitProbesResponse);
   rpc ImportConfiguration(ImportConfigurationRequest) returns (ImportConfigurationResponse);
   rpc TestOutbound(TestOutboundRequest) returns (TestOutboundResponse);
   rpc VerifyExit(VerifyExitRequest) returns (VerifyExitResponse);
@@ -315,6 +316,32 @@ message ListConnectionDecisionsResponse {
   repeated ConnectionDecisionSummary decisions = 1;
   nonproxy.common.v1.PageResponse page = 2;
   uint64 total_count = 3;
+}
+
+// ExitProbeSummary 是 gatewayd 已验签并持久化的路由级公网出口回执。
+message ExitProbeSummary {
+  uint64 sequence = 1;
+  string probe_id = 2;
+  ExitProbeRouteKind route = 3;
+  string outbound_id = 4;
+  string observed_ip = 5;
+  nonproxy.common.v1.IpFamily ip_family = 6;
+  google.protobuf.Timestamp observed_at = 7;
+  string key_id = 8;
+  google.protobuf.Timestamp verified_at = 9;
+}
+
+// ListExitProbesRequest 查询最新的有界签名出口回执。
+message ListExitProbesRequest {
+  nonproxy.common.v1.PageRequest page = 1;
+}
+
+// ListExitProbesResponse 明确区分“未配置能力”和“尚无验证结果”。
+message ListExitProbesResponse {
+  repeated ExitProbeSummary probes = 1;
+  nonproxy.common.v1.PageResponse page = 2;
+  uint64 total_count = 3;
+  bool verification_available = 4;
 }
 
 // ImportConfigurationRequest 发送有大小上限且不得记录日志的配置内容。

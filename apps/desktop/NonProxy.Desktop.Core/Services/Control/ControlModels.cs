@@ -150,7 +150,9 @@ public sealed record OutboundListItem(
     TimeSpan? Latency,
     DateTimeOffset? LastCheckedAt,
     bool IsDefault = false,
-    bool SupportsDefaultRoute = false)
+    bool SupportsDefaultRoute = false,
+    bool CanVerifyExit = false,
+    ExitVerificationReceipt? ExitReceipt = null)
 {
     public bool CanSetAsDefault => !IsDefault && SupportsDefaultRoute;
 
@@ -167,12 +169,24 @@ public sealed record OutboundListItem(
     public string LastCheckedLabel => LastCheckedAt is { } value
         ? value.ToLocalTime().ToString("MM-dd HH:mm:ss", CultureInfo.CurrentCulture)
         : "尚未检查";
+
+    public string ExitStatusLabel => ExitReceipt is null
+        ? "尚未验证"
+        : $"最近签名回执 · {ExitReceipt.ObservedIp}";
+
+    public string ExitCheckedLabel => ExitReceipt is { } value
+        ? value.VerifiedAt.ToLocalTime().ToString(
+            "MM-dd HH:mm:ss",
+            CultureInfo.CurrentCulture)
+        : "—";
 }
 
 public sealed record OutboundCatalog(
     IReadOnlyList<OutboundListItem> Items,
     ulong RoutingRevision,
-    string? DefaultOutboundId = null)
+    string? DefaultOutboundId = null,
+    bool ExitVerificationAvailable = false,
+    ExitVerificationReceipt? DirectExitReceipt = null)
 {
     public bool UsesDirectByDefault => DefaultOutboundId is null;
 }
@@ -183,6 +197,19 @@ public sealed record OutboundTestResult(
     string Health,
     TimeSpan? Latency,
     DateTimeOffset CheckedAt,
+    string Message);
+
+public sealed record ExitVerificationReceipt(
+    long Sequence,
+    string ProbeId,
+    string ObservedIp,
+    DateTimeOffset ObservedAt,
+    DateTimeOffset VerifiedAt,
+    string? OutboundId);
+
+public sealed record ExitVerificationResult(
+    bool Verified,
+    string Code,
     string Message);
 
 public enum OutboundProxyKind

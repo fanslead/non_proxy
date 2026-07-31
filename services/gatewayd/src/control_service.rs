@@ -21,7 +21,8 @@ use crate::{
         mutation_error, publish_snapshot_event, request_status,
     },
     control_rpc_service::ControlRpcService,
-    decision_rpc, exit_probe, learning_rpc, outbound_import_service, outbound_probe,
+    decision_rpc, exit_probe, exit_probe_rpc, learning_rpc, outbound_import_service,
+    outbound_probe,
     proto_policy::{policy_from_proto, policy_to_proto},
     routing_rpc, system_rpc,
 };
@@ -244,6 +245,20 @@ impl ControlService for ControlRpcService {
     ) -> Result<Response<control_proto::ListConnectionDecisionsResponse>, Status> {
         Ok(Response::new(
             decision_rpc::list(&self.gateway, request.into_inner()).await?,
+        ))
+    }
+
+    async fn list_exit_probes(
+        &self,
+        request: Request<control_proto::ListExitProbesRequest>,
+    ) -> Result<Response<control_proto::ListExitProbesResponse>, Status> {
+        Ok(Response::new(
+            exit_probe_rpc::list(
+                &self.gateway,
+                request.into_inner(),
+                self.exit_probe_client.is_some(),
+            )
+            .await?,
         ))
     }
 

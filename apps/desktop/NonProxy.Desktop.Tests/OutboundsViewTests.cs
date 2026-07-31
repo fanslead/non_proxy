@@ -63,7 +63,7 @@ public sealed class OutboundsViewTests
                 .SingleOrDefault(button =>
                     string.Equals(
                         button.Content as string,
-                        "测试",
+                        "测试握手",
                         StringComparison.Ordinal));
 
             Assert.True(
@@ -71,6 +71,16 @@ public sealed class OutboundsViewTests
                 $"未找到测试按钮。已渲染按钮：{string.Join(", ", buttons.Select(button => button.Content))}");
             Assert.True(action.IsEnabled);
             Assert.Equal("测试代理握手", AutomationProperties.GetName(action));
+            var exitAction = buttons.SingleOrDefault(button =>
+                string.Equals(
+                    button.Content as string,
+                    "验证出口",
+                    StringComparison.Ordinal));
+            Assert.NotNull(exitAction);
+            Assert.True(exitAction.IsEnabled);
+            Assert.Equal(
+                "验证代理公网出口",
+                AutomationProperties.GetName(exitAction));
             var defaultAction = buttons.SingleOrDefault(button =>
                 string.Equals(
                     button.Content as string,
@@ -81,6 +91,19 @@ public sealed class OutboundsViewTests
             Assert.Equal(
                 "设为默认代理",
                 AutomationProperties.GetName(defaultAction));
+            var directAction = view
+                .GetLogicalDescendants()
+                .OfType<Button>()
+                .SingleOrDefault(button =>
+                    string.Equals(
+                        button.Content as string,
+                        "验证直连出口",
+                        StringComparison.Ordinal));
+            Assert.NotNull(directAction);
+            Assert.True(directAction.IsEnabled);
+            Assert.Equal(
+                "验证物理直连公网出口",
+                AutomationProperties.GetName(directAction));
         }
         finally
         {
@@ -98,13 +121,17 @@ public sealed class OutboundsViewTests
             "未验证",
             null,
             null,
-            SupportsDefaultRoute: true);
+            SupportsDefaultRoute: true,
+            CanVerifyExit: true);
 
         public Task<OutboundCatalog> ListAsync(
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(new OutboundCatalog([Outbound], 1));
+            return Task.FromResult(new OutboundCatalog(
+                [Outbound],
+                1,
+                ExitVerificationAvailable: true));
         }
 
         public Task<OutboundTestResult> TestAsync(
@@ -119,6 +146,17 @@ public sealed class OutboundsViewTests
                 TimeSpan.FromMilliseconds(25),
                 DateTimeOffset.UtcNow,
                 "代理握手成功。"));
+        }
+
+        public Task<ExitVerificationResult> VerifyExitAsync(
+            string? outboundId,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new ExitVerificationResult(
+                true,
+                "NP_EXIT_PROBE_VERIFIED",
+                "公网出口已签名验证。"));
         }
 
         public Task<OutboundImportResult> ImportAsync(

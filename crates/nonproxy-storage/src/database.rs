@@ -7,10 +7,10 @@ use std::{
 use rusqlite::{Connection, OpenFlags};
 
 use crate::{
-    ConnectionDecisionRepository, LearningConfirmationRepository, LearningRepository,
-    MigrationReport, NetworkProfileRepository, OutboundRepository, PolicyRepository,
-    ProviderRepository, RetentionRepository, RoutingSettingsRepository, SnapshotRepository,
-    StorageError, SyntheticDnsRepository, migration::migrate,
+    ConnectionDecisionRepository, ExitProbeRepository, LearningConfirmationRepository,
+    LearningRepository, MigrationReport, NetworkProfileRepository, OutboundRepository,
+    PolicyRepository, ProviderRepository, RetentionRepository, RoutingSettingsRepository,
+    SnapshotRepository, StorageError, SyntheticDnsRepository, migration::migrate,
 };
 
 #[derive(Debug)]
@@ -93,6 +93,11 @@ impl PolicyDatabase {
     #[must_use]
     pub fn connection_decisions(&mut self) -> ConnectionDecisionRepository<'_> {
         ConnectionDecisionRepository::new(&mut self.connection)
+    }
+
+    #[must_use]
+    pub fn exit_probes(&mut self) -> ExitProbeRepository<'_> {
+        ExitProbeRepository::new(&mut self.connection)
     }
 
     #[must_use]

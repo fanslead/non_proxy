@@ -62,6 +62,202 @@ public sealed class GatewayOutboundServiceTests
     }
 
     [Fact]
+    public async Task ListMapsLatestSignedReceiptForDirectAndProxyRoutes()
+    {
+        var older = DateTimeOffset.Parse(
+            "2026-07-31T01:02:03Z",
+            CultureInfo.InvariantCulture);
+        var newer = older.AddMinutes(1);
+        var client = new StubControlRpcClient
+        {
+            OutboundsResponse = new ListOutboundsResponse
+            {
+                Page = new PageResponse(),
+                RoutingRevision = 2,
+                Outbounds =
+                {
+                    new OutboundSummary
+                    {
+                        Id = "office",
+                        DisplayName = "Office",
+                        Kind = OutboundKind.Socks5,
+                        Enabled = true,
+                    },
+                },
+            },
+            ExitProbesResponse = new ListExitProbesResponse
+            {
+                Page = new PageResponse(),
+                TotalCount = 3,
+                VerificationAvailable = true,
+                Probes =
+                {
+                    ExitProbe(
+                        3,
+                        ExitProbeRouteKind.Proxy,
+                        "office",
+                        "8.8.4.4",
+                        newer),
+                    ExitProbe(
+                        2,
+                        ExitProbeRouteKind.Direct,
+                        string.Empty,
+                        "1.1.1.1",
+                        newer),
+                    ExitProbe(
+                        1,
+                        ExitProbeRouteKind.Proxy,
+                        "office",
+                        "8.8.8.8",
+                        older),
+                },
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var catalog = await service.ListAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.True(catalog.ExitVerificationAvailable);
+        Assert.Equal("1.1.1.1", catalog.DirectExitReceipt?.ObservedIp);
+        var outbound = Assert.Single(catalog.Items);
+        Assert.True(outbound.CanVerifyExit);
+        Assert.Equal("8.8.4.4", outbound.ExitReceipt?.ObservedIp);
+        Assert.Equal(newer, outbound.ExitReceipt?.VerifiedAt);
+    }
+
+    [Fact]
+    public async Task ListRejectsExitReceiptCountAboveRetentionBound()
+    {
+        var client = new StubControlRpcClient
+        {
+            OutboundsResponse = new ListOutboundsResponse
+            {
+                Page = new PageResponse(),
+                RoutingRevision = 2,
+            },
+            ExitProbesResponse = new ListExitProbesResponse
+            {
+                Page = new PageResponse(),
+                TotalCount = 2_049,
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var error = await Assert.ThrowsAsync<ControlServiceException>(() =>
+            service.ListAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("NP_CONTROL_PAGING_INVALID", error.Code);
+    }
+
+    [Fact]
+    public async Task VerifyExitUsesSelectedRouteAndMapsSignedResult()
+    {
+        var observedAt = DateTimeOffset.Parse(
+            "2026-07-31T01:02:03Z",
+            CultureInfo.InvariantCulture);
+        var client = new StubControlRpcClient
+        {
+            VerifyExitResponse = new VerifyExitResponse
+            {
+                Verified = true,
+                ProbeId = "A".PadRight(43, 'A'),
+                ObservedIp = "8.8.8.8",
+                IpFamily = IpFamily.Ipv4,
+                ObservedAt = Timestamp.FromDateTimeOffset(observedAt),
+                Route = ExitProbeRouteKind.Proxy,
+                OutboundId = "office",
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var result = await service.VerifyExitAsync(
+            "office",
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result.Verified);
+        Assert.Equal("office", client.LastVerifiedOutboundId);
+        Assert.False(client.LastExitRouteWasDirect);
+        Assert.Contains("8.8.8.8", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task VerifyExitDoesNotAcceptMalformedOrUnsignedSuccess()
+    {
+        var client = new StubControlRpcClient
+        {
+            VerifyExitResponse = new VerifyExitResponse
+            {
+                Verified = true,
+                ProbeId = "short",
+                ObservedIp = "127.0.0.1",
+                Route = ExitProbeRouteKind.Direct,
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var error = await Assert.ThrowsAsync<ControlServiceException>(() =>
+            service.VerifyExitAsync(
+                null,
+                TestContext.Current.CancellationToken));
+
+        Assert.True(client.LastExitRouteWasDirect);
+        Assert.Equal("NP_CONTROL_CONTRACT_INVALID", error.Code);
+    }
+
+    [Fact]
+    public async Task VerifyExitRejectsMismatchedAddressFamily()
+    {
+        var client = new StubControlRpcClient
+        {
+            VerifyExitResponse = new VerifyExitResponse
+            {
+                Verified = true,
+                ProbeId = "A".PadRight(43, 'A'),
+                ObservedIp = "2606:4700:4700::1111",
+                IpFamily = IpFamily.Ipv4,
+                ObservedAt = Timestamp.FromDateTimeOffset(
+                    DateTimeOffset.Parse(
+                        "2026-07-31T01:02:03Z",
+                        CultureInfo.InvariantCulture)),
+                Route = ExitProbeRouteKind.Direct,
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var error = await Assert.ThrowsAsync<ControlServiceException>(() =>
+            service.VerifyExitAsync(
+                null,
+                TestContext.Current.CancellationToken));
+
+        Assert.Equal("NP_CONTROL_CONTRACT_INVALID", error.Code);
+    }
+
+    [Fact]
+    public async Task VerifyExitMapsTrustFailureWithoutExposingInternals()
+    {
+        var client = new StubControlRpcClient
+        {
+            VerifyExitResponse = new VerifyExitResponse
+            {
+                Error = new ErrorDetail
+                {
+                    Code = "NP_EXIT_PROBE_SIGNATURE_INVALID",
+                },
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var result = await service.VerifyExitAsync(
+            null,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.Verified);
+        Assert.Contains("身份验证失败", result.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("公钥", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SetDefaultUsesRoutingRevisionAndReportsPendingActivation()
     {
         var client = new StubControlRpcClient
@@ -311,5 +507,26 @@ public sealed class GatewayOutboundServiceTests
                 TestContext.Current.CancellationToken));
 
         Assert.Equal("NP_CONTROL_CONTRACT_INVALID", error.Code);
+    }
+
+    private static ExitProbeSummary ExitProbe(
+        ulong sequence,
+        ExitProbeRouteKind route,
+        string outboundId,
+        string observedIp,
+        DateTimeOffset verifiedAt)
+    {
+        return new ExitProbeSummary
+        {
+            Sequence = sequence,
+            ProbeId = sequence.ToString(CultureInfo.InvariantCulture).PadLeft(43, 'A'),
+            Route = route,
+            OutboundId = outboundId,
+            ObservedIp = observedIp,
+            IpFamily = IpFamily.Ipv4,
+            ObservedAt = Timestamp.FromDateTimeOffset(verifiedAt.AddSeconds(-1)),
+            KeyId = "K".PadRight(22, 'K'),
+            VerifiedAt = Timestamp.FromDateTimeOffset(verifiedAt),
+        };
     }
 }

@@ -1272,6 +1272,102 @@ public nonisolated struct Nonproxy_Control_V1_ListConnectionDecisionsResponse: S
   fileprivate var _page: Nonproxy_Common_V1_PageResponse? = nil
 }
 
+/// ExitProbeSummary 是 gatewayd 已验签并持久化的路由级公网出口回执。
+public nonisolated struct Nonproxy_Control_V1_ExitProbeSummary: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var sequence: UInt64 = 0
+
+  public var probeID: String = String()
+
+  public var route: Nonproxy_Control_V1_ExitProbeRouteKind = .unspecified
+
+  public var outboundID: String = String()
+
+  public var observedIp: String = String()
+
+  public var ipFamily: Nonproxy_Common_V1_IpFamily = .unspecified
+
+  public var observedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_observedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_observedAt = newValue}
+  }
+  /// Returns true if `observedAt` has been explicitly set.
+  public var hasObservedAt: Bool {self._observedAt != nil}
+  /// Clears the value of `observedAt`. Subsequent reads from it will return its default value.
+  public mutating func clearObservedAt() {self._observedAt = nil}
+
+  public var keyID: String = String()
+
+  public var verifiedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_verifiedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_verifiedAt = newValue}
+  }
+  /// Returns true if `verifiedAt` has been explicitly set.
+  public var hasVerifiedAt: Bool {self._verifiedAt != nil}
+  /// Clears the value of `verifiedAt`. Subsequent reads from it will return its default value.
+  public mutating func clearVerifiedAt() {self._verifiedAt = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _observedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _verifiedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+/// ListExitProbesRequest 查询最新的有界签名出口回执。
+public nonisolated struct Nonproxy_Control_V1_ListExitProbesRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var page: Nonproxy_Common_V1_PageRequest {
+    get {_page ?? Nonproxy_Common_V1_PageRequest()}
+    set {_page = newValue}
+  }
+  /// Returns true if `page` has been explicitly set.
+  public var hasPage: Bool {self._page != nil}
+  /// Clears the value of `page`. Subsequent reads from it will return its default value.
+  public mutating func clearPage() {self._page = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _page: Nonproxy_Common_V1_PageRequest? = nil
+}
+
+/// ListExitProbesResponse 明确区分“未配置能力”和“尚无验证结果”。
+public nonisolated struct Nonproxy_Control_V1_ListExitProbesResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var probes: [Nonproxy_Control_V1_ExitProbeSummary] = []
+
+  public var page: Nonproxy_Common_V1_PageResponse {
+    get {_page ?? Nonproxy_Common_V1_PageResponse()}
+    set {_page = newValue}
+  }
+  /// Returns true if `page` has been explicitly set.
+  public var hasPage: Bool {self._page != nil}
+  /// Clears the value of `page`. Subsequent reads from it will return its default value.
+  public mutating func clearPage() {self._page = nil}
+
+  public var totalCount: UInt64 = 0
+
+  public var verificationAvailable: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _page: Nonproxy_Common_V1_PageResponse? = nil
+}
+
 /// ImportConfigurationRequest 发送有大小上限且不得记录日志的配置内容。
 public nonisolated struct Nonproxy_Control_V1_ImportConfigurationRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -3410,6 +3506,163 @@ nonisolated extension Nonproxy_Control_V1_ListConnectionDecisionsResponse: Swift
     if lhs.decisions != rhs.decisions {return false}
     if lhs._page != rhs._page {return false}
     if lhs.totalCount != rhs.totalCount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ExitProbeSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ExitProbeSummary"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sequence\0\u{3}probe_id\0\u{1}route\0\u{3}outbound_id\0\u{3}observed_ip\0\u{3}ip_family\0\u{3}observed_at\0\u{3}key_id\0\u{3}verified_at\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt64Field(value: &self.sequence) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.probeID) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.route) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.outboundID) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.observedIp) }()
+      case 6: try { try decoder.decodeSingularEnumField(value: &self.ipFamily) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._observedAt) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self.keyID) }()
+      case 9: try { try decoder.decodeSingularMessageField(value: &self._verifiedAt) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.sequence != 0 {
+      try visitor.visitSingularUInt64Field(value: self.sequence, fieldNumber: 1)
+    }
+    if !self.probeID.isEmpty {
+      try visitor.visitSingularStringField(value: self.probeID, fieldNumber: 2)
+    }
+    if self.route != .unspecified {
+      try visitor.visitSingularEnumField(value: self.route, fieldNumber: 3)
+    }
+    if !self.outboundID.isEmpty {
+      try visitor.visitSingularStringField(value: self.outboundID, fieldNumber: 4)
+    }
+    if !self.observedIp.isEmpty {
+      try visitor.visitSingularStringField(value: self.observedIp, fieldNumber: 5)
+    }
+    if self.ipFamily != .unspecified {
+      try visitor.visitSingularEnumField(value: self.ipFamily, fieldNumber: 6)
+    }
+    try { if let v = self._observedAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    if !self.keyID.isEmpty {
+      try visitor.visitSingularStringField(value: self.keyID, fieldNumber: 8)
+    }
+    try { if let v = self._verifiedAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ExitProbeSummary, rhs: Nonproxy_Control_V1_ExitProbeSummary) -> Bool {
+    if lhs.sequence != rhs.sequence {return false}
+    if lhs.probeID != rhs.probeID {return false}
+    if lhs.route != rhs.route {return false}
+    if lhs.outboundID != rhs.outboundID {return false}
+    if lhs.observedIp != rhs.observedIp {return false}
+    if lhs.ipFamily != rhs.ipFamily {return false}
+    if lhs._observedAt != rhs._observedAt {return false}
+    if lhs.keyID != rhs.keyID {return false}
+    if lhs._verifiedAt != rhs._verifiedAt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ListExitProbesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListExitProbesRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}page\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._page) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._page {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ListExitProbesRequest, rhs: Nonproxy_Control_V1_ListExitProbesRequest) -> Bool {
+    if lhs._page != rhs._page {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ListExitProbesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListExitProbesResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}probes\0\u{1}page\0\u{3}total_count\0\u{3}verification_available\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.probes) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._page) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.totalCount) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.verificationAvailable) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.probes.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.probes, fieldNumber: 1)
+    }
+    try { if let v = self._page {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.totalCount != 0 {
+      try visitor.visitSingularUInt64Field(value: self.totalCount, fieldNumber: 3)
+    }
+    if self.verificationAvailable != false {
+      try visitor.visitSingularBoolField(value: self.verificationAvailable, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ListExitProbesResponse, rhs: Nonproxy_Control_V1_ListExitProbesResponse) -> Bool {
+    if lhs.probes != rhs.probes {return false}
+    if lhs._page != rhs._page {return false}
+    if lhs.totalCount != rhs.totalCount {return false}
+    if lhs.verificationAvailable != rhs.verificationAvailable {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

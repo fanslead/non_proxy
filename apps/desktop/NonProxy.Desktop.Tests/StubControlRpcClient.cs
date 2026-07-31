@@ -42,9 +42,18 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public int LastDecisionPageSize { get; private set; }
 
+    public ListExitProbesResponse ExitProbesResponse { get; set; } = new()
+    {
+        Page = new NonProxy.Common.V1.PageResponse(),
+    };
+
+    public Queue<ListExitProbesResponse> ExitProbesResponses { get; } = new();
+
     public ImportConfigurationResponse ImportResponse { get; set; } = new();
 
     public TestOutboundResponse TestOutboundResponse { get; set; } = new();
+
+    public VerifyExitResponse VerifyExitResponse { get; set; } = new();
 
     public SetDefaultRouteResponse SetDefaultRouteResponse { get; set; } = new();
 
@@ -59,6 +68,10 @@ internal sealed class StubControlRpcClient : IControlRpcClient
     public string? LastImportedConfiguration { get; private set; }
 
     public string? LastTestedOutboundId { get; private set; }
+
+    public string? LastVerifiedOutboundId { get; private set; }
+
+    public bool LastExitRouteWasDirect { get; private set; }
 
     public string? LastDefaultOutboundId { get; private set; }
 
@@ -152,6 +165,17 @@ internal sealed class StubControlRpcClient : IControlRpcClient
         return Task.FromResult(DecisionsResponse);
     }
 
+    public Task<ListExitProbesResponse> ListExitProbesAsync(
+        int pageSize,
+        string pageToken,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ExitProbesResponses.Count > 0
+            ? ExitProbesResponses.Dequeue()
+            : ExitProbesResponse);
+    }
+
     public Task<ImportConfigurationResponse> ImportConfigurationAsync(
         byte[] configuration,
         CancellationToken cancellationToken)
@@ -168,6 +192,16 @@ internal sealed class StubControlRpcClient : IControlRpcClient
         cancellationToken.ThrowIfCancellationRequested();
         LastTestedOutboundId = outboundId;
         return Task.FromResult(TestOutboundResponse);
+    }
+
+    public Task<VerifyExitResponse> VerifyExitAsync(
+        string? outboundId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastVerifiedOutboundId = outboundId;
+        LastExitRouteWasDirect = string.IsNullOrWhiteSpace(outboundId);
+        return Task.FromResult(VerifyExitResponse);
     }
 
     public Task<SetDefaultRouteResponse> SetDefaultRouteAsync(

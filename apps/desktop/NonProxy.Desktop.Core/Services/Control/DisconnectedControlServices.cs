@@ -89,6 +89,16 @@ public sealed class DisconnectedOutboundService : IOutboundService
             "控制服务尚未连接，无法测试代理握手。");
     }
 
+    public Task<ExitVerificationResult> VerifyExitAsync(
+        string? outboundId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new ControlServiceException(
+            "NP_CONTROL_UNAVAILABLE",
+            "控制服务尚未连接，无法验证公网出口。");
+    }
+
     public Task<ApplyResult> SetDefaultAsync(
         string outboundId,
         ulong expectedRoutingRevision,

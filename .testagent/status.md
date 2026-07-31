@@ -260,12 +260,12 @@
 - [x] DIRECT/PROXY 网关探针编排
 - [x] Provider EXIT 越级拒绝
 - [x] C#/Swift/Rust 控制契约生成
-- [ ] 出口回执持久化与查询
-- [ ] Desktop 触发、结果展示与无配置状态
+- [x] 出口回执持久化与查询
+- [x] Desktop 触发、结果展示与无配置状态
 - [x] 真实 TLS 客户端集成测试
 - [x] Windows 物理 TCP 双架构条件编译
 - [ ] 探针服务部署清单
-- [ ] 全仓测试、lint、打包与提交前 review
+- [x] 全仓测试、lint、打包与提交前 review
 
 ### 当前验证
 
@@ -302,3 +302,42 @@
   代码和中文操作提示，不泄露 endpoint、代理凭据或底层网络错误。
 - 本基础提交仍不代表完整出口功能完成；持久化、桌面 UI、密钥轮换、部署清单与
   真实公网双路径验收继续在后续批次完成。
+
+### 持久化与桌面批次验证
+
+- V10 migration、领域模型和专用 repository 已覆盖路由形状、公网地址、时间边界、
+  精确幂等、冲突重放、不可更新与 2048 条保留上限；gatewayd 只有在回执写入成功
+  后才返回 `verified=true`。
+- `ListExitProbes` 返回倒序分页的已验签事实和独立能力状态；C# 客户端限制总数、
+  页游标、重复序号、路由、地址族与时间戳，并把 DIRECT 和各 PROXY 最新记录隔离。
+- Desktop 把“测试握手”和“验证出口”拆开，结果标为“最近签名回执”；探针未配置
+  时历史仍可读，但直连和代理验证命令都不可执行。
+- `cargo test --workspace`、`cargo clippy --workspace --all-targets -- -D warnings`
+  和 `cargo fmt --all -- --check` 全部通过；gatewayd 为 102 个库测试、11 个集成
+  测试及 1 个 Provider RPC 测试，storage 新增 3 个 repository 集成测试。
+- `dotnet test apps/desktop/NonProxy.Desktop.slnx -c Release --no-restore`：
+  96/96 通过；`dotnet format ... --verify-no-changes` 通过。
+- `swift test --package-path platform/macos --disable-sandbox`：XCTest 98/98、
+  Swift Testing 28/28；`pnpm test`：28/28。
+- `just contracts`、`just contracts-swift`、`just contracts-breaking` 通过；
+  `cargo xwin check --workspace --all-targets --target x86_64-pc-windows-msvc`
+  通过，只证明 Windows 条件编译与类型。
+- `dotnet build apps/desktop/NonProxy.Desktop.slnx -c Release --no-restore
+  --no-incremental` 完成 Universal System Extension、Safari Extension、Native
+  Messaging Host、gatewayd 和最终 App Bundle，0 warning、0 error。
+- `just gateway-bundle-smoke`、`just control-e2e`、`just native-messaging-e2e`
+  和 `just provider-e2e` 通过，覆盖 Bundle 内 gatewayd 生命周期、认证控制面、
+  浏览器学习链路、NPF1 代理数据面以及两个 Provider 的 ACK/active 链路。
+
+### 持久化与桌面提交前复核
+
+- 修正未配置探针时代理验证按钮可能绕过全局能力状态的问题，改为完全服从命令
+  `CanExecute`；同时增加无探针的直连/代理双禁用测试。
+- 即时回执增加 IP 地址族和 protobuf 时间戳校验；空白出口 ID 不再被解释为 DIRECT，
+  历史回执查询也拒绝超过服务端 2048 保留上限的响应。
+- 回执文案从容易暗示持续有效的“已签名验证”改为“最近签名回执”，并始终显示本地
+  验签时间和证据边界。
+- 强化 storage 断言，确认冲突重放保留原事实，容量淘汰准确删除最旧两条且保留最新
+  结果；新增测试没有空断言、永真断言或只执行不检查结果的情况。
+- 当前仍不代表真实第三方 VPN 共存或公网 DIRECT/PROXY 对比已经验收；公钥轮换、
+  探针部署清单和正式签名设备验收仍是后续批次。

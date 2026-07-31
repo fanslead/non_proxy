@@ -64,14 +64,14 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         panic!("V1 数据库升级失败: {upgraded:?}");
     };
     assert_eq!(upgraded.previous_version(), 1);
-    assert_eq!(upgraded.current_version(), 9);
+    assert_eq!(upgraded.current_version(), 10);
     assert_eq!(
         upgraded
             .applied()
             .iter()
             .map(AppliedMigration::version)
             .collect::<Vec<_>>(),
-        vec![2, 3, 4, 5, 6, 7, 8, 9]
+        vec![2, 3, 4, 5, 6, 7, 8, 9, 10]
     );
     let generation: i64 = match connection.query_row(
         "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
@@ -132,7 +132,7 @@ fn legacy_learning_rows_upgrade_without_losing_candidates() {
     let Ok(upgraded) = upgraded else {
         panic!("旧学习数据升级失败: {upgraded:?}");
     };
-    assert_eq!(upgraded.current_version(), 9);
+    assert_eq!(upgraded.current_version(), 10);
     let session: (String, String, i64) = match connection.query_row(
         "SELECT browser_context_id, state, expires_at_unix_ms
          FROM learning_session WHERE id = 'legacy-session'",
@@ -247,4 +247,40 @@ fn connection_evidence_migration_enforces_normal_and_fail_open_paths() {
         [],
     );
     assert!(unexplained_fail_open.is_err());
+}
+
+#[test]
+fn exit_probe_migration_enforces_route_shape_and_immutable_receipts() {
+    let mut connection = match Connection::open_in_memory() {
+        Ok(value) => value,
+        Err(error) => panic!("出口探针迁移测试数据库打开失败: {error}"),
+    };
+    if let Err(error) = migrate_with(&mut connection, None, 1_000, MIGRATIONS) {
+        panic!("出口探针迁移执行失败: {error}");
+    }
+    let probe_id = "G".repeat(43);
+    let key_id = "G".repeat(22);
+
+    let invalid_route = connection.execute(
+        "INSERT INTO exit_probe_receipt(
+             probe_id, route_kind, outbound_id, observed_ip, ip_family,
+             observed_at_unix_ms, key_id, verified_at_unix_ms
+         ) VALUES (?1, 1, 'forbidden', '8.8.8.8', 1, 1000, ?2, 1000)",
+        rusqlite::params![probe_id, key_id],
+    );
+    assert!(invalid_route.is_err());
+
+    let valid = connection.execute(
+        "INSERT INTO exit_probe_receipt(
+             probe_id, route_kind, outbound_id, observed_ip, ip_family,
+             observed_at_unix_ms, key_id, verified_at_unix_ms
+         ) VALUES (?1, 1, NULL, '8.8.8.8', 1, 1000, ?2, 1000)",
+        rusqlite::params![probe_id, key_id],
+    );
+    assert!(valid.is_ok());
+    assert!(
+        connection
+            .execute("UPDATE exit_probe_receipt SET observed_ip = '8.8.4.4'", [],)
+            .is_err()
+    );
 }

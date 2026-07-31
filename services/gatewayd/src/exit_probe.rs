@@ -8,6 +8,7 @@ use nonproxy_proto::{
     common::v1::{ErrorDetail, IpFamily},
     control::v1::{ExitProbeRouteKind, VerifyExitRequest, VerifyExitResponse},
 };
+use nonproxy_storage::ExitProbeRoute;
 
 use crate::{
     Gateway,
@@ -46,42 +47,60 @@ pub async fn run(
             );
         }
     };
-    run_with_probe(request, move |route, timeout| {
-        let gateway = gateway.clone();
-        async move {
-            let endpoint = FlowEndpoint::new(client.endpoint().host(), client.endpoint().port())
-                .map_err(|_| RunError::Probe(ExitProbeError::Configuration))?;
-            let nonce = ProbeNonce::generate().map_err(RunError::Probe)?;
-            let stream: BoxedProxyStream = match route {
-                ProbeRoute::Direct => Box::new(
-                    connect_direct(&gateway, &endpoint)
-                        .await
-                        .map_err(RunError::Direct)?,
-                ),
-                ProbeRoute::Proxy(outbound_id) => {
-                    let connector = load_connector(&gateway, credential_store, &outbound_id)
-                        .await
-                        .map_err(RunError::Flow)?;
-                    connector
-                        .connect_tcp(&endpoint)
-                        .await
-                        .map_err(|error| RunError::Flow(FlowServiceError::Outbound(error)))?
-                }
-            };
-            let now = unix_time_ms().map_err(|_| RunError::Clock)?;
-            client
-                .probe(stream, nonce, now, timeout)
+    let save_gateway = gateway.clone();
+    run_with_probe(
+        request,
+        move |route, timeout| {
+            let gateway = gateway.clone();
+            async move {
+                let endpoint =
+                    FlowEndpoint::new(client.endpoint().host(), client.endpoint().port())
+                        .map_err(|_| RunError::Probe(ExitProbeError::Configuration))?;
+                let nonce = ProbeNonce::generate().map_err(RunError::Probe)?;
+                let stream: BoxedProxyStream = match route {
+                    ProbeRoute::Direct => Box::new(
+                        connect_direct(&gateway, &endpoint)
+                            .await
+                            .map_err(RunError::Direct)?,
+                    ),
+                    ProbeRoute::Proxy(outbound_id) => {
+                        let connector = load_connector(&gateway, credential_store, &outbound_id)
+                            .await
+                            .map_err(RunError::Flow)?;
+                        connector
+                            .connect_tcp(&endpoint)
+                            .await
+                            .map_err(|error| RunError::Flow(FlowServiceError::Outbound(error)))?
+                    }
+                };
+                let now = unix_time_ms().map_err(|_| RunError::Clock)?;
+                client
+                    .probe(stream, nonce, now, timeout)
+                    .await
+                    .map_err(RunError::Probe)
+            }
+        },
+        move |route, verified| async move {
+            save_gateway
+                .save_exit_probe(storage_route(&route), &verified)
                 .await
-                .map_err(RunError::Probe)
-        }
-    })
+                .map_err(|_| ())
+                .map(|_| verified)
+        },
+    )
     .await
 }
 
-async fn run_with_probe<F, Fut>(request: VerifyExitRequest, probe: F) -> VerifyExitResponse
+async fn run_with_probe<F, Fut, S, Save>(
+    request: VerifyExitRequest,
+    probe: F,
+    save: S,
+) -> VerifyExitResponse
 where
     F: FnOnce(ProbeRoute, Duration) -> Fut,
     Fut: Future<Output = Result<VerifiedExitProbe, RunError>>,
+    S: FnOnce(ProbeRoute, VerifiedExitProbe) -> Save,
+    Save: Future<Output = Result<VerifiedExitProbe, ()>>,
 {
     let timeout = match probe_timeout(request.timeout.as_ref()) {
         Ok(value) => value,
@@ -93,9 +112,19 @@ where
     };
     let result = tokio::time::timeout(timeout, probe(route.clone(), timeout)).await;
     match result {
-        Ok(Ok(verified)) => match success_response(route, verified) {
-            Ok(response) => response,
-            Err(error) => error_response(&request, error),
+        Ok(Ok(verified)) => match save(route.clone(), verified).await {
+            Ok(verified) => match success_response(route, verified) {
+                Ok(response) => response,
+                Err(error) => error_response(&request, error),
+            },
+            Err(()) => error_response(
+                &request,
+                detail(
+                    "NP_EXIT_PROBE_PERSIST_FAILED",
+                    "出口已验证，但本地回执保存失败，请稍后重试。",
+                    true,
+                ),
+            ),
         },
         Ok(Err(error)) => error_response(&request, run_error_detail(&error)),
         Err(_) => error_response(
@@ -187,6 +216,13 @@ fn response_route(route: &ProbeRoute) -> (ExitProbeRouteKind, String) {
         ProbeRoute::Proxy(outbound_id) => {
             (ExitProbeRouteKind::Proxy, outbound_id.as_str().to_owned())
         }
+    }
+}
+
+fn storage_route(route: &ProbeRoute) -> ExitProbeRoute {
+    match route {
+        ProbeRoute::Direct => ExitProbeRoute::Direct,
+        ProbeRoute::Proxy(outbound_id) => ExitProbeRoute::Proxy(outbound_id.clone()),
     }
 }
 
@@ -298,7 +334,15 @@ fn detail(code: &str, message: &str, retryable: bool) -> ErrorDetail {
 
 #[cfg(test)]
 mod tests {
-    use std::{net::IpAddr, str::FromStr, time::Duration};
+    use std::{
+        net::IpAddr,
+        str::FromStr,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+        time::Duration,
+    };
 
     use nonproxy_exit_probe::{ExitProbeSigner, ExitProbeVerifier, ProbeNonce};
     use nonproxy_proto::control::v1::{ExitProbeRouteKind, VerifyExitRequest};
@@ -307,6 +351,8 @@ mod tests {
 
     #[tokio::test]
     async fn returns_verified_signed_exit_for_selected_proxy() {
+        let saved = Arc::new(AtomicBool::new(false));
+        let save_state = Arc::clone(&saved);
         let response = run_with_probe(
             request(ExitProbeRouteKind::Proxy, "primary"),
             |route, _| async move {
@@ -316,10 +362,19 @@ mod tests {
                 ));
                 Ok(verified_fixture())
             },
+            move |route, verified| async move {
+                assert!(matches!(
+                    route,
+                    ProbeRoute::Proxy(ref id) if id.as_str() == "primary"
+                ));
+                save_state.store(true, Ordering::Release);
+                Ok(verified)
+            },
         )
         .await;
 
         assert!(response.verified);
+        assert!(saved.load(Ordering::Acquire));
         assert_eq!(response.observed_ip, "8.8.8.8");
         assert_eq!(response.route(), ExitProbeRouteKind::Proxy);
         assert_eq!(response.outbound_id, "primary");
@@ -327,10 +382,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn does_not_claim_verified_when_receipt_persistence_fails() {
+        let response = run_with_probe(
+            request(ExitProbeRouteKind::Direct, ""),
+            |_route, _| async move { Ok(verified_fixture()) },
+            |_route, _verified| async move { Err(()) },
+        )
+        .await;
+
+        assert!(!response.verified);
+        assert!(response.probe_id.is_empty());
+        assert!(matches!(
+            response.error,
+            Some(error)
+                if error.code == "NP_EXIT_PROBE_PERSIST_FAILED" && error.retryable
+        ));
+    }
+
+    #[tokio::test]
     async fn rejects_inconsistent_route_without_running_probe() {
         let response = run_with_probe(
             request(ExitProbeRouteKind::Direct, "must-be-empty"),
             |_route, _| async { Err(RunError::Clock) },
+            |_route, verified| async move { Ok(verified) },
         )
         .await;
 

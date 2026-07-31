@@ -3,6 +3,8 @@ mod connection_decision_repository;
 mod connection_decision_types;
 mod database;
 mod error;
+mod exit_probe_repository;
+mod exit_probe_types;
 mod learning_codec;
 mod learning_confirmation_receipt;
 mod learning_confirmation_repository;
@@ -27,6 +29,8 @@ pub use connection_decision_types::{
 };
 pub use database::PolicyDatabase;
 pub use error::StorageError;
+pub use exit_probe_repository::ExitProbeRepository;
+pub use exit_probe_types::{ExitProbeInput, ExitProbeRecord, ExitProbeRoute};
 pub use learning_confirmation_receipt::{ConfirmedLearningPolicy, LearningConfirmationReceipt};
 pub use learning_confirmation_repository::{
     LearningConfirmationRepository, LearningPolicySelection,
