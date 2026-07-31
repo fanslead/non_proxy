@@ -24,18 +24,21 @@ impl<'connection> ConnectionDecisionRepository<'connection> {
     pub fn save_batch(
         &mut self,
         decisions: &[ConnectionDecisionInput],
-    ) -> Result<usize, StorageError> {
+    ) -> Result<Vec<usize>, StorageError> {
         if decisions.is_empty() || decisions.len() > MAX_BATCH_SIZE {
             return Err(StorageError::ConnectionDecisionInvalid);
         }
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        for decision in decisions {
-            save_or_validate_replay(&transaction, decision)?;
+        let mut inserted_indices = Vec::with_capacity(decisions.len());
+        for (index, decision) in decisions.iter().enumerate() {
+            if save_or_validate_replay(&transaction, decision)? {
+                inserted_indices.push(index);
+            }
         }
         transaction.commit()?;
-        Ok(decisions.len())
+        Ok(inserted_indices)
     }
 
     pub fn list_recent(
@@ -81,7 +84,7 @@ impl<'connection> ConnectionDecisionRepository<'connection> {
 fn save_or_validate_replay(
     transaction: &Transaction<'_>,
     input: &ConnectionDecisionInput,
-) -> Result<(), StorageError> {
+) -> Result<bool, StorageError> {
     let persisted = persisted(input)?;
     let event_id = format!(
         "{}:{}:{}",
@@ -89,7 +92,7 @@ fn save_or_validate_replay(
     );
     if let Some(existing) = read_persisted(transaction, &event_id)? {
         return if existing == persisted {
-            Ok(())
+            Ok(false)
         } else {
             Err(StorageError::ConnectionDecisionReplayMismatch)
         };
@@ -137,7 +140,7 @@ fn save_or_validate_replay(
             persisted.error_code,
         ],
     )?;
-    Ok(())
+    Ok(true)
 }
 
 fn usize_to_i64(value: usize) -> Result<i64, StorageError> {

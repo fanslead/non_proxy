@@ -23,10 +23,10 @@ fn decision_batch_is_idempotent_and_lists_newest_first() {
     let saved = database
         .connection_decisions()
         .save_batch(&[older.clone(), newer.clone()]);
-    assert!(matches!(saved, Ok(2)));
+    assert!(matches!(saved, Ok(indices) if indices == [0, 1]));
     assert!(matches!(
         database.connection_decisions().save_batch(&[older, newer]),
-        Ok(2)
+        Ok(indices) if indices.is_empty()
     ));
 
     let page = database.connection_decisions().list_recent(1, 0);
@@ -87,6 +87,34 @@ fn changed_replay_rolls_back_the_entire_batch() {
     assert!(matches!(
         database.connection_decisions().list_recent(10, 0),
         Ok((records, 1)) if records.len() == 1
+    ));
+}
+
+#[test]
+fn mixed_replay_reports_only_the_new_insert_index() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("混合重放测试数据库打开失败: {database:?}");
+    };
+    let existing = direct_input("existing-flow", 1_100, "en0")
+        .unwrap_or_else(|error| panic!("既有决策夹具失败: {error}"));
+    let inserted = direct_input("inserted-flow", 1_200, "en0")
+        .unwrap_or_else(|error| panic!("新增决策夹具失败: {error}"));
+    if let Err(error) = database
+        .connection_decisions()
+        .save_batch(std::slice::from_ref(&existing))
+    {
+        panic!("既有决策写入失败: {error}");
+    }
+
+    let result = database
+        .connection_decisions()
+        .save_batch(&[existing, inserted]);
+
+    assert!(matches!(result, Ok(indices) if indices == [1]));
+    assert!(matches!(
+        database.connection_decisions().list_recent(10, 0),
+        Ok((records, 2)) if records.len() == 2
     ));
 }
 
@@ -170,7 +198,7 @@ fn fail_open_proxy_can_record_the_real_direct_interface() {
 
     assert!(matches!(
         database.connection_decisions().save_batch(&[input]),
-        Ok(1)
+        Ok(indices) if indices == [0]
     ));
     assert!(matches!(
         database.connection_decisions().list_recent(10, 0),

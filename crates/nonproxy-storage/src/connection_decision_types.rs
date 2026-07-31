@@ -150,6 +150,41 @@ impl ConnectionDecisionInput {
             error_code,
         })
     }
+
+    #[must_use]
+    pub fn provider_id(&self) -> &str {
+        &self.provider_id
+    }
+
+    #[must_use]
+    pub fn flow_id(&self) -> &str {
+        &self.flow_id
+    }
+
+    #[must_use]
+    pub const fn application(&self) -> &AppIdentity {
+        &self.app
+    }
+
+    #[must_use]
+    pub const fn destination(&self) -> &Destination {
+        &self.destination
+    }
+
+    #[must_use]
+    pub const fn decision(&self) -> &Decision {
+        &self.decision
+    }
+
+    #[must_use]
+    pub const fn evidence(&self) -> &DecisionEvidence {
+        &self.evidence
+    }
+
+    #[must_use]
+    pub fn error_code(&self) -> Option<&str> {
+        self.error_code.as_deref()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

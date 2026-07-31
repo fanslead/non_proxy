@@ -6,7 +6,10 @@ use nonproxy_model::{
 use nonproxy_policy::{CompiledPolicySnapshot, PolicyEngine};
 use nonproxy_policy_compiler::PolicyCompiler;
 use nonproxy_proto::{
-    common::v1 as common_proto, provider::v1::DecisionRecord as ProtoDecisionRecord,
+    common::v1::{self as common_proto, ComponentKind, Severity},
+    events::v1::{DecisionObserved, EventEnvelope, event_envelope},
+    policy::v1::Decision as ProtoDecision,
+    provider::v1::DecisionRecord as ProtoDecisionRecord,
 };
 use nonproxy_storage::{ConnectionDecisionInput, DecisionEvidence, EvidenceLevel, SnapshotStatus};
 
@@ -27,12 +30,16 @@ impl Gateway {
         &self,
         inputs: Vec<ConnectionDecisionInput>,
     ) -> Result<(), GatewayError> {
-        self.database
-            .run(move |database| {
-                database.connection_decisions().save_batch(&inputs)?;
-                Ok(())
-            })
-            .await
+        let persisted_inputs = inputs.clone();
+        let inserted_indices = self
+            .database
+            .run(move |database| Ok(database.connection_decisions().save_batch(&inputs)?))
+            .await?;
+        for index in inserted_indices {
+            // 持久化记录是权威事实；事件只负责唤醒读者，不能因内存广播失败回滚数据库。
+            let _ = publish_decision_event(self, &persisted_inputs[index]);
+        }
+        Ok(())
     }
 
     pub(crate) async fn ingest_decision_batch(
@@ -120,6 +127,98 @@ impl Gateway {
         self.decision_snapshots.insert(&loaded)?;
         snapshots.extend(loaded);
         Ok(snapshots)
+    }
+}
+
+fn publish_decision_event(
+    gateway: &Gateway,
+    input: &ConnectionDecisionInput,
+) -> Result<(), GatewayError> {
+    let decision = input.decision();
+    let evidence = input.evidence();
+    let error_code = input.error_code().unwrap_or_default();
+    gateway.events().publish(EventEnvelope {
+        component: component_for_provider(input.provider_id()) as i32,
+        severity: if error_code.is_empty() {
+            Severity::Info
+        } else {
+            Severity::Error
+        } as i32,
+        error_code: error_code.to_owned(),
+        snapshot_version: decision.snapshot_version(),
+        payload: Some(event_envelope::Payload::DecisionObserved(Box::new(
+            DecisionObserved {
+                flow_id: input.flow_id().to_owned(),
+                app: Some(app_to_event(input.application())),
+                destination: Some(destination_to_event(input.destination())),
+                decision: Some(ProtoDecision {
+                    result: Some(crate::proto_policy::decision_to_proto(decision.result())),
+                    snapshot_version: decision.snapshot_version(),
+                    matched_policy_id: decision
+                        .matched_policy_id()
+                        .map_or_else(String::new, |value| value.as_str().to_owned()),
+                    matched_rule_id: decision
+                        .matched_rule_id()
+                        .map_or_else(String::new, |value| value.as_str().to_owned()),
+                    reason_code: decision.reason_code().to_owned(),
+                }),
+                evidence_level: evidence_level_to_proto(evidence.level()) as i32,
+                path_interface: evidence.interface_name().unwrap_or_default().to_owned(),
+                exit_probe_id: evidence.exit_probe_id().unwrap_or_default().to_owned(),
+            },
+        ))),
+        ..Default::default()
+    })?;
+    Ok(())
+}
+
+fn app_to_event(value: &AppIdentity) -> common_proto::AppIdentity {
+    common_proto::AppIdentity {
+        platform: match value.platform() {
+            Platform::MacOs => common_proto::Platform::Macos,
+            Platform::Windows => common_proto::Platform::Windows,
+        } as i32,
+        stable_id: value.stable_id().to_owned(),
+        signer_id: value.signer_id().unwrap_or_default().to_owned(),
+        display_name: value.display_name().unwrap_or_default().to_owned(),
+        parent_stable_id: value.parent_stable_id().unwrap_or_default().to_owned(),
+        helper_group_id: value.helper_group_id().unwrap_or_default().to_owned(),
+        ..Default::default()
+    }
+}
+
+fn destination_to_event(value: &Destination) -> common_proto::Destination {
+    common_proto::Destination {
+        hostname: value.hostname().unwrap_or_default().to_owned(),
+        normalized_domain: value
+            .domain()
+            .map_or_else(String::new, |domain| domain.as_ascii().to_owned()),
+        ip_address: value.ip().map_or_else(String::new, |ip| ip.to_string()),
+        port: u32::from(value.port()),
+        transport: crate::proto_policy::transport_to_proto(value.transport()) as i32,
+        ip_family: match value.ip_family() {
+            Some(IpFamily::Ipv4) => common_proto::IpFamily::Ipv4,
+            Some(IpFamily::Ipv6) => common_proto::IpFamily::Ipv6,
+            None => common_proto::IpFamily::Unspecified,
+        } as i32,
+        interface_name: value.interface_name().unwrap_or_default().to_owned(),
+    }
+}
+
+const fn evidence_level_to_proto(value: EvidenceLevel) -> common_proto::EvidenceLevel {
+    match value {
+        EvidenceLevel::Decision => common_proto::EvidenceLevel::Decision,
+        EvidenceLevel::Path => common_proto::EvidenceLevel::Path,
+        EvidenceLevel::Exit => common_proto::EvidenceLevel::Exit,
+    }
+}
+
+fn component_for_provider(value: &str) -> ComponentKind {
+    match value {
+        "transparent-proxy" => ComponentKind::TransparentProxy,
+        "dns-proxy" => ComponentKind::DnsProxy,
+        "windows-wfp" | "windows-dns" => ComponentKind::WindowsService,
+        _ => ComponentKind::Gateway,
     }
 }
 

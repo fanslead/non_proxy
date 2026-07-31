@@ -234,6 +234,7 @@ mod tests {
         AppIdentity, DecisionSpec, Destination, FailureMode, Platform, RouteAction, Transport,
     };
     use nonproxy_policy_compiler::CompileCapabilities;
+    use nonproxy_proto::{common::v1::ComponentKind, events::v1::event_envelope};
     use nonproxy_storage::PolicyDatabase;
 
     use super::*;
@@ -351,6 +352,25 @@ mod tests {
             })
             .await;
         assert_eq!(count.ok(), Some((1, 1)));
+        let events = query_gateway.events().subscribe(0);
+        let Ok((events, _receiver)) = events else {
+            panic!("决策 worker 事件读取失败: {events:?}");
+        };
+        assert!(matches!(
+            events.as_slice(),
+            [event]
+                if event.component == ComponentKind::WindowsService as i32
+                    && matches!(
+                        event.payload.as_ref(),
+                        Some(event_envelope::Payload::DecisionObserved(observed))
+                            if observed.flow_id == "flow-1"
+                                && observed.decision.as_ref().is_some_and(|decision| {
+                                    decision.result.as_ref().is_some_and(|result| {
+                                        result.outbound_id == "office"
+                                    })
+                                })
+                    )
+        ));
     }
 
     #[test]

@@ -23,6 +23,7 @@ async fn authoritative_recomputation_accepts_idempotent_decision_evidence() {
         .ingest_decision_batch("transparent-proxy".to_owned(), 1, vec![record])
         .await;
     let listed = gateway.list_connection_decisions(10, 0).await;
+    let event_backlog = gateway.events().subscribe(0);
 
     assert!(matches!(first, Ok(1)));
     assert!(matches!(replay, Ok(1)));
@@ -33,6 +34,20 @@ async fn authoritative_recomputation_accepts_idempotent_decision_evidence() {
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].evidence_level(), StoredEvidenceLevel::Decision);
     assert_eq!(records[0].destination(), "example.com");
+    let Ok((events, _receiver)) = event_backlog else {
+        panic!("决策事件读取失败: {event_backlog:?}");
+    };
+    assert!(matches!(
+        events.as_slice(),
+        [event]
+            if event.snapshot_version == 1
+                && matches!(
+                    event.payload.as_ref(),
+                    Some(nonproxy_proto::events::v1::event_envelope::Payload::DecisionObserved(
+                        observed
+                    )) if observed.flow_id == "flow-1"
+                )
+    ));
 }
 
 #[tokio::test]

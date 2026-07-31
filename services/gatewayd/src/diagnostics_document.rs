@@ -320,6 +320,12 @@ fn recent_errors(
         })
         .collect::<Vec<_>>();
     errors.extend(events.iter().filter_map(|event| {
+        if matches!(
+            event.payload.as_ref(),
+            Some(event_envelope::Payload::DecisionObserved(_))
+        ) {
+            return None;
+        }
         let occurred_at = event.occurred_at.as_ref().and_then(timestamp_unix_ms)?;
         if event.error_code.is_empty() || !window.contains(occurred_at) {
             return None;
