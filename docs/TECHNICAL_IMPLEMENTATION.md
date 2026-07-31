@@ -1461,6 +1461,14 @@ App Bundle 前缀规则；`adapters/mihomo` 生成 classical provider YAML；
 三者目前只生成候选，不触碰真实配置，也不声称热重载或路径证据。完整格式与许可证
 边界见 [ADR-0019](ADR/0019-generate-versioned-client-rule-sets.md)。
 
+候选到托管 sidecar 的文件事务由 `nonproxy-adapter-transaction` 统一实现。准备阶段保存
+owner-only candidate、backup 和带 SHA-256 的持久 change manifest；应用前要求目标仍
+等于原备份，使用同目录原子 rename 后再次验 hash。回滚只覆盖本次候选，遇到客户端或
+用户外部编辑会保留现场和备份并拒绝盲改。operation ID 重放幂等，启动时验证引用文件并
+清除未引用的崩溃孤儿；过期清理不会删除已应用或发生外部冲突的恢复材料。Unix 读取使用
+`O_NOFOLLOW`，规则文件前后都受 2 MiB 上限约束。当前只提供配置证据，完整事务边界见
+[ADR-0020](ADR/0020-use-recoverable-adapter-file-transactions.md)。
+
 适配器接口：
 
 ```text
