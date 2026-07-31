@@ -190,6 +190,11 @@
 | 未配置探针仍读历史但禁用新验证 | Control RPC、ViewModel 与 headless UI tests |
 | 即时/历史协议拒绝地址族、路由或时间畸形 | Gateway/Desktop 负向 contract tests |
 | UI 区分握手健康和最近签名回执 | macOS/Windows 共享 headless view tests |
+| 轮换窗口同时接受 old/new，未知 key id 拒绝 | verifier set 与 gateway config 测试 |
+| 信任集合拒绝空值、重复和超过四把 | verifier set、打包和 Service 配置门禁 |
+| 私钥生成不覆盖且权限私有 | admin tool 单元测试与真实 CLI 冒烟 |
+| 服务端切换可观测且不泄露秘密 | `/health` key id 测试 |
+| macOS/Windows 发布配置可保留、校验和回滚 | Bundle 冒烟、PowerShell 解析与人工 diff |
 
 ### 执行顺序
 
@@ -197,5 +202,5 @@
 2. 扩展控制协议、安装配置、直连/代理连接器和网关验签编排。
 3. 禁止 Provider 越级声明 EXIT，并补齐鉴权和负向测试。
 4. 完成出口回执持久化、桌面端触发与证据展示。
-5. 增加部署清单、真实 TLS 集成测试和双平台条件编译检查。
+5. 增加零停机密钥轮换、部署清单、管理工具、真实 TLS 集成测试和双平台发布配置检查。
 6. 执行全仓门禁、逐文件 review、显式暂存和 staged diff 复核。

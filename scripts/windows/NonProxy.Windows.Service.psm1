@@ -56,6 +56,7 @@ function Get-NonProxySystemState {
     $service = Get-NonProxyServiceSnapshot -Name $Layout.ServiceName
     $driver = Get-NonProxyServiceSnapshot -Name $Layout.DriverName
     $metadata = Get-NonProxyInstalledMetadata -Layout $Layout
+    $exitProbe = Get-NonProxyExitProbeServiceConfiguration -Layout $Layout
     $installed = $service.installed -and $driver.installed
     $absent = -not $service.installed -and -not $driver.installed
     $status = if (
@@ -87,6 +88,13 @@ function Get-NonProxySystemState {
         packageTrusted = $PackageTrusted
         version = Get-NonProxyInstalledMetadataValue $metadata "Version"
         architecture = Get-NonProxyInstalledMetadataValue $metadata "Architecture"
+        exitProbe = [ordered]@{
+            configured = (
+                -not [string]::IsNullOrWhiteSpace($exitProbe.Endpoint) -and
+                $exitProbe.PublicKeys.Count -gt 0)
+            endpoint = $exitProbe.Endpoint
+            trustedKeyCount = $exitProbe.PublicKeys.Count
+        }
         steps = @(
             [ordered]@{
                 id = "gateway"
@@ -135,6 +143,90 @@ function Remove-NonProxyProductService {
     }
 }
 
+function Get-NonProxyExitProbeServiceConfiguration {
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$Layout
+    )
+
+    $serviceRegistry = (
+        "HKLM:\SYSTEM\CurrentControlSet\Services\$($Layout.ServiceName)")
+    $serviceProperties = Get-ItemProperty `
+        -LiteralPath $serviceRegistry `
+        -Name Environment `
+        -ErrorAction SilentlyContinue
+    $environment = if ($null -eq $serviceProperties) {
+        @()
+    } else {
+        @($serviceProperties.Environment)
+    }
+    $endpoint = $environment |
+        Where-Object { $_ -like "NONPROXY_EXIT_PROBE_ENDPOINT=*" } |
+        Select-Object -First 1
+    $keys = $environment |
+        Where-Object { $_ -like "NONPROXY_EXIT_PROBE_PUBLIC_KEYS=*" } |
+        Select-Object -First 1
+    $legacyKey = $environment |
+        Where-Object { $_ -like "NONPROXY_EXIT_PROBE_PUBLIC_KEY=*" } |
+        Select-Object -First 1
+    if ($null -ne $keys -and $null -ne $legacyKey) {
+        throw "Windows Service 同时包含单公钥和复数公钥配置。"
+    }
+    return [pscustomobject]@{
+        Endpoint = if ($null -eq $endpoint) {
+            $null
+        } else {
+            $endpoint.Substring($endpoint.IndexOf("=") + 1)
+        }
+        PublicKeys = if ($null -ne $keys) {
+            @($keys.Substring($keys.IndexOf("=") + 1).Split(","))
+        } elseif ($null -ne $legacyKey) {
+            @($legacyKey.Substring($legacyKey.IndexOf("=") + 1))
+        } else {
+            @()
+        }
+    }
+}
+
+function Assert-NonProxyExitProbeConfiguration {
+    param(
+        [AllowNull()]
+        [string]$Endpoint,
+        [AllowNull()]
+        [string[]]$PublicKeys
+    )
+
+    $hasEndpoint = -not [string]::IsNullOrWhiteSpace($Endpoint)
+    $keys = @($PublicKeys)
+    if (-not $hasEndpoint -and $keys.Count -eq 0) {
+        return
+    }
+    if (-not $hasEndpoint -or $keys.Count -lt 1 -or $keys.Count -gt 4) {
+        throw "出口探针 endpoint 与 1 到 4 把公钥必须同时配置。"
+    }
+    $uri = $null
+    if (-not [Uri]::TryCreate(
+            $Endpoint,
+            [UriKind]::Absolute,
+            [ref]$uri
+        ) -or
+        $uri.Scheme -ne "https" -or
+        [string]::IsNullOrWhiteSpace($uri.Host) -or
+        -not [string]::IsNullOrEmpty($uri.UserInfo) -or
+        -not [string]::IsNullOrEmpty($uri.Query) -or
+        -not [string]::IsNullOrEmpty($uri.Fragment)) {
+        throw "出口探针 endpoint 必须是不含凭据、query 或 fragment 的 HTTPS 地址。"
+    }
+    foreach ($key in $keys) {
+        if ($key -notmatch "^[0-9A-Za-z_-]{43}$") {
+            throw "出口探针公钥必须是 43 位 base64url。"
+        }
+    }
+    if (@($keys | Select-Object -Unique).Count -ne $keys.Count) {
+        throw "出口探针公钥集合不能包含重复项。"
+    }
+}
+
 function Set-NonProxyProductService {
     param(
         [Parameter(Mandatory = $true)]
@@ -142,9 +234,16 @@ function Set-NonProxyProductService {
         [Parameter(Mandatory = $true)]
         [string]$Executable,
         [Parameter(Mandatory = $true)]
-        [string]$Fingerprint
+        [string]$Fingerprint,
+        [AllowNull()]
+        [string]$ExitProbeEndpoint,
+        [AllowNull()]
+        [string[]]$ExitProbePublicKeys
     )
 
+    Assert-NonProxyExitProbeConfiguration `
+        -Endpoint $ExitProbeEndpoint `
+        -PublicKeys $ExitProbePublicKeys
     $binaryPath = "`"$Executable`""
     $existing = Get-Service `
         -Name $Layout.ServiceName `
@@ -177,6 +276,13 @@ function Set-NonProxyProductService {
         "NONPROXY_WINDOWS_PIPE_SDDL=$($Layout.PipeSddl)",
         "NONPROXY_GATEWAY_BUNDLE_FINGERPRINT=$Fingerprint"
     )
+    if (-not [string]::IsNullOrWhiteSpace($ExitProbeEndpoint)) {
+        $joinedExitProbePublicKeys = @($ExitProbePublicKeys) -join ","
+        $environment += @(
+            "NONPROXY_EXIT_PROBE_ENDPOINT=$ExitProbeEndpoint",
+            "NONPROXY_EXIT_PROBE_PUBLIC_KEYS=$joinedExitProbePublicKeys"
+        )
+    }
     New-ItemProperty -LiteralPath $serviceRegistry `
         -Name Environment `
         -PropertyType MultiString `
@@ -217,6 +323,7 @@ function Protect-NonProxyStateDirectory {
 }
 
 Export-ModuleMember -Function @(
+    "Get-NonProxyExitProbeServiceConfiguration",
     "Get-NonProxyInstalledMetadata",
     "Get-NonProxyInstalledMetadataValue",
     "Get-NonProxySystemLayout",

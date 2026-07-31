@@ -1562,6 +1562,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nonproxy-probe-admin"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.4.3",
+ "libc",
+ "nonproxy-exit-probe",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
 name = "nonproxy-probe-server"
 version = "0.1.0"
 dependencies = [

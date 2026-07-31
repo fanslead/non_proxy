@@ -264,7 +264,10 @@
 - [x] Desktop 触发、结果展示与无配置状态
 - [x] 真实 TLS 客户端集成测试
 - [x] Windows 物理 TCP 双架构条件编译
-- [ ] 探针服务部署清单
+- [x] 最多四把公钥的零停机轮换与旧单公钥兼容
+- [x] 探针服务部署、回滚、备份和隐私清单
+- [x] 不泄露私钥的 keygen/inspect/verify 管理工具
+- [x] macOS Release 与 Windows Service 的发布配置入口
 - [x] 全仓测试、lint、打包与提交前 review
 
 ### 当前验证
@@ -339,5 +342,27 @@
   验签时间和证据边界。
 - 强化 storage 断言，确认冲突重放保留原事实，容量淘汰准确删除最旧两条且保留最新
   结果；新增测试没有空断言、永真断言或只执行不检查结果的情况。
-- 当前仍不代表真实第三方 VPN 共存或公网 DIRECT/PROXY 对比已经验收；公钥轮换、
-  探针部署清单和正式签名设备验收仍是后续批次。
+- 当前仍不代表真实第三方 VPN 共存或公网 DIRECT/PROXY 对比已经验收；正式签名
+  设备、Linux 公网主机与 Windows W2～W4 操作者验收仍是外部发布门禁。
+
+### 公钥轮换与生产部署批次验证
+
+- verifier set 同时信任 old/new、按 `key_id` 精确选择，拒绝未知 key id、空集合、
+  重复项和第五把公钥；gateway 配置兼容旧单值并拒绝单值/复数歧义。
+- `nonproxy-probe-admin` 单元与进程级 CLI 测试 4/4 通过，覆盖 32 字节随机密钥、
+  Unix `0600`、拒绝覆盖、宽权限、文件/目录符号链接、inspect 一致性及公开输出。
+- 探针 `/health` 测试确认只返回 `status` 和当前 key id；服务部署目录包含最小
+  systemd unit、非敏感环境模板、root 创建后移交密钥、上线、轮换、回滚、备份和
+  隐私边界。
+- macOS Bash 3.2 语法和负向冒烟通过：不完整配置、重复 key、带凭据/query/命令
+  字符的 endpoint 都在构建前拒绝。
+- 使用两把有效 Ed25519 公钥执行 Release `--no-incremental`，Universal App、
+  System Extension、Safari Extension、Native Host 和 gatewayd 构建为 0 warning /
+  0 error；LaunchAgent 值与输入精确一致，Bundle 内 gatewayd 启动、私有运行文件、
+  优雅退出及原生桥接冒烟通过。
+- 全仓 `cargo test`/Clippy/fmt、.NET 96/96 与 format、Swift XCTest 98/98 +
+  Swift Testing 28/28、pnpm 28/28、三项契约检查、Windows x64 workspace
+  `cargo xwin check`、control/native/provider E2E 全部通过。
+- 本机未提供 `pwsh`，因此 Windows PowerShell AST 解析仍由仓库
+  `windows-tooling` CI 在 Windows 2022 执行；本批已逐行复核参数绑定、保留现值、
+  旧单值迁移、查询留证和失败回滚，但未把它表述为真实 SCM 安装证据。

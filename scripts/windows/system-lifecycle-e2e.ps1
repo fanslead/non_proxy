@@ -11,6 +11,8 @@ param(
     [string]$ExpectedPublisherThumbprint,
     [Parameter(Mandatory = $true)]
     [string]$EvidenceDirectory,
+    [string]$ExitProbeEndpoint,
+    [string[]]$ExitProbePublicKeys,
     [switch]$ConfirmSystemMutation
 )
 
@@ -20,6 +22,12 @@ Import-Module (
     Join-Path $PSScriptRoot "NonProxy.Windows.Common.psm1") -Force
 
 Assert-NonProxyWindows
+if ($Action -notin @("Install", "Repair") -and (
+    $PSBoundParameters.ContainsKey("ExitProbeEndpoint") -or
+    $PSBoundParameters.ContainsKey("ExitProbePublicKeys")
+)) {
+    throw "出口探针配置只允许用于 Install 或 Repair。"
+}
 $evidenceRoot = [IO.Path]::GetFullPath($EvidenceDirectory)
 if (Test-Path -LiteralPath $evidenceRoot) {
     $existing = Get-ChildItem -LiteralPath $evidenceRoot -Force |
@@ -125,12 +133,20 @@ try {
     if ($Action -ne "Query") {
         Assert-NonProxySystemMutation `
             -Confirmed $ConfirmSystemMutation.IsPresent
+        $arguments = @{
+            PackageRoot = $PackageRoot
+            ExpectedPublisherThumbprint = $ExpectedPublisherThumbprint
+            ConfirmSystemMutation = $true
+        }
+        if ($PSBoundParameters.ContainsKey("ExitProbeEndpoint")) {
+            $arguments["ExitProbeEndpoint"] = $ExitProbeEndpoint
+        }
+        if ($PSBoundParameters.ContainsKey("ExitProbePublicKeys")) {
+            $arguments["ExitProbePublicKeys"] = $ExitProbePublicKeys
+        }
         $output = & (
             Join-Path $PSScriptRoot "install-system-components.ps1") `
-            $Action `
-            -PackageRoot $PackageRoot `
-            -ExpectedPublisherThumbprint $ExpectedPublisherThumbprint `
-            -ConfirmSystemMutation
+            $Action @arguments
         $operation = $output | Select-Object -Last 1 | ConvertFrom-Json
         Write-EvidenceJson "operation.json" $operation
     }

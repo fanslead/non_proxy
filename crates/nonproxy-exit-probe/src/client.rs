@@ -11,7 +11,9 @@ use tokio::task::JoinHandle;
 use tokio_rustls::TlsConnector;
 use url::Url;
 
-use crate::{ExitProbeError, ExitProbeReceipt, ExitProbeVerifier, ProbeNonce, VerifiedExitProbe};
+use crate::{
+    ExitProbeError, ExitProbeReceipt, ExitProbeVerifierSet, ProbeNonce, VerifiedExitProbe,
+};
 
 const MAXIMUM_RESPONSE_BYTES: usize = 4 * 1024;
 const DEFAULT_PORT: u16 = 443;
@@ -61,22 +63,22 @@ impl ExitProbeEndpoint {
 #[derive(Clone)]
 pub struct ExitProbeClient {
     endpoint: ExitProbeEndpoint,
-    verifier: ExitProbeVerifier,
+    verifiers: ExitProbeVerifierSet,
     tls: Arc<ClientConfig>,
 }
 
 impl ExitProbeClient {
-    pub fn new(
-        endpoint: ExitProbeEndpoint,
-        verifier: ExitProbeVerifier,
-    ) -> Result<Self, ExitProbeError> {
+    pub fn new<V>(endpoint: ExitProbeEndpoint, verifiers: V) -> Result<Self, ExitProbeError>
+    where
+        V: Into<ExitProbeVerifierSet>,
+    {
         let roots = RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
         let tls = ClientConfig::builder()
             .with_root_certificates(roots)
             .with_no_client_auth();
         Ok(Self {
             endpoint,
-            verifier,
+            verifiers: verifiers.into(),
             tls: Arc::new(tls),
         })
     }
@@ -163,7 +165,7 @@ impl ExitProbeClient {
             .to_bytes();
         let receipt = serde_json::from_slice::<ExitProbeReceipt>(&body)
             .map_err(|_| ExitProbeError::ResponseInvalid)?;
-        self.verifier.verify(nonce, receipt, now_unix_ms)
+        self.verifiers.verify(nonce, receipt, now_unix_ms)
     }
 }
 
@@ -258,7 +260,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("测试 endpoint 解析失败: {error}"));
         let client = ExitProbeClient {
             endpoint,
-            verifier,
+            verifiers: verifier.into(),
             tls: Arc::new(client_tls),
         };
         let nonce = ProbeNonce::from_base64("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")

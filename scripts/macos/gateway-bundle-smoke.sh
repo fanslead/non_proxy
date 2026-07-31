@@ -42,6 +42,16 @@ gateway_team_identifier=$(
         "Print :EnvironmentVariables:NONPROXY_MAC_TEAM_IDENTIFIER" \
         "${gateway_agent_plist}" 2>/dev/null || true
 )
+gateway_exit_probe_endpoint=$(
+    /usr/libexec/PlistBuddy -c \
+        "Print :EnvironmentVariables:NONPROXY_EXIT_PROBE_ENDPOINT" \
+        "${gateway_agent_plist}" 2>/dev/null || true
+)
+gateway_exit_probe_public_keys=$(
+    /usr/libexec/PlistBuddy -c \
+        "Print :EnvironmentVariables:NONPROXY_EXIT_PROBE_PUBLIC_KEYS" \
+        "${gateway_agent_plist}" 2>/dev/null || true
+)
 gateway_environment=(
     "NONPROXY_STATE_DIR=${state_directory}"
     "NONPROXY_GATEWAY_BUNDLE_FINGERPRINT=${gateway_bundle_fingerprint}"
@@ -49,6 +59,13 @@ gateway_environment=(
 if [[ -n "${gateway_team_identifier}" ]]; then
     gateway_environment+=(
         "NONPROXY_MAC_TEAM_IDENTIFIER=${gateway_team_identifier}"
+    )
+fi
+if [[ -n "${gateway_exit_probe_endpoint}" ||
+      -n "${gateway_exit_probe_public_keys}" ]]; then
+    gateway_environment+=(
+        "NONPROXY_EXIT_PROBE_ENDPOINT=${gateway_exit_probe_endpoint}"
+        "NONPROXY_EXIT_PROBE_PUBLIC_KEYS=${gateway_exit_probe_public_keys}"
     )
 fi
 

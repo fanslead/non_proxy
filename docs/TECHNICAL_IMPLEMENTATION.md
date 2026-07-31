@@ -1317,9 +1317,12 @@ gatewayd 安装环境固定配置：
 
 - `NONPROXY_EXIT_PROBE_ENDPOINT`：必须为不含账号、query 和 fragment 的 HTTPS
   地址，根路径自动使用 `/v1/exit`；
-- `NONPROXY_EXIT_PROBE_PUBLIC_KEY`：32 字节 Ed25519 公钥的 base64url 编码；
-- 两项必须同时存在；缺一项或格式错误时 gatewayd 拒绝启动，均缺失时能力列表不
-  声明 `CAPABILITY_NAME_EXIT_PROBE`。
+- `NONPROXY_EXIT_PROBE_PUBLIC_KEYS`：1～4 把不重复的 32 字节 Ed25519 公钥，
+  每把使用 43 位无填充 base64url 编码并以逗号分隔；
+- 旧版单值 `NONPROXY_EXIT_PROBE_PUBLIC_KEY` 继续兼容，但不得与复数变量同时
+  配置；endpoint 与任一种公钥配置必须同时存在，缺项、重复、超限或格式错误时
+  gatewayd 拒绝启动。全部缺失时能力列表不声明
+  `CAPABILITY_NAME_EXIT_PROBE`。
 
 gatewayd 为每次验证生成 32 字节随机 nonce，通过所选出站连接固定探针。macOS
 DIRECT 只有在带签名身份约束的 gatewayd SYSTEM 规则已经激活后才允许连接；
@@ -1334,6 +1337,9 @@ Windows DIRECT 使用物理接口目录选择 IPv4/IPv6 默认接口，并在 so
 `GET /v1/exit?nonce=...`，以 Ed25519 签名绑定协议版本、nonce、规范化公网 IP、
 毫秒时间和 key id，并返回 `Cache-Control: no-store` 的小型 JSON。私网/保留地址、
 畸形 query、宽权限私钥文件和并发上限外连接都被拒绝。
+客户端先按回执中的 `key_id` 精确选择受信公钥，再执行签名校验；未知 key id
+不会轮询或降级到其他密钥。`GET /health` 只返回进程状态和当前公开 key id，用于
+确认服务端切换进度，不返回私钥或连接历史。
 
 服务进程需要以下环境变量：
 
@@ -1360,6 +1366,20 @@ V10 数据库把 DIRECT/PROXY 路由、规范化公网地址、地址族、探�
 `EXIT` 只证明“本次固定探针连接经所选路径到达远端时，远端观察到该公网地址”，
 不证明其他协议、其他时间或用户目标必然使用同一出口。生产发布还必须完成公钥
 轮换、探针部署可用性以及真实 DIRECT/PROXY 对比验收。
+
+仓库提供 `tools/nonproxy-probe-admin`、最小权限 systemd unit、非敏感环境模板和
+完整运行手册，见 `deploy/probe-server/README.md`。管理工具以 `create_new` 和
+Unix `0600` 生成 32 字节密钥，拒绝覆盖、符号链接及宽权限密钥；`inspect` 只
+重新导出 key id/公钥，`verify` 穿过真实 TLS/HTTP/nonce/Ed25519 链路，但后者只
+验证探针服务，不冒充 NonProxy 的 DIRECT/PROXY 路径证据。
+
+零停机轮换固定为“客户端先信任 old+new → 服务端切换 new → `/health` 与签名
+回执确认 new → 兼容窗口后客户端移除 old → 最后归档或销毁 old 私钥”。macOS
+打包通过 `NONPROXY_RELEASE_EXIT_PROBE_ENDPOINT` 和
+`NONPROXY_RELEASE_EXIT_PROBE_PUBLIC_KEYS` 把成对配置写入签名 LaunchAgent，
+Bundle 校验与 gateway 冒烟会再次解析；Windows `Install`/`Repair` 参数把同一
+信任集合写入 Service `Environment`，未传新值时保留当前集合，安装失败时随旧
+Service 一并恢复。任何平台都不能先切服务端密钥。
 
 ### 15.5 默认代理选择
 

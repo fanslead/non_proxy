@@ -103,6 +103,11 @@ impl ExitProbeSigner {
         URL_SAFE_NO_PAD.encode(self.signing_key.verifying_key().to_bytes())
     }
 
+    #[must_use]
+    pub fn key_id(&self) -> &str {
+        &self.key_id
+    }
+
     pub fn sign(
         &self,
         nonce: ProbeNonce,
@@ -147,6 +152,11 @@ impl ExitProbeVerifier {
             verifying_key,
             key_id,
         })
+    }
+
+    #[must_use]
+    pub fn key_id(&self) -> &str {
+        &self.key_id
     }
 
     pub fn verify(

@@ -27,7 +27,7 @@ WDK 产物、Service 显示 Running 或策略显示 DIRECT，都不能单独代�
 - Microsoft Hardware Dev Center 账号及 Attestation/HLK 流程。
 - 可恢复快照的独立 Windows 测试机；不得在开发者唯一工作机启用 Driver
   Verifier。
-- 两个自有出口探针，分别能从 DIRECT 与 PROXY 路径返回观察到的公网地址。
+- 至少一个由团队直接控制、可从 DIRECT 与 PROXY 路径访问的独立出口探针。
   验收记录中不得写真实代理密码、Token 或私钥。
 
 ## 3. 生成与签名发布目录
@@ -103,9 +103,17 @@ $env:NONPROXY_ALLOW_WINDOWS_SYSTEM_MUTATION = "1"
   -PackageRoot <发布目录> `
   -ExpectedPublisherThumbprint <固定指纹> `
   -EvidenceDirectory C:\NonProxyEvidence\install-001 `
+  -ExitProbeEndpoint https://probe.example/v1/exit `
+  -ExitProbePublicKeys <old-public-key>,<new-public-key> `
   -ConfirmSystemMutation
 Remove-Item Env:\NONPROXY_ALLOW_WINDOWS_SYSTEM_MUTATION
 ```
+
+出口探针参数只能用于 `Install`/`Repair`，endpoint 必须是无凭据、query 和 fragment
+的 HTTPS 地址，公钥集合必须包含 1～4 把不重复的 43 位 base64url 公钥。两个参数
+都不传时保留当前 Service 配置，不能用漏传参数意外清空信任；只传一项会失败。
+查询证据包含 endpoint、是否已配置和受信公钥数量，但不复制公钥或任何私钥。
+升级失败自动恢复旧二进制时也恢复旧 endpoint/公钥集合。
 
 分别以新的空证据目录执行 `Install`、同版本 `Repair`、跨版本升级、失败注入回滚
 和 `Uninstall`。工具不会覆盖已有证据目录，也不会自动重启。

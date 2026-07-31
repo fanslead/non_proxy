@@ -9,6 +9,8 @@ param(
     [string]$PackageRoot,
     [Parameter(Mandatory = $true)]
     [string]$ExpectedPublisherThumbprint,
+    [string]$ExitProbeEndpoint,
+    [string[]]$ExitProbePublicKeys,
     [switch]$ConfirmSystemMutation,
     [switch]$PurgeUserData,
     [switch]$ConfirmPurgeUserData
@@ -24,7 +26,25 @@ Import-Module (
     Join-Path $PSScriptRoot "NonProxy.Windows.Service.psm1") -Force
 
 Assert-NonProxyWindows
+if ($Action -notin @("Install", "Repair") -and (
+    $PSBoundParameters.ContainsKey("ExitProbeEndpoint") -or
+    $PSBoundParameters.ContainsKey("ExitProbePublicKeys")
+)) {
+    throw "出口探针配置只允许用于 Install 或 Repair。"
+}
 $Layout = Get-NonProxySystemLayout
+$previousExitProbe = Get-NonProxyExitProbeServiceConfiguration -Layout $Layout
+$requestedExitProbe = if (
+    $PSBoundParameters.ContainsKey("ExitProbeEndpoint") -or
+    $PSBoundParameters.ContainsKey("ExitProbePublicKeys")
+) {
+    [pscustomobject]@{
+        Endpoint = $ExitProbeEndpoint
+        PublicKeys = @($ExitProbePublicKeys)
+    }
+} else {
+    $previousExitProbe
+}
 
 function Copy-VersionedPayload {
     param(
@@ -87,7 +107,9 @@ function Install-SystemComponents {
         Set-NonProxyProductService `
             -Layout $Layout `
             -Executable $gateway `
-            -Fingerprint $gatewayFingerprint
+            -Fingerprint $gatewayFingerprint `
+            -ExitProbeEndpoint $requestedExitProbe.Endpoint `
+            -ExitProbePublicKeys $requestedExitProbe.PublicKeys
         New-Item -Path $Layout.RegistryPath -Force | Out-Null
         New-ItemProperty -LiteralPath $Layout.RegistryPath `
             -Name InstallRoot -Value $installRoot -PropertyType String -Force |
@@ -121,7 +143,9 @@ function Install-SystemComponents {
                 Set-NonProxyProductService `
                     -Layout $Layout `
                     -Executable $oldGateway `
-                    -Fingerprint (Get-NonProxyFileSha256 -Path $oldGateway)
+                    -Fingerprint (Get-NonProxyFileSha256 -Path $oldGateway) `
+                    -ExitProbeEndpoint $previousExitProbe.Endpoint `
+                    -ExitProbePublicKeys $previousExitProbe.PublicKeys
                 New-Item -Path $Layout.RegistryPath -Force | Out-Null
                 foreach ($name in @(
                     "InstallRoot",

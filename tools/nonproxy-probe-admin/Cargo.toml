@@ -1,0 +1,22 @@
+[package]
+name = "nonproxy-probe-admin"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+getrandom.workspace = true
+nonproxy-exit-probe = { path = "../../crates/nonproxy-exit-probe" }
+thiserror.workspace = true
+tokio.workspace = true
+zeroize.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

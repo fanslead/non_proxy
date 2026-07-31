@@ -80,13 +80,22 @@ async fn response(
     signer: Arc<ExitProbeSigner>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
     let response = match (request.method(), request.uri().path()) {
-        (&Method::GET, HEALTH_PATH) if request.uri().query().is_none() => {
-            json_response(StatusCode::OK, br#"{"status":"ok"}"#.to_vec())
-        }
+        (&Method::GET, HEALTH_PATH) if request.uri().query().is_none() => health_response(&signer),
         (&Method::GET, EXIT_PATH) => exit_response(request.uri().query(), peer.ip(), &signer),
         _ => empty_response(StatusCode::NOT_FOUND),
     };
     Ok(response)
+}
+
+fn health_response(signer: &ExitProbeSigner) -> Response<Full<Bytes>> {
+    let body = serde_json::json!({
+        "status": "ok",
+        "key_id": signer.key_id(),
+    });
+    match serde_json::to_vec(&body) {
+        Ok(value) => json_response(StatusCode::OK, value),
+        Err(_) => empty_response(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 fn exit_response(
@@ -164,7 +173,7 @@ mod tests {
     use http_body_util::BodyExt as _;
     use nonproxy_exit_probe::{ExitProbeReceipt, ExitProbeSigner, ExitProbeVerifier, ProbeNonce};
 
-    use super::exit_response;
+    use super::{exit_response, health_response};
 
     #[test]
     fn signed_response_uses_only_the_peer_address_and_nonce() {
@@ -219,6 +228,28 @@ mod tests {
             .status(),
             StatusCode::BAD_REQUEST
         );
+    }
+
+    #[test]
+    fn health_reports_the_active_public_key_identifier() {
+        let signer = signer();
+        let key_id = signer.key_id().to_owned();
+        let response = health_response(&signer);
+        let runtime = tokio::runtime::Runtime::new();
+        let Ok(runtime) = runtime else {
+            panic!("健康检查测试运行时创建失败: {runtime:?}");
+        };
+        let body = match runtime.block_on(response.into_body().collect()) {
+            Ok(value) => value,
+            Err(error) => match error {},
+        };
+        let json = serde_json::from_slice::<serde_json::Value>(&body.to_bytes());
+        let Ok(json) = json else {
+            panic!("健康检查响应解析失败: {json:?}");
+        };
+
+        assert_eq!(json["status"], "ok");
+        assert_eq!(json["key_id"], key_id);
     }
 
     fn signer() -> ExitProbeSigner {

@@ -136,6 +136,30 @@ if [[ ${#gateway_bundle_fingerprint} -ne 64 ||
     echo "LaunchAgent 缺少规范的 gatewayd 包指纹" >&2
     exit 67
 fi
+configured_exit_probe_endpoint=$(
+    /usr/libexec/PlistBuddy -c \
+        "Print :EnvironmentVariables:NONPROXY_EXIT_PROBE_ENDPOINT" \
+        "${gateway_agent_plist}" 2>/dev/null || true
+)
+configured_exit_probe_public_keys=$(
+    /usr/libexec/PlistBuddy -c \
+        "Print :EnvironmentVariables:NONPROXY_EXIT_PROBE_PUBLIC_KEYS" \
+        "${gateway_agent_plist}" 2>/dev/null || true
+)
+legacy_exit_probe_public_key=$(
+    /usr/libexec/PlistBuddy -c \
+        "Print :EnvironmentVariables:NONPROXY_EXIT_PROBE_PUBLIC_KEY" \
+        "${gateway_agent_plist}" 2>/dev/null || true
+)
+if [[ -n "${legacy_exit_probe_public_key}" ]]; then
+    echo "LaunchAgent 发布包必须使用复数出口探针公钥配置" >&2
+    exit 67
+fi
+if ! "${script_dir}/validate-exit-probe-config.sh" \
+    "${configured_exit_probe_endpoint}" \
+    "${configured_exit_probe_public_keys}"; then
+    exit 67
+fi
 for forbidden_key in Program ProgramArguments; do
     if /usr/libexec/PlistBuddy \
         -c "Print :${forbidden_key}" \

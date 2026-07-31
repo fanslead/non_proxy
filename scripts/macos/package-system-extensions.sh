@@ -48,6 +48,14 @@ case "${architecture}" in
         ;;
 esac
 
+release_exit_probe_endpoint=${NONPROXY_RELEASE_EXIT_PROBE_ENDPOINT:-}
+release_exit_probe_public_keys=${NONPROXY_RELEASE_EXIT_PROBE_PUBLIC_KEYS:-}
+if ! "${script_dir}/validate-exit-probe-config.sh" \
+    "${release_exit_probe_endpoint}" \
+    "${release_exit_probe_public_keys}"; then
+    exit 64
+fi
+
 build_product() {
     local product=$1
     swift build \
@@ -330,6 +338,14 @@ if [[ -n "${gateway_team_identifier}" &&
       "${gateway_team_identifier}" != "not set" ]]; then
     "${plist_buddy}" -c \
         "Add :EnvironmentVariables:NONPROXY_MAC_TEAM_IDENTIFIER string ${gateway_team_identifier}" \
+        "${gateway_agent_plist}"
+fi
+if [[ -n "${release_exit_probe_endpoint}" ]]; then
+    "${plist_buddy}" -c \
+        "Add :EnvironmentVariables:NONPROXY_EXIT_PROBE_ENDPOINT string ${release_exit_probe_endpoint}" \
+        "${gateway_agent_plist}"
+    "${plist_buddy}" -c \
+        "Add :EnvironmentVariables:NONPROXY_EXIT_PROBE_PUBLIC_KEYS string ${release_exit_probe_public_keys}" \
         "${gateway_agent_plist}"
 fi
 

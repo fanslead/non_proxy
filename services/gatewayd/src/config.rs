@@ -6,7 +6,7 @@ use std::{
 use crate::GatewayError;
 #[cfg(windows)]
 use crate::WindowsTransportConfig;
-use nonproxy_exit_probe::{ExitProbeClient, ExitProbeEndpoint, ExitProbeVerifier};
+use nonproxy_exit_probe::{ExitProbeClient, ExitProbeEndpoint, ExitProbeVerifierSet};
 
 const STATE_DIRECTORY_ENVIRONMENT: &str = "NONPROXY_STATE_DIR";
 const SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_SOCKET_PATH";
@@ -15,6 +15,7 @@ const BUNDLE_FINGERPRINT_ENVIRONMENT: &str = "NONPROXY_GATEWAY_BUNDLE_FINGERPRIN
 const MACOS_TEAM_IDENTIFIER_ENVIRONMENT: &str = "NONPROXY_MAC_TEAM_IDENTIFIER";
 const EXIT_PROBE_ENDPOINT_ENVIRONMENT: &str = "NONPROXY_EXIT_PROBE_ENDPOINT";
 const EXIT_PROBE_PUBLIC_KEY_ENVIRONMENT: &str = "NONPROXY_EXIT_PROBE_PUBLIC_KEY";
+const EXIT_PROBE_PUBLIC_KEYS_ENVIRONMENT: &str = "NONPROXY_EXIT_PROBE_PUBLIC_KEYS";
 const DEVELOPMENT_FINGERPRINT: &str = "development";
 #[cfg(target_os = "macos")]
 const MACOS_APP_GROUP_STATE_PATH: &str =
@@ -36,7 +37,7 @@ pub struct GatewayConfig {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExitProbeConfig {
     endpoint: String,
-    public_key: String,
+    public_keys: Vec<String>,
 }
 
 impl ExitProbeConfig {
@@ -44,28 +45,46 @@ impl ExitProbeConfig {
         Self::from_values(
             optional_environment(EXIT_PROBE_ENDPOINT_ENVIRONMENT)?,
             optional_environment(EXIT_PROBE_PUBLIC_KEY_ENVIRONMENT)?,
+            optional_environment(EXIT_PROBE_PUBLIC_KEYS_ENVIRONMENT)?,
         )
     }
 
     fn from_values(
         endpoint: Option<String>,
         public_key: Option<String>,
+        public_keys: Option<String>,
     ) -> Result<Option<Self>, GatewayError> {
-        match (endpoint, public_key) {
+        let public_keys = match (public_key, public_keys) {
+            (None, None) => None,
+            (Some(value), None) => Some(vec![value]),
+            (None, Some(values)) => Some(values.split(',').map(str::to_owned).collect()),
+            (Some(_), Some(_)) => {
+                return Err(GatewayError::RuntimeIdentity(
+                    "出口探针单公钥和轮换公钥集合不能同时配置".to_owned(),
+                ));
+            }
+        };
+        match (endpoint, public_keys) {
             (None, None) => Ok(None),
-            (Some(endpoint), Some(public_key)) => {
+            (Some(endpoint), Some(public_keys)) => {
                 ExitProbeEndpoint::parse(&endpoint)
-                    .and_then(|_| ExitProbeVerifier::from_public_key_base64(&public_key))
+                    .and_then(|_| {
+                        ExitProbeVerifierSet::from_public_keys_base64(
+                            public_keys.iter().map(String::as_str),
+                        )
+                    })
                     .map_err(|_| {
-                        GatewayError::RuntimeIdentity("出口探针地址或 Ed25519 公钥无效".to_owned())
+                        GatewayError::RuntimeIdentity(
+                            "出口探针地址或 Ed25519 公钥集合无效".to_owned(),
+                        )
                     })?;
                 Ok(Some(Self {
                     endpoint,
-                    public_key,
+                    public_keys,
                 }))
             }
             _ => Err(GatewayError::RuntimeIdentity(
-                "出口探针地址和公钥必须同时配置".to_owned(),
+                "出口探针地址和公钥集合必须同时配置".to_owned(),
             )),
         }
     }
@@ -73,9 +92,11 @@ impl ExitProbeConfig {
     pub(crate) fn client(&self) -> Result<ExitProbeClient, GatewayError> {
         let endpoint = ExitProbeEndpoint::parse(&self.endpoint)
             .map_err(|_| GatewayError::RuntimeIdentity("出口探针地址配置已损坏".to_owned()))?;
-        let verifier = ExitProbeVerifier::from_public_key_base64(&self.public_key)
-            .map_err(|_| GatewayError::RuntimeIdentity("出口探针公钥配置已损坏".to_owned()))?;
-        ExitProbeClient::new(endpoint, verifier)
+        let verifiers = ExitProbeVerifierSet::from_public_keys_base64(
+            self.public_keys.iter().map(String::as_str),
+        )
+        .map_err(|_| GatewayError::RuntimeIdentity("出口探针公钥集合配置已损坏".to_owned()))?;
+        ExitProbeClient::new(endpoint, verifiers)
             .map_err(|_| GatewayError::RuntimeIdentity("出口探针 TLS 客户端初始化失败".to_owned()))
     }
 }
@@ -375,25 +396,54 @@ mod tests {
 
     #[test]
     fn exit_probe_configuration_requires_a_valid_complete_trust_pair() {
-        assert!(matches!(ExitProbeConfig::from_values(None, None), Ok(None)));
+        assert!(matches!(
+            ExitProbeConfig::from_values(None, None, None),
+            Ok(None)
+        ));
         assert!(
-            ExitProbeConfig::from_values(Some("https://probe.example/v1/exit".to_owned()), None,)
-                .is_err()
+            ExitProbeConfig::from_values(
+                Some("https://probe.example/v1/exit".to_owned()),
+                None,
+                None,
+            )
+            .is_err()
         );
         assert!(
             ExitProbeConfig::from_values(
                 Some("http://probe.example/v1/exit".to_owned()),
                 Some("invalid".to_owned()),
+                None,
             )
             .is_err()
         );
-        let signer = nonproxy_exit_probe::ExitProbeSigner::from_secret_bytes(&[7; 32])
+        let old = nonproxy_exit_probe::ExitProbeSigner::from_secret_bytes(&[7; 32])
             .unwrap_or_else(|error| panic!("测试出口探针密钥创建失败: {error}"));
+        let new = nonproxy_exit_probe::ExitProbeSigner::from_secret_bytes(&[8; 32])
+            .unwrap_or_else(|error| panic!("测试轮换探针密钥创建失败: {error}"));
         let configured = ExitProbeConfig::from_values(
             Some("https://probe.example/v1/exit".to_owned()),
-            Some(signer.public_key_base64()),
+            None,
+            Some(format!(
+                "{},{}",
+                old.public_key_base64(),
+                new.public_key_base64()
+            )),
         );
         assert!(matches!(configured, Ok(Some(_))));
+        let legacy_single = ExitProbeConfig::from_values(
+            Some("https://probe.example/v1/exit".to_owned()),
+            Some(old.public_key_base64()),
+            None,
+        );
+        assert!(matches!(legacy_single, Ok(Some(_))));
+        assert!(
+            ExitProbeConfig::from_values(
+                Some("https://probe.example/v1/exit".to_owned()),
+                Some(old.public_key_base64()),
+                Some(new.public_key_base64()),
+            )
+            .is_err()
+        );
     }
 
     #[test]
