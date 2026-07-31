@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use nonproxy_model::{DecisionSpec, DomainName, OutboundId};
+use nonproxy_model::{DecisionSpec, DomainName, NetworkFingerprint, NetworkProfileId, OutboundId};
 
 use crate::{
     CompiledRule, OutboundCapabilities, RuleTier,
@@ -67,6 +67,7 @@ pub struct CompiledPolicySnapshot {
     metadata: SnapshotMetadata,
     default_decision: DecisionSpec,
     outbound_capabilities: BTreeMap<OutboundId, OutboundCapabilities>,
+    network_profiles: BTreeMap<NetworkProfileId, NetworkFingerprint>,
     system_rules: Vec<CompiledRule>,
     app_destination_rules: AppDestinationRuleIndex,
     app_rules: AppRuleIndex,
@@ -82,12 +83,14 @@ impl CompiledPolicySnapshot {
         metadata: SnapshotMetadata,
         default_decision: DecisionSpec,
         outbound_capabilities: BTreeMap<OutboundId, OutboundCapabilities>,
+        network_profiles: BTreeMap<NetworkProfileId, NetworkFingerprint>,
         rules: Vec<CompiledRule>,
     ) -> Self {
         let mut snapshot = Self {
             metadata,
             default_decision,
             outbound_capabilities,
+            network_profiles,
             system_rules: Vec::new(),
             app_destination_rules: AppDestinationRuleIndex::default(),
             app_rules: AppRuleIndex::default(),
@@ -115,6 +118,11 @@ impl CompiledPolicySnapshot {
     #[must_use]
     pub const fn outbound_capabilities(&self) -> &BTreeMap<OutboundId, OutboundCapabilities> {
         &self.outbound_capabilities
+    }
+
+    #[must_use]
+    pub const fn network_profiles(&self) -> &BTreeMap<NetworkProfileId, NetworkFingerprint> {
+        &self.network_profiles
     }
 
     #[must_use]

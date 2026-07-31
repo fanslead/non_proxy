@@ -32,6 +32,9 @@ service ControlService {
   rpc StopLearningSession(StopLearningSessionRequest) returns (StopLearningSessionResponse);
   rpc ConfirmLearningCandidates(ConfirmLearningCandidatesRequest) returns (ConfirmLearningCandidatesResponse);
   rpc ExportDiagnostics(ExportDiagnosticsRequest) returns (ExportDiagnosticsResponse);
+  rpc ListNetworkProfiles(ListNetworkProfilesRequest) returns (ListNetworkProfilesResponse);
+  rpc UpsertNetworkProfile(UpsertNetworkProfileRequest) returns (UpsertNetworkProfileResponse);
+  rpc DeleteNetworkProfile(DeleteNetworkProfileRequest) returns (DeleteNetworkProfileResponse);
   rpc SubscribeEvents(SubscribeEventsRequest) returns (stream SubscribeEventsResponse);
 }
 
@@ -196,6 +199,46 @@ message PolicyStatus {
   uint64 target_snapshot_version = 3;
   uint64 effective_revision = 4;
   uint64 pending_revision = 5;
+}
+
+// ListNetworkProfilesRequest 请求隐私安全的网络配置档目录。
+message ListNetworkProfilesRequest {
+  nonproxy.common.v1.PageRequest page = 1;
+}
+
+// ListNetworkProfilesResponse 返回稳定排序的网络配置档草稿目录。
+message ListNetworkProfilesResponse {
+  repeated nonproxy.policy.v1.NetworkProfileSpec profiles = 1;
+  nonproxy.common.v1.PageResponse page = 2;
+  uint64 catalog_generation = 3;
+}
+
+// UpsertNetworkProfileRequest 使用乐观并发保存网络配置档。
+message UpsertNetworkProfileRequest {
+  OperationContext context = 1;
+  nonproxy.policy.v1.NetworkProfileSpec profile = 2;
+  uint64 expected_revision = 3;
+}
+
+// DeleteNetworkProfileRequest 删除未被策略引用的网络配置档。
+message DeleteNetworkProfileRequest {
+  OperationContext context = 1;
+  string profile_id = 2;
+  uint64 expected_revision = 3;
+}
+
+// NetworkProfileMutationResult 返回安全摘要或稳定错误码。
+message NetworkProfileMutationResult {
+  nonproxy.policy.v1.NetworkProfileSpec profile = 1;
+  nonproxy.common.v1.ErrorDetail error = 2;
+}
+
+message UpsertNetworkProfileResponse {
+  NetworkProfileMutationResult result = 1;
+}
+
+message DeleteNetworkProfileResponse {
+  NetworkProfileMutationResult result = 1;
 }
 
 // UpsertPolicyRequest 使用乐观并发写入策略草稿。

@@ -7,16 +7,18 @@ use nonproxy_model::{
 use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::control::v1::{
     ApplyPolicySnapshotRequest, CapabilityName, ConfirmLearningCandidatesRequest, DefaultRouteKind,
-    DiagnosticRedactionLevel, ExitProbeRouteKind, ExportDiagnosticsRequest, GetCapabilitiesRequest,
-    GetSystemStatusRequest, ImportConfigurationRequest, LearningObservationKind,
-    LearningResourceType, LearningSessionKind, ListExitProbesRequest,
-    ListLearningCandidatesRequest, ListOutboundsRequest, OperationContext,
-    RecordLearningObservationRequest, SetDefaultRouteRequest, StartLearningSessionRequest,
-    StopLearningSessionRequest, TestOutboundRequest, UpsertPolicyRequest, VerifyExitRequest,
+    DeleteNetworkProfileRequest, DiagnosticRedactionLevel, ExitProbeRouteKind,
+    ExportDiagnosticsRequest, GetCapabilitiesRequest, GetSystemStatusRequest,
+    ImportConfigurationRequest, LearningObservationKind, LearningResourceType, LearningSessionKind,
+    ListExitProbesRequest, ListLearningCandidatesRequest, ListNetworkProfilesRequest,
+    ListOutboundsRequest, OperationContext, RecordLearningObservationRequest,
+    SetDefaultRouteRequest, StartLearningSessionRequest, StopLearningSessionRequest,
+    TestOutboundRequest, UpsertNetworkProfileRequest, UpsertPolicyRequest, VerifyExitRequest,
     control_service_server::ControlService, set_default_route_request,
     start_learning_session_request,
 };
 use nonproxy_proto::events::v1::{LearningCandidateKind, RuntimeState, event_envelope};
+use nonproxy_proto::policy::v1::{NetworkFingerprintKind, NetworkProfileSpec};
 use nonproxy_storage::{ExitProbeRoute, OutboundKind, OutboundReference, PolicyDatabase};
 use tonic::{Code, Request};
 
@@ -41,6 +43,141 @@ async fn mutation_requires_the_exact_session_capability() {
         panic!("错误令牌必须被拒绝");
     };
     assert_eq!(status.code(), Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn network_profile_mutation_requires_the_exact_session_capability() {
+    let service = service([7; 32]);
+    let result = service
+        .upsert_network_profile(Request::new(UpsertNetworkProfileRequest {
+            context: Some(context([8; 32], "save-network-profile")),
+            profile: Some(network_profile_spec(
+                "office",
+                "办公室",
+                NetworkFingerprintKind::WifiSsidSha256,
+                &"a".repeat(64),
+                1,
+            )),
+            expected_revision: 0,
+        }))
+        .await;
+
+    assert!(matches!(
+        result,
+        Err(status) if status.code() == Code::PermissionDenied
+    ));
+}
+
+#[tokio::test]
+async fn authenticated_network_profile_catalog_is_private_unique_and_revisioned() {
+    let service = service([7; 32]);
+    for (id, name, kind, fingerprint) in [
+        (
+            "office",
+            "办公室",
+            NetworkFingerprintKind::WifiSsidSha256,
+            "a".repeat(64),
+        ),
+        (
+            "home",
+            "家庭",
+            NetworkFingerprintKind::InterfaceClass,
+            "wifi".to_owned(),
+        ),
+    ] {
+        let response = service
+            .upsert_network_profile(Request::new(UpsertNetworkProfileRequest {
+                context: Some(context([7; 32], &format!("save-network-{id}"))),
+                profile: Some(network_profile_spec(id, name, kind, &fingerprint, 1)),
+                expected_revision: 0,
+            }))
+            .await
+            .unwrap_or_else(|error| panic!("网络配置档保存 RPC 失败: {error}"))
+            .into_inner();
+        assert!(response.result.and_then(|value| value.error).is_none());
+    }
+
+    let listed = service
+        .list_network_profiles(Request::new(ListNetworkProfilesRequest { page: None }))
+        .await
+        .unwrap_or_else(|error| panic!("网络配置档目录 RPC 失败: {error}"))
+        .into_inner();
+    assert_eq!(listed.catalog_generation, 2);
+    assert_eq!(
+        listed
+            .profiles
+            .iter()
+            .map(|value| value.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["home", "office"]
+    );
+    assert!(
+        listed
+            .profiles
+            .iter()
+            .all(|value| value.fingerprint_value != "Office WiFi")
+    );
+
+    let duplicate = service
+        .upsert_network_profile(Request::new(UpsertNetworkProfileRequest {
+            context: Some(context([7; 32], "save-network-duplicate")),
+            profile: Some(network_profile_spec(
+                "duplicate",
+                "重复",
+                NetworkFingerprintKind::WifiSsidSha256,
+                &"a".repeat(64),
+                1,
+            )),
+            expected_revision: 0,
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("重复网络配置档响应失败: {error}"))
+        .into_inner();
+    assert!(matches!(
+        duplicate.result.and_then(|value| value.error),
+        Some(error) if error.code == "NP_NETWORK_PROFILE_FINGERPRINT_CONFLICT"
+    ));
+
+    let stale = service
+        .upsert_network_profile(Request::new(UpsertNetworkProfileRequest {
+            context: Some(context([7; 32], "save-network-stale")),
+            profile: Some(network_profile_spec(
+                "office",
+                "办公室 2",
+                NetworkFingerprintKind::WifiSsidSha256,
+                &"b".repeat(64),
+                2,
+            )),
+            expected_revision: 0,
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("过期网络配置档响应失败: {error}"))
+        .into_inner();
+    assert!(matches!(
+        stale.result.and_then(|value| value.error),
+        Some(error) if error.code == "NP_NETWORK_PROFILE_REVISION_CONFLICT"
+    ));
+
+    let deleted = service
+        .delete_network_profile(Request::new(DeleteNetworkProfileRequest {
+            context: Some(context([7; 32], "delete-network-home")),
+            profile_id: "home".to_owned(),
+            expected_revision: 1,
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("网络配置档删除 RPC 失败: {error}"))
+        .into_inner();
+    assert!(deleted.result.and_then(|value| value.error).is_none());
+    let after_delete = service
+        .list_network_profiles(Request::new(ListNetworkProfilesRequest { page: None }))
+        .await
+        .unwrap_or_else(|error| panic!("删除后网络配置档目录 RPC 失败: {error}"))
+        .into_inner();
+    assert_eq!(after_delete.catalog_generation, 3);
+    assert!(matches!(
+        after_delete.profiles.as_slice(),
+        [profile] if profile.id == "office"
+    ));
 }
 
 #[tokio::test]
@@ -905,6 +1042,22 @@ fn learning_observation(
         normalized_domain: "api.example.com".to_owned(),
         initiator_domain: "example.com".to_owned(),
         resource_type: LearningResourceType::Fetch as i32,
+    }
+}
+
+fn network_profile_spec(
+    id: &str,
+    display_name: &str,
+    kind: NetworkFingerprintKind,
+    fingerprint: &str,
+    revision: u64,
+) -> NetworkProfileSpec {
+    NetworkProfileSpec {
+        id: id.to_owned(),
+        display_name: display_name.to_owned(),
+        fingerprint_kind: kind as i32,
+        fingerprint_value: fingerprint.to_owned(),
+        revision,
     }
 }
 

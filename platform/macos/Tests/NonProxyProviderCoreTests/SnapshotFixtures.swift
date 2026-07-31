@@ -28,7 +28,7 @@ enum SnapshotFixtures {
         defaultDecision: Nonproxy_Policy_V1_DecisionSpec? = nil
     ) -> Nonproxy_Policy_V1_CompiledPolicyPayload {
         var payload = Nonproxy_Policy_V1_CompiledPolicyPayload()
-        payload.formatVersion = 1
+        payload.formatVersion = SnapshotValidator.payloadVersion
         payload.policies = policies
         payload.capabilities = capabilities ?? fullCapabilities()
         payload.defaultDecision = defaultDecision ?? directDecision()

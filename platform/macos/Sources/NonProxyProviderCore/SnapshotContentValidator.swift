@@ -24,6 +24,32 @@ enum SnapshotContentValidator {
         try validateDecision(policy.decision, availableOutbounds: nil)
     }
 
+    static func validateNetworkProfile(
+        _ profile: Nonproxy_Policy_V1_NetworkProfileBinding
+    ) throws {
+        guard isIdentifier(profile.id) else {
+            throw ProviderError.invalidSnapshot("网络配置档基础字段无效")
+        }
+        switch profile.fingerprintKind {
+        case .wifiSsidSha256, .defaultGatewaySha256:
+            guard profile.fingerprintValue.utf8.count == 64,
+                  profile.fingerprintValue.utf8.allSatisfy({
+                      $0.isNumber || (97 ... 102).contains($0)
+                  })
+            else {
+                throw ProviderError.invalidSnapshot("网络配置档哈希指纹无效")
+            }
+        case .interfaceClass:
+            guard ["wifi", "ethernet", "cellular", "other"]
+                .contains(profile.fingerprintValue)
+            else {
+                throw ProviderError.invalidSnapshot("网络配置档接口类型无效")
+            }
+        default:
+            throw ProviderError.invalidSnapshot("网络配置档指纹类型无效")
+        }
+    }
+
     static func validateDecision(
         _ decision: Nonproxy_Policy_V1_DecisionSpec,
         availableOutbounds: Set<String>?

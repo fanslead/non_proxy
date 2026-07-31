@@ -5,7 +5,8 @@ import SwiftProtobuf
 public enum SnapshotValidator {
     public static let schemaVersion: UInt32 = 1
     public static let payloadFormat = "nonproxy.compiled-policy.v1"
-    public static let payloadVersion: UInt32 = 1
+    public static let legacyPayloadVersion: UInt32 = 1
+    public static let payloadVersion: UInt32 = 2
     public static let maximumPayloadBytes = 16 * 1024 * 1024
 
     public static func validate(
@@ -57,7 +58,8 @@ public enum SnapshotValidator {
         _ payload: Nonproxy_Policy_V1_CompiledPolicyPayload,
         against snapshot: Nonproxy_Policy_V1_CompiledPolicySnapshot
     ) throws {
-        guard payload.formatVersion == payloadVersion,
+        guard payload.formatVersion == legacyPayloadVersion
+                || payload.formatVersion == payloadVersion,
               payload.hasCapabilities,
               payload.hasDefaultDecision,
               payload.policies.count == Int(snapshot.metadata.policyCount),
@@ -82,6 +84,7 @@ public enum SnapshotValidator {
             previousID = policy.id
             try SnapshotContentValidator.validatePolicy(policy)
         }
+        try validateNetworkProfiles(payload)
         try validateCapabilities(
             payload.capabilities,
             policies: payload.policies,
@@ -91,6 +94,36 @@ public enum SnapshotValidator {
             payload.defaultDecision,
             availableOutbounds: Set(payload.capabilities.outbounds.map(\.outboundID))
         )
+    }
+
+    private static func validateNetworkProfiles(
+        _ payload: Nonproxy_Policy_V1_CompiledPolicyPayload
+    ) throws {
+        if payload.formatVersion == legacyPayloadVersion {
+            guard payload.networkProfiles.isEmpty else {
+                throw ProviderError.invalidSnapshot("旧版策略快照包含网络配置档目录")
+            }
+            return
+        }
+        var profileIDs = Set<String>()
+        var fingerprints = Set<String>()
+        var previousID: String?
+        for profile in payload.networkProfiles {
+            let fingerprintKey = "\(profile.fingerprintKind.rawValue):\(profile.fingerprintValue)"
+            guard profileIDs.insert(profile.id).inserted,
+                  fingerprints.insert(fingerprintKey).inserted,
+                  previousID.map({ $0 < profile.id }) ?? true
+            else {
+                throw ProviderError.invalidSnapshot("网络配置档目录重复或未排序")
+            }
+            previousID = profile.id
+            try SnapshotContentValidator.validateNetworkProfile(profile)
+        }
+        for policy in payload.policies where policy.match.hasNetwork {
+            guard profileIDs.contains(policy.match.network.profileID) else {
+                throw ProviderError.invalidSnapshot("网络规则引用了未知配置档")
+            }
+        }
     }
 
     private static func validateCapabilities(

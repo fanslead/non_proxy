@@ -1,8 +1,9 @@
 use std::{collections::BTreeMap, net::IpAddr};
 
 use nonproxy_model::{
-    AppMatcher, DecisionSpec, DomainMatchKind, FailureMode, IpFamily, OutboundId, Platform, Policy,
-    PolicyMatch, PolicySourceKind, RouteAction, Transport,
+    AppMatcher, DecisionSpec, DomainMatchKind, FailureMode, IpFamily, NetworkFingerprintKind,
+    NetworkProfileBinding, OutboundId, Platform, Policy, PolicyMatch, PolicySourceKind,
+    RouteAction, Transport,
 };
 use nonproxy_policy::OutboundCapabilities;
 use sha2::{Digest, Sha256};
@@ -12,6 +13,7 @@ pub(crate) fn content_hash(
     default_decision: &DecisionSpec,
     policies: &[&Policy],
     outbounds: &BTreeMap<OutboundId, OutboundCapabilities>,
+    network_profiles: Option<&[NetworkProfileBinding]>,
 ) -> [u8; 32] {
     let mut bytes = Vec::new();
     write_u32(&mut bytes, schema_version);
@@ -31,6 +33,20 @@ pub(crate) fn content_hash(
         bytes.push(u8::from(capabilities.supports_transport(Transport::Udp)));
         bytes.push(u8::from(capabilities.supports_family(IpFamily::Ipv4)));
         bytes.push(u8::from(capabilities.supports_family(IpFamily::Ipv6)));
+    }
+    if let Some(network_profiles) = network_profiles {
+        let mut network_profiles = network_profiles.iter().collect::<Vec<_>>();
+        network_profiles.sort_by(|left, right| left.id().cmp(right.id()));
+        write_u64(&mut bytes, network_profiles.len() as u64);
+        for profile in network_profiles {
+            write_string(&mut bytes, profile.id().as_str());
+            bytes.push(match profile.fingerprint().kind() {
+                NetworkFingerprintKind::WifiSsidSha256 => 1,
+                NetworkFingerprintKind::DefaultGatewaySha256 => 2,
+                NetworkFingerprintKind::InterfaceClass => 3,
+            });
+            write_string(&mut bytes, profile.fingerprint().value());
+        }
     }
     Sha256::digest(bytes).into()
 }

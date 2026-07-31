@@ -6,14 +6,17 @@ use nonproxy_model::{
     PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction,
 };
 use nonproxy_storage::{
-    DefaultRoute, LearningConfirmationReceipt, LearningPolicySelection, OutboundReference,
-    SnapshotRecord, StorageError,
+    DefaultRoute, LearningConfirmationReceipt, LearningPolicySelection, NetworkProfileReference,
+    OutboundReference, SnapshotRecord, StorageError,
 };
 
 use crate::{
-    Gateway, GatewayError, PublishedSnapshot, clock::unix_time_ms, outbound_capabilities,
-    routing_gateway::decision_for_route, snapshot_builder::build_snapshot, snapshot_payload,
-    system_policies,
+    Gateway, GatewayError, PublishedSnapshot,
+    clock::unix_time_ms,
+    outbound_capabilities,
+    routing_gateway::decision_for_route,
+    snapshot_builder::{SnapshotBuildIdentity, build_snapshot},
+    snapshot_payload, system_policies,
 };
 
 #[derive(Debug)]
@@ -50,6 +53,7 @@ struct ConfirmationState {
     receipt: Option<LearningConfirmationReceipt>,
     policies: Vec<Policy>,
     outbounds: Vec<OutboundReference>,
+    network_profiles: Vec<NetworkProfileReference>,
     default_route: DefaultRoute,
     pending: Option<SnapshotRecord>,
     latest_snapshot_version: u64,
@@ -73,6 +77,7 @@ impl Gateway {
                     receipt: database.learning_confirmations().get(&lookup_id)?,
                     policies: database.policies().list()?,
                     outbounds: database.outbounds().list()?,
+                    network_profiles: database.network_profiles().list()?,
                     default_route: database.routing_settings().get()?.route().clone(),
                     pending: database.snapshots().pending()?,
                     latest_snapshot_version: database.snapshots().latest_version()?.unwrap_or(0),
@@ -115,9 +120,9 @@ impl Gateway {
             self.capabilities().clone(),
             &proposed,
             &state.outbounds,
+            &state.network_profiles,
             default_decision,
-            next_snapshot_version,
-            now,
+            SnapshotBuildIdentity::new(next_snapshot_version, now),
             &self.system_policy_config,
         )?;
         let saved_id = confirmation_id.clone();
@@ -160,6 +165,7 @@ impl Gateway {
                 pending,
                 &state.policies,
                 &state.outbounds,
+                &state.network_profiles,
                 &decision_for_route(&state.default_route)?,
                 self.capabilities().clone(),
                 &self.system_policy_config,
@@ -177,9 +183,9 @@ impl Gateway {
             self.capabilities().clone(),
             &state.policies,
             &state.outbounds,
+            &state.network_profiles,
             decision_for_route(&state.default_route)?,
-            next_version(state.latest_snapshot_version)?,
-            now_unix_ms,
+            SnapshotBuildIdentity::new(next_version(state.latest_snapshot_version)?, now_unix_ms),
             &self.system_policy_config,
         )?;
         Ok((
@@ -358,12 +364,22 @@ fn snapshot_contains(
     snapshot: &SnapshotRecord,
     policies: &[Policy],
     outbounds: &[OutboundReference],
+    network_profiles: &[NetworkProfileReference],
     default_decision: &DecisionSpec,
     capabilities: nonproxy_policy_compiler::CompileCapabilities,
     system_policy_config: &system_policies::SystemPolicyConfig,
 ) -> Result<bool, GatewayError> {
     let capabilities = outbound_capabilities::for_configured_outbounds(capabilities, outbounds);
     let policies = system_policies::with_required(policies, system_policy_config)?;
-    let expected = snapshot_payload::encode(&policies, &capabilities, default_decision)?;
+    let network_profiles = network_profiles
+        .iter()
+        .map(NetworkProfileReference::binding)
+        .collect::<Vec<_>>();
+    let expected = snapshot_payload::encode(
+        &policies,
+        &capabilities,
+        default_decision,
+        &network_profiles,
+    )?;
     Ok(snapshot.artifact().payload() == expected)
 }

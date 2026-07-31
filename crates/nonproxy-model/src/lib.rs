@@ -4,6 +4,7 @@ mod decision;
 mod destination;
 mod error;
 mod ids;
+mod network_profile;
 mod policy;
 
 pub use app_identity::{AppIdentity, AppMatcher, Platform};
@@ -14,6 +15,9 @@ pub use destination::{
 };
 pub use error::ModelError;
 pub use ids::{NetworkProfileId, OutboundId, PolicyId, RuleId};
+pub use network_profile::{
+    NetworkFingerprint, NetworkFingerprintKind, NetworkProfileBinding, NetworkProfileReference,
+};
 pub use policy::{
     NetworkMatcher, Policy, PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind,
     PolicyValidation,

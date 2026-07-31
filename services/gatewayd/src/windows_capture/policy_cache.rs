@@ -7,7 +7,7 @@ use std::{
 };
 
 use nonproxy_policy::CompiledPolicySnapshot;
-use nonproxy_policy_compiler::{CompileRequest, PolicyCompiler};
+use nonproxy_policy_compiler::PolicyCompiler;
 use nonproxy_proto::events::v1::RuntimeState;
 use nonproxy_storage::{ProviderAck, SnapshotStatus};
 use tokio::{
@@ -154,15 +154,10 @@ impl WindowsPolicyCache {
             return Ok(());
         }
         let artifact = record.artifact();
-        let (policies, capabilities, default_decision) =
-            snapshot_payload::decode(artifact.payload())?;
-        let compiled = PolicyCompiler::compile(CompileRequest::new(
-            version,
-            artifact.created_at_unix_ms(),
-            default_decision,
-            policies,
-            capabilities,
-        ));
+        let decoded = snapshot_payload::decode_versioned(artifact.payload())?;
+        let compiled = PolicyCompiler::compile(
+            decoded.into_compile_request(version, artifact.created_at_unix_ms()),
+        );
         let now = unix_time_ms()?;
         let acknowledgement = match compiled {
             Ok(snapshot) if snapshot.metadata().content_hash() == artifact.content_hash() => {

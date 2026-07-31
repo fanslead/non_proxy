@@ -4,7 +4,7 @@ use nonproxy_model::{
     AppIdentity, ConnectionContext, Destination, IpFamily, NetworkProfileId, OutboundId, Platform,
 };
 use nonproxy_policy::{CompiledPolicySnapshot, PolicyEngine};
-use nonproxy_policy_compiler::{CompileRequest, PolicyCompiler};
+use nonproxy_policy_compiler::PolicyCompiler;
 use nonproxy_proto::{
     common::v1 as common_proto, provider::v1::DecisionRecord as ProtoDecisionRecord,
 };
@@ -102,14 +102,10 @@ impl Gateway {
                         return Err(GatewayError::InvalidRequest("决策不能引用已拒绝的策略快照"));
                     }
                     let artifact = record.artifact();
-                    let (policies, capabilities, default_decision) =
-                        snapshot_payload::decode(artifact.payload())?;
-                    let compiled = PolicyCompiler::compile(CompileRequest::new(
+                    let decoded = snapshot_payload::decode_versioned(artifact.payload())?;
+                    let compiled = PolicyCompiler::compile(decoded.into_compile_request(
                         artifact.snapshot_version(),
                         artifact.created_at_unix_ms(),
-                        default_decision,
-                        policies,
-                        capabilities,
                     ))?;
                     if compiled.metadata().content_hash() != artifact.content_hash() {
                         return Err(GatewayError::InvalidContract(

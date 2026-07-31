@@ -27,6 +27,8 @@ const FAIL_OPEN_PATH_EVIDENCE: &str =
     include_str!("../../../migrations/V0009__fail_open_path_evidence.sql");
 const EXIT_PROBE_RECEIPTS: &str =
     include_str!("../../../migrations/V0010__exit_probe_receipts.sql");
+const NETWORK_PROFILE_CATALOG: &str =
+    include_str!("../../../migrations/V0011__network_profile_catalog.sql");
 
 struct Migration {
     version: i64,
@@ -84,6 +86,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 10,
         name: "exit_probe_receipts",
         sql: EXIT_PROBE_RECEIPTS,
+    },
+    Migration {
+        version: 11,
+        name: "network_profile_catalog",
+        sql: NETWORK_PROFILE_CATALOG,
     },
 ];
 

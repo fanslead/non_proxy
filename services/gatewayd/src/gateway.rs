@@ -8,11 +8,12 @@ use std::{
 };
 
 use nonproxy_dns::{SyntheticAddressFamily, SyntheticAddressSpace};
-use nonproxy_model::{DomainName, OutboundId, Policy, PolicyId};
+use nonproxy_model::{DomainName, NetworkProfileId, OutboundId, Policy, PolicyId};
 use nonproxy_policy::CompiledPolicySnapshot;
-use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
+use nonproxy_policy_compiler::{CompileCapabilities, PolicyCompiler};
 use nonproxy_storage::{
-    OutboundReference, PolicyDatabase, RoutingSettings, SnapshotRecord, SyntheticDnsBinding,
+    NetworkProfileReference, OutboundReference, PolicyDatabase, RoutingSettings, SnapshotRecord,
+    SyntheticDnsBinding,
 };
 use tokio::sync::Mutex;
 
@@ -28,7 +29,7 @@ use crate::{
     provider_requirements,
     routing_gateway::decision_for_route,
     runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, build_runtime_catalog},
-    snapshot_builder::build_snapshot,
+    snapshot_builder::{SnapshotBuildIdentity, build_snapshot},
     snapshot_payload,
     snapshot_types::{ProviderSnapshot, PublishedSnapshot},
     system_policies::SystemPolicyConfig,
@@ -233,6 +234,52 @@ impl Gateway {
             .await
     }
 
+    pub async fn list_network_profiles(
+        &self,
+    ) -> Result<(Vec<NetworkProfileReference>, u64), GatewayError> {
+        self.database
+            .run(|database| {
+                let profiles = database.network_profiles().list()?;
+                let generation = database.network_profiles().catalog_generation()?;
+                Ok((profiles, generation))
+            })
+            .await
+    }
+
+    pub async fn save_network_profile(
+        &self,
+        profile: NetworkProfileReference,
+        expected_revision: Option<u64>,
+    ) -> Result<NetworkProfileReference, GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        let now = unix_time_ms()?;
+        self.database
+            .run(move |database| {
+                database
+                    .network_profiles()
+                    .save(&profile, expected_revision, now)?;
+                Ok(profile)
+            })
+            .await
+    }
+
+    pub async fn delete_network_profile(
+        &self,
+        profile_id: NetworkProfileId,
+        expected_revision: u64,
+    ) -> Result<(), GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        let now = unix_time_ms()?;
+        self.database
+            .run(move |database| {
+                database
+                    .network_profiles()
+                    .delete(&profile_id, expected_revision, now)?;
+                Ok(())
+            })
+            .await
+    }
+
     pub async fn compile_and_stage(&self) -> Result<PublishedSnapshot, GatewayError> {
         let _operation = self.mutation_gate.lock().await;
         let now = unix_time_ms()?;
@@ -249,6 +296,7 @@ impl Gateway {
             .run(move |database| {
                 let policies = database.policies().list()?;
                 let outbounds = database.outbounds().list()?;
+                let network_profiles = database.network_profiles().list()?;
                 let routing = database.routing_settings().get()?;
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
                 let snapshot_version = current
@@ -258,9 +306,9 @@ impl Gateway {
                     capabilities,
                     &policies,
                     &outbounds,
+                    &network_profiles,
                     decision_for_route(routing.route())?,
-                    snapshot_version,
-                    now_unix_ms,
+                    SnapshotBuildIdentity::new(snapshot_version, now_unix_ms),
                     &system_policy_config,
                 )?;
                 database.snapshots().stage(published.artifact())?;
@@ -406,14 +454,10 @@ impl Gateway {
                     return Ok(None);
                 };
                 let artifact = record.artifact();
-                let (policies, capabilities, default_decision) =
-                    snapshot_payload::decode(artifact.payload())?;
-                let compiled = PolicyCompiler::compile(CompileRequest::new(
+                let decoded = snapshot_payload::decode_versioned(artifact.payload())?;
+                let compiled = PolicyCompiler::compile(decoded.into_compile_request(
                     artifact.snapshot_version(),
                     artifact.created_at_unix_ms(),
-                    default_decision,
-                    policies,
-                    capabilities,
                 ))?;
                 if compiled.metadata().content_hash() != artifact.content_hash() {
                     return Err(GatewayError::InvalidContract("活动策略快照内容哈希不一致"));

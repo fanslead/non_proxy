@@ -867,8 +867,15 @@ CompiledPolicySnapshot
   cidr_radix_v4
   cidr_radix_v6
   network_profile_rules
+  network_profile_fingerprint_catalog
   outbound_capabilities
 ```
+
+`network_profile_fingerprint_catalog` 只包含稳定档案 ID、指纹类型和脱敏值，按 ID
+确定性排序并参与内容哈希。用户显示名和 revision 属于控制面元数据，不改变数据面
+语义。载荷 format version 2 携带该目录并拒绝悬空网络规则；version 1 历史快照继续
+按旧算法读取，任何重建都发布新的 version 2 快照。DNS 的瞬时缓存分区 ID 不得冒充
+该稳定档案 ID。
 
 索引：
 
@@ -1834,6 +1841,10 @@ schema_migration
 迁移文件嵌入服务二进制，`schema_migration` 保存版本、名称和 SHA-256；已应用迁移的名称或内容哈希发生变化时启动失败。一次启动中的全部待执行 migration 放在同一个 `BEGIN IMMEDIATE` 事务中，任一条失败则整组回滚。发现无迁移历史但已有业务表的数据库时视为外部或损坏数据库，不自动接管。
 
 策略、出口和网络画像写入使用显式 revision 乐观锁。Wi-Fi 网络画像只保存 SHA-256 指纹，不保存原始 SSID。出口 endpoint 只接受规范化主机名或 IP，不接受可能携带用户名、密码或 Token 的 URI。
+
+V11 migration 为网络配置档指纹增加唯一索引，并建立独立的
+`network_profile_catalog` generation。保存和删除在同一事务中更新审计记录与目录
+代数；仍被策略引用的档案拒绝删除，重复指纹返回稳定业务错误码。
 
 学习表通过追加的 V4 migration 从首版预留结构升级，增加权威过期时间、应用平台、随机浏览器上下文、候选确认状态和有界幂等收据。过期在任一学习读写事务开始时惰性结算；停止与观测重放均保持幂等。
 

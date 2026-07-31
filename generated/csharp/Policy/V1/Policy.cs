@@ -37,95 +37,113 @@ namespace NonProxy.Policy.V1 {
             "Zml4X2xlbmd0aBgCIAEoDVIMcHJlZml4TGVuZ3RoIjUKCVBvcnRSYW5nZRIU",
             "CgVmaXJzdBgBIAEoDVIFZmlyc3QSEgoEbGFzdBgCIAEoDVIEbGFzdCIvCg5O",
             "ZXR3b3JrTWF0Y2hlchIdCgpwcm9maWxlX2lkGAEgASgJUglwcm9maWxlSWQi",
-            "6QIKC1BvbGljeU1hdGNoEjAKA2FwcBgBIAEoCzIeLm5vbnByb3h5LnBvbGlj",
-            "eS52MS5BcHBNYXRjaGVyUgNhcHASOQoGZG9tYWluGAIgASgLMiEubm9ucHJv",
-            "eHkucG9saWN5LnYxLkRvbWFpbk1hdGNoZXJSBmRvbWFpbhIzCgRjaWRyGAMg",
-            "ASgLMh8ubm9ucHJveHkucG9saWN5LnYxLkNpZHJNYXRjaGVyUgRjaWRyEjwK",
-            "B25ldHdvcmsYBCABKAsyIi5ub25wcm94eS5wb2xpY3kudjEuTmV0d29ya01h",
-            "dGNoZXJSB25ldHdvcmsSRQoKdHJhbnNwb3J0cxgFIAMoDjIlLm5vbnByb3h5",
-            "LmNvbW1vbi52MS5UcmFuc3BvcnRQcm90b2NvbFIKdHJhbnNwb3J0cxIzCgVw",
-            "b3J0cxgGIAMoCzIdLm5vbnByb3h5LnBvbGljeS52MS5Qb3J0UmFuZ2VSBXBv",
-            "cnRzIqwBCgxEZWNpc2lvblNwZWMSNwoGYWN0aW9uGAEgASgOMh8ubm9ucHJv",
-            "eHkuY29tbW9uLnYxLlJvdXRlQWN0aW9uUgZhY3Rpb24SHwoLb3V0Ym91bmRf",
-            "aWQYAiABKAlSCm91dGJvdW5kSWQSQgoMZmFpbHVyZV9tb2RlGAMgASgOMh8u",
-            "bm9ucHJveHkuY29tbW9uLnYxLkZhaWx1cmVNb2RlUgtmYWlsdXJlTW9kZSL5",
-            "AwoGUG9saWN5Eg4KAmlkGAEgASgJUgJpZBIhCgxkaXNwbGF5X25hbWUYAiAB",
-            "KAlSC2Rpc3BsYXlOYW1lEkUKC3NvdXJjZV9raW5kGAMgASgOMiQubm9ucHJv",
-            "eHkucG9saWN5LnYxLlBvbGljeVNvdXJjZUtpbmRSCnNvdXJjZUtpbmQSNQoF",
-            "bWF0Y2gYBCABKAsyHy5ub25wcm94eS5wb2xpY3kudjEuUG9saWN5TWF0Y2hS",
-            "BW1hdGNoEjwKCGRlY2lzaW9uGAUgASgLMiAubm9ucHJveHkucG9saWN5LnYx",
-            "LkRlY2lzaW9uU3BlY1IIZGVjaXNpb24SGgoIcHJpb3JpdHkYBiABKAVSCHBy",
-            "aW9yaXR5EhgKB2VuYWJsZWQYByABKAhSB2VuYWJsZWQSOAoGb3JpZ2luGAgg",
-            "ASgOMiAubm9ucHJveHkucG9saWN5LnYxLlBvbGljeU9yaWdpblIGb3JpZ2lu",
-            "EhoKCHJldmlzaW9uGAkgASgEUghyZXZpc2lvbhI5CgpjcmVhdGVkX2F0GAog",
-            "ASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJY3JlYXRlZEF0EjkK",
-            "CnVwZGF0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1w",
-            "Ugl1cGRhdGVkQXQiXQoOUG9saWN5Q29uZmxpY3QSEgoEY29kZRgBIAEoCVIE",
-            "Y29kZRIYCgdtZXNzYWdlGAIgASgJUgdtZXNzYWdlEh0KCnBvbGljeV9pZHMY",
-            "AyADKAlSCXBvbGljeUlkcyKkAgoWUG9saWN5U25hcHNob3RNZXRhZGF0YRIl",
-            "Cg5zY2hlbWFfdmVyc2lvbhgBIAEoDVINc2NoZW1hVmVyc2lvbhIpChBzbmFw",
-            "c2hvdF92ZXJzaW9uGAIgASgEUg9zbmFwc2hvdFZlcnNpb24SIQoMY29udGVu",
-            "dF9oYXNoGAMgASgMUgtjb250ZW50SGFzaBI3CgVzdGF0ZRgEIAEoDjIhLm5v",
-            "bnByb3h5LnBvbGljeS52MS5TbmFwc2hvdFN0YXRlUgVzdGF0ZRI5CgpjcmVh",
-            "dGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJY3Jl",
-            "YXRlZEF0EiEKDHBvbGljeV9jb3VudBgGIAEoDVILcG9saWN5Q291bnQi7gEK",
-            "FkNvbXBpbGVkUG9saWN5U25hcHNob3QSRgoIbWV0YWRhdGEYASABKAsyKi5u",
-            "b25wcm94eS5wb2xpY3kudjEuUG9saWN5U25hcHNob3RNZXRhZGF0YVIIbWV0",
-            "YWRhdGESJQoOcGF5bG9hZF9mb3JtYXQYAiABKAlSDXBheWxvYWRGb3JtYXQS",
-            "GAoHcGF5bG9hZBgDIAEoDFIHcGF5bG9hZBJLChBkZWZhdWx0X2RlY2lzaW9u",
-            "GAQgASgLMiAubm9ucHJveHkucG9saWN5LnYxLkRlY2lzaW9uU3BlY1IPZGVm",
-            "YXVsdERlY2lzaW9uIr8BChZPdXRib3VuZENhcGFiaWxpdHlTcGVjEh8KC291",
-            "dGJvdW5kX2lkGAEgASgJUgpvdXRib3VuZElkEkUKCnRyYW5zcG9ydHMYAiAD",
-            "KA4yJS5ub25wcm94eS5jb21tb24udjEuVHJhbnNwb3J0UHJvdG9jb2xSCnRy",
-            "YW5zcG9ydHMSPQoLaXBfZmFtaWxpZXMYAyADKA4yHC5ub25wcm94eS5jb21t",
-            "b24udjEuSXBGYW1pbHlSCmlwRmFtaWxpZXMixQIKFENvbXBpbGVDYXBhYmls",
-            "aXR5U2V0EhsKCWFwcF9tYXRjaBgBIAEoCFIIYXBwTWF0Y2gSIQoMZG9tYWlu",
-            "X21hdGNoGAIgASgIUgtkb21haW5NYXRjaBIdCgpjaWRyX21hdGNoGAMgASgI",
-            "UgljaWRyTWF0Y2gSRQoKdHJhbnNwb3J0cxgEIAMoDjIlLm5vbnByb3h5LmNv",
-            "bW1vbi52MS5UcmFuc3BvcnRQcm90b2NvbFIKdHJhbnNwb3J0cxI9CgtpcF9m",
-            "YW1pbGllcxgFIAMoDjIcLm5vbnByb3h5LmNvbW1vbi52MS5JcEZhbWlseVIK",
-            "aXBGYW1pbGllcxJICglvdXRib3VuZHMYBiADKAsyKi5ub25wcm94eS5wb2xp",
-            "Y3kudjEuT3V0Ym91bmRDYXBhYmlsaXR5U3BlY1IJb3V0Ym91bmRzIpECChVD",
-            "b21waWxlZFBvbGljeVBheWxvYWQSJQoOZm9ybWF0X3ZlcnNpb24YASABKA1S",
-            "DWZvcm1hdFZlcnNpb24SNgoIcG9saWNpZXMYAiADKAsyGi5ub25wcm94eS5w",
-            "b2xpY3kudjEuUG9saWN5Ughwb2xpY2llcxJMCgxjYXBhYmlsaXRpZXMYAyAB",
-            "KAsyKC5ub25wcm94eS5wb2xpY3kudjEuQ29tcGlsZUNhcGFiaWxpdHlTZXRS",
-            "DGNhcGFiaWxpdGllcxJLChBkZWZhdWx0X2RlY2lzaW9uGAQgASgLMiAubm9u",
-            "cHJveHkucG9saWN5LnYxLkRlY2lzaW9uU3BlY1IPZGVmYXVsdERlY2lzaW9u",
-            "IuQBCghEZWNpc2lvbhI4CgZyZXN1bHQYASABKAsyIC5ub25wcm94eS5wb2xp",
-            "Y3kudjEuRGVjaXNpb25TcGVjUgZyZXN1bHQSKgoRbWF0Y2hlZF9wb2xpY3lf",
-            "aWQYAiABKAlSD21hdGNoZWRQb2xpY3lJZBImCg9tYXRjaGVkX3J1bGVfaWQY",
-            "AyABKAlSDW1hdGNoZWRSdWxlSWQSKQoQc25hcHNob3RfdmVyc2lvbhgEIAEo",
-            "BFIPc25hcHNob3RWZXJzaW9uEh8KC3JlYXNvbl9jb2RlGAUgASgJUgpyZWFz",
-            "b25Db2RlKrQCChBQb2xpY3lTb3VyY2VLaW5kEiIKHlBPTElDWV9TT1VSQ0Vf",
-            "S0lORF9VTlNQRUNJRklFRBAAEh0KGVBPTElDWV9TT1VSQ0VfS0lORF9TWVNU",
-            "RU0QARImCiJQT0xJQ1lfU09VUkNFX0tJTkRfQVBQX0RFU1RJTkFUSU9OEAIS",
-            "GgoWUE9MSUNZX1NPVVJDRV9LSU5EX0FQUBADEhsKF1BPTElDWV9TT1VSQ0Vf",
-            "S0lORF9TSVRFEAQSHgoaUE9MSUNZX1NPVVJDRV9LSU5EX05FVFdPUksQBRIf",
-            "ChtQT0xJQ1lfU09VUkNFX0tJTkRfQlVJTFRfSU4QBhIbChdQT0xJQ1lfU09V",
-            "UkNFX0tJTkRfQ0lEUhAHEh4KGlBPTElDWV9TT1VSQ0VfS0lORF9BREFQVEVS",
-            "EAgqvQEKDFBvbGljeU9yaWdpbhIdChlQT0xJQ1lfT1JJR0lOX1VOU1BFQ0lG",
-            "SUVEEAASGAoUUE9MSUNZX09SSUdJTl9TWVNURU0QARIWChJQT0xJQ1lfT1JJ",
-            "R0lOX1VTRVIQAhIhCh1QT0xJQ1lfT1JJR0lOX1NJR05FRF9CVUlMVF9JThAD",
-            "Eh4KGlBPTElDWV9PUklHSU5fU1VCU0NSSVBUSU9OEAQSGQoVUE9MSUNZX09S",
-            "SUdJTl9BREFQVEVSEAUqmQEKD0RvbWFpbk1hdGNoS2luZBIhCh1ET01BSU5f",
-            "TUFUQ0hfS0lORF9VTlNQRUNJRklFRBAAEhsKF0RPTUFJTl9NQVRDSF9LSU5E",
-            "X0VYQUNUEAESHAoYRE9NQUlOX01BVENIX0tJTkRfU1VGRklYEAISKAokRE9N",
-            "QUlOX01BVENIX0tJTkRfUkVHSVNUUkFCTEVfRE9NQUlOEAMq4AEKDVNuYXBz",
-            "aG90U3RhdGUSHgoaU05BUFNIT1RfU1RBVEVfVU5TUEVDSUZJRUQQABIYChRT",
-            "TkFQU0hPVF9TVEFURV9EUkFGVBABEh4KGlNOQVBTSE9UX1NUQVRFX1BFTkRJ",
-            "TkdfQUNLEAISGQoVU05BUFNIT1RfU1RBVEVfQUNUSVZFEAMSGwoXU05BUFNI",
-            "T1RfU1RBVEVfUkVKRUNURUQQBBIeChpTTkFQU0hPVF9TVEFURV9ST0xMRURf",
-            "QkFDSxAFEh0KGVNOQVBTSE9UX1NUQVRFX1NVUEVSU0VERUQQBkIVqgISTm9u",
-            "UHJveHkuUG9saWN5LlYxYgZwcm90bzM="));
+            "5wEKEk5ldHdvcmtQcm9maWxlU3BlYxIOCgJpZBgBIAEoCVICaWQSIQoMZGlz",
+            "cGxheV9uYW1lGAIgASgJUgtkaXNwbGF5TmFtZRJVChBmaW5nZXJwcmludF9r",
+            "aW5kGAMgASgOMioubm9ucHJveHkucG9saWN5LnYxLk5ldHdvcmtGaW5nZXJw",
+            "cmludEtpbmRSD2ZpbmdlcnByaW50S2luZBIrChFmaW5nZXJwcmludF92YWx1",
+            "ZRgEIAEoCVIQZmluZ2VycHJpbnRWYWx1ZRIaCghyZXZpc2lvbhgFIAEoBFII",
+            "cmV2aXNpb24iqwEKFU5ldHdvcmtQcm9maWxlQmluZGluZxIOCgJpZBgBIAEo",
+            "CVICaWQSVQoQZmluZ2VycHJpbnRfa2luZBgCIAEoDjIqLm5vbnByb3h5LnBv",
+            "bGljeS52MS5OZXR3b3JrRmluZ2VycHJpbnRLaW5kUg9maW5nZXJwcmludEtp",
+            "bmQSKwoRZmluZ2VycHJpbnRfdmFsdWUYAyABKAlSEGZpbmdlcnByaW50VmFs",
+            "dWUi6QIKC1BvbGljeU1hdGNoEjAKA2FwcBgBIAEoCzIeLm5vbnByb3h5LnBv",
+            "bGljeS52MS5BcHBNYXRjaGVyUgNhcHASOQoGZG9tYWluGAIgASgLMiEubm9u",
+            "cHJveHkucG9saWN5LnYxLkRvbWFpbk1hdGNoZXJSBmRvbWFpbhIzCgRjaWRy",
+            "GAMgASgLMh8ubm9ucHJveHkucG9saWN5LnYxLkNpZHJNYXRjaGVyUgRjaWRy",
+            "EjwKB25ldHdvcmsYBCABKAsyIi5ub25wcm94eS5wb2xpY3kudjEuTmV0d29y",
+            "a01hdGNoZXJSB25ldHdvcmsSRQoKdHJhbnNwb3J0cxgFIAMoDjIlLm5vbnBy",
+            "b3h5LmNvbW1vbi52MS5UcmFuc3BvcnRQcm90b2NvbFIKdHJhbnNwb3J0cxIz",
+            "CgVwb3J0cxgGIAMoCzIdLm5vbnByb3h5LnBvbGljeS52MS5Qb3J0UmFuZ2VS",
+            "BXBvcnRzIqwBCgxEZWNpc2lvblNwZWMSNwoGYWN0aW9uGAEgASgOMh8ubm9u",
+            "cHJveHkuY29tbW9uLnYxLlJvdXRlQWN0aW9uUgZhY3Rpb24SHwoLb3V0Ym91",
+            "bmRfaWQYAiABKAlSCm91dGJvdW5kSWQSQgoMZmFpbHVyZV9tb2RlGAMgASgO",
+            "Mh8ubm9ucHJveHkuY29tbW9uLnYxLkZhaWx1cmVNb2RlUgtmYWlsdXJlTW9k",
+            "ZSL5AwoGUG9saWN5Eg4KAmlkGAEgASgJUgJpZBIhCgxkaXNwbGF5X25hbWUY",
+            "AiABKAlSC2Rpc3BsYXlOYW1lEkUKC3NvdXJjZV9raW5kGAMgASgOMiQubm9u",
+            "cHJveHkucG9saWN5LnYxLlBvbGljeVNvdXJjZUtpbmRSCnNvdXJjZUtpbmQS",
+            "NQoFbWF0Y2gYBCABKAsyHy5ub25wcm94eS5wb2xpY3kudjEuUG9saWN5TWF0",
+            "Y2hSBW1hdGNoEjwKCGRlY2lzaW9uGAUgASgLMiAubm9ucHJveHkucG9saWN5",
+            "LnYxLkRlY2lzaW9uU3BlY1IIZGVjaXNpb24SGgoIcHJpb3JpdHkYBiABKAVS",
+            "CHByaW9yaXR5EhgKB2VuYWJsZWQYByABKAhSB2VuYWJsZWQSOAoGb3JpZ2lu",
+            "GAggASgOMiAubm9ucHJveHkucG9saWN5LnYxLlBvbGljeU9yaWdpblIGb3Jp",
+            "Z2luEhoKCHJldmlzaW9uGAkgASgEUghyZXZpc2lvbhI5CgpjcmVhdGVkX2F0",
+            "GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJY3JlYXRlZEF0",
+            "EjkKCnVwZGF0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0",
+            "YW1wUgl1cGRhdGVkQXQiXQoOUG9saWN5Q29uZmxpY3QSEgoEY29kZRgBIAEo",
+            "CVIEY29kZRIYCgdtZXNzYWdlGAIgASgJUgdtZXNzYWdlEh0KCnBvbGljeV9p",
+            "ZHMYAyADKAlSCXBvbGljeUlkcyKkAgoWUG9saWN5U25hcHNob3RNZXRhZGF0",
+            "YRIlCg5zY2hlbWFfdmVyc2lvbhgBIAEoDVINc2NoZW1hVmVyc2lvbhIpChBz",
+            "bmFwc2hvdF92ZXJzaW9uGAIgASgEUg9zbmFwc2hvdFZlcnNpb24SIQoMY29u",
+            "dGVudF9oYXNoGAMgASgMUgtjb250ZW50SGFzaBI3CgVzdGF0ZRgEIAEoDjIh",
+            "Lm5vbnByb3h5LnBvbGljeS52MS5TbmFwc2hvdFN0YXRlUgVzdGF0ZRI5Cgpj",
+            "cmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJ",
+            "Y3JlYXRlZEF0EiEKDHBvbGljeV9jb3VudBgGIAEoDVILcG9saWN5Q291bnQi",
+            "7gEKFkNvbXBpbGVkUG9saWN5U25hcHNob3QSRgoIbWV0YWRhdGEYASABKAsy",
+            "Ki5ub25wcm94eS5wb2xpY3kudjEuUG9saWN5U25hcHNob3RNZXRhZGF0YVII",
+            "bWV0YWRhdGESJQoOcGF5bG9hZF9mb3JtYXQYAiABKAlSDXBheWxvYWRGb3Jt",
+            "YXQSGAoHcGF5bG9hZBgDIAEoDFIHcGF5bG9hZBJLChBkZWZhdWx0X2RlY2lz",
+            "aW9uGAQgASgLMiAubm9ucHJveHkucG9saWN5LnYxLkRlY2lzaW9uU3BlY1IP",
+            "ZGVmYXVsdERlY2lzaW9uIr8BChZPdXRib3VuZENhcGFiaWxpdHlTcGVjEh8K",
+            "C291dGJvdW5kX2lkGAEgASgJUgpvdXRib3VuZElkEkUKCnRyYW5zcG9ydHMY",
+            "AiADKA4yJS5ub25wcm94eS5jb21tb24udjEuVHJhbnNwb3J0UHJvdG9jb2xS",
+            "CnRyYW5zcG9ydHMSPQoLaXBfZmFtaWxpZXMYAyADKA4yHC5ub25wcm94eS5j",
+            "b21tb24udjEuSXBGYW1pbHlSCmlwRmFtaWxpZXMixQIKFENvbXBpbGVDYXBh",
+            "YmlsaXR5U2V0EhsKCWFwcF9tYXRjaBgBIAEoCFIIYXBwTWF0Y2gSIQoMZG9t",
+            "YWluX21hdGNoGAIgASgIUgtkb21haW5NYXRjaBIdCgpjaWRyX21hdGNoGAMg",
+            "ASgIUgljaWRyTWF0Y2gSRQoKdHJhbnNwb3J0cxgEIAMoDjIlLm5vbnByb3h5",
+            "LmNvbW1vbi52MS5UcmFuc3BvcnRQcm90b2NvbFIKdHJhbnNwb3J0cxI9Cgtp",
+            "cF9mYW1pbGllcxgFIAMoDjIcLm5vbnByb3h5LmNvbW1vbi52MS5JcEZhbWls",
+            "eVIKaXBGYW1pbGllcxJICglvdXRib3VuZHMYBiADKAsyKi5ub25wcm94eS5w",
+            "b2xpY3kudjEuT3V0Ym91bmRDYXBhYmlsaXR5U3BlY1IJb3V0Ym91bmRzIucC",
+            "ChVDb21waWxlZFBvbGljeVBheWxvYWQSJQoOZm9ybWF0X3ZlcnNpb24YASAB",
+            "KA1SDWZvcm1hdFZlcnNpb24SNgoIcG9saWNpZXMYAiADKAsyGi5ub25wcm94",
+            "eS5wb2xpY3kudjEuUG9saWN5Ughwb2xpY2llcxJMCgxjYXBhYmlsaXRpZXMY",
+            "AyABKAsyKC5ub25wcm94eS5wb2xpY3kudjEuQ29tcGlsZUNhcGFiaWxpdHlT",
+            "ZXRSDGNhcGFiaWxpdGllcxJLChBkZWZhdWx0X2RlY2lzaW9uGAQgASgLMiAu",
+            "bm9ucHJveHkucG9saWN5LnYxLkRlY2lzaW9uU3BlY1IPZGVmYXVsdERlY2lz",
+            "aW9uElQKEG5ldHdvcmtfcHJvZmlsZXMYBSADKAsyKS5ub25wcm94eS5wb2xp",
+            "Y3kudjEuTmV0d29ya1Byb2ZpbGVCaW5kaW5nUg9uZXR3b3JrUHJvZmlsZXMi",
+            "5AEKCERlY2lzaW9uEjgKBnJlc3VsdBgBIAEoCzIgLm5vbnByb3h5LnBvbGlj",
+            "eS52MS5EZWNpc2lvblNwZWNSBnJlc3VsdBIqChFtYXRjaGVkX3BvbGljeV9p",
+            "ZBgCIAEoCVIPbWF0Y2hlZFBvbGljeUlkEiYKD21hdGNoZWRfcnVsZV9pZBgD",
+            "IAEoCVINbWF0Y2hlZFJ1bGVJZBIpChBzbmFwc2hvdF92ZXJzaW9uGAQgASgE",
+            "Ug9zbmFwc2hvdFZlcnNpb24SHwoLcmVhc29uX2NvZGUYBSABKAlSCnJlYXNv",
+            "bkNvZGUqtAIKEFBvbGljeVNvdXJjZUtpbmQSIgoeUE9MSUNZX1NPVVJDRV9L",
+            "SU5EX1VOU1BFQ0lGSUVEEAASHQoZUE9MSUNZX1NPVVJDRV9LSU5EX1NZU1RF",
+            "TRABEiYKIlBPTElDWV9TT1VSQ0VfS0lORF9BUFBfREVTVElOQVRJT04QAhIa",
+            "ChZQT0xJQ1lfU09VUkNFX0tJTkRfQVBQEAMSGwoXUE9MSUNZX1NPVVJDRV9L",
+            "SU5EX1NJVEUQBBIeChpQT0xJQ1lfU09VUkNFX0tJTkRfTkVUV09SSxAFEh8K",
+            "G1BPTElDWV9TT1VSQ0VfS0lORF9CVUlMVF9JThAGEhsKF1BPTElDWV9TT1VS",
+            "Q0VfS0lORF9DSURSEAcSHgoaUE9MSUNZX1NPVVJDRV9LSU5EX0FEQVBURVIQ",
+            "CCq9AQoMUG9saWN5T3JpZ2luEh0KGVBPTElDWV9PUklHSU5fVU5TUEVDSUZJ",
+            "RUQQABIYChRQT0xJQ1lfT1JJR0lOX1NZU1RFTRABEhYKElBPTElDWV9PUklH",
+            "SU5fVVNFUhACEiEKHVBPTElDWV9PUklHSU5fU0lHTkVEX0JVSUxUX0lOEAMS",
+            "HgoaUE9MSUNZX09SSUdJTl9TVUJTQ1JJUFRJT04QBBIZChVQT0xJQ1lfT1JJ",
+            "R0lOX0FEQVBURVIQBSqZAQoPRG9tYWluTWF0Y2hLaW5kEiEKHURPTUFJTl9N",
+            "QVRDSF9LSU5EX1VOU1BFQ0lGSUVEEAASGwoXRE9NQUlOX01BVENIX0tJTkRf",
+            "RVhBQ1QQARIcChhET01BSU5fTUFUQ0hfS0lORF9TVUZGSVgQAhIoCiRET01B",
+            "SU5fTUFUQ0hfS0lORF9SRUdJU1RSQUJMRV9ET01BSU4QAyrgAQoNU25hcHNo",
+            "b3RTdGF0ZRIeChpTTkFQU0hPVF9TVEFURV9VTlNQRUNJRklFRBAAEhgKFFNO",
+            "QVBTSE9UX1NUQVRFX0RSQUZUEAESHgoaU05BUFNIT1RfU1RBVEVfUEVORElO",
+            "R19BQ0sQAhIZChVTTkFQU0hPVF9TVEFURV9BQ1RJVkUQAxIbChdTTkFQU0hP",
+            "VF9TVEFURV9SRUpFQ1RFRBAEEh4KGlNOQVBTSE9UX1NUQVRFX1JPTExFRF9C",
+            "QUNLEAUSHQoZU05BUFNIT1RfU1RBVEVfU1VQRVJTRURFRBAGKtQBChZOZXR3",
+            "b3JrRmluZ2VycHJpbnRLaW5kEigKJE5FVFdPUktfRklOR0VSUFJJTlRfS0lO",
+            "RF9VTlNQRUNJRklFRBAAEi0KKU5FVFdPUktfRklOR0VSUFJJTlRfS0lORF9X",
+            "SUZJX1NTSURfU0hBMjU2EAESMwovTkVUV09SS19GSU5HRVJQUklOVF9LSU5E",
+            "X0RFRkFVTFRfR0FURVdBWV9TSEEyNTYQAhIsCihORVRXT1JLX0ZJTkdFUlBS",
+            "SU5UX0tJTkRfSU5URVJGQUNFX0NMQVNTEANCFaoCEk5vblByb3h5LlBvbGlj",
+            "eS5WMWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::NonProxy.Common.V1.CommonReflection.Descriptor, },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::NonProxy.Policy.V1.PolicySourceKind), typeof(global::NonProxy.Policy.V1.PolicyOrigin), typeof(global::NonProxy.Policy.V1.DomainMatchKind), typeof(global::NonProxy.Policy.V1.SnapshotState), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::NonProxy.Policy.V1.PolicySourceKind), typeof(global::NonProxy.Policy.V1.PolicyOrigin), typeof(global::NonProxy.Policy.V1.DomainMatchKind), typeof(global::NonProxy.Policy.V1.SnapshotState), typeof(global::NonProxy.Policy.V1.NetworkFingerprintKind), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.AppMatcher), global::NonProxy.Policy.V1.AppMatcher.Parser, new[]{ "Platform", "StableId", "SignerId", "IncludeHelpers" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.DomainMatcher), global::NonProxy.Policy.V1.DomainMatcher.Parser, new[]{ "Kind", "AsciiPattern" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CidrMatcher), global::NonProxy.Policy.V1.CidrMatcher.Parser, new[]{ "Network", "PrefixLength" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.PortRange), global::NonProxy.Policy.V1.PortRange.Parser, new[]{ "First", "Last" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.NetworkMatcher), global::NonProxy.Policy.V1.NetworkMatcher.Parser, new[]{ "ProfileId" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.NetworkProfileSpec), global::NonProxy.Policy.V1.NetworkProfileSpec.Parser, new[]{ "Id", "DisplayName", "FingerprintKind", "FingerprintValue", "Revision" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.NetworkProfileBinding), global::NonProxy.Policy.V1.NetworkProfileBinding.Parser, new[]{ "Id", "FingerprintKind", "FingerprintValue" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.PolicyMatch), global::NonProxy.Policy.V1.PolicyMatch.Parser, new[]{ "App", "Domain", "Cidr", "Network", "Transports", "Ports" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.DecisionSpec), global::NonProxy.Policy.V1.DecisionSpec.Parser, new[]{ "Action", "OutboundId", "FailureMode" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.Policy), global::NonProxy.Policy.V1.Policy.Parser, new[]{ "Id", "DisplayName", "SourceKind", "Match", "Decision", "Priority", "Enabled", "Origin", "Revision", "CreatedAt", "UpdatedAt" }, null, null, null, null),
@@ -134,7 +152,7 @@ namespace NonProxy.Policy.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompiledPolicySnapshot), global::NonProxy.Policy.V1.CompiledPolicySnapshot.Parser, new[]{ "Metadata", "PayloadFormat", "Payload", "DefaultDecision" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.OutboundCapabilitySpec), global::NonProxy.Policy.V1.OutboundCapabilitySpec.Parser, new[]{ "OutboundId", "Transports", "IpFamilies" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompileCapabilitySet), global::NonProxy.Policy.V1.CompileCapabilitySet.Parser, new[]{ "AppMatch", "DomainMatch", "CidrMatch", "Transports", "IpFamilies", "Outbounds" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompiledPolicyPayload), global::NonProxy.Policy.V1.CompiledPolicyPayload.Parser, new[]{ "FormatVersion", "Policies", "Capabilities", "DefaultDecision" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompiledPolicyPayload), global::NonProxy.Policy.V1.CompiledPolicyPayload.Parser, new[]{ "FormatVersion", "Policies", "Capabilities", "DefaultDecision", "NetworkProfiles" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.Decision), global::NonProxy.Policy.V1.Decision.Parser, new[]{ "Result", "MatchedPolicyId", "MatchedRuleId", "SnapshotVersion", "ReasonCode" }, null, null, null, null)
           }));
     }
@@ -190,6 +208,16 @@ namespace NonProxy.Policy.V1 {
     [pbr::OriginalName("SNAPSHOT_STATE_REJECTED")] Rejected = 4,
     [pbr::OriginalName("SNAPSHOT_STATE_ROLLED_BACK")] RolledBack = 5,
     [pbr::OriginalName("SNAPSHOT_STATE_SUPERSEDED")] Superseded = 6,
+  }
+
+  /// <summary>
+  /// NetworkFingerprintKind 只允许 Provider 可重现且不包含原始网络名称的指纹。
+  /// </summary>
+  public enum NetworkFingerprintKind {
+    [pbr::OriginalName("NETWORK_FINGERPRINT_KIND_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("NETWORK_FINGERPRINT_KIND_WIFI_SSID_SHA256")] WifiSsidSha256 = 1,
+    [pbr::OriginalName("NETWORK_FINGERPRINT_KIND_DEFAULT_GATEWAY_SHA256")] DefaultGatewaySha256 = 2,
+    [pbr::OriginalName("NETWORK_FINGERPRINT_KIND_INTERFACE_CLASS")] InterfaceClass = 3,
   }
 
   #endregion
@@ -1423,6 +1451,630 @@ namespace NonProxy.Policy.V1 {
   }
 
   /// <summary>
+  /// NetworkProfileSpec 是控制面使用的完整隐私安全网络配置档。
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class NetworkProfileSpec : pb::IMessage<NetworkProfileSpec>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<NetworkProfileSpec> _parser = new pb::MessageParser<NetworkProfileSpec>(() => new NetworkProfileSpec());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<NetworkProfileSpec> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[5]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NetworkProfileSpec() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NetworkProfileSpec(NetworkProfileSpec other) : this() {
+      id_ = other.id_;
+      displayName_ = other.displayName_;
+      fingerprintKind_ = other.fingerprintKind_;
+      fingerprintValue_ = other.fingerprintValue_;
+      revision_ = other.revision_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NetworkProfileSpec Clone() {
+      return new NetworkProfileSpec(this);
+    }
+
+    /// <summary>Field number for the "id" field.</summary>
+    public const int IdFieldNumber = 1;
+    private string id_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Id {
+      get { return id_; }
+      set {
+        id_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "display_name" field.</summary>
+    public const int DisplayNameFieldNumber = 2;
+    private string displayName_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string DisplayName {
+      get { return displayName_; }
+      set {
+        displayName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "fingerprint_kind" field.</summary>
+    public const int FingerprintKindFieldNumber = 3;
+    private global::NonProxy.Policy.V1.NetworkFingerprintKind fingerprintKind_ = global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::NonProxy.Policy.V1.NetworkFingerprintKind FingerprintKind {
+      get { return fingerprintKind_; }
+      set {
+        fingerprintKind_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "fingerprint_value" field.</summary>
+    public const int FingerprintValueFieldNumber = 4;
+    private string fingerprintValue_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string FingerprintValue {
+      get { return fingerprintValue_; }
+      set {
+        fingerprintValue_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "revision" field.</summary>
+    public const int RevisionFieldNumber = 5;
+    private ulong revision_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong Revision {
+      get { return revision_; }
+      set {
+        revision_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as NetworkProfileSpec);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(NetworkProfileSpec other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Id != other.Id) return false;
+      if (DisplayName != other.DisplayName) return false;
+      if (FingerprintKind != other.FingerprintKind) return false;
+      if (FingerprintValue != other.FingerprintValue) return false;
+      if (Revision != other.Revision) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (Id.Length != 0) hash ^= Id.GetHashCode();
+      if (DisplayName.Length != 0) hash ^= DisplayName.GetHashCode();
+      if (FingerprintKind != global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified) hash ^= FingerprintKind.GetHashCode();
+      if (FingerprintValue.Length != 0) hash ^= FingerprintValue.GetHashCode();
+      if (Revision != 0UL) hash ^= Revision.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (Id.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(Id);
+      }
+      if (DisplayName.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(DisplayName);
+      }
+      if (FingerprintKind != global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified) {
+        output.WriteRawTag(24);
+        output.WriteEnum((int) FingerprintKind);
+      }
+      if (FingerprintValue.Length != 0) {
+        output.WriteRawTag(34);
+        output.WriteString(FingerprintValue);
+      }
+      if (Revision != 0UL) {
+        output.WriteRawTag(40);
+        output.WriteUInt64(Revision);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (Id.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(Id);
+      }
+      if (DisplayName.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(DisplayName);
+      }
+      if (FingerprintKind != global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified) {
+        output.WriteRawTag(24);
+        output.WriteEnum((int) FingerprintKind);
+      }
+      if (FingerprintValue.Length != 0) {
+        output.WriteRawTag(34);
+        output.WriteString(FingerprintValue);
+      }
+      if (Revision != 0UL) {
+        output.WriteRawTag(40);
+        output.WriteUInt64(Revision);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (Id.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Id);
+      }
+      if (DisplayName.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(DisplayName);
+      }
+      if (FingerprintKind != global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) FingerprintKind);
+      }
+      if (FingerprintValue.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(FingerprintValue);
+      }
+      if (Revision != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Revision);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(NetworkProfileSpec other) {
+      if (other == null) {
+        return;
+      }
+      if (other.Id.Length != 0) {
+        Id = other.Id;
+      }
+      if (other.DisplayName.Length != 0) {
+        DisplayName = other.DisplayName;
+      }
+      if (other.FingerprintKind != global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified) {
+        FingerprintKind = other.FingerprintKind;
+      }
+      if (other.FingerprintValue.Length != 0) {
+        FingerprintValue = other.FingerprintValue;
+      }
+      if (other.Revision != 0UL) {
+        Revision = other.Revision;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            Id = input.ReadString();
+            break;
+          }
+          case 18: {
+            DisplayName = input.ReadString();
+            break;
+          }
+          case 24: {
+            FingerprintKind = (global::NonProxy.Policy.V1.NetworkFingerprintKind) input.ReadEnum();
+            break;
+          }
+          case 34: {
+            FingerprintValue = input.ReadString();
+            break;
+          }
+          case 40: {
+            Revision = input.ReadUInt64();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            Id = input.ReadString();
+            break;
+          }
+          case 18: {
+            DisplayName = input.ReadString();
+            break;
+          }
+          case 24: {
+            FingerprintKind = (global::NonProxy.Policy.V1.NetworkFingerprintKind) input.ReadEnum();
+            break;
+          }
+          case 34: {
+            FingerprintValue = input.ReadString();
+            break;
+          }
+          case 40: {
+            Revision = input.ReadUInt64();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// NetworkProfileBinding 是进入数据面快照的最小脱敏身份绑定。
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class NetworkProfileBinding : pb::IMessage<NetworkProfileBinding>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<NetworkProfileBinding> _parser = new pb::MessageParser<NetworkProfileBinding>(() => new NetworkProfileBinding());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<NetworkProfileBinding> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[6]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NetworkProfileBinding() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NetworkProfileBinding(NetworkProfileBinding other) : this() {
+      id_ = other.id_;
+      fingerprintKind_ = other.fingerprintKind_;
+      fingerprintValue_ = other.fingerprintValue_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public NetworkProfileBinding Clone() {
+      return new NetworkProfileBinding(this);
+    }
+
+    /// <summary>Field number for the "id" field.</summary>
+    public const int IdFieldNumber = 1;
+    private string id_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Id {
+      get { return id_; }
+      set {
+        id_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "fingerprint_kind" field.</summary>
+    public const int FingerprintKindFieldNumber = 2;
+    private global::NonProxy.Policy.V1.NetworkFingerprintKind fingerprintKind_ = global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::NonProxy.Policy.V1.NetworkFingerprintKind FingerprintKind {
+      get { return fingerprintKind_; }
+      set {
+        fingerprintKind_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "fingerprint_value" field.</summary>
+    public const int FingerprintValueFieldNumber = 3;
+    private string fingerprintValue_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string FingerprintValue {
+      get { return fingerprintValue_; }
+      set {
+        fingerprintValue_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as NetworkProfileBinding);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(NetworkProfileBinding other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Id != other.Id) return false;
+      if (FingerprintKind != other.FingerprintKind) return false;
+      if (FingerprintValue != other.FingerprintValue) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (Id.Length != 0) hash ^= Id.GetHashCode();
+      if (FingerprintKind != global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified) hash ^= FingerprintKind.GetHashCode();
+      if (FingerprintValue.Length != 0) hash ^= FingerprintValue.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (Id.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(Id);
+      }
+      if (FingerprintKind != global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) FingerprintKind);
+      }
+      if (FingerprintValue.Length != 0) {
+        output.WriteRawTag(26);
+        output.WriteString(FingerprintValue);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (Id.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(Id);
+      }
+      if (FingerprintKind != global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) FingerprintKind);
+      }
+      if (FingerprintValue.Length != 0) {
+        output.WriteRawTag(26);
+        output.WriteString(FingerprintValue);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (Id.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Id);
+      }
+      if (FingerprintKind != global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) FingerprintKind);
+      }
+      if (FingerprintValue.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(FingerprintValue);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(NetworkProfileBinding other) {
+      if (other == null) {
+        return;
+      }
+      if (other.Id.Length != 0) {
+        Id = other.Id;
+      }
+      if (other.FingerprintKind != global::NonProxy.Policy.V1.NetworkFingerprintKind.Unspecified) {
+        FingerprintKind = other.FingerprintKind;
+      }
+      if (other.FingerprintValue.Length != 0) {
+        FingerprintValue = other.FingerprintValue;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            Id = input.ReadString();
+            break;
+          }
+          case 16: {
+            FingerprintKind = (global::NonProxy.Policy.V1.NetworkFingerprintKind) input.ReadEnum();
+            break;
+          }
+          case 26: {
+            FingerprintValue = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            Id = input.ReadString();
+            break;
+          }
+          case 16: {
+            FingerprintKind = (global::NonProxy.Policy.V1.NetworkFingerprintKind) input.ReadEnum();
+            break;
+          }
+          case 26: {
+            FingerprintValue = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
   /// PolicyMatch 汇总一条策略可以使用的匹配维度。
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -1440,7 +2092,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[5]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[7]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1842,7 +2494,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[6]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[8]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2117,7 +2769,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[7]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[9]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2724,7 +3376,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[8]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[10]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2988,7 +3640,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[9]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[11]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3383,7 +4035,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[10]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[12]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3713,7 +4365,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[11]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[13]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3970,7 +4622,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[12]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[14]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4328,7 +4980,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[13]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[15]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4352,6 +5004,7 @@ namespace NonProxy.Policy.V1 {
       policies_ = other.policies_.Clone();
       capabilities_ = other.capabilities_ != null ? other.capabilities_.Clone() : null;
       defaultDecision_ = other.defaultDecision_ != null ? other.defaultDecision_.Clone() : null;
+      networkProfiles_ = other.networkProfiles_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -4408,6 +5061,17 @@ namespace NonProxy.Policy.V1 {
       }
     }
 
+    /// <summary>Field number for the "network_profiles" field.</summary>
+    public const int NetworkProfilesFieldNumber = 5;
+    private static readonly pb::FieldCodec<global::NonProxy.Policy.V1.NetworkProfileBinding> _repeated_networkProfiles_codec
+        = pb::FieldCodec.ForMessage(42, global::NonProxy.Policy.V1.NetworkProfileBinding.Parser);
+    private readonly pbc::RepeatedField<global::NonProxy.Policy.V1.NetworkProfileBinding> networkProfiles_ = new pbc::RepeatedField<global::NonProxy.Policy.V1.NetworkProfileBinding>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::NonProxy.Policy.V1.NetworkProfileBinding> NetworkProfiles {
+      get { return networkProfiles_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -4427,6 +5091,7 @@ namespace NonProxy.Policy.V1 {
       if(!policies_.Equals(other.policies_)) return false;
       if (!object.Equals(Capabilities, other.Capabilities)) return false;
       if (!object.Equals(DefaultDecision, other.DefaultDecision)) return false;
+      if(!networkProfiles_.Equals(other.networkProfiles_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -4438,6 +5103,7 @@ namespace NonProxy.Policy.V1 {
       hash ^= policies_.GetHashCode();
       if (capabilities_ != null) hash ^= Capabilities.GetHashCode();
       if (defaultDecision_ != null) hash ^= DefaultDecision.GetHashCode();
+      hash ^= networkProfiles_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -4469,6 +5135,7 @@ namespace NonProxy.Policy.V1 {
         output.WriteRawTag(34);
         output.WriteMessage(DefaultDecision);
       }
+      networkProfiles_.WriteTo(output, _repeated_networkProfiles_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4492,6 +5159,7 @@ namespace NonProxy.Policy.V1 {
         output.WriteRawTag(34);
         output.WriteMessage(DefaultDecision);
       }
+      networkProfiles_.WriteTo(ref output, _repeated_networkProfiles_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -4512,6 +5180,7 @@ namespace NonProxy.Policy.V1 {
       if (defaultDecision_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(DefaultDecision);
       }
+      size += networkProfiles_.CalculateSize(_repeated_networkProfiles_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -4540,6 +5209,7 @@ namespace NonProxy.Policy.V1 {
         }
         DefaultDecision.MergeFrom(other.DefaultDecision);
       }
+      networkProfiles_.Add(other.networkProfiles_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -4579,6 +5249,10 @@ namespace NonProxy.Policy.V1 {
               DefaultDecision = new global::NonProxy.Policy.V1.DecisionSpec();
             }
             input.ReadMessage(DefaultDecision);
+            break;
+          }
+          case 42: {
+            networkProfiles_.AddEntriesFrom(input, _repeated_networkProfiles_codec);
             break;
           }
         }
@@ -4622,6 +5296,10 @@ namespace NonProxy.Policy.V1 {
             input.ReadMessage(DefaultDecision);
             break;
           }
+          case 42: {
+            networkProfiles_.AddEntriesFrom(ref input, _repeated_networkProfiles_codec);
+            break;
+          }
         }
       }
     }
@@ -4647,7 +5325,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[14]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[16]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

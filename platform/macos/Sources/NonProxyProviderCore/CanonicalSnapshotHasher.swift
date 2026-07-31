@@ -35,6 +35,15 @@ enum CanonicalSnapshotHasher {
             bytes.appendByte(outbound.ipFamilies.contains(.ipv4) ? 1 : 0)
             bytes.appendByte(outbound.ipFamilies.contains(.ipv6) ? 1 : 0)
         }
+        if payload.formatVersion >= SnapshotValidator.payloadVersion {
+            let networkProfiles = payload.networkProfiles.sorted { $0.id < $1.id }
+            bytes.appendUInt64(UInt64(networkProfiles.count))
+            for profile in networkProfiles {
+                bytes.appendString(profile.id)
+                bytes.appendByte(try fingerprintCode(profile.fingerprintKind))
+                bytes.appendString(profile.fingerprintValue)
+            }
+        }
         return Data(SHA256.hash(data: bytes.data))
     }
 
@@ -166,6 +175,21 @@ enum CanonicalSnapshotHasher {
             throw ProviderError.invalidSnapshot("传输协议类型无效")
         }
         return UInt8(transport.rawValue)
+    }
+
+    private static func fingerprintCode(
+        _ kind: Nonproxy_Policy_V1_NetworkFingerprintKind
+    ) throws -> UInt8 {
+        switch kind {
+        case .wifiSsidSha256:
+            1
+        case .defaultGatewaySha256:
+            2
+        case .interfaceClass:
+            3
+        default:
+            throw ProviderError.invalidSnapshot("网络配置档指纹类型无效")
+        }
     }
 
     private static func optional(_ value: String) -> String? {

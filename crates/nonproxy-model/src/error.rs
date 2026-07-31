@@ -76,6 +76,12 @@ pub enum ModelError {
     AdapterMatcherInvalid,
     #[error("端口范围存在重叠")]
     OverlappingPortRanges,
+    #[error("网络指纹必须是受支持的脱敏值")]
+    InvalidNetworkFingerprint,
+    #[error("网络配置档显示名称无效")]
+    InvalidNetworkProfileDisplayName,
+    #[error("网络配置档修订必须大于零")]
+    InvalidNetworkProfileRevision,
 }
 
 impl ModelError {
@@ -120,6 +126,9 @@ impl ModelError {
             Self::GlobalRuleHasNetworkMatcher => "NP_MODEL_GLOBAL_RULE_NETWORK_MATCHER",
             Self::AdapterMatcherInvalid => "NP_MODEL_ADAPTER_MATCHER_INVALID",
             Self::OverlappingPortRanges => "NP_MODEL_PORT_RANGE_OVERLAP",
+            Self::InvalidNetworkFingerprint => "NP_MODEL_NETWORK_FINGERPRINT_INVALID",
+            Self::InvalidNetworkProfileDisplayName => "NP_MODEL_NETWORK_PROFILE_NAME_INVALID",
+            Self::InvalidNetworkProfileRevision => "NP_MODEL_NETWORK_PROFILE_REVISION_INVALID",
         }
     }
 }

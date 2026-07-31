@@ -22,7 +22,7 @@ use crate::{
     },
     control_rpc_service::ControlRpcService,
     decision_rpc, diagnostics_export, exit_probe, exit_probe_rpc, learning_rpc,
-    outbound_import_service, outbound_probe,
+    network_profile_rpc, outbound_import_service, outbound_probe,
     proto_policy::{policy_from_proto, policy_to_proto},
     routing_rpc, system_rpc,
 };
@@ -133,6 +133,35 @@ impl ControlService for ControlRpcService {
         Ok(Response::new(control_proto::DeletePolicyResponse {
             result: Some(result),
         }))
+    }
+
+    async fn list_network_profiles(
+        &self,
+        request: Request<control_proto::ListNetworkProfilesRequest>,
+    ) -> Result<Response<control_proto::ListNetworkProfilesResponse>, Status> {
+        Ok(Response::new(
+            network_profile_rpc::list(&self.gateway, request.into_inner()).await?,
+        ))
+    }
+
+    async fn upsert_network_profile(
+        &self,
+        request: Request<control_proto::UpsertNetworkProfileRequest>,
+    ) -> Result<Response<control_proto::UpsertNetworkProfileResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            network_profile_rpc::upsert(&self.gateway, request.into_inner()).await,
+        ))
+    }
+
+    async fn delete_network_profile(
+        &self,
+        request: Request<control_proto::DeleteNetworkProfileRequest>,
+    ) -> Result<Response<control_proto::DeleteNetworkProfileResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            network_profile_rpc::delete(&self.gateway, request.into_inner()).await?,
+        ))
     }
 
     async fn apply_policy_snapshot(

@@ -237,6 +237,49 @@ public nonisolated enum Nonproxy_Policy_V1_SnapshotState: SwiftProtobuf.Enum, Sw
 
 }
 
+/// NetworkFingerprintKind 只允许 Provider 可重现且不包含原始网络名称的指纹。
+public nonisolated enum Nonproxy_Policy_V1_NetworkFingerprintKind: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case wifiSsidSha256 // = 1
+  case defaultGatewaySha256 // = 2
+  case interfaceClass // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .wifiSsidSha256
+    case 2: self = .defaultGatewaySha256
+    case 3: self = .interfaceClass
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .wifiSsidSha256: return 1
+    case .defaultGatewaySha256: return 2
+    case .interfaceClass: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Nonproxy_Policy_V1_NetworkFingerprintKind] = [
+    .unspecified,
+    .wifiSsidSha256,
+    .defaultGatewaySha256,
+    .interfaceClass,
+  ]
+
+}
+
 /// AppMatcher 使用稳定身份和签名约束匹配应用。
 public nonisolated struct Nonproxy_Policy_V1_AppMatcher: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -308,6 +351,44 @@ public nonisolated struct Nonproxy_Policy_V1_NetworkMatcher: Sendable {
   // methods supported on all messages.
 
   public var profileID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// NetworkProfileSpec 是控制面使用的完整隐私安全网络配置档。
+public nonisolated struct Nonproxy_Policy_V1_NetworkProfileSpec: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: String = String()
+
+  public var displayName: String = String()
+
+  public var fingerprintKind: Nonproxy_Policy_V1_NetworkFingerprintKind = .unspecified
+
+  public var fingerprintValue: String = String()
+
+  public var revision: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// NetworkProfileBinding 是进入数据面快照的最小脱敏身份绑定。
+public nonisolated struct Nonproxy_Policy_V1_NetworkProfileBinding: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: String = String()
+
+  public var fingerprintKind: Nonproxy_Policy_V1_NetworkFingerprintKind = .unspecified
+
+  public var fingerprintValue: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -625,6 +706,8 @@ public nonisolated struct Nonproxy_Policy_V1_CompiledPolicyPayload: Sendable {
   /// Clears the value of `defaultDecision`. Subsequent reads from it will return its default value.
   public mutating func clearDefaultDecision() {self._defaultDecision = nil}
 
+  public var networkProfiles: [Nonproxy_Policy_V1_NetworkProfileBinding] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -681,6 +764,10 @@ nonisolated extension Nonproxy_Policy_V1_DomainMatchKind: SwiftProtobuf._ProtoNa
 
 nonisolated extension Nonproxy_Policy_V1_SnapshotState: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SNAPSHOT_STATE_UNSPECIFIED\0\u{1}SNAPSHOT_STATE_DRAFT\0\u{1}SNAPSHOT_STATE_PENDING_ACK\0\u{1}SNAPSHOT_STATE_ACTIVE\0\u{1}SNAPSHOT_STATE_REJECTED\0\u{1}SNAPSHOT_STATE_ROLLED_BACK\0\u{1}SNAPSHOT_STATE_SUPERSEDED\0")
+}
+
+nonisolated extension Nonproxy_Policy_V1_NetworkFingerprintKind: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NETWORK_FINGERPRINT_KIND_UNSPECIFIED\0\u{1}NETWORK_FINGERPRINT_KIND_WIFI_SSID_SHA256\0\u{1}NETWORK_FINGERPRINT_KIND_DEFAULT_GATEWAY_SHA256\0\u{1}NETWORK_FINGERPRINT_KIND_INTERFACE_CLASS\0")
 }
 
 nonisolated extension Nonproxy_Policy_V1_AppMatcher: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -858,6 +945,96 @@ nonisolated extension Nonproxy_Policy_V1_NetworkMatcher: SwiftProtobuf.Message, 
 
   public static func ==(lhs: Nonproxy_Policy_V1_NetworkMatcher, rhs: Nonproxy_Policy_V1_NetworkMatcher) -> Bool {
     if lhs.profileID != rhs.profileID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Policy_V1_NetworkProfileSpec: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".NetworkProfileSpec"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{3}fingerprint_kind\0\u{3}fingerprint_value\0\u{1}revision\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.fingerprintKind) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.fingerprintValue) }()
+      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.revision) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.displayName.isEmpty {
+      try visitor.visitSingularStringField(value: self.displayName, fieldNumber: 2)
+    }
+    if self.fingerprintKind != .unspecified {
+      try visitor.visitSingularEnumField(value: self.fingerprintKind, fieldNumber: 3)
+    }
+    if !self.fingerprintValue.isEmpty {
+      try visitor.visitSingularStringField(value: self.fingerprintValue, fieldNumber: 4)
+    }
+    if self.revision != 0 {
+      try visitor.visitSingularUInt64Field(value: self.revision, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Policy_V1_NetworkProfileSpec, rhs: Nonproxy_Policy_V1_NetworkProfileSpec) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.displayName != rhs.displayName {return false}
+    if lhs.fingerprintKind != rhs.fingerprintKind {return false}
+    if lhs.fingerprintValue != rhs.fingerprintValue {return false}
+    if lhs.revision != rhs.revision {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Policy_V1_NetworkProfileBinding: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".NetworkProfileBinding"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}fingerprint_kind\0\u{3}fingerprint_value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.fingerprintKind) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.fingerprintValue) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if self.fingerprintKind != .unspecified {
+      try visitor.visitSingularEnumField(value: self.fingerprintKind, fieldNumber: 2)
+    }
+    if !self.fingerprintValue.isEmpty {
+      try visitor.visitSingularStringField(value: self.fingerprintValue, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Policy_V1_NetworkProfileBinding, rhs: Nonproxy_Policy_V1_NetworkProfileBinding) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.fingerprintKind != rhs.fingerprintKind {return false}
+    if lhs.fingerprintValue != rhs.fingerprintValue {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1347,7 +1524,7 @@ nonisolated extension Nonproxy_Policy_V1_CompileCapabilitySet: SwiftProtobuf.Mes
 
 nonisolated extension Nonproxy_Policy_V1_CompiledPolicyPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompiledPolicyPayload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}format_version\0\u{1}policies\0\u{1}capabilities\0\u{3}default_decision\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}format_version\0\u{1}policies\0\u{1}capabilities\0\u{3}default_decision\0\u{3}network_profiles\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1359,6 +1536,7 @@ nonisolated extension Nonproxy_Policy_V1_CompiledPolicyPayload: SwiftProtobuf.Me
       case 2: try { try decoder.decodeRepeatedMessageField(value: &self.policies) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._capabilities) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._defaultDecision) }()
+      case 5: try { try decoder.decodeRepeatedMessageField(value: &self.networkProfiles) }()
       default: break
       }
     }
@@ -1381,6 +1559,9 @@ nonisolated extension Nonproxy_Policy_V1_CompiledPolicyPayload: SwiftProtobuf.Me
     try { if let v = self._defaultDecision {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
+    if !self.networkProfiles.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.networkProfiles, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1389,6 +1570,7 @@ nonisolated extension Nonproxy_Policy_V1_CompiledPolicyPayload: SwiftProtobuf.Me
     if lhs.policies != rhs.policies {return false}
     if lhs._capabilities != rhs._capabilities {return false}
     if lhs._defaultDecision != rhs._defaultDecision {return false}
+    if lhs.networkProfiles != rhs.networkProfiles {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

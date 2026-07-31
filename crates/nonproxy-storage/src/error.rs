@@ -61,10 +61,12 @@ pub enum StorageError {
     ExitProbeReplayMismatch,
     #[error("凭据引用无效")]
     CredentialReferenceInvalid,
-    #[error("网络画像无效")]
-    NetworkProfileInvalid,
     #[error("网络画像修订冲突")]
     NetworkProfileRevisionConflict,
+    #[error("网络画像指纹已被其他配置档使用")]
+    NetworkProfileFingerprintConflict,
+    #[error("网络画像仍被策略引用")]
+    NetworkProfileInUse,
     #[error("存储数据损坏或无法识别: {field}")]
     CorruptData { field: &'static str },
     #[error("策略快照版本必须单调递增")]
@@ -143,8 +145,11 @@ impl StorageError {
             Self::ExitProbeInvalid => "NP_STORAGE_EXIT_PROBE_INVALID",
             Self::ExitProbeReplayMismatch => "NP_STORAGE_EXIT_PROBE_REPLAY_MISMATCH",
             Self::CredentialReferenceInvalid => "NP_STORAGE_CREDENTIAL_REFERENCE_INVALID",
-            Self::NetworkProfileInvalid => "NP_STORAGE_NETWORK_PROFILE_INVALID",
             Self::NetworkProfileRevisionConflict => "NP_STORAGE_NETWORK_PROFILE_REVISION_CONFLICT",
+            Self::NetworkProfileFingerprintConflict => {
+                "NP_STORAGE_NETWORK_PROFILE_FINGERPRINT_CONFLICT"
+            }
+            Self::NetworkProfileInUse => "NP_STORAGE_NETWORK_PROFILE_IN_USE",
             Self::CorruptData { .. } => "NP_STORAGE_CORRUPT_DATA",
             Self::SnapshotVersionNotMonotonic => "NP_STORAGE_SNAPSHOT_VERSION_NOT_MONOTONIC",
             Self::PendingSnapshotExists => "NP_STORAGE_SNAPSHOT_PENDING_EXISTS",

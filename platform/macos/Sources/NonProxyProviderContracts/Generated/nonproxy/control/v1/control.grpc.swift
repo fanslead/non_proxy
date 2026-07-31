@@ -280,6 +280,45 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "ListNetworkProfiles" metadata.
+        public enum ListNetworkProfiles: Sendable {
+            /// Request type for "ListNetworkProfiles".
+            public typealias Input = Nonproxy_Control_V1_ListNetworkProfilesRequest
+            /// Response type for "ListNetworkProfiles".
+            public typealias Output = Nonproxy_Control_V1_ListNetworkProfilesResponse
+            /// Descriptor for "ListNetworkProfiles".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "ListNetworkProfiles",
+                type: .unary
+            )
+        }
+        /// Namespace for "UpsertNetworkProfile" metadata.
+        public enum UpsertNetworkProfile: Sendable {
+            /// Request type for "UpsertNetworkProfile".
+            public typealias Input = Nonproxy_Control_V1_UpsertNetworkProfileRequest
+            /// Response type for "UpsertNetworkProfile".
+            public typealias Output = Nonproxy_Control_V1_UpsertNetworkProfileResponse
+            /// Descriptor for "UpsertNetworkProfile".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "UpsertNetworkProfile",
+                type: .unary
+            )
+        }
+        /// Namespace for "DeleteNetworkProfile" metadata.
+        public enum DeleteNetworkProfile: Sendable {
+            /// Request type for "DeleteNetworkProfile".
+            public typealias Input = Nonproxy_Control_V1_DeleteNetworkProfileRequest
+            /// Response type for "DeleteNetworkProfile".
+            public typealias Output = Nonproxy_Control_V1_DeleteNetworkProfileResponse
+            /// Descriptor for "DeleteNetworkProfile".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "DeleteNetworkProfile",
+                type: .unary
+            )
+        }
         /// Namespace for "SubscribeEvents" metadata.
         public enum SubscribeEvents: Sendable {
             /// Request type for "SubscribeEvents".
@@ -315,6 +354,9 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             StopLearningSession.descriptor,
             ConfirmLearningCandidates.descriptor,
             ExportDiagnostics.descriptor,
+            ListNetworkProfiles.descriptor,
+            UpsertNetworkProfile.descriptor,
+            DeleteNetworkProfile.descriptor,
             SubscribeEvents.descriptor
         ]
     }
@@ -717,6 +759,63 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ExportDiagnosticsResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ExportDiagnosticsResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "ListNetworkProfiles" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ListNetworkProfilesRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ListNetworkProfilesRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ListNetworkProfilesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func listNetworkProfiles<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListNetworkProfilesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ListNetworkProfilesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListNetworkProfilesResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListNetworkProfilesResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "UpsertNetworkProfile" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_UpsertNetworkProfileRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_UpsertNetworkProfileRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_UpsertNetworkProfileResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func upsertNetworkProfile<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertNetworkProfileRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_UpsertNetworkProfileRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_UpsertNetworkProfileResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertNetworkProfileResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "DeleteNetworkProfile" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_DeleteNetworkProfileRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_DeleteNetworkProfileRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_DeleteNetworkProfileResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func deleteNetworkProfile<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteNetworkProfileRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_DeleteNetworkProfileRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_DeleteNetworkProfileResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteNetworkProfileResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "SubscribeEvents" method.
@@ -1359,6 +1458,96 @@ extension Nonproxy_Control_V1_ControlService {
             )
         }
 
+        /// Call the "ListNetworkProfiles" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ListNetworkProfilesRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ListNetworkProfilesRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ListNetworkProfilesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func listNetworkProfiles<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListNetworkProfilesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ListNetworkProfilesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListNetworkProfilesResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListNetworkProfilesResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.ListNetworkProfiles.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "UpsertNetworkProfile" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_UpsertNetworkProfileRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_UpsertNetworkProfileRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_UpsertNetworkProfileResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func upsertNetworkProfile<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertNetworkProfileRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_UpsertNetworkProfileRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_UpsertNetworkProfileResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertNetworkProfileResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.UpsertNetworkProfile.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "DeleteNetworkProfile" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_DeleteNetworkProfileRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_DeleteNetworkProfileRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_DeleteNetworkProfileResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func deleteNetworkProfile<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteNetworkProfileRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_DeleteNetworkProfileRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_DeleteNetworkProfileResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteNetworkProfileResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.DeleteNetworkProfile.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
         /// Call the "SubscribeEvents" method.
         ///
         /// - Parameters:
@@ -1887,6 +2076,81 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_ExportDiagnosticsRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_ExportDiagnosticsResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListNetworkProfiles" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_ListNetworkProfilesRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listNetworkProfiles<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListNetworkProfilesRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListNetworkProfilesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.listNetworkProfiles(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_ListNetworkProfilesRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_ListNetworkProfilesResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "UpsertNetworkProfile" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_UpsertNetworkProfileRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func upsertNetworkProfile<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertNetworkProfileRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertNetworkProfileResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.upsertNetworkProfile(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_UpsertNetworkProfileRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_UpsertNetworkProfileResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "DeleteNetworkProfile" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_DeleteNetworkProfileRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func deleteNetworkProfile<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteNetworkProfileRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteNetworkProfileResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.deleteNetworkProfile(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_DeleteNetworkProfileRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_DeleteNetworkProfileResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -2493,6 +2757,93 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.exportDiagnostics(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListNetworkProfiles" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listNetworkProfiles<Result>(
+        _ message: Nonproxy_Control_V1_ListNetworkProfilesRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListNetworkProfilesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_ListNetworkProfilesRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.listNetworkProfiles(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "UpsertNetworkProfile" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func upsertNetworkProfile<Result>(
+        _ message: Nonproxy_Control_V1_UpsertNetworkProfileRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertNetworkProfileResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertNetworkProfileRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.upsertNetworkProfile(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "DeleteNetworkProfile" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func deleteNetworkProfile<Result>(
+        _ message: Nonproxy_Control_V1_DeleteNetworkProfileRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteNetworkProfileResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteNetworkProfileRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.deleteNetworkProfile(
             request: request,
             options: options,
             onResponse: handleResponse

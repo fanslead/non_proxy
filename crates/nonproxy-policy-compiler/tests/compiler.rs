@@ -1,7 +1,9 @@
 mod support;
 
 use nonproxy_model::{
-    DecisionSpec, DomainMatchKind, FailureMode, OutboundId, PolicySourceKind, RouteAction,
+    DecisionSpec, DomainMatchKind, FailureMode, NetworkFingerprint, NetworkFingerprintKind,
+    NetworkMatcher, NetworkProfileBinding, NetworkProfileId, OutboundId, PolicySourceKind,
+    RouteAction,
 };
 use nonproxy_policy_compiler::{
     CompileCapabilities, CompileError, CompileRequest, OutboundCapabilities, PolicyCompiler,
@@ -30,6 +32,37 @@ fn conflict_codes(error: &CompileError) -> Vec<&'static str> {
         .iter()
         .map(|conflict| conflict.code())
         .collect()
+}
+
+fn network_profile(value: char) -> NetworkProfileBinding {
+    NetworkProfileBinding::new(
+        NetworkProfileId::new("office")
+            .unwrap_or_else(|error| panic!("网络配置档标识创建失败: {error}")),
+        NetworkFingerprint::new(
+            NetworkFingerprintKind::WifiSsidSha256,
+            value.to_string().repeat(64),
+        )
+        .unwrap_or_else(|error| panic!("网络配置档指纹创建失败: {error}")),
+    )
+}
+
+fn network_policy() -> nonproxy_model::Policy {
+    let profile_id = NetworkProfileId::new("office")
+        .unwrap_or_else(|error| panic!("网络策略配置档标识创建失败: {error}"));
+    must_policy(
+        "office-policy",
+        PolicySourceKind::Network,
+        matcher(
+            None,
+            None,
+            None,
+            Some(NetworkMatcher::new(profile_id)),
+            Vec::new(),
+            Vec::new(),
+        ),
+        DecisionSpec::direct(),
+        0,
+    )
 }
 
 #[test]
@@ -299,6 +332,60 @@ fn outbound_capabilities_are_stored_and_affect_content_hash() {
     assert_ne!(
         full.metadata().content_hash(),
         limited.metadata().content_hash()
+    );
+}
+
+#[test]
+fn network_profile_catalog_is_authoritative_and_affects_content_hash() {
+    let policy = network_policy();
+    let missing = PolicyCompiler::compile(
+        CompileRequest::new(
+            1,
+            10,
+            DecisionSpec::direct(),
+            vec![policy.clone()],
+            CompileCapabilities::full(),
+        )
+        .with_network_profiles(Vec::new()),
+    );
+    let Err(missing) = missing else {
+        panic!("缺少网络配置档的网络规则不应编译成功");
+    };
+    assert!(conflict_codes(&missing).contains(&"NP_POLICY_NETWORK_PROFILE_MISSING"));
+
+    let first = PolicyCompiler::compile(
+        CompileRequest::new(
+            1,
+            10,
+            DecisionSpec::direct(),
+            vec![policy.clone()],
+            CompileCapabilities::full(),
+        )
+        .with_network_profiles(vec![network_profile('a')]),
+    );
+    let second = PolicyCompiler::compile(
+        CompileRequest::new(
+            2,
+            20,
+            DecisionSpec::direct(),
+            vec![policy],
+            CompileCapabilities::full(),
+        )
+        .with_network_profiles(vec![network_profile('b')]),
+    );
+    let (Ok(first), Ok(second)) = (first, second) else {
+        panic!("网络配置档快照编译失败");
+    };
+    assert!(
+        first
+            .network_profiles()
+            .contains_key(&NetworkProfileId::new("office").unwrap_or_else(|error| {
+                panic!("网络配置档结果标识创建失败: {error}")
+            }))
+    );
+    assert_ne!(
+        first.metadata().content_hash(),
+        second.metadata().content_hash()
     );
 }
 

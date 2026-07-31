@@ -26,7 +26,7 @@ use nonproxy_proto::{
 };
 use tokio::{
     net::{UdpSocket, UnixStream},
-    time::{Duration, sleep},
+    time::{Duration, Instant, sleep},
 };
 use tonic::{Code, transport::Endpoint};
 use tower::service_fn;
@@ -42,9 +42,9 @@ async fn two_authenticated_providers_activate_the_pending_snapshot() {
     let Ok(mut process) = process else {
         panic!("Provider RPC gatewayd 启动失败: {process:?}");
     };
-    wait_for_path(&state.join("gatewayd.sock")).await;
-    wait_for_path(&state.join("session.capability")).await;
-    wait_for_path(&state.join("provider.capability")).await;
+    wait_for_path(&state.join("gatewayd.sock"), &mut process).await;
+    wait_for_path(&state.join("session.capability"), &mut process).await;
+    wait_for_path(&state.join("provider.capability"), &mut process).await;
     let control_capability = fs::read(state.join("session.capability"));
     let Ok(control_capability) = control_capability else {
         panic!("控制面 RPC 引导能力读取失败: {control_capability:?}");
@@ -382,14 +382,28 @@ async fn uds_channel(path: PathBuf) -> Result<tonic::transport::Channel, tonic::
         .await
 }
 
-async fn wait_for_path(path: &Path) {
-    for _attempt in 0..100 {
+async fn wait_for_path(path: &Path, process: &mut GatewayProcess) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
         if path.exists() {
             return;
         }
+        match process.child.try_wait() {
+            Ok(Some(status)) => panic!(
+                "Provider RPC gatewayd 在创建 {} 前退出: {status}",
+                path.display()
+            ),
+            Err(error) => panic!(
+                "Provider RPC gatewayd 状态检查失败，等待路径 {}: {error}",
+                path.display()
+            ),
+            Ok(None) => {}
+        }
+        if Instant::now() >= deadline {
+            panic!("Provider RPC 路径未在限定时间内创建: {}", path.display());
+        }
         sleep(Duration::from_millis(20)).await;
     }
-    panic!("Provider RPC 路径未在限定时间内创建: {}", path.display());
 }
 
 fn secure_tempdir() -> Result<tempfile::TempDir, std::io::Error> {

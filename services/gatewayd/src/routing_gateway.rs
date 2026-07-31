@@ -7,7 +7,7 @@ use nonproxy_storage::{
 use crate::{
     Gateway, GatewayError, PublishedSnapshot,
     clock::unix_time_ms,
-    snapshot_builder::{build_snapshot, rebuild_snapshot},
+    snapshot_builder::{SnapshotBuildIdentity, build_snapshot, rebuild_snapshot},
     snapshot_payload,
 };
 
@@ -64,6 +64,7 @@ impl Gateway {
             .run(move |database| {
                 let policies = database.policies().list()?;
                 let outbounds = database.outbounds().list()?;
+                let network_profiles = database.network_profiles().list()?;
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
                 let snapshot_version = next_version(current)?;
                 let default_decision = decision_for_route(&route)?;
@@ -71,9 +72,9 @@ impl Gateway {
                     capabilities,
                     &policies,
                     &outbounds,
+                    &network_profiles,
                     default_decision,
-                    snapshot_version,
-                    now,
+                    SnapshotBuildIdentity::new(snapshot_version, now),
                     &system_policy_config,
                 )?;
                 let settings = database.routing_settings().set_and_stage(
@@ -140,16 +141,25 @@ impl Gateway {
                     .snapshots()
                     .get(target_snapshot_version)?
                     .ok_or(StorageError::SnapshotNotFound)?;
-                let (policies, capabilities, default_decision) =
-                    snapshot_payload::decode(source.artifact().payload())?;
-                let route = route_for_decision(&default_decision)?;
+                let decoded = snapshot_payload::decode_versioned(source.artifact().payload())?;
+                let route = route_for_decision(&decoded.default_decision)?;
                 let revision = database.routing_settings().get()?.revision();
+                let network_profiles = if decoded.includes_network_profiles {
+                    decoded.network_profiles.clone()
+                } else {
+                    database
+                        .network_profiles()
+                        .list()?
+                        .iter()
+                        .map(nonproxy_storage::NetworkProfileReference::binding)
+                        .collect()
+                };
                 let published = rebuild_snapshot(
-                    capabilities,
-                    &policies,
-                    default_decision,
-                    next,
-                    now,
+                    decoded.capabilities,
+                    &decoded.policies,
+                    &network_profiles,
+                    decoded.default_decision,
+                    SnapshotBuildIdentity::new(next, now),
                     &system_policy_config,
                 )?;
                 database.routing_settings().set_and_stage_rebuilt_rollback(

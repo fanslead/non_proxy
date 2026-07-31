@@ -56,6 +56,11 @@ impl GatewayError {
     #[must_use]
     pub const fn code(&self) -> &'static str {
         match self {
+            Self::Model(
+                ModelError::InvalidNetworkFingerprint
+                | ModelError::InvalidNetworkProfileDisplayName
+                | ModelError::InvalidNetworkProfileRevision,
+            ) => "NP_NETWORK_PROFILE_INVALID",
             Self::Model(_) | Self::InvalidContract(_) | Self::InvalidRequest(_) => {
                 "NP_REQUEST_INVALID"
             }
@@ -65,6 +70,13 @@ impl GatewayError {
             Self::Storage(StorageError::OutboundRevisionConflict) => {
                 "NP_OUTBOUND_REVISION_CONFLICT"
             }
+            Self::Storage(StorageError::NetworkProfileRevisionConflict) => {
+                "NP_NETWORK_PROFILE_REVISION_CONFLICT"
+            }
+            Self::Storage(StorageError::NetworkProfileFingerprintConflict) => {
+                "NP_NETWORK_PROFILE_FINGERPRINT_CONFLICT"
+            }
+            Self::Storage(StorageError::NetworkProfileInUse) => "NP_NETWORK_PROFILE_IN_USE",
             Self::Storage(StorageError::RoutingRevisionConflict) => "NP_ROUTING_REVISION_CONFLICT",
             Self::Storage(StorageError::DefaultOutboundUnavailable) => {
                 "NP_DEFAULT_OUTBOUND_UNAVAILABLE"

@@ -37,9 +37,8 @@ pub use learning_confirmation_repository::{
 };
 pub use learning_repository::{LearningObservationResult, LearningRepository, StoppedLearning};
 pub use migration::{AppliedMigration, MigrationReport};
-pub use network_profile::{
-    NetworkFingerprint, NetworkFingerprintKind, NetworkProfileReference, NetworkProfileRepository,
-};
+pub use network_profile::NetworkProfileRepository;
+pub use nonproxy_model::{NetworkFingerprint, NetworkFingerprintKind, NetworkProfileReference};
 pub use outbound_repository::OutboundRepository;
 pub use outbound_types::{CredentialKind, CredentialReference, OutboundKind, OutboundReference};
 pub use policy_repository::PolicyRepository;

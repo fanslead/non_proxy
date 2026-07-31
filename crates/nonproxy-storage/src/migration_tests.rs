@@ -1,4 +1,4 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, params};
 
 use super::*;
 
@@ -58,20 +58,34 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         panic!("V1 数据库初始化失败: {first:?}");
     };
     assert_eq!(first.current_version(), 1);
+    if let Err(error) = connection.execute(
+        "INSERT INTO network_profile(
+             id, display_name, fingerprint_kind, fingerprint_value,
+             revision, updated_at_unix_ms
+         ) VALUES (?1, ?2, ?3, ?4, 1, 1500)",
+        params![
+            "legacy-office",
+            "旧办公室",
+            "wifi_ssid_sha256",
+            "a".repeat(64)
+        ],
+    ) {
+        panic!("V1 网络配置档写入失败: {error}");
+    }
 
     let upgraded = migrate_with(&mut connection, None, 2_000, MIGRATIONS);
     let Ok(upgraded) = upgraded else {
         panic!("V1 数据库升级失败: {upgraded:?}");
     };
     assert_eq!(upgraded.previous_version(), 1);
-    assert_eq!(upgraded.current_version(), 10);
+    assert_eq!(upgraded.current_version(), 11);
     assert_eq!(
         upgraded
             .applied()
             .iter()
             .map(AppliedMigration::version)
             .collect::<Vec<_>>(),
-        vec![2, 3, 4, 5, 6, 7, 8, 9, 10]
+        vec![2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     );
     let generation: i64 = match connection.query_row(
         "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
@@ -82,6 +96,50 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         Err(error) => panic!("升级后目录代数读取失败: {error}"),
     };
     assert_eq!(generation, 0);
+    let network_generation: i64 = match connection.query_row(
+        "SELECT value FROM control_generation
+         WHERE name = 'network_profile_catalog'",
+        [],
+        |row| row.get(0),
+    ) {
+        Ok(value) => value,
+        Err(error) => panic!("升级后网络配置档目录代数读取失败: {error}"),
+    };
+    assert_eq!(network_generation, 0);
+    let legacy_profile: (String, String, String, i64) = match connection.query_row(
+        "SELECT display_name, fingerprint_kind, fingerprint_value, revision
+         FROM network_profile WHERE id = 'legacy-office'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    ) {
+        Ok(value) => value,
+        Err(error) => panic!("升级后旧网络配置档读取失败: {error}"),
+    };
+    assert_eq!(
+        legacy_profile,
+        (
+            "旧办公室".to_owned(),
+            "wifi_ssid_sha256".to_owned(),
+            "a".repeat(64),
+            1
+        )
+    );
+    assert!(
+        connection
+            .execute(
+                "INSERT INTO network_profile(
+                     id, display_name, fingerprint_kind, fingerprint_value,
+                     revision, updated_at_unix_ms
+                 ) VALUES (?1, ?2, ?3, ?4, 1, 2100)",
+                params![
+                    "duplicate-office",
+                    "重复办公室",
+                    "wifi_ssid_sha256",
+                    "a".repeat(64)
+                ],
+            )
+            .is_err()
+    );
     let routing_settings: (String, Option<String>, i64) = match connection.query_row(
         "SELECT default_action, default_outbound_id, revision
          FROM routing_settings WHERE singleton_id = 1",
@@ -132,7 +190,7 @@ fn legacy_learning_rows_upgrade_without_losing_candidates() {
     let Ok(upgraded) = upgraded else {
         panic!("旧学习数据升级失败: {upgraded:?}");
     };
-    assert_eq!(upgraded.current_version(), 10);
+    assert_eq!(upgraded.current_version(), 11);
     let session: (String, String, i64) = match connection.query_row(
         "SELECT browser_context_id, state, expires_at_unix_ms
          FROM learning_session WHERE id = 'legacy-session'",

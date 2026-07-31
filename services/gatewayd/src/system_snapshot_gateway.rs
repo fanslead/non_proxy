@@ -3,7 +3,9 @@ use nonproxy_storage::{
 };
 
 use crate::{
-    Gateway, GatewayError, clock::unix_time_ms, snapshot_builder::rebuild_snapshot,
+    Gateway, GatewayError,
+    clock::unix_time_ms,
+    snapshot_builder::{SnapshotBuildIdentity, rebuild_snapshot},
     snapshot_payload, system_policies,
 };
 
@@ -31,21 +33,30 @@ impl Gateway {
                 let Some(candidate) = candidate else {
                     return Ok((false, active_ready));
                 };
-                let (policies, capabilities, default_decision) =
-                    snapshot_payload::decode(candidate.artifact().payload())?;
-                if system_policies::contains_required(&policies, &system_policy_config)? {
+                let decoded = snapshot_payload::decode_versioned(candidate.artifact().payload())?;
+                if system_policies::contains_required(&decoded.policies, &system_policy_config)? {
                     return Ok((false, active_ready));
                 }
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
                 let snapshot_version = current
                     .checked_add(1)
                     .ok_or(GatewayError::SnapshotVersionExhausted)?;
+                let network_profiles = if decoded.includes_network_profiles {
+                    decoded.network_profiles.clone()
+                } else {
+                    database
+                        .network_profiles()
+                        .list()?
+                        .iter()
+                        .map(nonproxy_storage::NetworkProfileReference::binding)
+                        .collect()
+                };
                 let published = rebuild_snapshot(
-                    capabilities,
-                    &policies,
-                    default_decision,
-                    snapshot_version,
-                    now,
+                    decoded.capabilities,
+                    &decoded.policies,
+                    &network_profiles,
+                    decoded.default_decision,
+                    SnapshotBuildIdentity::new(snapshot_version, now),
                     &system_policy_config,
                 )?;
                 if pending.is_some() {
@@ -107,10 +118,16 @@ impl Gateway {
 
 #[cfg(test)]
 mod tests {
-    use nonproxy_model::DecisionSpec;
+    use nonproxy_model::{
+        DecisionSpec, NetworkFingerprint, NetworkFingerprintKind, NetworkMatcher, NetworkProfileId,
+        NetworkProfileReference, Policy, PolicyId, PolicyMatch, PolicyMetadata, PolicyOrigin,
+        PolicySourceKind,
+    };
     use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
     use nonproxy_proto::events::v1::RuntimeState;
+    use nonproxy_proto::policy::v1::CompiledPolicyPayload;
     use nonproxy_storage::{PolicyDatabase, ProviderAck, SnapshotArtifact, SnapshotStatus};
+    use prost::Message;
 
     use super::SYSTEM_POLICY_UPGRADE_CODE;
     use crate::{
@@ -253,6 +270,46 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn legacy_network_snapshot_upgrade_uses_current_private_binding() {
+        let database = PolicyDatabase::open_in_memory(1_000);
+        let Ok(mut database) = database else {
+            panic!("旧网络快照升级测试数据库打开失败: {database:?}");
+        };
+        let profile = network_profile();
+        database
+            .network_profiles()
+            .save(&profile, None, 1_050)
+            .unwrap_or_else(|error| panic!("旧网络快照配置档保存失败: {error}"));
+        let legacy = legacy_artifact_with_policies(1, 1_100, vec![network_policy(profile.id())]);
+        database
+            .snapshots()
+            .stage(&legacy)
+            .unwrap_or_else(|error| panic!("旧网络快照暂存失败: {error}"));
+        let gateway =
+            Gateway::new_with_system_policy(database, CompileCapabilities::full(), signed_config());
+
+        assert!(matches!(
+            gateway.reconcile_required_system_snapshot().await,
+            Ok(true)
+        ));
+        let pending = gateway
+            .database
+            .run(|database| Ok(database.snapshots().pending()?))
+            .await
+            .unwrap_or_else(|error| panic!("升级网络快照读取失败: {error}"))
+            .unwrap_or_else(|| panic!("升级网络快照必须创建待发布版本"));
+        let decoded = snapshot_payload::decode_versioned(pending.artifact().payload())
+            .unwrap_or_else(|error| panic!("升级网络快照解码失败: {error}"));
+
+        assert!(decoded.includes_network_profiles);
+        assert!(matches!(
+            decoded.network_profiles.as_slice(),
+            [binding] if binding.id() == profile.id()
+                && binding.fingerprint() == profile.fingerprint()
+        ));
+    }
+
     fn signed_config() -> SystemPolicyConfig {
         match SystemPolicyConfig::new(Some("TEAM123456".to_owned())) {
             Ok(value) => value,
@@ -261,19 +318,36 @@ mod tests {
     }
 
     fn legacy_artifact(snapshot_version: u64, created_at_unix_ms: u64) -> SnapshotArtifact {
+        legacy_artifact_with_policies(snapshot_version, created_at_unix_ms, Vec::new())
+    }
+
+    fn legacy_artifact_with_policies(
+        snapshot_version: u64,
+        created_at_unix_ms: u64,
+        policies: Vec<Policy>,
+    ) -> SnapshotArtifact {
         let capabilities = CompileCapabilities::full();
         let default_decision = DecisionSpec::direct();
         let compiled = PolicyCompiler::compile(CompileRequest::new(
             snapshot_version,
             created_at_unix_ms,
             default_decision.clone(),
-            Vec::new(),
+            policies.clone(),
             capabilities.clone(),
         ));
         let Ok(compiled) = compiled else {
             panic!("旧快照编译失败: {compiled:?}");
         };
-        let payload = snapshot_payload::encode(&[], &capabilities, &default_decision);
+        let current_payload =
+            snapshot_payload::encode(&policies, &capabilities, &default_decision, &[]);
+        let Ok(current_payload) = current_payload else {
+            panic!("旧快照编码前置失败: {current_payload:?}");
+        };
+        let payload = CompiledPolicyPayload::decode(current_payload.as_slice()).map(|mut value| {
+            value.format_version = 1;
+            value.network_profiles.clear();
+            value.encode_to_vec()
+        });
         let Ok(payload) = payload else {
             panic!("旧快照编码失败: {payload:?}");
         };
@@ -289,5 +363,37 @@ mod tests {
             Ok(value) => value,
             Err(error) => panic!("旧快照产物创建失败: {error}"),
         }
+    }
+
+    fn network_profile() -> NetworkProfileReference {
+        NetworkProfileReference::new(
+            NetworkProfileId::new("office")
+                .unwrap_or_else(|error| panic!("旧快照网络标识创建失败: {error}")),
+            "办公室",
+            NetworkFingerprint::new(NetworkFingerprintKind::WifiSsidSha256, "a".repeat(64))
+                .unwrap_or_else(|error| panic!("旧快照网络指纹创建失败: {error}")),
+            1,
+        )
+        .unwrap_or_else(|error| panic!("旧快照网络配置档创建失败: {error}"))
+    }
+
+    fn network_policy(profile_id: &NetworkProfileId) -> Policy {
+        Policy::new(
+            PolicyId::new("office-policy")
+                .unwrap_or_else(|error| panic!("旧快照网络策略标识创建失败: {error}")),
+            "办公室直连",
+            PolicyMatch::new(
+                None,
+                None,
+                None,
+                Some(NetworkMatcher::new(profile_id.clone())),
+                Vec::new(),
+                Vec::new(),
+            )
+            .unwrap_or_else(|error| panic!("旧快照网络匹配器创建失败: {error}")),
+            DecisionSpec::direct(),
+            PolicyMetadata::new(PolicySourceKind::Network, 0, PolicyOrigin::User, 1),
+        )
+        .unwrap_or_else(|error| panic!("旧快照网络策略创建失败: {error}"))
     }
 }

@@ -1,11 +1,18 @@
 use std::collections::HashSet;
 
-use nonproxy_model::{DecisionSpec, IpFamily, OutboundId, Policy, Transport};
+use nonproxy_model::{
+    DecisionSpec, IpFamily, NetworkFingerprint, NetworkFingerprintKind, NetworkProfileBinding,
+    NetworkProfileId, OutboundId, Policy, Transport,
+};
 use nonproxy_policy::OutboundCapabilities;
-use nonproxy_policy_compiler::CompileCapabilities;
+use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest};
 use nonproxy_proto::{
     common::v1 as common_proto,
-    policy::v1::{CompileCapabilitySet, CompiledPolicyPayload, OutboundCapabilitySpec},
+    policy::v1::{
+        CompileCapabilitySet, CompiledPolicyPayload,
+        NetworkFingerprintKind as ProtoFingerprintKind,
+        NetworkProfileBinding as ProtoProfileBinding, OutboundCapabilitySpec,
+    },
 };
 use prost::Message;
 
@@ -15,12 +22,45 @@ use crate::{
 };
 
 pub const SNAPSHOT_PAYLOAD_FORMAT: &str = "nonproxy.compiled-policy.v1";
-const SNAPSHOT_PAYLOAD_VERSION: u32 = 1;
+const LEGACY_SNAPSHOT_PAYLOAD_VERSION: u32 = 1;
+const SNAPSHOT_PAYLOAD_VERSION: u32 = 2;
+
+pub(crate) struct DecodedSnapshotPayload {
+    pub policies: Vec<Policy>,
+    pub capabilities: CompileCapabilities,
+    pub default_decision: DecisionSpec,
+    pub network_profiles: Vec<NetworkProfileBinding>,
+    pub includes_network_profiles: bool,
+}
+
+impl DecodedSnapshotPayload {
+    pub fn into_compile_request(
+        self,
+        snapshot_version: u64,
+        created_at_unix_ms: u64,
+    ) -> CompileRequest {
+        let includes_network_profiles = self.includes_network_profiles;
+        let network_profiles = self.network_profiles;
+        let request = CompileRequest::new(
+            snapshot_version,
+            created_at_unix_ms,
+            self.default_decision,
+            self.policies,
+            self.capabilities,
+        );
+        if includes_network_profiles {
+            request.with_network_profiles(network_profiles)
+        } else {
+            request
+        }
+    }
+}
 
 pub fn encode(
     policies: &[Policy],
     capabilities: &CompileCapabilities,
     default_decision: &DecisionSpec,
+    network_profiles: &[NetworkProfileBinding],
 ) -> Result<Vec<u8>, GatewayError> {
     let mut enabled = policies
         .iter()
@@ -32,6 +72,7 @@ pub fn encode(
         policies: enabled.into_iter().map(policy_to_proto).collect(),
         capabilities: Some(capabilities_to_proto(capabilities)),
         default_decision: Some(crate::proto_policy::decision_to_proto(default_decision)),
+        network_profiles: sorted_profiles_to_proto(network_profiles),
     };
     let mut bytes = Vec::with_capacity(payload.encoded_len());
     payload.encode(&mut bytes)?;
@@ -41,9 +82,26 @@ pub fn encode(
 pub fn decode(
     bytes: &[u8],
 ) -> Result<(Vec<Policy>, CompileCapabilities, DecisionSpec), GatewayError> {
+    let decoded = decode_versioned(bytes)?;
+    Ok((
+        decoded.policies,
+        decoded.capabilities,
+        decoded.default_decision,
+    ))
+}
+
+pub(crate) fn decode_versioned(bytes: &[u8]) -> Result<DecodedSnapshotPayload, GatewayError> {
     let payload = CompiledPolicyPayload::decode(bytes)?;
-    if payload.format_version != SNAPSHOT_PAYLOAD_VERSION {
+    if payload.format_version != LEGACY_SNAPSHOT_PAYLOAD_VERSION
+        && payload.format_version != SNAPSHOT_PAYLOAD_VERSION
+    {
         return Err(GatewayError::InvalidContract("快照载荷版本不受支持"));
+    }
+    let includes_network_profiles = payload.format_version == SNAPSHOT_PAYLOAD_VERSION;
+    if !includes_network_profiles && !payload.network_profiles.is_empty() {
+        return Err(GatewayError::InvalidContract(
+            "旧版快照不能包含网络配置档目录",
+        ));
     }
     let policies = payload
         .policies
@@ -61,7 +119,77 @@ pub fn decode(
             .default_decision
             .ok_or(GatewayError::InvalidContract("快照缺少默认决策"))?,
     )?;
-    Ok((policies, capabilities, default_decision))
+    let network_profiles = if includes_network_profiles {
+        profiles_from_proto(payload.network_profiles)?
+    } else {
+        Vec::new()
+    };
+    Ok(DecodedSnapshotPayload {
+        policies,
+        capabilities,
+        default_decision,
+        network_profiles,
+        includes_network_profiles,
+    })
+}
+
+fn sorted_profiles_to_proto(values: &[NetworkProfileBinding]) -> Vec<ProtoProfileBinding> {
+    let mut values = values.iter().collect::<Vec<_>>();
+    values.sort_by(|left, right| left.id().cmp(right.id()));
+    values.into_iter().map(profile_to_proto).collect()
+}
+
+fn profile_to_proto(value: &NetworkProfileBinding) -> ProtoProfileBinding {
+    ProtoProfileBinding {
+        id: value.id().as_str().to_owned(),
+        fingerprint_kind: match value.fingerprint().kind() {
+            NetworkFingerprintKind::WifiSsidSha256 => ProtoFingerprintKind::WifiSsidSha256,
+            NetworkFingerprintKind::DefaultGatewaySha256 => {
+                ProtoFingerprintKind::DefaultGatewaySha256
+            }
+            NetworkFingerprintKind::InterfaceClass => ProtoFingerprintKind::InterfaceClass,
+        } as i32,
+        fingerprint_value: value.fingerprint().value().to_owned(),
+    }
+}
+
+fn profiles_from_proto(
+    values: Vec<ProtoProfileBinding>,
+) -> Result<Vec<NetworkProfileBinding>, GatewayError> {
+    let mut profiles = Vec::with_capacity(values.len());
+    let mut ids = HashSet::new();
+    let mut fingerprints = HashSet::new();
+    let mut previous_id: Option<String> = None;
+    for value in values {
+        if previous_id.as_ref().is_some_and(|id| id >= &value.id) {
+            return Err(GatewayError::InvalidContract(
+                "网络配置档目录未按稳定标识排序",
+            ));
+        }
+        let kind = match ProtoFingerprintKind::try_from(value.fingerprint_kind) {
+            Ok(ProtoFingerprintKind::WifiSsidSha256) => NetworkFingerprintKind::WifiSsidSha256,
+            Ok(ProtoFingerprintKind::DefaultGatewaySha256) => {
+                NetworkFingerprintKind::DefaultGatewaySha256
+            }
+            Ok(ProtoFingerprintKind::InterfaceClass) => NetworkFingerprintKind::InterfaceClass,
+            Ok(ProtoFingerprintKind::Unspecified) | Err(_) => {
+                return Err(GatewayError::InvalidContract("网络配置档指纹类型无效"));
+            }
+        };
+        let profile = NetworkProfileBinding::new(
+            NetworkProfileId::new(value.id.clone())?,
+            NetworkFingerprint::new(kind, value.fingerprint_value)?,
+        );
+        if !ids.insert(profile.id().clone()) || !fingerprints.insert(profile.fingerprint().clone())
+        {
+            return Err(GatewayError::InvalidContract(
+                "网络配置档目录包含重复标识或指纹",
+            ));
+        }
+        previous_id = Some(value.id);
+        profiles.push(profile);
+    }
+    Ok(profiles)
 }
 
 fn capabilities_to_proto(value: &CompileCapabilities) -> CompileCapabilitySet {
@@ -206,13 +334,20 @@ fn validate_unique_policy_ids(policies: &[Policy]) -> Result<(), GatewayError> {
 
 #[cfg(test)]
 mod tests {
+    use nonproxy_model::{
+        DecisionSpec, NetworkFingerprint, NetworkFingerprintKind, NetworkProfileBinding,
+        NetworkProfileId,
+    };
+    use nonproxy_policy_compiler::CompileCapabilities;
     use nonproxy_proto::{
         common::v1::{IpFamily, TransportProtocol},
         policy::v1::{CompileCapabilitySet, CompiledPolicyPayload, OutboundCapabilitySpec},
     };
     use prost::Message;
 
-    use super::{SNAPSHOT_PAYLOAD_VERSION, decode};
+    use super::{
+        LEGACY_SNAPSHOT_PAYLOAD_VERSION, SNAPSHOT_PAYLOAD_VERSION, decode, decode_versioned, encode,
+    };
 
     #[test]
     fn rejects_unspecified_capability_value() {
@@ -247,6 +382,41 @@ mod tests {
         assert!(result.is_err());
     }
 
+    #[test]
+    fn version_two_round_trip_preserves_privacy_safe_network_catalog() {
+        let profile = NetworkProfileBinding::new(
+            NetworkProfileId::new("office")
+                .unwrap_or_else(|error| panic!("测试网络标识创建失败: {error}")),
+            NetworkFingerprint::new(NetworkFingerprintKind::WifiSsidSha256, "a".repeat(64))
+                .unwrap_or_else(|error| panic!("测试网络指纹创建失败: {error}")),
+        );
+        let bytes = encode(
+            &[],
+            &CompileCapabilities::full(),
+            &DecisionSpec::direct(),
+            std::slice::from_ref(&profile),
+        )
+        .unwrap_or_else(|error| panic!("网络配置档快照编码失败: {error}"));
+
+        let decoded = decode_versioned(&bytes)
+            .unwrap_or_else(|error| panic!("网络配置档快照解码失败: {error}"));
+
+        assert!(decoded.includes_network_profiles);
+        assert_eq!(decoded.network_profiles, vec![profile]);
+    }
+
+    #[test]
+    fn legacy_version_without_catalog_remains_readable() {
+        let mut payload = payload(Vec::new(), Vec::new());
+        payload.format_version = LEGACY_SNAPSHOT_PAYLOAD_VERSION;
+
+        let decoded = decode_versioned(&payload.encode_to_vec())
+            .unwrap_or_else(|error| panic!("旧版快照解码失败: {error}"));
+
+        assert!(!decoded.includes_network_profiles);
+        assert!(decoded.network_profiles.is_empty());
+    }
+
     fn payload(
         transports: Vec<i32>,
         outbounds: Vec<OutboundCapabilitySpec>,
@@ -267,6 +437,7 @@ mod tests {
                 outbound_id: String::new(),
                 failure_mode: nonproxy_proto::common::v1::FailureMode::Closed as i32,
             }),
+            network_profiles: Vec::new(),
         }
     }
 }

@@ -80,6 +80,30 @@ message NetworkMatcher {
   string profile_id = 1;
 }
 
+// NetworkFingerprintKind 只允许 Provider 可重现且不包含原始网络名称的指纹。
+enum NetworkFingerprintKind {
+  NETWORK_FINGERPRINT_KIND_UNSPECIFIED = 0;
+  NETWORK_FINGERPRINT_KIND_WIFI_SSID_SHA256 = 1;
+  NETWORK_FINGERPRINT_KIND_DEFAULT_GATEWAY_SHA256 = 2;
+  NETWORK_FINGERPRINT_KIND_INTERFACE_CLASS = 3;
+}
+
+// NetworkProfileSpec 是控制面使用的完整隐私安全网络配置档。
+message NetworkProfileSpec {
+  string id = 1;
+  string display_name = 2;
+  NetworkFingerprintKind fingerprint_kind = 3;
+  string fingerprint_value = 4;
+  uint64 revision = 5;
+}
+
+// NetworkProfileBinding 是进入数据面快照的最小脱敏身份绑定。
+message NetworkProfileBinding {
+  string id = 1;
+  NetworkFingerprintKind fingerprint_kind = 2;
+  string fingerprint_value = 3;
+}
+
 // PolicyMatch 汇总一条策略可以使用的匹配维度。
 message PolicyMatch {
   AppMatcher app = 1;
@@ -161,6 +185,7 @@ message CompiledPolicyPayload {
   repeated Policy policies = 2;
   CompileCapabilitySet capabilities = 3;
   DecisionSpec default_decision = 4;
+  repeated NetworkProfileBinding network_profiles = 5;
 }
 
 // Decision 描述一次纯策略判定，不等同于路径或出口证据。
