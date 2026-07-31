@@ -20,6 +20,7 @@ service ControlService {
   rpc ApplyPolicySnapshot(ApplyPolicySnapshotRequest) returns (ApplyPolicySnapshotResponse);
   rpc RollbackPolicySnapshot(RollbackPolicySnapshotRequest) returns (RollbackPolicySnapshotResponse);
   rpc ListOutbounds(ListOutboundsRequest) returns (ListOutboundsResponse);
+  rpc ListConnectionDecisions(ListConnectionDecisionsRequest) returns (ListConnectionDecisionsResponse);
   rpc ImportConfiguration(ImportConfigurationRequest) returns (ImportConfigurationResponse);
   rpc TestOutbound(TestOutboundRequest) returns (TestOutboundResponse);
   rpc SetDefaultRoute(SetDefaultRouteRequest) returns (SetDefaultRouteResponse);
@@ -265,6 +266,45 @@ message ListOutboundsResponse {
   repeated OutboundSummary outbounds = 1;
   nonproxy.common.v1.PageResponse page = 2;
   uint64 routing_revision = 3;
+}
+
+// ConnectionDecisionSummary 是不含 URL 路径、查询参数和秘密的连接活动证据。
+message ConnectionDecisionSummary {
+  uint64 sequence = 1;
+  string event_id = 2;
+  google.protobuf.Timestamp observed_at = 3;
+  nonproxy.common.v1.Platform app_platform = 4;
+  string app_stable_id = 5;
+  string app_display_name = 6;
+  string destination = 7;
+  uint32 destination_port = 8;
+  nonproxy.common.v1.TransportProtocol transport = 9;
+  nonproxy.common.v1.RouteAction action = 10;
+  nonproxy.common.v1.FailureMode failure_mode = 11;
+  string matched_policy_id = 12;
+  string matched_rule_id = 13;
+  string reason_code = 14;
+  nonproxy.common.v1.EvidenceLevel evidence_level = 15;
+  string interface_name = 16;
+  string outbound_id = 17;
+  string exit_probe_id = 18;
+  google.protobuf.Duration decision_latency = 19;
+  string error_code = 20;
+  uint64 snapshot_version = 21;
+  string provider_id = 22;
+  uint64 provider_generation = 23;
+}
+
+// ListConnectionDecisionsRequest 查询最新的有界连接活动。
+message ListConnectionDecisionsRequest {
+  nonproxy.common.v1.PageRequest page = 1;
+}
+
+// ListConnectionDecisionsResponse 返回活动、分页游标和保留窗口内的总数。
+message ListConnectionDecisionsResponse {
+  repeated ConnectionDecisionSummary decisions = 1;
+  nonproxy.common.v1.PageResponse page = 2;
+  uint64 total_count = 3;
 }
 
 // ImportConfigurationRequest 发送有大小上限且不得记录日志的配置内容。

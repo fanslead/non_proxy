@@ -3,14 +3,13 @@ using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
-using NonProxy.Common.V1;
 using NonProxy.Control.V1;
 using NonProxy.Desktop.Core.Services.Control.Transport;
 using ProtoPolicy = NonProxy.Policy.V1.Policy;
 
 namespace NonProxy.Desktop.Core.Services.Control.Rpc;
 
-public sealed class GrpcControlRpcClient : IControlRpcClient, IDisposable
+public sealed partial class GrpcControlRpcClient : IControlRpcClient, IDisposable
 {
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan MutationTimeout = TimeSpan.FromSeconds(15);
@@ -36,33 +35,6 @@ public sealed class GrpcControlRpcClient : IControlRpcClient, IDisposable
     }
 
     private ControlService.ControlServiceClient Client => _client.Value;
-
-    public Task<GetSystemStatusResponse> GetSystemStatusAsync(
-        CancellationToken cancellationToken)
-    {
-        return ExecuteAsync(
-            () => Client.GetSystemStatusAsync(
-                new GetSystemStatusRequest(),
-                ReadOptions(cancellationToken)).ResponseAsync);
-    }
-
-    public Task<ListPoliciesResponse> ListPoliciesAsync(
-        string pageToken,
-        CancellationToken cancellationToken)
-    {
-        return ExecuteAsync(
-            () => Client.ListPoliciesAsync(
-                new ListPoliciesRequest
-                {
-                    IncludeDisabled = true,
-                    Page = new PageRequest
-                    {
-                        PageSize = 200,
-                        PageToken = pageToken ?? string.Empty,
-                    },
-                },
-                ReadOptions(cancellationToken)).ResponseAsync);
-    }
 
     public async Task<UpsertPolicyResponse> UpsertPolicyAsync(
         ProtoPolicy policy,
@@ -133,23 +105,6 @@ public sealed class GrpcControlRpcClient : IControlRpcClient, IDisposable
                     TargetSnapshotVersion = snapshotVersion,
                 },
                 MutationOptions(cancellationToken)).ResponseAsync);
-    }
-
-    public Task<ListOutboundsResponse> ListOutboundsAsync(
-        string pageToken,
-        CancellationToken cancellationToken)
-    {
-        return ExecuteAsync(
-            () => Client.ListOutboundsAsync(
-                new ListOutboundsRequest
-                {
-                    Page = new PageRequest
-                    {
-                        PageSize = 200,
-                        PageToken = pageToken ?? string.Empty,
-                    },
-                },
-                ReadOptions(cancellationToken)).ResponseAsync);
     }
 
     public async Task<ImportConfigurationResponse> ImportConfigurationAsync(

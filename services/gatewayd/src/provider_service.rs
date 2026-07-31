@@ -1,7 +1,7 @@
 use std::{collections::HashSet, sync::Arc};
 
 use nonproxy_proto::{
-    common::v1::{ComponentKind, ComponentVersion, ErrorDetail},
+    common::v1::{ComponentKind, ComponentVersion},
     events::v1::RuntimeState,
     policy::v1::{CompiledPolicySnapshot, PolicySnapshotMetadata, SnapshotState},
     provider::v1::{
@@ -27,7 +27,7 @@ use crate::{
         DnsResolutionService, error_response as dns_error_response, response as dns_response,
     },
     proto_policy::decision_to_proto,
-    provider_requirements,
+    provider_decision_rpc, provider_requirements,
     provider_session::{ProviderSessionRegistry, validate_registration_input},
     session_capability::SessionCapability,
     snapshot_payload::SNAPSHOT_PAYLOAD_FORMAT,
@@ -197,13 +197,25 @@ impl ProviderService for ProviderRpcService {
         request: Request<ReportDecisionBatchRequest>,
     ) -> Result<Response<ReportDecisionBatchResponse>, Status> {
         let request = request.into_inner();
-        self.authenticate(request.context.as_ref())?;
+        let session = self.authenticate(request.context.as_ref())?;
+        if request.decisions.is_empty() {
+            return Err(Status::invalid_argument("决策批次不能为空"));
+        }
         if request.decisions.len() > MAX_DECISIONS_PER_BATCH {
             return Err(Status::resource_exhausted("单批决策记录最多 1000 条"));
         }
+        let accepted_count = self
+            .gateway
+            .ingest_decision_batch(
+                session.provider_id().to_owned(),
+                session.generation(),
+                request.decisions,
+            )
+            .await
+            .map_err(provider_decision_rpc::status)?;
         Ok(Response::new(ReportDecisionBatchResponse {
-            accepted_count: 0,
-            error: Some(feature_unavailable("决策事件持久化")),
+            accepted_count,
+            error: None,
         }))
     }
 
@@ -265,7 +277,7 @@ impl ProviderService for ProviderRpcService {
             accepted: false,
             frame_protocol_version: 1,
             initial_window_bytes: 0,
-            error: Some(feature_unavailable("代理数据通道")),
+            error: Some(control_mapping::feature_unavailable("代理数据通道")),
             data_channel_token: Vec::new(),
         }))
     }
@@ -375,15 +387,6 @@ fn metadata_for_record(record: &SnapshotRecord) -> Result<PolicySnapshotMetadata
         SnapshotStatus::Superseded => SnapshotState::RolledBack,
     };
     control_mapping::snapshot_metadata(record.artifact(), state).map_err(internal_status)
-}
-
-fn feature_unavailable(feature: &str) -> ErrorDetail {
-    ErrorDetail {
-        code: "NP_FEATURE_NOT_AVAILABLE".to_owned(),
-        message: format!("{feature}尚未在当前 Provider 版本启用。"),
-        retryable: false,
-        metadata: Default::default(),
-    }
 }
 
 #[cfg(test)]

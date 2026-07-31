@@ -24,7 +24,7 @@
 
             <Border Theme="{StaticResource NpCard}">
                 <StackPanel Spacing="14">
-                    <Grid ColumnDefinitions="2*,2*,*,2*"
+                    <Grid ColumnDefinitions="1.5*,1.7*,1.3*,1.8*,1.7*"
                           ColumnSpacing="16">
                         <TextBlock FontWeight="SemiBold"
                                    Text="应用" />
@@ -36,24 +36,43 @@
                                    Text="结果" />
                         <TextBlock Grid.Column="3"
                                    FontWeight="SemiBold"
+                                   Text="路径证据" />
+                        <TextBlock Grid.Column="4"
+                                   FontWeight="SemiBold"
                                    Text="原因" />
                     </Grid>
                     <ItemsControl ItemsSource="{Binding Items}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="control:ActivityItem">
-                                <Grid ColumnDefinitions="2*,2*,*,2*"
+                                <Grid ColumnDefinitions="1.5*,1.7*,1.3*,1.8*,1.7*"
                                       ColumnSpacing="16"
                                       Margin="0,8">
-                                    <TextBlock Text="{Binding Application}" />
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="{Binding Application}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   Text="{Binding OccurredAtLabel}" />
+                                    </StackPanel>
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Destination}"
                                                TextTrimming="CharacterEllipsis" />
                                     <TextBlock Grid.Column="2"
                                                FontWeight="SemiBold"
-                                               Text="{Binding Action}" />
+                                               Text="{Binding ResultLabel}"
+                                               TextWrapping="Wrap" />
                                     <TextBlock Grid.Column="3"
-                                               Text="{Binding Reason}"
-                                               TextTrimming="CharacterEllipsis" />
+                                               Text="{Binding Path}"
+                                               TextWrapping="Wrap" />
+                                    <StackPanel Grid.Column="4"
+                                                Spacing="3">
+                                        <TextBlock Text="{Binding Reason}"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   Text="{Binding SnapshotLabel}" />
+                                        <TextBlock IsVisible="{Binding HasError}"
+                                                   Text="{Binding Error}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

@@ -27,9 +27,14 @@ public sealed class GatewaySystemStatusService : ISystemStatusService
         {
             var statusTask = _client.GetSystemStatusAsync(cancellationToken);
             var policiesTask = _policies.GetCatalogAsync(cancellationToken);
-            await Task.WhenAll(statusTask, policiesTask);
+            var decisionsTask = _client.ListConnectionDecisionsAsync(
+                1,
+                string.Empty,
+                cancellationToken);
+            await Task.WhenAll(statusTask, policiesTask, decisionsTask);
             var status = await statusTask;
             var catalog = await policiesTask;
+            var decisions = await decisionsTask;
             var visible = catalog.Items.Where(item =>
                 item.State != PolicyApplyState.PendingRemoval);
             var applicationCount = visible.Count(item =>
@@ -47,7 +52,7 @@ public sealed class GatewaySystemStatusService : ISystemStatusService
                 OptionalVersion(status.ActiveSnapshotVersion),
                 applicationCount,
                 websiteCount,
-                0,
+                DecisionCount(decisions.TotalCount),
                 DateTimeOffset.UtcNow,
                 OptionalVersion(status.PendingSnapshotVersion));
         }
@@ -91,5 +96,10 @@ public sealed class GatewaySystemStatusService : ISystemStatusService
     private static ulong? OptionalVersion(ulong value)
     {
         return value == 0 ? null : value;
+    }
+
+    private static int DecisionCount(ulong value)
+    {
+        return value > int.MaxValue ? int.MaxValue : checked((int)value);
     }
 }

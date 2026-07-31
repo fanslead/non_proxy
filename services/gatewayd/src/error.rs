@@ -66,6 +66,11 @@ impl GatewayError {
             Self::Storage(StorageError::DefaultOutboundUnavailable) => {
                 "NP_DEFAULT_OUTBOUND_UNAVAILABLE"
             }
+            Self::Storage(
+                error @ (StorageError::ConnectionDecisionInvalid
+                | StorageError::DecisionEvidenceInvalid
+                | StorageError::ConnectionDecisionReplayMismatch),
+            ) => error.code(),
             Self::Storage(StorageError::PendingSnapshotExists) => "NP_SNAPSHOT_ALREADY_PENDING",
             Self::Storage(
                 error @ (StorageError::LearningSessionNotFound

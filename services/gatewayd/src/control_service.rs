@@ -2,11 +2,10 @@ use std::{pin::Pin, sync::Arc};
 
 use nonproxy_model::PolicyId;
 use nonproxy_proto::{
-    common::v1::{ComponentKind, PageRequest},
+    common::v1::PageRequest,
     control::v1::{
         self as control_proto, PolicyMutationResult, control_service_server::ControlService,
     },
-    events::v1::RuntimeState,
     policy::v1::SnapshotState,
 };
 use nonproxy_storage::DefaultRoute;
@@ -15,16 +14,16 @@ use tonic::{Request, Response, Status};
 
 use crate::{
     GatewayError,
-    clock::{timestamp_from_unix_ms, unix_time_ms},
+    clock::unix_time_ms,
     control_mapping,
     control_rpc_helpers::{
         empty_mutation, event_meets_minimum, event_response, internal_status, minimum_severity,
         mutation_error, publish_snapshot_event, request_status,
     },
     control_rpc_service::ControlRpcService,
-    learning_rpc, outbound_import_service, outbound_probe,
+    decision_rpc, learning_rpc, outbound_import_service, outbound_probe,
     proto_policy::{policy_from_proto, policy_to_proto},
-    routing_rpc,
+    routing_rpc, system_rpc,
 };
 
 #[tonic::async_trait]
@@ -33,55 +32,14 @@ impl ControlService for ControlRpcService {
         &self,
         _request: Request<control_proto::GetSystemStatusRequest>,
     ) -> Result<Response<control_proto::GetSystemStatusResponse>, Status> {
-        let status = self.gateway.status().await.map_err(internal_status)?;
-        let now = unix_time_ms().map_err(internal_status)?;
-        let active_version = status
-            .active
-            .as_ref()
-            .map_or(0, |record| record.artifact().snapshot_version());
-        let pending_version = status
-            .pending
-            .as_ref()
-            .map_or(0, |record| record.artifact().snapshot_version());
-        let state = if status.data_plane_ready {
-            RuntimeState::Ready
-        } else {
-            RuntimeState::Degraded
-        };
-        let component = control_proto::ComponentStatus {
-            component: ComponentKind::Gateway as i32,
-            state: RuntimeState::Ready as i32,
-            version: Some(control_mapping::gateway_component_version()),
-            last_seen_at: Some(timestamp_from_unix_ms(now).map_err(internal_status)?),
-            error: None,
-        };
-        let (default_route, default_outbound_id) =
-            control_mapping::default_route(status.routing.route());
-        Ok(Response::new(control_proto::GetSystemStatusResponse {
-            state: state as i32,
-            active_snapshot_version: active_version,
-            data_plane_enabled: status.data_plane_ready,
-            components: vec![component],
-            latest_event_sequence: self
-                .gateway
-                .events()
-                .latest_sequence()
-                .map_err(internal_status)?,
-            error: None,
-            pending_snapshot_version: pending_version,
-            default_route,
-            default_outbound_id,
-            routing_revision: status.routing.revision(),
-        }))
+        Ok(Response::new(system_rpc::status(self).await?))
     }
 
     async fn get_capabilities(
         &self,
         _request: Request<control_proto::GetCapabilitiesRequest>,
     ) -> Result<Response<control_proto::GetCapabilitiesResponse>, Status> {
-        Ok(Response::new(control_proto::GetCapabilitiesResponse {
-            capabilities: control_mapping::capability_names(self.gateway.capabilities()),
-        }))
+        Ok(Response::new(system_rpc::capabilities(self)))
     }
 
     async fn list_policies(
@@ -278,6 +236,15 @@ impl ControlService for ControlRpcService {
             page: Some(page_response),
             routing_revision: routing.revision(),
         }))
+    }
+
+    async fn list_connection_decisions(
+        &self,
+        request: Request<control_proto::ListConnectionDecisionsRequest>,
+    ) -> Result<Response<control_proto::ListConnectionDecisionsResponse>, Status> {
+        Ok(Response::new(
+            decision_rpc::list(&self.gateway, request.into_inner()).await?,
+        ))
     }
 
     async fn import_configuration(

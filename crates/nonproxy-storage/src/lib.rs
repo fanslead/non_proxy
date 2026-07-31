@@ -1,3 +1,6 @@
+mod connection_decision_codec;
+mod connection_decision_repository;
+mod connection_decision_types;
 mod database;
 mod error;
 mod learning_codec;
@@ -18,6 +21,10 @@ mod snapshot_repository;
 mod synthetic_dns_repository;
 mod types;
 
+pub use connection_decision_repository::ConnectionDecisionRepository;
+pub use connection_decision_types::{
+    ConnectionDecisionInput, ConnectionDecisionRecord, DecisionEvidence, EvidenceLevel,
+};
 pub use database::PolicyDatabase;
 pub use error::StorageError;
 pub use learning_confirmation_receipt::{ConfirmedLearningPolicy, LearningConfirmationReceipt};

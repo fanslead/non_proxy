@@ -64,14 +64,14 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         panic!("V1 数据库升级失败: {upgraded:?}");
     };
     assert_eq!(upgraded.previous_version(), 1);
-    assert_eq!(upgraded.current_version(), 7);
+    assert_eq!(upgraded.current_version(), 8);
     assert_eq!(
         upgraded
             .applied()
             .iter()
             .map(AppliedMigration::version)
             .collect::<Vec<_>>(),
-        vec![2, 3, 4, 5, 6, 7]
+        vec![2, 3, 4, 5, 6, 7, 8]
     );
     let generation: i64 = match connection.query_row(
         "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
@@ -132,7 +132,7 @@ fn legacy_learning_rows_upgrade_without_losing_candidates() {
     let Ok(upgraded) = upgraded else {
         panic!("旧学习数据升级失败: {upgraded:?}");
     };
-    assert_eq!(upgraded.current_version(), 7);
+    assert_eq!(upgraded.current_version(), 8);
     let session: (String, String, i64) = match connection.query_row(
         "SELECT browser_context_id, state, expires_at_unix_ms
          FROM learning_session WHERE id = 'legacy-session'",
@@ -161,4 +161,43 @@ fn legacy_learning_rows_upgrade_without_losing_candidates() {
         Err(error) => panic!("升级后学习候选读取失败: {error}"),
     };
     assert_eq!(candidate, (1, 2, 2));
+}
+
+#[test]
+fn connection_evidence_migration_rejects_inconsistent_path_claims() {
+    let mut connection = match Connection::open_in_memory() {
+        Ok(value) => value,
+        Err(error) => panic!("证据迁移测试数据库打开失败: {error}"),
+    };
+    if let Err(error) = migrate_with(&mut connection, None, 1_000, MIGRATIONS) {
+        panic!("证据迁移执行失败: {error}");
+    }
+
+    let invalid = connection.execute(
+        "INSERT INTO connection_decision(
+             event_id, occurred_at_unix_ms, snapshot_version, app_stable_id,
+             destination_redacted, transport, destination_port,
+             decision_action, reason_code, provider_id, provider_generation,
+             flow_id, evidence_level
+         ) VALUES (
+             'invalid-path', 1, 1, 'app', 'example.com', 1, 443,
+             1, 'NP_TEST', 'transparent-proxy', 1, 'flow-1', 3
+         )",
+        [],
+    );
+    assert!(invalid.is_err());
+
+    let valid = connection.execute(
+        "INSERT INTO connection_decision(
+             event_id, occurred_at_unix_ms, snapshot_version, app_stable_id,
+             destination_redacted, transport, destination_port,
+             decision_action, reason_code, provider_id, provider_generation,
+             flow_id, evidence_level, interface_name
+         ) VALUES (
+             'valid-path', 1, 1, 'app', 'example.com', 1, 443,
+             1, 'NP_TEST', 'transparent-proxy', 1, 'flow-2', 3, 'en0'
+         )",
+        [],
+    );
+    assert!(valid.is_ok());
 }

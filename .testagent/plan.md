@@ -92,3 +92,26 @@
 4. Desktop RPC/service/ViewModel/headless UI 测试。
 5. 契约兼容、格式、lint、全仓测试与双平台打包门禁。
 6. 对 diff、错误语义、断言质量和剩余缺口做提交前 review。
+
+## 决策与路径证据批次
+
+| 验收项 | 计划测试 |
+| --- | --- |
+| 决策批量写入幂等且按时间倒序分页 | storage repository integration tests |
+| 记录保存应用、目标、规则、动作和证据，不保存 URL/秘密 | 构造器与持久化负向测试 |
+| Provider 必须鉴权并限制单批数量 | Provider RPC tests |
+| 决策引用的快照必须存在且内容一致 | Gateway ingestion tests |
+| PATH 级 DIRECT 必须有物理接口 | 证据语义负向测试 |
+| PATH 级 PROXY 必须有匹配出口 | 证据语义负向测试 |
+| 控制面只读分页返回稳定活动模型 | Control RPC 与 C# service tests |
+| 活动页明确显示证据等级和实际路径 | ViewModel/headless UI tests |
+| 首页最近决策数来自权威存储 | System status service tests |
+| 平台只在路径建立后提升到 PATH | Swift 与 Windows 数据面行为测试 |
+
+### 执行顺序
+
+1. 完成 storage 模型、V8 migration 和 repository 测试。
+2. 完成 Provider ingestion 与快照/证据验证。
+3. 完成 Control RPC、契约生成和桌面映射/UI。
+4. 完成 macOS/Windows 生产者与批处理边界。
+5. 执行跨语言 E2E、全仓测试、打包和提交前 review。

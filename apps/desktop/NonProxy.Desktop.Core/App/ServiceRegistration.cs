@@ -47,7 +47,7 @@ public static class ServiceRegistration
         services.AddSingleton<IPolicyService, GatewayPolicyService>();
         services.AddSingleton<IOutboundService, GatewayOutboundService>();
         services.AddSingleton<ILearningService, DisconnectedLearningService>();
-        services.AddSingleton<IActivityService, DisconnectedActivityService>();
+        services.AddSingleton<IActivityService, GatewayActivityService>();
         services.AddSingleton<IDiagnosticsService, GatewayDiagnosticsService>();
         services.AddSingleton<IDesktopSettingsService, DisconnectedDesktopSettingsService>();
 

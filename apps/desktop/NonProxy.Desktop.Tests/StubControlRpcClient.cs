@@ -35,6 +35,13 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public Queue<ListOutboundsResponse> OutboundsResponses { get; } = new();
 
+    public ListConnectionDecisionsResponse DecisionsResponse { get; set; } = new()
+    {
+        Page = new NonProxy.Common.V1.PageResponse(),
+    };
+
+    public int LastDecisionPageSize { get; private set; }
+
     public ImportConfigurationResponse ImportResponse { get; set; } = new();
 
     public TestOutboundResponse TestOutboundResponse { get; set; } = new();
@@ -133,6 +140,16 @@ internal sealed class StubControlRpcClient : IControlRpcClient
         return Task.FromResult(OutboundsResponses.Count > 0
             ? OutboundsResponses.Dequeue()
             : OutboundsResponse);
+    }
+
+    public Task<ListConnectionDecisionsResponse> ListConnectionDecisionsAsync(
+        int pageSize,
+        string pageToken,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastDecisionPageSize = pageSize;
+        return Task.FromResult(DecisionsResponse);
     }
 
     public Task<ImportConfigurationResponse> ImportConfigurationAsync(

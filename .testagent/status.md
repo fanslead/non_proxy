@@ -104,3 +104,29 @@
 - 乐观锁、缺失/禁用出口、已有 pending、无效回滚源与不兼容能力均有负向断言；删除任一校验或把事务拆开都会使对应测试失败。
 - RPC 测试断言鉴权、oneof、revision、稳定业务错误和状态/目录一致性；Desktop 测试断言跨页 revision、默认标记、pending 文案、恢复直连和 macOS/Windows 共享入口。
 - 本批证明的是“期望默认路由配置与待发布快照”的一致性；真实已激活策略、签名系统扩展安装、其他 VPN 共存和真实公网出口仍需后续运行态诊断及真机验收。
+
+## 决策证据入库、查询与桌面展示批次状态
+
+- [x] V8 migration、证据模型与原子批量仓储
+- [x] Provider 会话鉴权、权威快照重编译与决策复算
+- [x] Control 分页查询、C#/Swift 契约生成
+- [x] 桌面活动页证据等级、路径和保留总数展示
+- [x] 幂等重放、冲突回滚、伪造决策、未来时间和证据越级负向测试
+- [x] 格式、lint、契约、全仓回归与提交前 review
+
+### 干净验证
+
+- `cargo test --workspace`：全仓通过；其中 gatewayd 75 个库测试及全部集成/RPC 测试通过。
+- `cargo clippy --workspace --all-targets -- -D warnings`、`cargo fmt --all -- --check`：通过。
+- `dotnet test apps/desktop/NonProxy.Desktop.slnx --no-restore --configuration Release`：82/82 通过。
+- `swift test --package-path platform/macos`：XCTest 87/87、Swift Testing 28/28 通过。
+- `pnpm test`：28/28 通过。
+- `scripts/contracts/check.sh`、`scripts/contracts/check-swift.sh`：C#/Swift 生成物一致。
+- Windows x64/arm64 全 workspace 交叉检查在 `libsqlite3-sys` 编译前置环境停止：当前 macOS 宿主缺少 MSVC/Windows C SDK，分别找不到 `stdlib.h` 与 `setjmp.h`；没有把该环境失败计为 Windows 编译通过。
+
+### 断言质量与剩余缺口
+
+- 仓储测试同时验证批次完全回滚和相同事件精确幂等，可识别“部分写入”与“同 flow 覆盖旧证据”变异。
+- Gateway 不信任 Provider 上报结果，而是校验会话平台、快照状态/哈希并用权威编译快照重算；伪造动作、规则、理由或版本都会被拒绝。
+- SQLite trigger、Rust 领域模型和 C# 映射三层均拒绝 `DECISION` 携带路径、失败记录冒充 `PATH`、直连缺接口、代理缺出口及无探针的 `EXIT`。
+- 本批只打通可信入库、查询和显示链路。macOS/Windows 平台尚未在真实连接建立后生产 `PATH` 事件，因此当前不会虚构路径或公网出口证据；平台生产器属于下一独立批次。

@@ -134,3 +134,25 @@
 - `GatewayOutboundService.cs` → `GatewayOutboundServiceTests.cs`。
 - `OutboundsViewModel.cs`、`OutboundsView.axaml` →
   `OutboundsViewModelTests.cs`、`OutboundsViewTests.cs`。
+
+## 决策与路径证据批次
+
+### 缺口与边界
+
+- Provider 契约已有 `ReportDecisionBatch`，V1 数据库也预留
+  `connection_decision`，但 RPC 当前固定返回 `NP_FEATURE_NOT_AVAILABLE`，平台端没有
+  上报器，桌面“活动记录”和首页最近决策数仍使用空实现。
+- 代理握手健康只证明节点可连接；快照 `ACTIVE` 只证明 Provider 已加载策略。二者
+  都不能替代某条用户连接的决策、物理接口或代理出口证据。
+- Provider 上报属于高权限但仍不应被盲信：gatewayd 必须校验会话、批量上限、
+  字段边界、证据语义和所引用快照，再持久化有界、可清理的元数据。
+- 活动页必须区分 `DECISION`、`PATH`、`EXIT`，不能把仅有策略命中的记录显示为
+  “已确认直连”。
+
+### 实现切片
+
+1. 追加 V8 migration 和专用 decision repository，覆盖幂等写入、倒序分页和保留。
+2. 启用 Provider 批量上报，拒绝畸形、跨能力和快照不一致的记录。
+3. 增加只读 `ListConnectionDecisions` 控制 RPC，接入桌面活动页和首页计数。
+4. macOS Transparent/DNS Provider 与 Windows 数据面在实际路径建立后批量上报。
+5. 出口探针只在独立探针观察到公网结果时提升到 `EXIT`，本批不得伪造。

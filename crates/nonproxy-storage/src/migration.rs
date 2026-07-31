@@ -21,6 +21,8 @@ const LEARNING_CONFIRMATIONS: &str =
 const SYNTHETIC_DNS_BINDINGS: &str =
     include_str!("../../../migrations/V0006__synthetic_dns_bindings.sql");
 const ROUTING_SETTINGS: &str = include_str!("../../../migrations/V0007__routing_settings.sql");
+const CONNECTION_DECISION_EVIDENCE: &str =
+    include_str!("../../../migrations/V0008__connection_decision_evidence.sql");
 
 struct Migration {
     version: i64,
@@ -63,6 +65,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 7,
         name: "routing_settings",
         sql: ROUTING_SETTINGS,
+    },
+    Migration {
+        version: 8,
+        name: "connection_decision_evidence",
+        sql: CONNECTION_DECISION_EVIDENCE,
     },
 ];
 

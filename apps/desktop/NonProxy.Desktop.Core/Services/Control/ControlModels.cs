@@ -216,7 +216,24 @@ public sealed record ActivityItem(
     string Application,
     string Destination,
     string Action,
-    string Reason);
+    string Reason,
+    string Evidence,
+    string Path,
+    string Error,
+    ulong SnapshotVersion)
+{
+    public string ResultLabel => $"{Action} · {Evidence}";
+
+    public string OccurredAtLabel => OccurredAt
+        .ToLocalTime()
+        .ToString("MM-dd HH:mm:ss", CultureInfo.CurrentCulture);
+
+    public string SnapshotLabel => SnapshotVersion == 0
+        ? string.Empty
+        : $"快照 v{SnapshotVersion}";
+
+    public bool HasError => !string.IsNullOrEmpty(Error);
+}
 
 public sealed record DiagnosticCheck(
     string Id,

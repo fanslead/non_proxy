@@ -33,6 +33,11 @@ public interface IControlRpcClient
         string pageToken,
         CancellationToken cancellationToken);
 
+    Task<ListConnectionDecisionsResponse> ListConnectionDecisionsAsync(
+        int pageSize,
+        string pageToken,
+        CancellationToken cancellationToken);
+
     Task<ImportConfigurationResponse> ImportConfigurationAsync(
         byte[] configuration,
         CancellationToken cancellationToken);

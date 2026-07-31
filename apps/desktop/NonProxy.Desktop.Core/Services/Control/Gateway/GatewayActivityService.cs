@@ -1,0 +1,147 @@
+using NonProxy.Common.V1;
+using NonProxy.Control.V1;
+using NonProxy.Desktop.Core.Services.Control.Rpc;
+
+namespace NonProxy.Desktop.Core.Services.Control.Gateway;
+
+public sealed class GatewayActivityService : IActivityService
+{
+    private readonly IControlRpcClient _client;
+
+    public GatewayActivityService(IControlRpcClient client)
+    {
+        _client = client;
+    }
+
+    public async Task<IReadOnlyList<ActivityItem>> GetRecentAsync(
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(limit, 200);
+        var response = await _client.ListConnectionDecisionsAsync(
+            limit,
+            string.Empty,
+            cancellationToken);
+        return [.. response.Decisions.Select(Map)];
+    }
+
+    private static ActivityItem Map(ConnectionDecisionSummary value)
+    {
+        ValidateEvidence(value);
+        var action = ActionLabel(value.Action);
+        var evidence = EvidenceLabel(value.EvidenceLevel);
+        var occurredAt = value.ObservedAt?.ToDateTimeOffset()
+            ?? throw new ControlServiceException(
+                "NP_CONTROL_CONTRACT_INVALID",
+                "活动记录缺少观测时间，请重启控制服务后重试。");
+        return new ActivityItem(
+            checked((long)value.Sequence),
+            occurredAt,
+            DisplayApplication(value),
+            $"{value.Destination} · {value.DestinationPort}",
+            action,
+            ReasonLabel(value),
+            evidence,
+            PathLabel(value),
+            value.ErrorCode,
+            value.SnapshotVersion);
+    }
+
+    private static string DisplayApplication(ConnectionDecisionSummary value)
+    {
+        return string.IsNullOrWhiteSpace(value.AppDisplayName)
+            ? value.AppStableId
+            : value.AppDisplayName;
+    }
+
+    private static string ActionLabel(RouteAction action)
+    {
+        return action switch
+        {
+            RouteAction.Direct => "直连",
+            RouteAction.Proxy => "代理",
+            RouteAction.Block => "阻止",
+            _ => throw InvalidEvidenceContract("活动记录的路由动作无效。"),
+        };
+    }
+
+    private static string EvidenceLabel(EvidenceLevel evidence)
+    {
+        return evidence switch
+        {
+            EvidenceLevel.Decision => "仅策略决策",
+            EvidenceLevel.Path => "路径已确认",
+            EvidenceLevel.Exit => "公网出口已验证",
+            _ => throw InvalidEvidenceContract("活动记录的证据等级无效。"),
+        };
+    }
+
+    private static string ReasonLabel(ConnectionDecisionSummary value)
+    {
+        if (!string.IsNullOrWhiteSpace(value.MatchedRuleId))
+        {
+            return $"命中规则 {value.MatchedRuleId}（{value.ReasonCode}）";
+        }
+
+        if (!string.IsNullOrWhiteSpace(value.MatchedPolicyId))
+        {
+            return $"命中策略 {value.MatchedPolicyId}（{value.ReasonCode}）";
+        }
+
+        return value.ReasonCode == "NP_POLICY_DEFAULT"
+            ? "使用默认路由"
+            : value.ReasonCode;
+    }
+
+    private static string PathLabel(ConnectionDecisionSummary value)
+    {
+        if (value.Action == RouteAction.Block)
+        {
+            return "策略已阻止，未建立数据路径";
+        }
+
+        if (value.EvidenceLevel == EvidenceLevel.Decision)
+        {
+            return "尚未确认实际数据路径";
+        }
+
+        var path = value.Action == RouteAction.Direct
+            ? $"物理接口 {value.InterfaceName}"
+            : $"代理出口 {value.OutboundId}";
+        return value.EvidenceLevel == EvidenceLevel.Exit
+            ? $"{path}，出口探针 {value.ExitProbeId}"
+            : path;
+    }
+
+    private static void ValidateEvidence(ConnectionDecisionSummary value)
+    {
+        var hasInterface = !string.IsNullOrWhiteSpace(value.InterfaceName);
+        var hasOutbound = !string.IsNullOrWhiteSpace(value.OutboundId);
+        var hasProbe = !string.IsNullOrWhiteSpace(value.ExitProbeId);
+        var pathMatches = value.Action switch
+        {
+            RouteAction.Direct => hasInterface && !hasOutbound,
+            RouteAction.Proxy => !hasInterface && hasOutbound,
+            RouteAction.Block => false,
+            _ => false,
+        };
+        var valid = value.EvidenceLevel switch
+        {
+            EvidenceLevel.Decision => !hasInterface && !hasOutbound && !hasProbe,
+            EvidenceLevel.Path => pathMatches && !hasProbe,
+            EvidenceLevel.Exit => pathMatches && hasProbe,
+            _ => false,
+        };
+        if (!valid || (!string.IsNullOrEmpty(value.ErrorCode)
+            && value.EvidenceLevel != EvidenceLevel.Decision))
+        {
+            throw InvalidEvidenceContract("活动记录的路径证据与路由动作不一致。");
+        }
+    }
+
+    private static ControlServiceException InvalidEvidenceContract(string message)
+    {
+        return new ControlServiceException("NP_CONTROL_CONTRACT_INVALID", message);
+    }
+}

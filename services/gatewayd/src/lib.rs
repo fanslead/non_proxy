@@ -6,6 +6,9 @@ mod control_rpc_service;
 mod control_service;
 mod credential_store;
 mod database_executor;
+mod decision_ingest;
+mod decision_rpc;
+mod decision_snapshot_cache;
 #[cfg(any(test, windows))]
 mod dns_policy;
 mod dns_service;
@@ -26,6 +29,7 @@ mod outbound_import;
 mod outbound_import_service;
 mod outbound_probe;
 mod proto_policy;
+mod provider_decision_rpc;
 mod provider_health;
 mod provider_requirements;
 mod provider_service;
@@ -38,6 +42,7 @@ mod server;
 mod session_capability;
 mod snapshot_builder;
 mod snapshot_payload;
+mod system_rpc;
 #[cfg(unix)]
 mod unix_socket;
 #[cfg(windows)]

@@ -1042,6 +1042,190 @@ public nonisolated struct Nonproxy_Control_V1_ListOutboundsResponse: Sendable {
   fileprivate var _page: Nonproxy_Common_V1_PageResponse? = nil
 }
 
+/// ConnectionDecisionSummary 是不含 URL 路径、查询参数和秘密的连接活动证据。
+public nonisolated struct Nonproxy_Control_V1_ConnectionDecisionSummary: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var sequence: UInt64 {
+    get {_storage._sequence}
+    set {_uniqueStorage()._sequence = newValue}
+  }
+
+  public var eventID: String {
+    get {_storage._eventID}
+    set {_uniqueStorage()._eventID = newValue}
+  }
+
+  public var observedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_storage._observedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._observedAt = newValue}
+  }
+  /// Returns true if `observedAt` has been explicitly set.
+  public var hasObservedAt: Bool {_storage._observedAt != nil}
+  /// Clears the value of `observedAt`. Subsequent reads from it will return its default value.
+  public mutating func clearObservedAt() {_uniqueStorage()._observedAt = nil}
+
+  public var appPlatform: Nonproxy_Common_V1_Platform {
+    get {_storage._appPlatform}
+    set {_uniqueStorage()._appPlatform = newValue}
+  }
+
+  public var appStableID: String {
+    get {_storage._appStableID}
+    set {_uniqueStorage()._appStableID = newValue}
+  }
+
+  public var appDisplayName: String {
+    get {_storage._appDisplayName}
+    set {_uniqueStorage()._appDisplayName = newValue}
+  }
+
+  public var destination: String {
+    get {_storage._destination}
+    set {_uniqueStorage()._destination = newValue}
+  }
+
+  public var destinationPort: UInt32 {
+    get {_storage._destinationPort}
+    set {_uniqueStorage()._destinationPort = newValue}
+  }
+
+  public var transport: Nonproxy_Common_V1_TransportProtocol {
+    get {_storage._transport}
+    set {_uniqueStorage()._transport = newValue}
+  }
+
+  public var action: Nonproxy_Common_V1_RouteAction {
+    get {_storage._action}
+    set {_uniqueStorage()._action = newValue}
+  }
+
+  public var failureMode: Nonproxy_Common_V1_FailureMode {
+    get {_storage._failureMode}
+    set {_uniqueStorage()._failureMode = newValue}
+  }
+
+  public var matchedPolicyID: String {
+    get {_storage._matchedPolicyID}
+    set {_uniqueStorage()._matchedPolicyID = newValue}
+  }
+
+  public var matchedRuleID: String {
+    get {_storage._matchedRuleID}
+    set {_uniqueStorage()._matchedRuleID = newValue}
+  }
+
+  public var reasonCode: String {
+    get {_storage._reasonCode}
+    set {_uniqueStorage()._reasonCode = newValue}
+  }
+
+  public var evidenceLevel: Nonproxy_Common_V1_EvidenceLevel {
+    get {_storage._evidenceLevel}
+    set {_uniqueStorage()._evidenceLevel = newValue}
+  }
+
+  public var interfaceName: String {
+    get {_storage._interfaceName}
+    set {_uniqueStorage()._interfaceName = newValue}
+  }
+
+  public var outboundID: String {
+    get {_storage._outboundID}
+    set {_uniqueStorage()._outboundID = newValue}
+  }
+
+  public var exitProbeID: String {
+    get {_storage._exitProbeID}
+    set {_uniqueStorage()._exitProbeID = newValue}
+  }
+
+  public var decisionLatency: SwiftProtobuf.Google_Protobuf_Duration {
+    get {_storage._decisionLatency ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_uniqueStorage()._decisionLatency = newValue}
+  }
+  /// Returns true if `decisionLatency` has been explicitly set.
+  public var hasDecisionLatency: Bool {_storage._decisionLatency != nil}
+  /// Clears the value of `decisionLatency`. Subsequent reads from it will return its default value.
+  public mutating func clearDecisionLatency() {_uniqueStorage()._decisionLatency = nil}
+
+  public var errorCode: String {
+    get {_storage._errorCode}
+    set {_uniqueStorage()._errorCode = newValue}
+  }
+
+  public var snapshotVersion: UInt64 {
+    get {_storage._snapshotVersion}
+    set {_uniqueStorage()._snapshotVersion = newValue}
+  }
+
+  public var providerID: String {
+    get {_storage._providerID}
+    set {_uniqueStorage()._providerID = newValue}
+  }
+
+  public var providerGeneration: UInt64 {
+    get {_storage._providerGeneration}
+    set {_uniqueStorage()._providerGeneration = newValue}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// ListConnectionDecisionsRequest 查询最新的有界连接活动。
+public nonisolated struct Nonproxy_Control_V1_ListConnectionDecisionsRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var page: Nonproxy_Common_V1_PageRequest {
+    get {_page ?? Nonproxy_Common_V1_PageRequest()}
+    set {_page = newValue}
+  }
+  /// Returns true if `page` has been explicitly set.
+  public var hasPage: Bool {self._page != nil}
+  /// Clears the value of `page`. Subsequent reads from it will return its default value.
+  public mutating func clearPage() {self._page = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _page: Nonproxy_Common_V1_PageRequest? = nil
+}
+
+/// ListConnectionDecisionsResponse 返回活动、分页游标和保留窗口内的总数。
+public nonisolated struct Nonproxy_Control_V1_ListConnectionDecisionsResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var decisions: [Nonproxy_Control_V1_ConnectionDecisionSummary] = []
+
+  public var page: Nonproxy_Common_V1_PageResponse {
+    get {_page ?? Nonproxy_Common_V1_PageResponse()}
+    set {_page = newValue}
+  }
+  /// Returns true if `page` has been explicitly set.
+  public var hasPage: Bool {self._page != nil}
+  /// Clears the value of `page`. Subsequent reads from it will return its default value.
+  public mutating func clearPage() {self._page = nil}
+
+  public var totalCount: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _page: Nonproxy_Common_V1_PageResponse? = nil
+}
+
 /// ImportConfigurationRequest 发送有大小上限且不得记录日志的配置内容。
 public nonisolated struct Nonproxy_Control_V1_ImportConfigurationRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -2782,6 +2966,308 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundsResponse: SwiftProtobuf.M
     if lhs.outbounds != rhs.outbounds {return false}
     if lhs._page != rhs._page {return false}
     if lhs.routingRevision != rhs.routingRevision {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ConnectionDecisionSummary"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sequence\0\u{3}event_id\0\u{3}observed_at\0\u{3}app_platform\0\u{3}app_stable_id\0\u{3}app_display_name\0\u{1}destination\0\u{3}destination_port\0\u{1}transport\0\u{1}action\0\u{3}failure_mode\0\u{3}matched_policy_id\0\u{3}matched_rule_id\0\u{3}reason_code\0\u{3}evidence_level\0\u{3}interface_name\0\u{3}outbound_id\0\u{3}exit_probe_id\0\u{3}decision_latency\0\u{3}error_code\0\u{3}snapshot_version\0\u{3}provider_id\0\u{3}provider_generation\0")
+
+  fileprivate class _StorageClass {
+    var _sequence: UInt64 = 0
+    var _eventID: String = String()
+    var _observedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _appPlatform: Nonproxy_Common_V1_Platform = .unspecified
+    var _appStableID: String = String()
+    var _appDisplayName: String = String()
+    var _destination: String = String()
+    var _destinationPort: UInt32 = 0
+    var _transport: Nonproxy_Common_V1_TransportProtocol = .unspecified
+    var _action: Nonproxy_Common_V1_RouteAction = .unspecified
+    var _failureMode: Nonproxy_Common_V1_FailureMode = .unspecified
+    var _matchedPolicyID: String = String()
+    var _matchedRuleID: String = String()
+    var _reasonCode: String = String()
+    var _evidenceLevel: Nonproxy_Common_V1_EvidenceLevel = .unspecified
+    var _interfaceName: String = String()
+    var _outboundID: String = String()
+    var _exitProbeID: String = String()
+    var _decisionLatency: SwiftProtobuf.Google_Protobuf_Duration? = nil
+    var _errorCode: String = String()
+    var _snapshotVersion: UInt64 = 0
+    var _providerID: String = String()
+    var _providerGeneration: UInt64 = 0
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _sequence = source._sequence
+      _eventID = source._eventID
+      _observedAt = source._observedAt
+      _appPlatform = source._appPlatform
+      _appStableID = source._appStableID
+      _appDisplayName = source._appDisplayName
+      _destination = source._destination
+      _destinationPort = source._destinationPort
+      _transport = source._transport
+      _action = source._action
+      _failureMode = source._failureMode
+      _matchedPolicyID = source._matchedPolicyID
+      _matchedRuleID = source._matchedRuleID
+      _reasonCode = source._reasonCode
+      _evidenceLevel = source._evidenceLevel
+      _interfaceName = source._interfaceName
+      _outboundID = source._outboundID
+      _exitProbeID = source._exitProbeID
+      _decisionLatency = source._decisionLatency
+      _errorCode = source._errorCode
+      _snapshotVersion = source._snapshotVersion
+      _providerID = source._providerID
+      _providerGeneration = source._providerGeneration
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularUInt64Field(value: &_storage._sequence) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._eventID) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._observedAt) }()
+        case 4: try { try decoder.decodeSingularEnumField(value: &_storage._appPlatform) }()
+        case 5: try { try decoder.decodeSingularStringField(value: &_storage._appStableID) }()
+        case 6: try { try decoder.decodeSingularStringField(value: &_storage._appDisplayName) }()
+        case 7: try { try decoder.decodeSingularStringField(value: &_storage._destination) }()
+        case 8: try { try decoder.decodeSingularUInt32Field(value: &_storage._destinationPort) }()
+        case 9: try { try decoder.decodeSingularEnumField(value: &_storage._transport) }()
+        case 10: try { try decoder.decodeSingularEnumField(value: &_storage._action) }()
+        case 11: try { try decoder.decodeSingularEnumField(value: &_storage._failureMode) }()
+        case 12: try { try decoder.decodeSingularStringField(value: &_storage._matchedPolicyID) }()
+        case 13: try { try decoder.decodeSingularStringField(value: &_storage._matchedRuleID) }()
+        case 14: try { try decoder.decodeSingularStringField(value: &_storage._reasonCode) }()
+        case 15: try { try decoder.decodeSingularEnumField(value: &_storage._evidenceLevel) }()
+        case 16: try { try decoder.decodeSingularStringField(value: &_storage._interfaceName) }()
+        case 17: try { try decoder.decodeSingularStringField(value: &_storage._outboundID) }()
+        case 18: try { try decoder.decodeSingularStringField(value: &_storage._exitProbeID) }()
+        case 19: try { try decoder.decodeSingularMessageField(value: &_storage._decisionLatency) }()
+        case 20: try { try decoder.decodeSingularStringField(value: &_storage._errorCode) }()
+        case 21: try { try decoder.decodeSingularUInt64Field(value: &_storage._snapshotVersion) }()
+        case 22: try { try decoder.decodeSingularStringField(value: &_storage._providerID) }()
+        case 23: try { try decoder.decodeSingularUInt64Field(value: &_storage._providerGeneration) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._sequence != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._sequence, fieldNumber: 1)
+      }
+      if !_storage._eventID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._eventID, fieldNumber: 2)
+      }
+      try { if let v = _storage._observedAt {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      if _storage._appPlatform != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._appPlatform, fieldNumber: 4)
+      }
+      if !_storage._appStableID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._appStableID, fieldNumber: 5)
+      }
+      if !_storage._appDisplayName.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._appDisplayName, fieldNumber: 6)
+      }
+      if !_storage._destination.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._destination, fieldNumber: 7)
+      }
+      if _storage._destinationPort != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._destinationPort, fieldNumber: 8)
+      }
+      if _storage._transport != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._transport, fieldNumber: 9)
+      }
+      if _storage._action != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._action, fieldNumber: 10)
+      }
+      if _storage._failureMode != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._failureMode, fieldNumber: 11)
+      }
+      if !_storage._matchedPolicyID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._matchedPolicyID, fieldNumber: 12)
+      }
+      if !_storage._matchedRuleID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._matchedRuleID, fieldNumber: 13)
+      }
+      if !_storage._reasonCode.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._reasonCode, fieldNumber: 14)
+      }
+      if _storage._evidenceLevel != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._evidenceLevel, fieldNumber: 15)
+      }
+      if !_storage._interfaceName.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._interfaceName, fieldNumber: 16)
+      }
+      if !_storage._outboundID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._outboundID, fieldNumber: 17)
+      }
+      if !_storage._exitProbeID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._exitProbeID, fieldNumber: 18)
+      }
+      try { if let v = _storage._decisionLatency {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 19)
+      } }()
+      if !_storage._errorCode.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._errorCode, fieldNumber: 20)
+      }
+      if _storage._snapshotVersion != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._snapshotVersion, fieldNumber: 21)
+      }
+      if !_storage._providerID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._providerID, fieldNumber: 22)
+      }
+      if _storage._providerGeneration != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._providerGeneration, fieldNumber: 23)
+      }
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ConnectionDecisionSummary, rhs: Nonproxy_Control_V1_ConnectionDecisionSummary) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._sequence != rhs_storage._sequence {return false}
+        if _storage._eventID != rhs_storage._eventID {return false}
+        if _storage._observedAt != rhs_storage._observedAt {return false}
+        if _storage._appPlatform != rhs_storage._appPlatform {return false}
+        if _storage._appStableID != rhs_storage._appStableID {return false}
+        if _storage._appDisplayName != rhs_storage._appDisplayName {return false}
+        if _storage._destination != rhs_storage._destination {return false}
+        if _storage._destinationPort != rhs_storage._destinationPort {return false}
+        if _storage._transport != rhs_storage._transport {return false}
+        if _storage._action != rhs_storage._action {return false}
+        if _storage._failureMode != rhs_storage._failureMode {return false}
+        if _storage._matchedPolicyID != rhs_storage._matchedPolicyID {return false}
+        if _storage._matchedRuleID != rhs_storage._matchedRuleID {return false}
+        if _storage._reasonCode != rhs_storage._reasonCode {return false}
+        if _storage._evidenceLevel != rhs_storage._evidenceLevel {return false}
+        if _storage._interfaceName != rhs_storage._interfaceName {return false}
+        if _storage._outboundID != rhs_storage._outboundID {return false}
+        if _storage._exitProbeID != rhs_storage._exitProbeID {return false}
+        if _storage._decisionLatency != rhs_storage._decisionLatency {return false}
+        if _storage._errorCode != rhs_storage._errorCode {return false}
+        if _storage._snapshotVersion != rhs_storage._snapshotVersion {return false}
+        if _storage._providerID != rhs_storage._providerID {return false}
+        if _storage._providerGeneration != rhs_storage._providerGeneration {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ListConnectionDecisionsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListConnectionDecisionsRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}page\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._page) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._page {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ListConnectionDecisionsRequest, rhs: Nonproxy_Control_V1_ListConnectionDecisionsRequest) -> Bool {
+    if lhs._page != rhs._page {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ListConnectionDecisionsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListConnectionDecisionsResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}decisions\0\u{1}page\0\u{3}total_count\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.decisions) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._page) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.totalCount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.decisions.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.decisions, fieldNumber: 1)
+    }
+    try { if let v = self._page {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.totalCount != 0 {
+      try visitor.visitSingularUInt64Field(value: self.totalCount, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ListConnectionDecisionsResponse, rhs: Nonproxy_Control_V1_ListConnectionDecisionsResponse) -> Bool {
+    if lhs.decisions != rhs.decisions {return false}
+    if lhs._page != rhs._page {return false}
+    if lhs.totalCount != rhs.totalCount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

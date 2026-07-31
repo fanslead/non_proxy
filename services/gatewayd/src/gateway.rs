@@ -18,6 +18,7 @@ use crate::{
     GatewayError,
     clock::unix_time_ms,
     database_executor::DatabaseExecutor,
+    decision_snapshot_cache::DecisionSnapshotCache,
     event_hub::EventHub,
     outbound_health::{OutboundHealthObservation, OutboundHealthRegistry},
     provider_health::ProviderHealthRegistry,
@@ -36,6 +37,7 @@ pub struct Gateway {
     events: EventHub,
     outbound_health: OutboundHealthRegistry,
     provider_health: ProviderHealthRegistry,
+    pub(crate) decision_snapshots: DecisionSnapshotCache,
 }
 
 #[derive(Clone, Debug)]
@@ -81,6 +83,7 @@ impl Gateway {
             events: EventHub::new(),
             outbound_health: OutboundHealthRegistry::new(),
             provider_health: ProviderHealthRegistry::new(),
+            decision_snapshots: DecisionSnapshotCache::default(),
         }
     }
 
