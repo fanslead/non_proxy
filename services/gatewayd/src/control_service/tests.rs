@@ -42,6 +42,30 @@ async fn mutation_requires_the_exact_session_capability() {
 }
 
 #[tokio::test]
+async fn low_privilege_mutation_rejects_protected_source_and_reserved_id() {
+    let service = service([7; 32]);
+    let protected = protected_policy("attacker-system");
+    let reserved = site_policy("system-macos-gateway-direct", "example.com");
+
+    for (index, policy) in [protected, reserved].into_iter().enumerate() {
+        let response = service
+            .upsert_policy(Request::new(UpsertPolicyRequest {
+                context: Some(context([7; 32], &format!("save-protected-{index}"))),
+                policy: Some(policy_to_proto(&policy)),
+                expected_revision: 0,
+            }))
+            .await;
+        let Ok(response) = response else {
+            panic!("受保护策略拒绝响应失败: {response:?}");
+        };
+        assert!(matches!(
+            response.into_inner().result.and_then(|value| value.error),
+            Some(error) if error.code == "NP_REQUEST_INVALID"
+        ));
+    }
+}
+
+#[tokio::test]
 async fn test_outbound_requires_the_exact_session_capability() {
     let service = service([7; 32]);
     let request = TestOutboundRequest {
@@ -677,6 +701,23 @@ fn site_policy(id: &str, domain: &str) -> Policy {
         panic!("测试策略创建失败: {policy:?}");
     };
     policy
+}
+
+fn protected_policy(id: &str) -> Policy {
+    let id = match PolicyId::new(id) {
+        Ok(value) => value,
+        Err(error) => panic!("受保护测试策略 ID 创建失败: {error}"),
+    };
+    match Policy::new(
+        id,
+        "伪造系统策略",
+        PolicyMatch::global(),
+        DecisionSpec::direct(),
+        PolicyMetadata::new(PolicySourceKind::System, i32::MAX, PolicyOrigin::System, 1),
+    ) {
+        Ok(value) => value,
+        Err(error) => panic!("受保护测试策略创建失败: {error}"),
+    }
 }
 
 fn proxy_site_policy(outbound: &str) -> Policy {

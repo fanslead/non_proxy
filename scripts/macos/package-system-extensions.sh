@@ -294,8 +294,22 @@ else
     bridge_sign_args+=(--options runtime --timestamp)
 fi
 codesign "${bridge_sign_args[@]}" "${bridge_library}"
-codesign "${bridge_sign_args[@]}" "${gateway_binary}"
+codesign \
+    "${bridge_sign_args[@]}" \
+    --identifier com.nonproxy.gatewayd \
+    "${gateway_binary}"
 codesign "${bridge_sign_args[@]}" "${native_messaging_host}"
+
+gateway_team_identifier=$(
+    codesign -d --verbose=4 "${gateway_binary}" 2>&1 |
+        awk -F= '$1 == "TeamIdentifier" { print $2; exit }'
+)
+if [[ "${restricted_signing}" == 1 &&
+      ( -z "${gateway_team_identifier}" ||
+        "${gateway_team_identifier}" == "not set" ) ]]; then
+    echo "正式受限签名的 gatewayd 缺少 TeamIdentifier" >&2
+    exit 66
+fi
 
 gateway_binary_digest=$(shasum -a 256 "${gateway_binary}" | awk '{print $1}')
 gateway_plist_digest=$(
@@ -312,6 +326,12 @@ gateway_bundle_fingerprint=$(
 "${plist_buddy}" -c \
     "Add :EnvironmentVariables:NONPROXY_GATEWAY_BUNDLE_FINGERPRINT string ${gateway_bundle_fingerprint}" \
     "${gateway_agent_plist}"
+if [[ -n "${gateway_team_identifier}" &&
+      "${gateway_team_identifier}" != "not set" ]]; then
+    "${plist_buddy}" -c \
+        "Add :EnvironmentVariables:NONPROXY_MAC_TEAM_IDENTIFIER string ${gateway_team_identifier}" \
+        "${gateway_agent_plist}"
+fi
 
 host_sign_args=(--force --sign "${signing_identity}")
 if [[ "${restricted_signing}" == 1 ]]; then

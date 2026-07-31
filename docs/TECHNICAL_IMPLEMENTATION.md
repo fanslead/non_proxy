@@ -718,7 +718,26 @@ macOS Transparent Proxy 在每条 PROXY flow 上使用独立 `NWConnection(.unix
 ### 9.3 防回环
 
 - loopback/UDS 不进入透明代理。
-- `gatewayd` 的代理服务器连接由 Provider 识别为系统组件并交还物理网络。
+- macOS 打包时把裸 `gatewayd` 的代码签名 identifier 固定为
+  `com.nonproxy.gatewayd`；正式包还会从已签名二进制提取 TeamIdentifier，并通过
+  受签名保护的 LaunchAgent 环境传给 `gatewayd`。Bundle 校验会拒绝 identifier
+  漂移、正式签名缺少 TeamIdentifier、gatewayd 与宿主 App 签名团队不同，或
+  LaunchAgent 声明与二进制签名不一致。
+  快照构建器在内存中追加不可由低权限 RPC 创建或覆盖的
+  `system-macos-gateway-direct` SYSTEM 规则；Transparent Provider 因而把
+  同时匹配固定 identifier 与 TeamIdentifier 的 `gatewayd` 代理服务器连接交给
+  物理 DIRECT relay。临时签名开发包没有 TeamIdentifier，只能形成较弱的本地开发
+  身份，不能作为发布验收证据。该规则进入快照哈希和 Provider 离线缓存，但不写
+  用户策略表、不出现在普通编辑列表或运行状态目录。
+- `gatewayd` 在绑定 Provider 控制面前检查 pending 优先、active 兜底的候选快照。
+  缺少当前系统规则时，使用候选 payload 原有策略、能力和默认决策重建下一版本；
+  旧 pending 的拒绝与新 pending 的写入在同一事务完成，旧 active 在新快照 ACK
+  前继续作为决策回退，但不能授权 gatewayd 建立代理上游连接。TCP/UDP 代理、
+  代理 DNS 和出口探测共用的连接工厂在当前保护快照激活前失败关闭，并返回可重试的
+  `NP_FLOW_SYSTEM_SNAPSHOT_PENDING`（DNS 对外映射为
+  `NP_DNS_SYSTEM_SNAPSHOT_PENDING`）；ACK 激活后才原子恢复出站。历史回滚
+  同样重建当前系统规则，不能复制旧的受保护身份。
+- Windows WFP 配置携带 gatewayd 自身 PID，Callout 不重新重定向代理进程。
 - 每个 flow 携带 origin marker。
 - Windows 使用 WFP redirect context/records 识别已重定向连接。
 - 检测同一目标的递归深度，超过 1 立即失败并报告 `NP_FLOW_LOOP_DETECTED`。
@@ -918,6 +937,12 @@ RoutingSettings
 6. 写入唯一 pending 快照和审计事件。
 
 任一步失败都回滚默认路由和快照，不能出现权威配置与待确认快照内容分裂。
+每个新快照还会由可信构建器追加 macOS gatewayd 防回环系统规则；客户端提交的
+`SYSTEM`、`BUILT_IN`、`ADAPTER`、`SUBSCRIPTION` 来源或保留系统 ID 均在写入前
+拒绝，避免低权限控制会话伪造高优先级规则。启动升级和历史回滚都会规范化该规则；
+旧 pending 的替换是单事务操作，任何新快照编译或写入失败都会保留原 pending。
+如果旧 active 尚不含当前保护规则，gatewayd 会在升级快照激活前阻止所有代理连接
+创建，避免 Provider 使用缓存旧快照抢先捕获代理上游。
 RPC 成功只表示配置已保存且快照进入
 `PENDING_ACK`；只有所需 Provider 全部确认后才能显示为已生效。
 
@@ -925,7 +950,7 @@ RPC 成功只表示配置已保存且快照进入
 `is_default`。桌面端跨页发现 revision 变化、重复出口或多个默认出口时拒绝该
 目录并要求刷新。回滚到历史快照时，`gatewayd` 从历史 payload 解码
 `default_decision`，在同一事务内同步恢复 `routing_settings` 和回滚快照；不允许
-把回滚默认值硬编码为 `DIRECT`。
+把回滚默认值硬编码为 `DIRECT`，也不允许原样复制历史版本的受保护系统规则。
 
 当前默认出口不能通过后续导入被改成停用状态或当前完整网关无法承载的 TCP-only
 类型；该批次写入必须整体回滚。普通用户可以点击“恢复默认直连”，该操作使用相同的

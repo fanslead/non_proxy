@@ -46,6 +46,40 @@ impl<'connection> SnapshotRepository<'connection> {
         Ok(artifact)
     }
 
+    pub fn replace_pending(
+        &mut self,
+        artifact: &SnapshotArtifact,
+        replacement_code: &str,
+        replaced_at_unix_ms: u64,
+    ) -> Result<(), StorageError> {
+        validate_error_code(replacement_code)?;
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let pending = read_snapshot_by_status(&transaction, SnapshotStatus::Pending)?
+            .ok_or(StorageError::SnapshotStateConflict)?;
+        let replaced_version = pending.artifact().snapshot_version();
+        let changed = transaction.execute(
+            "UPDATE policy_snapshot
+             SET status = 'rejected', failure_code = ?2
+             WHERE snapshot_version = ?1 AND status = 'pending'",
+            params![to_sqlite_u64(replaced_version)?, replacement_code],
+        )?;
+        if changed != 1 {
+            return Err(StorageError::SnapshotStateConflict);
+        }
+        insert_audit(
+            &transaction,
+            "snapshot_rejected",
+            replaced_version,
+            replaced_at_unix_ms,
+            Some(replacement_code),
+        )?;
+        stage_in_transaction(&transaction, artifact)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     pub fn record_ack(
         &mut self,
         snapshot_version: u64,
@@ -309,6 +343,32 @@ pub(crate) fn stage_rollback_in_transaction(
         )),
     )?;
     Ok(artifact)
+}
+
+pub(crate) fn stage_rebuilt_rollback_in_transaction(
+    transaction: &Transaction<'_>,
+    artifact: &SnapshotArtifact,
+    source_snapshot_version: u64,
+) -> Result<(), StorageError> {
+    ensure_can_stage(transaction, artifact.snapshot_version())?;
+    let source = read_snapshot(transaction, source_snapshot_version)?
+        .ok_or(StorageError::SnapshotNotFound)?;
+    if !matches!(
+        source.status(),
+        SnapshotStatus::Active | SnapshotStatus::Superseded
+    ) {
+        return Err(StorageError::SnapshotStateConflict);
+    }
+    insert_snapshot(transaction, artifact, Some(source_snapshot_version))?;
+    insert_audit(
+        transaction,
+        "snapshot_rollback_staged",
+        artifact.snapshot_version(),
+        artifact.created_at_unix_ms(),
+        Some(&format!(
+            "source_snapshot_version={source_snapshot_version}"
+        )),
+    )
 }
 
 fn ensure_can_stage(

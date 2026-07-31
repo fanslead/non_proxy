@@ -155,6 +155,54 @@ if [[ "${host_architectures}" != "${gateway_architectures}" ]]; then
     exit 67
 fi
 codesign --verify --strict --verbose=2 "${gateway_binary}"
+gateway_identifier=$(
+    codesign -d --verbose=4 "${gateway_binary}" 2>&1 |
+        awk -F= '$1 == "Identifier" { print $2; exit }'
+)
+if [[ "${gateway_identifier}" != com.nonproxy.gatewayd ]]; then
+    echo "gatewayd 代码签名标识必须固定为 com.nonproxy.gatewayd" >&2
+    exit 67
+fi
+gateway_team_identifier=$(
+    codesign -d --verbose=4 "${gateway_binary}" 2>&1 |
+        awk -F= '$1 == "TeamIdentifier" { print $2; exit }'
+)
+host_team_identifier=$(
+    codesign -d --verbose=4 "${host_binary}" 2>&1 |
+        awk -F= '$1 == "TeamIdentifier" { print $2; exit }'
+)
+configured_gateway_team_identifier=$(
+    /usr/libexec/PlistBuddy -c \
+        "Print :EnvironmentVariables:NONPROXY_MAC_TEAM_IDENTIFIER" \
+        "${gateway_agent_plist}" 2>/dev/null || true
+)
+if [[ -n "${gateway_team_identifier}" &&
+      "${gateway_team_identifier}" != "not set" ]]; then
+    if [[ "${host_team_identifier}" != "${gateway_team_identifier}" ]]; then
+        echo "gatewayd 与宿主 App 的 TeamIdentifier 不一致" >&2
+        exit 67
+    fi
+    if [[ "${configured_gateway_team_identifier}" != "${gateway_team_identifier}" ]]; then
+        echo "LaunchAgent 的 macOS TeamIdentifier 与 gatewayd 签名不一致" >&2
+        exit 67
+    fi
+else
+    if [[ -n "${host_team_identifier}" &&
+          "${host_team_identifier}" != "not set" ]]; then
+        echo "宿主 App 有 TeamIdentifier 时 gatewayd 也必须由同一团队签名" >&2
+        exit 67
+    fi
+    if [[ -n "${configured_gateway_team_identifier}" ]]; then
+        echo "临时签名 gatewayd 不能声明受信任的 macOS TeamIdentifier" >&2
+        exit 67
+    fi
+fi
+if [[ "${NONPROXY_RESTRICTED_SIGNING:-0}" == 1 &&
+      ( -z "${gateway_team_identifier}" ||
+        "${gateway_team_identifier}" == "not set" ) ]]; then
+    echo "正式受限签名的 gatewayd 缺少 TeamIdentifier" >&2
+    exit 67
+fi
 if [[ ! -x "${native_messaging_host}" || -L "${native_messaging_host}" ]]; then
     echo "macOS App 缺少 Native Messaging Host" >&2
     exit 67

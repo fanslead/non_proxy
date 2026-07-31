@@ -190,3 +190,64 @@
   WFP Driver、DNS 重定向和真实网络路径。
 - Provider 被系统强制终止时，内存中的 best-effort 队列仍可能丢失；系统状态会
   显示已知 dropped event，但无法声称覆盖强杀前尚未计数的内存事件。
+
+## macOS gatewayd 防回环信任边界批次状态
+
+- [x] 固定 gatewayd 代码签名 identifier，并在正式签名时绑定 TeamIdentifier
+- [x] 快照注入不可由低权限控制面创建或覆盖的 SYSTEM 直连规则
+- [x] 旧 pending 原子替换、旧 active 保留和 Provider 绑定前升级
+- [x] 旧 active 升级期间阻止 gatewayd 建立代理上游，ACK 后原子恢复
+- [x] 历史回滚重建当前系统规则及默认路由
+- [x] 普通策略/运行状态目录隐藏内部系统规则
+- [x] macOS 打包、Bundle 校验和 gatewayd 启停冒烟
+- [x] Rust/Swift/.NET、Windows 条件编译、契约、格式、lint 与跨语言 E2E
+
+### 干净验证
+
+- `cargo test --workspace`：全仓通过；其中 gatewayd 93 个库测试、11 个 gateway
+  集成测试和 1 个 Provider RPC 测试通过。
+- `cargo clippy --workspace --all-targets -- -D warnings`、`cargo fmt --all
+  -- --check`：通过。
+- `swift test --package-path platform/macos --disable-sandbox` 在仓库固定
+  `scripts/bootstrap/env.sh` 工具链下通过：XCTest 98/98、Swift Testing 28/28。
+- `dotnet test apps/desktop/NonProxy.Desktop.slnx --configuration Release
+  --no-restore`：85/85 通过。
+- Windows `x86_64-pc-windows-msvc` 与 `aarch64-pc-windows-msvc` 全 workspace
+  `cargo check --all-targets` 通过；使用宿主 SQLite link metadata，只证明条件
+  编译与类型，不代表 Windows 链接或运行。
+- `just contracts`、`just contracts-swift`、`just contracts-breaking` 与
+  `just format-check`：通过。
+- `dotnet build apps/desktop/NonProxy.Desktop.slnx -c Release --no-restore
+  --no-incremental`：Universal System Extension、Safari Extension、Native
+  Messaging Host、固定 identifier 的 gatewayd 和最终 App Bundle 均通过签名及
+  结构校验，0 warning、0 error。
+- Release App 的 `gateway-bundle-smoke.sh` 通过；`just control-e2e`、
+  `just native-messaging-e2e`、`just provider-e2e` 全部通过。
+
+### 提交前审查修正
+
+- 初版只在新快照追加系统规则，无法修复升级数据库中的旧 active/pending，历史
+  回滚也会复制旧 payload；现已增加 Provider 绑定前的候选快照规范化和重建回滚。
+- 初版只匹配固定 identifier，未约束可用于防伪的 TeamIdentifier；正式打包现从
+  已签名二进制提取 signer，并校验宿主 App、LaunchAgent、快照匹配器身份一致。
+- 定向集成测试发现内部 SYSTEM 规则误进入普通运行策略目录；现仅保留在不可变
+  快照和 Provider 数据面。
+- Release 门禁实际执行到签名身份比较时发现 Bash 条件换行错误；修正后直接复验
+  Bundle、gatewayd 启停冒烟，并重新完成一次 `--no-incremental` Release 构建。
+- Bundle 冒烟原先只传包指纹，正式签名包不会携带 TeamIdentifier 启动；现从同一
+  LaunchAgent plist 读取可选 signer 并传给被测 gatewayd。
+- 最终 review 发现已运行 Provider 可能在拉取升级快照前用缓存旧 active 抢先发起
+  flow；现以 active 快照内容驱动进程内原子门，连接工厂在保护规则激活前统一返回
+  `NP_FLOW_SYSTEM_SNAPSHOT_PENDING`，ACK 激活后才恢复代理连接。
+
+### 断言质量与证据边界
+
+- 新测试同时断言签名匹配、伪造身份旁路失败、平台隔离、系统规则规范化、旧
+  pending 拒绝原因、新 pending 版本/内容、旧 active 保留、事务失败回滚和历史
+  来源记录，以及升级门在 ACK 前关闭、ACK 后开启；没有只执行不验证或永真断言。
+- 可抵抗的主要变异包括：删除 signer 约束、把旧 pending 拒绝和新快照写入拆成
+  两个事务、升级时读取未发布数据库草稿、回滚复制旧 payload、把系统规则暴露到
+  用户目录，以及 Bundle 忽略 identifier/TeamIdentifier 漂移。
+- 当前 Release 使用临时签名，证明打包结构、固定 identifier 与无 TeamIdentifier
+  的开发分支；正式 TeamIdentifier、System Extension 真机安装、外部 VPN 共存和
+  真实物理网络防回环仍需正式签名设备验收。

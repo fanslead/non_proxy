@@ -45,7 +45,10 @@ mod server;
 mod session_capability;
 mod snapshot_builder;
 mod snapshot_payload;
+mod snapshot_types;
+mod system_policies;
 mod system_rpc;
+mod system_snapshot_gateway;
 #[cfg(unix)]
 mod unix_socket;
 #[cfg(windows)]
@@ -59,12 +62,13 @@ mod windows_service;
 pub use config::GatewayConfig;
 pub use error::GatewayError;
 pub use event_hub::EventHub;
-pub use gateway::{Gateway, GatewayStatus, ProviderSnapshot, PublishedSnapshot};
+pub use gateway::{Gateway, GatewayStatus};
 pub use learning_confirmation_gateway::LearningConfirmationResult;
 pub use routing_gateway::StagedRoutingSettings;
 pub use runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, RuntimePolicyState};
 pub use server::run;
 pub use snapshot_payload::{SNAPSHOT_PAYLOAD_FORMAT, decode as decode_snapshot_payload};
+pub use snapshot_types::{ProviderSnapshot, PublishedSnapshot};
 pub use windows_config::WindowsTransportConfig;
 #[cfg(windows)]
 pub use windows_service::run_dispatcher as run_windows_service_dispatcher;

@@ -71,7 +71,18 @@ async fn validated_snapshot_is_staged_and_payload_can_be_rebuilt() {
         panic!("网关状态读取失败: {status:?}");
     };
 
-    assert_eq!(policies, vec![policy]);
+    assert_eq!(policies.len(), 2);
+    assert!(policies.contains(&policy));
+    assert!(policies.iter().any(|value| {
+        value.id().as_str() == "system-macos-gateway-direct"
+            && value.source_kind() == PolicySourceKind::System
+            && value.origin() == PolicyOrigin::System
+            && value.matcher().app().is_some_and(|app| {
+                app.stable_id() == "com.nonproxy.gatewayd"
+                    && app.platform() == nonproxy_model::Platform::MacOs
+            })
+            && value.decision() == &DecisionSpec::direct()
+    }));
     assert_eq!(capabilities, CompileCapabilities::full());
     assert_eq!(default_decision, DecisionSpec::direct());
     assert!(status.active.is_none());

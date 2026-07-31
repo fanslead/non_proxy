@@ -37,6 +37,9 @@ impl DnsServiceError {
             Self::ResolverIo | Self::ResolversExhausted => "NP_DNS_RESOLVER_UNAVAILABLE",
             Self::ResolverTimeout => "NP_DNS_RESOLVER_TIMEOUT",
             Self::SnapshotUnavailable => "NP_DNS_SNAPSHOT_UNAVAILABLE",
+            Self::Proxy(FlowServiceError::SystemSnapshotPending) => {
+                "NP_DNS_SYSTEM_SNAPSHOT_PENDING"
+            }
             Self::Proxy(_) => "NP_DNS_PROXY_UNAVAILABLE",
             Self::Gateway(_) => "NP_DNS_GATEWAY_UNAVAILABLE",
         }
@@ -59,5 +62,19 @@ impl DnsServiceError {
     #[must_use]
     pub const fn is_invalid_argument(&self) -> bool {
         matches!(self, Self::InvalidRequest(_) | Self::InvalidQuery(_))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DnsServiceError;
+    use crate::flow_server::FlowServiceError;
+
+    #[test]
+    fn preserves_the_system_snapshot_gate_as_a_retryable_dns_error() {
+        let error = DnsServiceError::Proxy(FlowServiceError::SystemSnapshotPending);
+
+        assert_eq!(error.code(), "NP_DNS_SYSTEM_SNAPSHOT_PENDING");
+        assert!(error.retryable());
     }
 }

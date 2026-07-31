@@ -37,9 +37,22 @@ gateway_bundle_fingerprint=$(
         "Print :EnvironmentVariables:NONPROXY_GATEWAY_BUNDLE_FINGERPRINT" \
         "${gateway_agent_plist}"
 )
+gateway_team_identifier=$(
+    /usr/libexec/PlistBuddy -c \
+        "Print :EnvironmentVariables:NONPROXY_MAC_TEAM_IDENTIFIER" \
+        "${gateway_agent_plist}" 2>/dev/null || true
+)
+gateway_environment=(
+    "NONPROXY_STATE_DIR=${state_directory}"
+    "NONPROXY_GATEWAY_BUNDLE_FINGERPRINT=${gateway_bundle_fingerprint}"
+)
+if [[ -n "${gateway_team_identifier}" ]]; then
+    gateway_environment+=(
+        "NONPROXY_MAC_TEAM_IDENTIFIER=${gateway_team_identifier}"
+    )
+fi
 
-NONPROXY_STATE_DIR="${state_directory}" \
-NONPROXY_GATEWAY_BUNDLE_FINGERPRINT="${gateway_bundle_fingerprint}" \
+env "${gateway_environment[@]}" \
     "${gateway_binary}" >"${state_directory}/gateway.log" 2>&1 &
 gateway_pid=$!
 

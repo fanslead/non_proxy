@@ -11,6 +11,7 @@ const STATE_DIRECTORY_ENVIRONMENT: &str = "NONPROXY_STATE_DIR";
 const SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_SOCKET_PATH";
 const FLOW_SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_FLOW_SOCKET_PATH";
 const BUNDLE_FINGERPRINT_ENVIRONMENT: &str = "NONPROXY_GATEWAY_BUNDLE_FINGERPRINT";
+const MACOS_TEAM_IDENTIFIER_ENVIRONMENT: &str = "NONPROXY_MAC_TEAM_IDENTIFIER";
 const DEVELOPMENT_FINGERPRINT: &str = "development";
 #[cfg(target_os = "macos")]
 const MACOS_APP_GROUP_STATE_PATH: &str =
@@ -23,6 +24,7 @@ pub struct GatewayConfig {
     socket_path: PathBuf,
     flow_socket_path: PathBuf,
     bundle_fingerprint: String,
+    macos_team_identifier: Option<String>,
     #[cfg(windows)]
     windows_transport: WindowsTransportConfig,
 }
@@ -48,11 +50,15 @@ impl GatewayConfig {
                 ));
             }
         };
+        let macos_team_identifier = optional_environment(MACOS_TEAM_IDENTIFIER_ENVIRONMENT)?
+            .map(validate_team_identifier)
+            .transpose()?;
         Self::build(
             state_directory,
             socket_path,
             flow_socket_path,
             bundle_fingerprint,
+            macos_team_identifier,
         )
     }
 
@@ -76,6 +82,7 @@ impl GatewayConfig {
             socket_path.into(),
             flow_socket_path.into(),
             DEVELOPMENT_FINGERPRINT.to_owned(),
+            None,
         )
     }
 
@@ -84,6 +91,7 @@ impl GatewayConfig {
         socket_path: PathBuf,
         flow_socket_path: PathBuf,
         bundle_fingerprint: String,
+        macos_team_identifier: Option<String>,
     ) -> Result<Self, GatewayError> {
         validate_absolute(&state_directory)?;
         validate_absolute(&socket_path)?;
@@ -102,6 +110,7 @@ impl GatewayConfig {
             socket_path,
             flow_socket_path,
             bundle_fingerprint,
+            macos_team_identifier,
             #[cfg(windows)]
             windows_transport: WindowsTransportConfig::from_process()?,
         })
@@ -144,10 +153,39 @@ impl GatewayConfig {
     }
 
     #[must_use]
+    pub fn macos_team_identifier(&self) -> Option<&str> {
+        self.macos_team_identifier.as_deref()
+    }
+
+    #[must_use]
     #[cfg(windows)]
     pub fn windows_transport(&self) -> &WindowsTransportConfig {
         &self.windows_transport
     }
+}
+
+fn optional_environment(name: &'static str) -> Result<Option<String>, GatewayError> {
+    match env::var(name) {
+        Ok(value) => Ok(Some(value)),
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(env::VarError::NotUnicode(_)) => Err(GatewayError::RuntimeIdentity(format!(
+            "{name} 不是有效 UTF-8"
+        ))),
+    }
+}
+
+fn validate_team_identifier(value: String) -> Result<String, GatewayError> {
+    if !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_'))
+    {
+        return Ok(value);
+    }
+    Err(GatewayError::RuntimeIdentity(
+        "macOS TeamIdentifier 格式无效".to_owned(),
+    ))
 }
 
 fn validate_bundle_fingerprint(value: String) -> Result<String, GatewayError> {
@@ -252,7 +290,7 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     use super::macos_state_directory;
-    use super::{GatewayConfig, validate_bundle_fingerprint};
+    use super::{GatewayConfig, validate_bundle_fingerprint, validate_team_identifier};
 
     #[test]
     fn rejects_socket_outside_state_directory() {
@@ -332,5 +370,13 @@ mod tests {
         assert!(validate_bundle_fingerprint("A".repeat(64)).is_err());
         assert!(validate_bundle_fingerprint("a".repeat(63)).is_err());
         assert!(validate_bundle_fingerprint("g".repeat(64)).is_err());
+    }
+
+    #[test]
+    fn macos_team_identifier_rejects_empty_or_shell_like_values() {
+        assert!(validate_team_identifier("TEAM123456".to_owned()).is_ok());
+        assert!(validate_team_identifier(String::new()).is_err());
+        assert!(validate_team_identifier("TEAM ID".to_owned()).is_err());
+        assert!(validate_team_identifier("$(command)".to_owned()).is_err());
     }
 }

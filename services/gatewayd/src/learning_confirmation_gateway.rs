@@ -11,8 +11,9 @@ use nonproxy_storage::{
 };
 
 use crate::{
-    Gateway, GatewayError, clock::unix_time_ms, gateway::PublishedSnapshot, outbound_capabilities,
+    Gateway, GatewayError, PublishedSnapshot, clock::unix_time_ms, outbound_capabilities,
     routing_gateway::decision_for_route, snapshot_builder::build_snapshot, snapshot_payload,
+    system_policies,
 };
 
 #[derive(Debug)]
@@ -117,6 +118,7 @@ impl Gateway {
             default_decision,
             next_snapshot_version,
             now,
+            &self.system_policy_config,
         )?;
         let saved_id = confirmation_id.clone();
         let saved_session = session_id.clone();
@@ -160,6 +162,7 @@ impl Gateway {
                 &state.outbounds,
                 &decision_for_route(&state.default_route)?,
                 self.capabilities().clone(),
+                &self.system_policy_config,
             )? {
                 self.mark_confirmation_snapshot(
                     confirmation_id,
@@ -177,6 +180,7 @@ impl Gateway {
             decision_for_route(&state.default_route)?,
             next_version(state.latest_snapshot_version)?,
             now_unix_ms,
+            &self.system_policy_config,
         )?;
         Ok((
             self.stage_and_mark_confirmation(confirmation_id, published)
@@ -356,8 +360,10 @@ fn snapshot_contains(
     outbounds: &[OutboundReference],
     default_decision: &DecisionSpec,
     capabilities: nonproxy_policy_compiler::CompileCapabilities,
+    system_policy_config: &system_policies::SystemPolicyConfig,
 ) -> Result<bool, GatewayError> {
     let capabilities = outbound_capabilities::for_configured_outbounds(capabilities, outbounds);
-    let expected = snapshot_payload::encode(policies, &capabilities, default_decision)?;
+    let policies = system_policies::with_required(policies, system_policy_config)?;
+    let expected = snapshot_payload::encode(&policies, &capabilities, default_decision)?;
     Ok(snapshot.artifact().payload() == expected)
 }

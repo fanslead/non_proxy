@@ -1,16 +1,18 @@
 use std::{
     net::{IpAddr, Ipv6Addr},
     path::Path,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use nonproxy_dns::{SyntheticAddressFamily, SyntheticAddressSpace};
-use nonproxy_model::{DecisionSpec, DomainName, OutboundId, Policy, PolicyId};
+use nonproxy_model::{DomainName, OutboundId, Policy, PolicyId};
 use nonproxy_policy::CompiledPolicySnapshot;
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
 use nonproxy_storage::{
-    OutboundReference, PolicyDatabase, ProviderAck, ProviderAckState, RoutingSettings,
-    SnapshotArtifact, SnapshotRecord, StorageError, SyntheticDnsBinding,
+    OutboundReference, PolicyDatabase, RoutingSettings, SnapshotRecord, SyntheticDnsBinding,
 };
 use tokio::sync::Mutex;
 
@@ -28,30 +30,22 @@ use crate::{
     runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, build_runtime_catalog},
     snapshot_builder::build_snapshot,
     snapshot_payload,
+    snapshot_types::{ProviderSnapshot, PublishedSnapshot},
+    system_policies::SystemPolicyConfig,
 };
 
 #[derive(Clone)]
 pub struct Gateway {
     pub(crate) database: DatabaseExecutor,
     capabilities: CompileCapabilities,
+    pub(crate) system_policy_config: SystemPolicyConfig,
     pub(crate) mutation_gate: Arc<Mutex<()>>,
     events: EventHub,
     outbound_health: OutboundHealthRegistry,
     provider_health: ProviderHealthRegistry,
     pub(crate) decision_snapshots: DecisionSnapshotCache,
     decision_telemetry: DecisionTelemetryRegistry,
-}
-
-#[derive(Clone, Debug)]
-pub struct PublishedSnapshot {
-    artifact: SnapshotArtifact,
-    default_decision: DecisionSpec,
-}
-
-#[derive(Clone, Debug)]
-pub struct ProviderSnapshot {
-    record: SnapshotRecord,
-    default_decision: DecisionSpec,
+    system_snapshot_ready: Arc<AtomicBool>,
 }
 
 #[derive(Clone, Debug)]
@@ -69,31 +63,64 @@ impl Gateway {
         database_path: impl AsRef<Path>,
         capabilities: CompileCapabilities,
     ) -> Result<Self, GatewayError> {
+        Self::open_with_system_policy(database_path, capabilities, SystemPolicyConfig::default())
+            .await
+    }
+
+    pub(crate) async fn open_with_system_policy(
+        database_path: impl AsRef<Path>,
+        capabilities: CompileCapabilities,
+        system_policy_config: SystemPolicyConfig,
+    ) -> Result<Self, GatewayError> {
         let path = database_path.as_ref().to_path_buf();
         let now = unix_time_ms()?;
         let database = tokio::task::spawn_blocking(move || PolicyDatabase::open(path, now))
             .await
             .map_err(|error| GatewayError::DatabaseTask(error.to_string()))??;
-        Ok(Self::new(database, capabilities))
+        Ok(Self::new_with_system_policy(
+            database,
+            capabilities,
+            system_policy_config,
+        ))
     }
 
     #[must_use]
     pub fn new(database: PolicyDatabase, capabilities: CompileCapabilities) -> Self {
+        Self::new_with_system_policy(database, capabilities, SystemPolicyConfig::default())
+    }
+
+    #[must_use]
+    pub(crate) fn new_with_system_policy(
+        database: PolicyDatabase,
+        capabilities: CompileCapabilities,
+        system_policy_config: SystemPolicyConfig,
+    ) -> Self {
         Self {
             database: DatabaseExecutor::new(database),
             capabilities,
+            system_policy_config,
             mutation_gate: Arc::new(Mutex::new(())),
             events: EventHub::new(),
             outbound_health: OutboundHealthRegistry::new(),
             provider_health: ProviderHealthRegistry::new(),
             decision_snapshots: DecisionSnapshotCache::default(),
             decision_telemetry: DecisionTelemetryRegistry::default(),
+            system_snapshot_ready: Arc::new(AtomicBool::new(true)),
         }
     }
 
     #[must_use]
     pub const fn capabilities(&self) -> &CompileCapabilities {
         &self.capabilities
+    }
+
+    #[must_use]
+    pub(crate) fn system_snapshot_ready(&self) -> bool {
+        self.system_snapshot_ready.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn set_system_snapshot_ready(&self, ready: bool) {
+        self.system_snapshot_ready.store(ready, Ordering::Release);
     }
 
     #[must_use]
@@ -141,11 +168,12 @@ impl Gateway {
             })
             .await?;
         if let Some(active) = status.active.as_ref() {
-            status.data_plane_ready = self.provider_health.all_ready(
-                provider_requirements::required_provider_ids(),
-                active.artifact().snapshot_version(),
-                unix_time_ms()?,
-            )?;
+            status.data_plane_ready = self.system_snapshot_ready()
+                && self.provider_health.all_ready(
+                    provider_requirements::required_provider_ids(),
+                    active.artifact().snapshot_version(),
+                    unix_time_ms()?,
+                )?;
         }
         Ok(status)
     }
@@ -177,6 +205,7 @@ impl Gateway {
         policy: Policy,
         expected_revision: Option<u64>,
     ) -> Result<Policy, GatewayError> {
+        crate::system_policies::validate_user_mutation(&policy)?;
         let _operation = self.mutation_gate.lock().await;
         let now = unix_time_ms()?;
         self.database
@@ -215,6 +244,7 @@ impl Gateway {
         now_unix_ms: u64,
     ) -> Result<PublishedSnapshot, GatewayError> {
         let capabilities = self.capabilities.clone();
+        let system_policy_config = self.system_policy_config.clone();
         self.database
             .run(move |database| {
                 let policies = database.policies().list()?;
@@ -231,6 +261,7 @@ impl Gateway {
                     decision_for_route(routing.route())?,
                     snapshot_version,
                     now_unix_ms,
+                    &system_policy_config,
                 )?;
                 database.snapshots().stage(published.artifact())?;
                 Ok(published)
@@ -350,10 +381,7 @@ impl Gateway {
                 }
                 let (_policies, _capabilities, default_decision) =
                     snapshot_payload::decode(record.artifact().payload())?;
-                Ok(Some(ProviderSnapshot {
-                    record,
-                    default_decision,
-                }))
+                Ok(Some(ProviderSnapshot::new(record, default_decision)))
             })
             .await
     }
@@ -434,67 +462,5 @@ impl Gateway {
         self.database
             .run(move |database| Ok(database.synthetic_dns().lookup(space, address, now)?))
             .await
-    }
-
-    pub async fn acknowledge_provider_snapshot(
-        &self,
-        snapshot_version: u64,
-        acknowledgement: ProviderAck,
-        required_provider_ids: Vec<String>,
-    ) -> Result<SnapshotRecord, GatewayError> {
-        let _operation = self.mutation_gate.lock().await;
-        let now = unix_time_ms()?;
-        self.database
-            .run(move |database| {
-                database
-                    .snapshots()
-                    .record_ack(snapshot_version, &acknowledgement)?;
-                if acknowledgement.state() == ProviderAckState::Loaded {
-                    match database.snapshots().activate(
-                        snapshot_version,
-                        &required_provider_ids,
-                        now,
-                    ) {
-                        Ok(()) | Err(StorageError::ProviderAcknowledgementMissing) => {}
-                        Err(error) => return Err(error.into()),
-                    }
-                }
-                database
-                    .snapshots()
-                    .get(snapshot_version)?
-                    .ok_or_else(|| StorageError::SnapshotNotFound.into())
-            })
-            .await
-    }
-}
-
-impl PublishedSnapshot {
-    pub(crate) const fn new(artifact: SnapshotArtifact, default_decision: DecisionSpec) -> Self {
-        Self {
-            artifact,
-            default_decision,
-        }
-    }
-
-    #[must_use]
-    pub const fn artifact(&self) -> &SnapshotArtifact {
-        &self.artifact
-    }
-
-    #[must_use]
-    pub const fn default_decision(&self) -> &DecisionSpec {
-        &self.default_decision
-    }
-}
-
-impl ProviderSnapshot {
-    #[must_use]
-    pub const fn record(&self) -> &SnapshotRecord {
-        &self.record
-    }
-
-    #[must_use]
-    pub const fn default_decision(&self) -> &DecisionSpec {
-        &self.default_decision
     }
 }

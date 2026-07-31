@@ -13,6 +13,7 @@ use crate::{
     gateway::Gateway,
     provider_service::ProviderRpcService,
     session_capability::SessionCapability,
+    system_policies::SystemPolicyConfig,
 };
 
 #[cfg(any(unix, windows))]
@@ -43,7 +44,15 @@ async fn run_with_lifecycle(
     ready: Option<tokio::sync::oneshot::Sender<()>>,
 ) -> Result<(), GatewayError> {
     config.prepare()?;
-    let gateway = Gateway::open(config.database_path(), CompileCapabilities::full()).await?;
+    let system_policy_config =
+        SystemPolicyConfig::new(config.macos_team_identifier().map(str::to_owned))?;
+    let gateway = Gateway::open_with_system_policy(
+        config.database_path(),
+        CompileCapabilities::full(),
+        system_policy_config,
+    )
+    .await?;
+    gateway.reconcile_required_system_snapshot().await?;
     let control_capability = SessionCapability::create_control(config.state_directory())?;
     let provider_capability = SessionCapability::create_provider(config.state_directory())?;
     let credential_store: Arc<dyn CredentialStore> = Arc::new(OsCredentialStore);

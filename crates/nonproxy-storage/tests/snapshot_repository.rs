@@ -149,6 +149,80 @@ fn latest_version_is_none_then_tracks_highest_staged_snapshot() {
 }
 
 #[test]
+fn pending_replacement_is_atomic_and_preserves_the_active_snapshot() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    activate_single_provider(&mut database, 1, 1, 1_100);
+    let pending = artifact(2, 2);
+    let Ok(pending) = pending else {
+        panic!("旧待发布快照创建失败: {pending:?}");
+    };
+    if let Err(error) = database.snapshots().stage(&pending) {
+        panic!("旧待发布快照暂存失败: {error}");
+    }
+    let replacement = artifact(3, 3);
+    let Ok(replacement) = replacement else {
+        panic!("替换快照创建失败: {replacement:?}");
+    };
+    if let Err(error) = database.snapshots().replace_pending(
+        &replacement,
+        "NP_SNAPSHOT_SYSTEM_POLICY_UPGRADE",
+        1_300,
+    ) {
+        panic!("待发布快照原子替换失败: {error}");
+    }
+    let old = database.snapshots().get(2);
+    let active = database.snapshots().active();
+    let new = database.snapshots().pending();
+    let (Ok(Some(old)), Ok(Some(active)), Ok(Some(new))) = (old, active, new) else {
+        panic!("替换后的快照状态读取失败");
+    };
+
+    assert_eq!(old.status(), SnapshotStatus::Rejected);
+    assert_eq!(
+        old.failure_code(),
+        Some("NP_SNAPSHOT_SYSTEM_POLICY_UPGRADE")
+    );
+    assert_eq!(active.artifact().snapshot_version(), 1);
+    assert_eq!(new.artifact(), &replacement);
+}
+
+#[test]
+fn failed_pending_replacement_rolls_back_the_rejection() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let pending = artifact(1, 1);
+    let Ok(pending) = pending else {
+        panic!("旧待发布快照创建失败: {pending:?}");
+    };
+    if let Err(error) = database.snapshots().stage(&pending) {
+        panic!("旧待发布快照暂存失败: {error}");
+    }
+    let non_monotonic = artifact(1, 2);
+    let Ok(non_monotonic) = non_monotonic else {
+        panic!("非单调替换快照创建失败: {non_monotonic:?}");
+    };
+
+    assert!(matches!(
+        database.snapshots().replace_pending(
+            &non_monotonic,
+            "NP_SNAPSHOT_SYSTEM_POLICY_UPGRADE",
+            1_200,
+        ),
+        Err(StorageError::SnapshotVersionNotMonotonic)
+    ));
+    assert!(matches!(
+        database.snapshots().pending(),
+        Ok(Some(record))
+            if record.artifact() == &pending && record.failure_code().is_none()
+    ));
+}
+
+#[test]
 fn hash_mismatch_and_non_monotonic_versions_are_rejected() {
     let database = PolicyDatabase::open_in_memory(1_000);
     let Ok(mut database) = database else {

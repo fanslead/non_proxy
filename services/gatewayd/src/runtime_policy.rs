@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use nonproxy_model::{Policy, PolicyId};
 use nonproxy_storage::SnapshotRecord;
 
-use crate::{GatewayError, snapshot_payload};
+use crate::{GatewayError, snapshot_payload, system_policies};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RuntimePolicyState {
@@ -183,6 +183,7 @@ fn snapshot_policy_map(
 fn policy_map(policies: Vec<Policy>) -> BTreeMap<PolicyId, Policy> {
     policies
         .into_iter()
+        .filter(|policy| !system_policies::is_managed_system_policy(policy))
         .map(|policy| (policy.id().clone(), policy))
         .collect()
 }

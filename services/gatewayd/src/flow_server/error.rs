@@ -12,6 +12,8 @@ pub enum FlowServiceError {
     Protocol(#[from] FlowProtocolError),
     #[error("Provider 数据面认证失败")]
     Authentication,
+    #[error("防回环系统快照尚未激活")]
+    SystemSnapshotPending,
     #[error("代理出口不存在")]
     OutboundNotFound,
     #[error("代理出口未启用")]
@@ -45,6 +47,7 @@ impl FlowServiceError {
             Self::Io(_) => "NP_FLOW_IO_FAILED",
             Self::Protocol(_) => "NP_FLOW_PROTOCOL_INVALID",
             Self::Authentication => "NP_FLOW_AUTHENTICATION_FAILED",
+            Self::SystemSnapshotPending => "NP_FLOW_SYSTEM_SNAPSHOT_PENDING",
             Self::OutboundNotFound => "NP_FLOW_OUTBOUND_NOT_FOUND",
             Self::OutboundDisabled => "NP_FLOW_OUTBOUND_DISABLED",
             Self::OutboundUnsupported => "NP_FLOW_OUTBOUND_UNSUPPORTED",

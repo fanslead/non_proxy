@@ -155,6 +155,9 @@ fn probe_timeout(value: Option<&prost_types::Duration>) -> Result<Duration, Erro
 
 fn flow_detail(error: &FlowServiceError) -> ErrorDetail {
     let message = match error {
+        FlowServiceError::SystemSnapshotPending => {
+            "防回环系统规则仍在激活中，请等待网络扩展加载后重试。"
+        }
         FlowServiceError::OutboundNotFound => "要测试的代理出口不存在，请刷新列表后重试。",
         FlowServiceError::OutboundDisabled => "该代理出口已停用，请先启用后再测试。",
         FlowServiceError::OutboundUnsupported => "当前出口类型暂不支持内置握手测试。",
@@ -170,7 +173,8 @@ fn flow_detail(error: &FlowServiceError) -> ErrorDetail {
     };
     let retryable = matches!(
         error,
-        FlowServiceError::Io(_)
+        FlowServiceError::SystemSnapshotPending
+            | FlowServiceError::Io(_)
             | FlowServiceError::Outbound(_)
             | FlowServiceError::Gateway(_)
             | FlowServiceError::CredentialTask

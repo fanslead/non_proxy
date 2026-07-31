@@ -186,3 +186,40 @@
   Bundle 结构；未在本批执行已签名 System Extension 的真实安装和外部 VPN 共存流量。
 - Windows x64/arm64 使用本机 SQLite link metadata 完成 `cargo check`/clippy，
   只证明 Windows 条件编译与类型，不证明链接后的 Service、WFP Driver 或真实网络栈。
+
+## macOS gatewayd 防回环信任边界批次
+
+### 审计发现
+
+- 技术文档要求 `gatewayd` 的代理服务器连接由 Transparent Provider 识别为系统
+  组件并交还物理网络，但当前快照只包含数据库中的用户策略，没有注入这一系统规则。
+  默认 PROXY 时，真实 System Extension 环境存在把 gatewayd 的代理上游连接再次
+  送回 gatewayd 的递归风险。
+- `MacAppIdentityResolver` 依赖 `sourceAppSigningIdentifier`。当前打包脚本给裸
+  `gatewayd` 二进制签名时没有指定 identifier；临时签名得到的 identifier 带内容
+  哈希，不能作为跨版本稳定的系统策略身份。
+- 低权限 Control `UpsertPolicy` 会完整接受客户端给出的 `source_kind/origin`。
+  领域模型只验证二者组合一致，无法阻止客户端伪造最高优先级 `SYSTEM` 策略。
+- Windows WFP 配置已携带 gatewayd 自身 PID，由 Driver 侧避免把代理进程再次
+  重定向；本批只修复 macOS 的签名身份与快照规则，同时收紧共享控制面写入边界。
+
+### 设计结论
+
+- 裸二进制固定使用 `com.nonproxy.gatewayd` 作为代码签名 identifier，并在 Bundle
+  校验脚本中把该值作为发布门禁。正式签名还必须把二进制 TeamIdentifier 原样写入
+  LaunchAgent 环境，并在快照匹配器中同时约束 signer；仅有 identifier 的临时签名
+  身份不能作为发布安全边界。
+- 每次构建快照时在内存中追加 `system-macos-gateway-direct`：匹配 macOS
+  `com.nonproxy.gatewayd`，动作固定 DIRECT/fail-closed，来源为 SYSTEM。规则进入
+  不可变快照和哈希，但不写用户策略表、不出现在普通策略编辑列表。
+- 用户写接口只允许用户可编辑来源和 `origin=USER`，同时拒绝保留系统 ID；内部
+  系统规则由可信快照构建器产生，不能经低权限 RPC 创建或覆盖。
+- 启动必须在 Provider 控制面绑定前检查旧 pending/active payload：旧 pending 的
+  拒绝与重建快照写入保持同一事务，旧 active 在新快照 ACK 前继续服务。重建使用
+  候选 payload 而不是数据库草稿，避免把未发布编辑意外带入升级。
+- 仅保留旧 active 仍存在启动竞态：已运行 Provider 可能用缓存旧快照在控制面拉取
+  升级 pending 前先发起 flow。gatewayd 因此必须把“当前 active 含受保护规则”
+  保存为进程内原子门；TCP/UDP、代理 DNS 和出口探测共用的连接工厂在该门开启前
+  返回稳定可重试错误，不能读取凭据或创建代理上游。
+- 回滚不能复制可能缺少或包含旧 signer 的历史 payload；应保留历史策略、能力和
+  默认决策，同时重建当前受保护系统规则并在路由事务内记录历史来源。

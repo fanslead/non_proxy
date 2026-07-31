@@ -139,3 +139,33 @@
 4. 运行 Rust/Swift/.NET 定向与全量测试。
 5. 运行 Windows x64/arm64 target check、格式、lint、契约和 Release Bundle 门禁。
 6. 逐文件 review、显式暂存、复查 staged diff 后提交本批。
+
+## macOS gatewayd 防回环信任边界批次
+
+| 验收项 | 计划测试或检查 |
+| --- | --- |
+| 每个发布快照都包含唯一 gatewayd 系统直连规则 | snapshot builder / gateway integration tests |
+| 系统规则高于用户默认代理且只匹配固定 macOS 身份 | Rust PolicyEngine 行为测试、Swift 快照现有回归 |
+| 用户不能伪造 SYSTEM/BUILT_IN/ADAPTER/SUBSCRIPTION 来源 | Control RPC 与 Gateway 负向测试 |
+| 用户不能占用保留系统策略 ID | Gateway 负向测试 |
+| gatewayd 裸二进制签名标识跨构建稳定 | macOS Bundle verifier 与 Release 构建 |
+| 正式 TeamIdentifier 与宿主、LaunchAgent、策略 signer 一致 | 打包/校验脚本、PolicyEngine 负向测试 |
+| 旧 pending 原子替换，失败不留下半状态 | storage repository 与 gateway 启动测试 |
+| 旧 active 保留到升级快照 ACK | gateway 启动测试 |
+| 旧 active 期间不建立任何代理上游 | readiness 原子门、连接工厂和 ACK 激活测试 |
+| 历史回滚重建当前系统规则 | gateway 回滚集成测试 |
+| Windows 自身 PID 防回环保持不受影响 | Windows target check 与既有 WFP 配置测试 |
+| 文档不再把未落地约束写成既成事实 | 技术实现文档与 README diff review |
+
+### 执行顺序
+
+1. 新建隔离的 `system_policies` 模块，集中定义保留身份、规则和用户写边界。
+2. 快照构建时追加系统规则并覆盖哈希、payload、启动升级、回滚和 Provider
+   重编译链路。
+3. 固定 macOS gatewayd 代码签名 identifier；正式签名提取 TeamIdentifier 写入
+   LaunchAgent，并校验宿主 App、gatewayd 二进制、LaunchAgent 和快照 signer
+   四处身份一致。
+4. 增加行为/负向/升级原子性测试，并修正受影响的快照 policy count 和运行目录
+   断言。
+5. 运行 Rust、Swift、.NET、Windows target、格式、lint、契约和 Release 门禁。
+6. 提交前逐文件 review，显式暂存并复查 staged diff。

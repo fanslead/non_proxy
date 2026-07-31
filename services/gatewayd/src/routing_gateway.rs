@@ -2,8 +2,10 @@ use nonproxy_model::{DecisionSpec, FailureMode, RouteAction};
 use nonproxy_storage::{DefaultRoute, OutboundReference, RoutingSettings, StorageError};
 
 use crate::{
-    Gateway, GatewayError, PublishedSnapshot, clock::unix_time_ms,
-    snapshot_builder::build_snapshot, snapshot_payload,
+    Gateway, GatewayError, PublishedSnapshot,
+    clock::unix_time_ms,
+    snapshot_builder::{build_snapshot, rebuild_snapshot},
+    snapshot_payload,
 };
 
 #[derive(Clone, Debug)]
@@ -52,6 +54,7 @@ impl Gateway {
         let _operation = self.mutation_gate.lock().await;
         let now = unix_time_ms()?;
         let capabilities = self.capabilities().clone();
+        let system_policy_config = self.system_policy_config.clone();
         self.database
             .run(move |database| {
                 let policies = database.policies().list()?;
@@ -66,6 +69,7 @@ impl Gateway {
                     default_decision,
                     snapshot_version,
                     now,
+                    &system_policy_config,
                 )?;
                 let settings = database.routing_settings().set_and_stage(
                     &route,
@@ -87,6 +91,7 @@ impl Gateway {
     ) -> Result<PublishedSnapshot, GatewayError> {
         let _operation = self.mutation_gate.lock().await;
         let now = unix_time_ms()?;
+        let system_policy_config = self.system_policy_config.clone();
         self.database
             .run(move |database| {
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
@@ -95,18 +100,26 @@ impl Gateway {
                     .snapshots()
                     .get(target_snapshot_version)?
                     .ok_or(StorageError::SnapshotNotFound)?;
-                let (_policies, _capabilities, default_decision) =
+                let (policies, capabilities, default_decision) =
                     snapshot_payload::decode(source.artifact().payload())?;
                 let route = route_for_decision(&default_decision)?;
                 let revision = database.routing_settings().get()?.revision();
-                let (_settings, artifact) = database.routing_settings().set_and_stage_rollback(
+                let published = rebuild_snapshot(
+                    capabilities,
+                    &policies,
+                    default_decision,
+                    next,
+                    now,
+                    &system_policy_config,
+                )?;
+                database.routing_settings().set_and_stage_rebuilt_rollback(
                     &route,
                     revision,
-                    next,
+                    published.artifact(),
                     target_snapshot_version,
                     now,
                 )?;
-                Ok(PublishedSnapshot::new(artifact, default_decision))
+                Ok(published)
             })
             .await
     }
