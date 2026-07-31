@@ -1799,6 +1799,15 @@ macOS 原生桥 ABI 约束：
 
 完整决策见 [ADR-0016](ADR/0016-orchestrate-one-click-network-direct.md)。
 
+运行概览的接入引导是持续重算的 readiness projection，不保存一次性的 onboarding 完成位。
+完整网关卡片组合系统组件、默认代理引用、活动直连规则数量、pending/active 快照和
+`data_plane_enabled`；只有活动数据面已经确认才显示基础就绪。默认代理当初仍必须通过 60 秒
+新鲜握手门禁才能保存，但握手观察过期不会被误当成运行中的数据面故障。客户端协同卡片读取
+独立 Adapter 目录；已有登记仍显示待同步/待路径证据。两类本地服务的预期不可用分别降级，
+无效契约继续进入统一错误边界。高频决策事件只重读运行概览并复用最近的目录快照，避免每条
+事件触发出口回执和 Adapter 全量读取。按钮只经 `IWorkspaceNavigator` 切换已有页面，不复制
+业务状态。完整决策见 [ADR-0029](ADR/0029-guide-setup-with-authoritative-readiness.md)。
+
 ### 17.7 主题、可访问性和本地化
 
 - 支持浅色、深色和系统主题。

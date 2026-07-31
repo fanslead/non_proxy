@@ -43,6 +43,7 @@ public static class ServiceRegistration
         services.AddSingleton<ActivityViewModel>();
         services.AddSingleton<DiagnosticsViewModel>();
         services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton<IWorkspaceNavigator, WorkspaceNavigator>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
         services.AddSingleton<DesktopLifetimeController>();

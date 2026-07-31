@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using NonProxy.Desktop.Core.Features.Shell;
 using NonProxy.Desktop.Core.Platform;
+using NonProxy.Desktop.Core.Services.Adapters;
 using NonProxy.Desktop.Core.Services.Control;
 using NonProxy.Desktop.Core.Services.Control.Events;
 
@@ -65,6 +66,33 @@ public sealed class ShellLiveStatusTests
         await PumpUiUntilAsync(status.SecondRead.Task);
 
         Assert.Equal(2, status.ReadCount);
+    }
+
+    [AvaloniaFact]
+    public async Task DecisionEventDoesNotReloadSetupCatalogs()
+    {
+        var monitor = new ControlledEventMonitor();
+        var status = new CountingSystemStatusService();
+        var outbounds = new DashboardRefreshIsolationTests.CountingOutboundService();
+        var adapters = new DashboardRefreshIsolationTests.CountingAdapterService();
+        using var services = TestPlatformServices.Create(
+            configure: registrations =>
+            {
+                registrations.AddSingleton<IControlEventMonitor>(monitor);
+                registrations.AddSingleton<ISystemStatusService>(status);
+                registrations.AddSingleton<IOutboundService>(outbounds);
+                registrations.AddSingleton<IAdapterManagementService>(adapters);
+            });
+        var shell = services.GetRequiredService<MainWindowViewModel>();
+
+        await shell.InitializeCommand.ExecuteAsync(null);
+        await monitor.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        monitor.EmitEvent(new ControlEventNotification(1, ControlEventKind.Decision));
+        await PumpUiUntilAsync(status.SecondRead.Task);
+
+        Assert.Equal(2, status.ReadCount);
+        Assert.Equal(1, outbounds.ReadCount);
+        Assert.Equal(1, adapters.ReadCount);
     }
 
     private static async Task PumpUiUntilAsync(Task completion)

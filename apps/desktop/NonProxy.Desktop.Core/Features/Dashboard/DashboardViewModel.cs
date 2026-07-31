@@ -1,7 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NonProxy.Desktop.Core.Features.Common;
+using NonProxy.Desktop.Core.Features.Shell;
 using NonProxy.Desktop.Core.Platform;
+using NonProxy.Desktop.Core.Services.Adapters;
 using NonProxy.Desktop.Core.Services.Control;
 
 namespace NonProxy.Desktop.Core.Features.Dashboard;
@@ -11,10 +13,20 @@ public sealed partial class DashboardViewModel : LoadableViewModel
     private readonly IPlatformInformation _platformInformation;
     private readonly ISystemStatusService _statusService;
     private readonly ISystemComponentInstaller _componentInstaller;
+    private readonly IOutboundService _outboundService;
+    private readonly IAdapterManagementService _adapterService;
+    private readonly IWorkspaceNavigator _navigator;
+    private OptionalRead<OutboundCatalog> _lastOutbounds =
+        OptionalRead<OutboundCatalog>.Unavailable;
+    private OptionalRead<AdapterCatalog> _lastAdapters =
+        OptionalRead<AdapterCatalog>.Unavailable;
     private ConnectionState? _liveConnectionState;
 
     [ObservableProperty]
     private DashboardState _state = DashboardState.Initial;
+
+    [ObservableProperty]
+    private DashboardSetupJourney _setup = DashboardSetupJourney.Initial;
 
     [ObservableProperty]
     private string? _operationMessage;
@@ -28,12 +40,18 @@ public sealed partial class DashboardViewModel : LoadableViewModel
     public DashboardViewModel(
         IPlatformInformation platformInformation,
         ISystemStatusService statusService,
-        ISystemComponentInstaller componentInstaller)
+        ISystemComponentInstaller componentInstaller,
+        IOutboundService outboundService,
+        IAdapterManagementService adapterService,
+        IWorkspaceNavigator navigator)
         : base("运行概览")
     {
         _platformInformation = platformInformation;
         _statusService = statusService;
         _componentInstaller = componentInstaller;
+        _outboundService = outboundService;
+        _adapterService = adapterService;
+        _navigator = navigator;
         InstallComponentCommand = new AsyncRelayCommand(
             InstallComponentAsync,
             AsyncRelayCommandOptions.None);
@@ -46,6 +64,11 @@ public sealed partial class DashboardViewModel : LoadableViewModel
             () => IsUninstallConfirmationVisible = false);
         ConfirmUninstallCommand = new AsyncRelayCommand(
             ConfirmUninstallAsync,
+            AsyncRelayCommandOptions.None);
+        NavigateSetupCommand = new RelayCommand<WorkspaceDestination?>(
+            NavigateSetup);
+        RefreshRuntimeCommand = new AsyncRelayCommand(
+            RefreshRuntimeAsync,
             AsyncRelayCommandOptions.None);
     }
 
@@ -61,9 +84,28 @@ public sealed partial class DashboardViewModel : LoadableViewModel
 
     public IAsyncRelayCommand ConfirmUninstallCommand { get; }
 
+    public IRelayCommand<WorkspaceDestination?> NavigateSetupCommand { get; }
+
+    public IAsyncRelayCommand RefreshRuntimeCommand { get; }
+
     protected override async Task LoadCoreAsync(CancellationToken cancellationToken)
     {
-        var overview = await _statusService.GetOverviewAsync(cancellationToken);
+        var overviewTask = _statusService.GetOverviewAsync(cancellationToken);
+        var outboundsTask = TryReadAsync(
+            _outboundService.ListAsync,
+            cancellationToken);
+        var adaptersTask = TryReadAsync(
+            _adapterService.ListAsync,
+            cancellationToken);
+        await Task.WhenAll(overviewTask, outboundsTask, adaptersTask);
+        var overview = await overviewTask;
+        _lastOutbounds = await outboundsTask;
+        _lastAdapters = await adaptersTask;
+        ApplyOverview(overview);
+    }
+
+    private void ApplyOverview(SystemOverview overview)
+    {
         var connection = overview.Connection == ConnectionState.Connected
             ? _liveConnectionState ?? overview.Connection
             : overview.Connection;
@@ -78,6 +120,10 @@ public sealed partial class DashboardViewModel : LoadableViewModel
             overview.DirectNetworkCount,
             overview.RecentDecisionCount,
             overview.RecentDecisionCount > 0);
+        Setup = DashboardSetupJourney.Build(
+            overview,
+            _lastOutbounds,
+            _lastAdapters);
     }
 
     public void SetLiveConnectionState(ConnectionState state)
@@ -165,4 +211,50 @@ public sealed partial class DashboardViewModel : LoadableViewModel
         };
     }
 
+    private void NavigateSetup(WorkspaceDestination? destination)
+    {
+        if (destination is { } value)
+        {
+            _navigator.NavigateTo(value);
+        }
+    }
+
+    private Task RefreshRuntimeAsync(CancellationToken cancellationToken)
+    {
+        return RunOperationAsync(
+            async token => ApplyOverview(
+                await _statusService.GetOverviewAsync(token)),
+            cancellationToken);
+    }
+
+    private static async Task<OptionalRead<T>> TryReadAsync<T>(
+        Func<CancellationToken, Task<T>> read,
+        CancellationToken cancellationToken)
+        where T : class
+    {
+        try
+        {
+            return OptionalRead<T>.Success(await read(cancellationToken));
+        }
+        catch (ControlServiceException exception)
+            when (IsExpectedOptionalFailure(exception.Code))
+        {
+            return OptionalRead<T>.Unavailable;
+        }
+    }
+
+    private static bool IsExpectedOptionalFailure(string code)
+    {
+        return code is "NP_CONTROL_UNAVAILABLE"
+            or "NP_CONTROL_TIMEOUT"
+            or "NP_CONTROL_SESSION_EXPIRED"
+            or "NP_CONTROL_INTERRUPTED"
+            or "NP_CONTROL_RPC_FAILED"
+            or "NP_ADAPTER_UNAVAILABLE"
+            or "NP_ADAPTER_TIMEOUT"
+            or "NP_ADAPTER_SESSION_EXPIRED"
+            or "NP_ADAPTER_SESSION_INVALID"
+            or "NP_ADAPTER_INTERRUPTED"
+            or "NP_ADAPTER_RPC_FAILED";
+    }
 }

@@ -79,6 +79,8 @@
                         AutomationProperties.Name="刷新运行状态" />
             </Grid>
 
+            <dashboard:DashboardSetupJourneyView x:Name="SetupJourney" />
+
             <Border Theme="{StaticResource NpCard}">
                 <StackPanel Spacing="18">
                     <StackPanel Spacing="8">

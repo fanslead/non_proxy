@@ -1,3 +1,4 @@
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
@@ -11,6 +12,18 @@ namespace NonProxy.Desktop.Tests;
 
 public sealed class DashboardViewTests
 {
+    [AvaloniaFact]
+    public Task MacCompositionRendersTruthfulSetupJourney()
+    {
+        return AssertSetupJourneyAsync(PlatformKind.MacOS, "macOS");
+    }
+
+    [AvaloniaFact]
+    public Task WindowsCompositionRendersTruthfulSetupJourney()
+    {
+        return AssertSetupJourneyAsync(PlatformKind.Windows, "Windows");
+    }
+
     [AvaloniaFact]
     public void InitialStateRendersStatusHeadline()
     {
@@ -102,6 +115,50 @@ public sealed class DashboardViewTests
             Assert.Same(
                 services.GetRequiredService<MainWindowViewModel>(),
                 window.DataContext);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private static async Task AssertSetupJourneyAsync(
+        PlatformKind platform,
+        string displayName)
+    {
+        using var services = TestPlatformServices.Create(platform, displayName);
+        var viewModel = services.GetRequiredService<DashboardViewModel>();
+        var view = new DashboardView { DataContext = viewModel };
+        var window = new Window
+        {
+            Width = 1_200,
+            Height = 900,
+            Content = view,
+        };
+
+        try
+        {
+            window.Show();
+            await viewModel.RefreshCommand.ExecuteAsync(null);
+            Dispatcher.UIThread.RunJobs();
+
+            var journey = Assert.IsType<DashboardSetupJourneyView>(
+                view.FindControl<DashboardSetupJourneyView>("SetupJourney"));
+            var gateway = Assert.IsType<Button>(
+                journey.FindControl<Button>("OpenGatewaySetupButton"));
+            var adapter = Assert.IsType<Button>(
+                journey.FindControl<Button>("OpenAdapterSetupButton"));
+            Assert.Equal(
+                "继续完整网关设置",
+                AutomationProperties.GetName(gateway));
+            Assert.Equal(
+                "继续第三方客户端协同设置",
+                AutomationProperties.GetName(adapter));
+            Assert.True(adapter.IsVisible);
+            Assert.Contains(
+                "不会猜测",
+                viewModel.Setup.Adapter.Detail,
+                StringComparison.Ordinal);
         }
         finally
         {

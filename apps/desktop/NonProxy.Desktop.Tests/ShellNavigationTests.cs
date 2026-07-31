@@ -45,4 +45,17 @@ public sealed class ShellNavigationTests
             ],
             labels);
     }
+
+    [Fact]
+    public void SetupJourneyUsesTheSameAuthoritativeWorkspaceNavigation()
+    {
+        using var services = TestPlatformServices.Create();
+        var shell = services.GetRequiredService<MainWindowViewModel>();
+
+        shell.Dashboard.NavigateSetupCommand.Execute(
+            WorkspaceDestination.Adapters);
+
+        Assert.Equal("客户端协同", shell.CurrentPage.Title);
+        Assert.Equal("客户端协同", shell.SelectedNavigation?.Label);
+    }
 }

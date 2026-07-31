@@ -47,6 +47,9 @@ public sealed class GatewaySystemStatusService : ISystemStatusService
             var networkCount = visible.Count(item =>
                 item.Action == PolicyAction.Direct
                 && item.Scope == PolicyScope.Network);
+            var activeDirectCount = catalog.Items.Count(item =>
+                item.Action == PolicyAction.Direct
+                && item.State == PolicyApplyState.Active);
             return new SystemOverview(
                 ConnectionState.Connected,
                 component,
@@ -58,7 +61,9 @@ public sealed class GatewaySystemStatusService : ISystemStatusService
                 networkCount,
                 DecisionCount(decisions.TotalCount),
                 DateTimeOffset.UtcNow,
-                OptionalVersion(status.PendingSnapshotVersion));
+                OptionalVersion(status.PendingSnapshotVersion),
+                status.DataPlaneEnabled,
+                activeDirectCount);
         }
         catch (ControlServiceException exception)
         {

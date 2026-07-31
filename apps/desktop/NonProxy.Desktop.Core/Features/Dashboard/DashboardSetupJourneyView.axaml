@@ -1,0 +1,164 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dashboard="using:NonProxy.Desktop.Core.Features.Dashboard"
+             x:Class="NonProxy.Desktop.Core.Features.Dashboard.DashboardSetupJourneyView"
+             x:DataType="dashboard:DashboardViewModel">
+    <UserControl.Styles>
+        <Style Selector="Border.setup-path">
+            <Setter Property="Padding"
+                    Value="18" />
+            <Setter Property="CornerRadius"
+                    Value="12" />
+            <Setter Property="BorderBrush"
+                    Value="{DynamicResource NpBorderBrush}" />
+            <Setter Property="BorderThickness"
+                    Value="1" />
+            <Setter Property="Background"
+                    Value="{DynamicResource NpCanvasBrush}" />
+        </Style>
+        <Style Selector="Border.setup-path.primary">
+            <Setter Property="BorderBrush"
+                    Value="{DynamicResource NpBrandBrush}" />
+            <Setter Property="BorderThickness"
+                    Value="2" />
+        </Style>
+        <Style Selector="Border.setup-status">
+            <Setter Property="Padding"
+                    Value="8,4" />
+            <Setter Property="CornerRadius"
+                    Value="999" />
+            <Setter Property="BorderBrush"
+                    Value="{DynamicResource NpMutedBrush}" />
+            <Setter Property="BorderThickness"
+                    Value="1" />
+        </Style>
+        <Style Selector="Border.setup-status.ready">
+            <Setter Property="BorderBrush"
+                    Value="{DynamicResource NpSuccessBrush}" />
+        </Style>
+        <Style Selector="Border.setup-status.attention">
+            <Setter Property="BorderBrush"
+                    Value="{DynamicResource NpWarningBrush}" />
+        </Style>
+        <Style Selector="Border.setup-status.unavailable">
+            <Setter Property="BorderBrush"
+                    Value="{DynamicResource NpDangerBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Theme="{StaticResource NpCard}">
+        <StackPanel Spacing="16">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="16">
+                <StackPanel Spacing="5">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="选择接入方式" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="两条路径共用直连规则，但接管边界不同。"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+                <TextBlock Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Theme="{StaticResource NpMutedText}"
+                           Text="先完成一条路径" />
+            </Grid>
+
+            <Grid ColumnDefinitions="*,*"
+                  ColumnSpacing="14">
+                <Border Classes="setup-path primary">
+                    <Grid RowDefinitions="Auto,Auto,*,Auto"
+                          RowSpacing="12">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Theme="{StaticResource NpMutedText}"
+                                           FontSize="12"
+                                           Text="{Binding Setup.Gateway.Eyebrow}" />
+                                <TextBlock FontSize="19"
+                                           FontWeight="SemiBold"
+                                           Text="{Binding Setup.Gateway.Title}" />
+                            </StackPanel>
+                            <Border Grid.Column="1"
+                                    Classes="setup-status"
+                                    Classes.ready="{Binding Setup.Gateway.IsReady}"
+                                    Classes.attention="{Binding Setup.Gateway.IsAttention}"
+                                    Classes.unavailable="{Binding Setup.Gateway.IsUnavailable}">
+                                <TextBlock FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Text="{Binding Setup.Gateway.Status}" />
+                            </Border>
+                        </Grid>
+                        <TextBlock Grid.Row="1"
+                                   Theme="{StaticResource NpMutedText}"
+                                   Text="默认由 NonProxy 决定 DIRECT / PROXY，可形成最完整的数据面证据。"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Grid.Row="2"
+                                   Text="{Binding Setup.Gateway.Detail}"
+                                   TextWrapping="Wrap" />
+                        <Button x:Name="OpenGatewaySetupButton"
+                                Grid.Row="3"
+                                HorizontalAlignment="Left"
+                                Theme="{StaticResource NpPrimaryButton}"
+                                Command="{Binding NavigateSetupCommand}"
+                                CommandParameter="{Binding Setup.Gateway.Destination}"
+                                Content="{Binding Setup.Gateway.ActionLabel}"
+                                IsVisible="{Binding Setup.Gateway.CanNavigate}"
+                                AutomationProperties.Name="继续完整网关设置" />
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1"
+                        Classes="setup-path">
+                    <Grid RowDefinitions="Auto,Auto,*,Auto"
+                          RowSpacing="12">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Theme="{StaticResource NpMutedText}"
+                                           FontSize="12"
+                                           Text="{Binding Setup.Adapter.Eyebrow}" />
+                                <TextBlock FontSize="19"
+                                           FontWeight="SemiBold"
+                                           Text="{Binding Setup.Adapter.Title}" />
+                            </StackPanel>
+                            <Border Grid.Column="1"
+                                    Classes="setup-status"
+                                    Classes.ready="{Binding Setup.Adapter.IsReady}"
+                                    Classes.attention="{Binding Setup.Adapter.IsAttention}"
+                                    Classes.unavailable="{Binding Setup.Adapter.IsUnavailable}">
+                                <TextBlock FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Text="{Binding Setup.Adapter.Status}" />
+                            </Border>
+                        </Grid>
+                        <TextBlock Grid.Row="1"
+                                   Theme="{StaticResource NpMutedText}"
+                                   Text="继续使用 Surge、Clash/Mihomo 或 sing-box，由 NonProxy 安全同步规则。"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Grid.Row="2"
+                                   Text="{Binding Setup.Adapter.Detail}"
+                                   TextWrapping="Wrap" />
+                        <Button x:Name="OpenAdapterSetupButton"
+                                Grid.Row="3"
+                                HorizontalAlignment="Left"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding NavigateSetupCommand}"
+                                CommandParameter="{Binding Setup.Adapter.Destination}"
+                                Content="{Binding Setup.Adapter.ActionLabel}"
+                                IsVisible="{Binding Setup.Adapter.CanNavigate}"
+                                AutomationProperties.Name="继续第三方客户端协同设置" />
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Border Padding="12"
+                    CornerRadius="8"
+                    BorderBrush="{DynamicResource NpWarningBrush}"
+                    BorderThickness="1">
+                <TextBlock Theme="{StaticResource NpMutedText}"
+                           Text="{Binding Setup.Summary}"
+                           TextWrapping="Wrap" />
+            </Border>
+        </StackPanel>
+    </Border>
+</UserControl>

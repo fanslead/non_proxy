@@ -34,6 +34,7 @@ public sealed class GatewaySystemStatusServiceTests
         Assert.Equal(37, overview.RecentDecisionCount);
         Assert.Equal(1, client.LastDecisionPageSize);
         Assert.Equal(ConnectionState.Connected, overview.Connection);
+        Assert.True(overview.DataPlaneEnabled);
     }
 
     [Fact]
@@ -59,6 +60,7 @@ public sealed class GatewaySystemStatusServiceTests
             TestContext.Current.CancellationToken);
 
         Assert.Equal(1, overview.DirectNetworkCount);
+        Assert.Equal(1, overview.ActiveDirectRuleCount);
     }
 
     private static PolicyListItem NetworkPolicy(
@@ -73,7 +75,9 @@ public sealed class GatewaySystemStatusServiceTests
             PolicyAction.Direct,
             state,
             1,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            1,
+            state == PolicyApplyState.Active ? 1UL : null);
     }
 
     private sealed class InstalledComponent : ISystemComponentInstaller

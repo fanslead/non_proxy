@@ -22,7 +22,9 @@ public sealed record SystemOverview(
     int DirectNetworkCount,
     int RecentDecisionCount,
     DateTimeOffset CapturedAt,
-    ulong? PendingSnapshotVersion = null)
+    ulong? PendingSnapshotVersion = null,
+    bool DataPlaneEnabled = false,
+    int ActiveDirectRuleCount = 0)
 {
     public SystemComponentStatus Component => ComponentState.Status;
 

@@ -26,10 +26,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private const int RefreshActivity = 1 << 2;
     private const int RefreshDiagnostics = 1 << 3;
     private const int RefreshCurrent = 1 << 4;
+    private const int RefreshDashboardRuntime = 1 << 5;
     private static readonly TimeSpan RefreshDebounce = TimeSpan.FromMilliseconds(200);
 
     private bool _isInitialized;
     private readonly IControlEventMonitor _eventMonitor;
+    private readonly IWorkspaceNavigator _workspaceNavigator;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly CancellationToken _lifetimeToken;
     private int _pendingRefresh;
@@ -58,9 +60,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         DiagnosticsViewModel diagnostics,
         SettingsViewModel settings,
         IPlatformInformation platformInformation,
-        IControlEventMonitor eventMonitor)
+        IControlEventMonitor eventMonitor,
+        IWorkspaceNavigator workspaceNavigator)
     {
         _eventMonitor = eventMonitor;
+        _workspaceNavigator = workspaceNavigator;
         _lifetimeToken = _lifetime.Token;
         Dashboard = dashboard;
         PlatformLabel = platformInformation.DisplayName;
@@ -81,6 +85,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         _currentPage = dashboard;
         _selectedNavigation = NavigationItems[0];
+        _workspaceNavigator.NavigationRequested += OnNavigationRequested;
         InitializeCommand = new AsyncRelayCommand(InitializeAsync);
     }
 
@@ -114,10 +119,29 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         _disposed = true;
+        _workspaceNavigator.NavigationRequested -= OnNavigationRequested;
         _eventMonitor.StateChanged -= OnMonitorStateChanged;
         _eventMonitor.EventReceived -= OnControlEventReceived;
         _lifetime.Cancel();
         _lifetime.Dispose();
+    }
+
+    private void OnNavigationRequested(WorkspaceDestination destination)
+    {
+        var item = NavigationItems.SingleOrDefault(value => destination switch
+        {
+            WorkspaceDestination.Policies => value.Page is PoliciesViewModel,
+            WorkspaceDestination.Applications => value.Page is ApplicationsViewModel,
+            WorkspaceDestination.Websites => value.Page is WebsitesViewModel,
+            WorkspaceDestination.Outbounds => value.Page is OutboundsViewModel,
+            WorkspaceDestination.Adapters => value.Page is AdaptersViewModel,
+            WorkspaceDestination.Activity => value.Page is ActivityViewModel,
+            _ => false,
+        });
+        if (item is not null)
+        {
+            SelectedNavigation = item;
+        }
     }
 
     private async Task InitializeAsync(CancellationToken cancellationToken)
@@ -185,7 +209,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         var impact = notification.Kind switch
         {
             ControlEventKind.Snapshot => RefreshDashboard | RefreshPolicies,
-            ControlEventKind.Decision => RefreshDashboard | RefreshActivity,
+            ControlEventKind.Decision => RefreshDashboardRuntime | RefreshActivity,
             ControlEventKind.SystemState or ControlEventKind.ComponentHealth =>
                 RefreshDashboard | RefreshDiagnostics,
             ControlEventKind.Unknown => RefreshDashboard,
@@ -247,6 +271,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if ((impact & RefreshDashboard) != 0)
         {
             await Dashboard.RefreshCommand.ExecuteAsync(null);
+        }
+        else if ((impact & RefreshDashboardRuntime) != 0)
+        {
+            await Dashboard.RefreshRuntimeCommand.ExecuteAsync(null);
         }
 
         if (_disposed || ReferenceEquals(CurrentPage, Dashboard))
