@@ -18,6 +18,8 @@ pub enum AdapterHostError {
     InstallationInvalid,
     #[error("适配器安装项不存在")]
     InstallationNotFound,
+    #[error("适配器安装项缺少主配置，请重新登记")]
+    InstallationIncomplete,
     #[error("适配器安装项冲突")]
     InstallationConflict,
     #[error("适配器安装项达到上限")]
@@ -40,6 +42,8 @@ pub enum AdapterHostError {
     ClientUnsupported,
     #[error("适配器客户端版本在变更期间已经变化")]
     ClientVersionChanged,
+    #[error("适配器安装路径或接入参数在变更期间已经变化")]
+    InstallationChanged,
     #[error("适配器目录状态已损坏")]
     CatalogCorrupt,
     #[error("适配器策略哈希不匹配")]
@@ -62,6 +66,7 @@ impl AdapterHostError {
             Self::Random(_) => "NP_ADAPTER_HOST_RANDOM_FAILED",
             Self::InstallationInvalid => "NP_ADAPTER_INSTALLATION_INVALID",
             Self::InstallationNotFound => "NP_ADAPTER_INSTALLATION_NOT_FOUND",
+            Self::InstallationIncomplete => "NP_ADAPTER_INSTALLATION_INCOMPLETE",
             Self::InstallationConflict => "NP_ADAPTER_INSTALLATION_CONFLICT",
             Self::InstallationLimitReached => "NP_ADAPTER_INSTALLATION_LIMIT_REACHED",
             Self::DetectionFailed | Self::DetectionIo(_) | Self::DetectionTask(_) => {
@@ -73,6 +78,7 @@ impl AdapterHostError {
             | Self::CandidateValidationTask(_) => "NP_ADAPTER_CANDIDATE_VALIDATION_UNAVAILABLE",
             Self::ClientUnsupported => "NP_ADAPTER_CLIENT_UNSUPPORTED",
             Self::ClientVersionChanged => "NP_ADAPTER_CLIENT_VERSION_CHANGED",
+            Self::InstallationChanged => "NP_ADAPTER_INSTALLATION_CHANGED",
             Self::CatalogCorrupt => "NP_ADAPTER_CATALOG_CORRUPT",
             Self::PolicyHashMismatch => "NP_ADAPTER_POLICY_HASH_MISMATCH",
             Self::Authentication(error) => error.code(),

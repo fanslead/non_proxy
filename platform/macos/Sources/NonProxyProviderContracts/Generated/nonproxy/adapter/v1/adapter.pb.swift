@@ -217,12 +217,17 @@ public nonisolated struct Nonproxy_Adapter_V1_AdapterInstallation: Sendable {
 
   public var state: Nonproxy_Adapter_V1_AdapterState = .unspecified
 
+  public var mainConfigurationPath: String = String()
+
+  /// direct_target 为空时由适配器从主配置中唯一解析。
+  public var directTarget: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-/// RegisterInstallationRequest 登记用户明确选择的客户端和托管 sidecar。
+/// RegisterInstallationRequest 登记用户明确选择的客户端、主配置和托管 sidecar。
 public nonisolated struct Nonproxy_Adapter_V1_RegisterInstallationRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -244,6 +249,11 @@ public nonisolated struct Nonproxy_Adapter_V1_RegisterInstallationRequest: Senda
   public var executablePath: String = String()
 
   public var managedRulesPath: String = String()
+
+  public var mainConfigurationPath: String = String()
+
+  /// direct_target 仅在主配置存在多个直连出口时需要显式提供。
+  public var directTarget: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -551,6 +561,12 @@ public nonisolated struct Nonproxy_Adapter_V1_PrepareChangeResponse: Sendable {
 
   public var clientValidated: Bool = false
 
+  public var configurationCandidateHash: Data = Data()
+
+  public var managedRulesReference: String = String()
+
+  public var directTarget: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -580,6 +596,8 @@ public nonisolated struct Nonproxy_Adapter_V1_ApplyChangeRequest: Sendable {
   public var hasContext: Bool {self._context != nil}
   /// Clears the value of `context`. Subsequent reads from it will return its default value.
   public mutating func clearContext() {self._context = nil}
+
+  public var expectedConfigurationCandidateHash: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -783,7 +801,7 @@ nonisolated extension Nonproxy_Adapter_V1_AdapterRequestContext: SwiftProtobuf.M
 
 nonisolated extension Nonproxy_Adapter_V1_AdapterInstallation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AdapterInstallation"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}adapter_id\0\u{1}client\0\u{3}client_name\0\u{3}client_version\0\u{3}executable_path\0\u{3}managed_rules_path\0\u{1}state\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}adapter_id\0\u{1}client\0\u{3}client_name\0\u{3}client_version\0\u{3}executable_path\0\u{3}managed_rules_path\0\u{1}state\0\u{3}main_configuration_path\0\u{3}direct_target\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -798,6 +816,8 @@ nonisolated extension Nonproxy_Adapter_V1_AdapterInstallation: SwiftProtobuf.Mes
       case 5: try { try decoder.decodeSingularStringField(value: &self.executablePath) }()
       case 6: try { try decoder.decodeSingularStringField(value: &self.managedRulesPath) }()
       case 7: try { try decoder.decodeSingularEnumField(value: &self.state) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self.mainConfigurationPath) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self.directTarget) }()
       default: break
       }
     }
@@ -825,6 +845,12 @@ nonisolated extension Nonproxy_Adapter_V1_AdapterInstallation: SwiftProtobuf.Mes
     if self.state != .unspecified {
       try visitor.visitSingularEnumField(value: self.state, fieldNumber: 7)
     }
+    if !self.mainConfigurationPath.isEmpty {
+      try visitor.visitSingularStringField(value: self.mainConfigurationPath, fieldNumber: 8)
+    }
+    if !self.directTarget.isEmpty {
+      try visitor.visitSingularStringField(value: self.directTarget, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -836,6 +862,8 @@ nonisolated extension Nonproxy_Adapter_V1_AdapterInstallation: SwiftProtobuf.Mes
     if lhs.executablePath != rhs.executablePath {return false}
     if lhs.managedRulesPath != rhs.managedRulesPath {return false}
     if lhs.state != rhs.state {return false}
+    if lhs.mainConfigurationPath != rhs.mainConfigurationPath {return false}
+    if lhs.directTarget != rhs.directTarget {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -843,7 +871,7 @@ nonisolated extension Nonproxy_Adapter_V1_AdapterInstallation: SwiftProtobuf.Mes
 
 nonisolated extension Nonproxy_Adapter_V1_RegisterInstallationRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RegisterInstallationRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}adapter_id\0\u{1}client\0\u{3}executable_path\0\u{3}managed_rules_path\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}adapter_id\0\u{1}client\0\u{3}executable_path\0\u{3}managed_rules_path\0\u{3}main_configuration_path\0\u{3}direct_target\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -856,6 +884,8 @@ nonisolated extension Nonproxy_Adapter_V1_RegisterInstallationRequest: SwiftProt
       case 3: try { try decoder.decodeSingularEnumField(value: &self.client) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.executablePath) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.managedRulesPath) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.mainConfigurationPath) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.directTarget) }()
       default: break
       }
     }
@@ -881,6 +911,12 @@ nonisolated extension Nonproxy_Adapter_V1_RegisterInstallationRequest: SwiftProt
     if !self.managedRulesPath.isEmpty {
       try visitor.visitSingularStringField(value: self.managedRulesPath, fieldNumber: 5)
     }
+    if !self.mainConfigurationPath.isEmpty {
+      try visitor.visitSingularStringField(value: self.mainConfigurationPath, fieldNumber: 6)
+    }
+    if !self.directTarget.isEmpty {
+      try visitor.visitSingularStringField(value: self.directTarget, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -890,6 +926,8 @@ nonisolated extension Nonproxy_Adapter_V1_RegisterInstallationRequest: SwiftProt
     if lhs.client != rhs.client {return false}
     if lhs.executablePath != rhs.executablePath {return false}
     if lhs.managedRulesPath != rhs.managedRulesPath {return false}
+    if lhs.mainConfigurationPath != rhs.mainConfigurationPath {return false}
+    if lhs.directTarget != rhs.directTarget {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1327,7 +1365,7 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeRequest: SwiftProtobuf.Me
 
 nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PrepareChangeResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}change_id\0\u{3}backup_id\0\u{3}candidate_hash\0\u{3}expires_at\0\u{1}error\0\u{3}rule_count\0\u{3}client_validated\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}change_id\0\u{3}backup_id\0\u{3}candidate_hash\0\u{3}expires_at\0\u{1}error\0\u{3}rule_count\0\u{3}client_validated\0\u{3}configuration_candidate_hash\0\u{3}managed_rules_reference\0\u{3}direct_target\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1342,6 +1380,9 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
       case 5: try { try decoder.decodeSingularMessageField(value: &self._error) }()
       case 6: try { try decoder.decodeSingularUInt32Field(value: &self.ruleCount) }()
       case 7: try { try decoder.decodeSingularBoolField(value: &self.clientValidated) }()
+      case 8: try { try decoder.decodeSingularBytesField(value: &self.configurationCandidateHash) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self.managedRulesReference) }()
+      case 10: try { try decoder.decodeSingularStringField(value: &self.directTarget) }()
       default: break
       }
     }
@@ -1373,6 +1414,15 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
     if self.clientValidated != false {
       try visitor.visitSingularBoolField(value: self.clientValidated, fieldNumber: 7)
     }
+    if !self.configurationCandidateHash.isEmpty {
+      try visitor.visitSingularBytesField(value: self.configurationCandidateHash, fieldNumber: 8)
+    }
+    if !self.managedRulesReference.isEmpty {
+      try visitor.visitSingularStringField(value: self.managedRulesReference, fieldNumber: 9)
+    }
+    if !self.directTarget.isEmpty {
+      try visitor.visitSingularStringField(value: self.directTarget, fieldNumber: 10)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1384,6 +1434,9 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
     if lhs._error != rhs._error {return false}
     if lhs.ruleCount != rhs.ruleCount {return false}
     if lhs.clientValidated != rhs.clientValidated {return false}
+    if lhs.configurationCandidateHash != rhs.configurationCandidateHash {return false}
+    if lhs.managedRulesReference != rhs.managedRulesReference {return false}
+    if lhs.directTarget != rhs.directTarget {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1391,7 +1444,7 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
 
 nonisolated extension Nonproxy_Adapter_V1_ApplyChangeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ApplyChangeRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}change_id\0\u{3}expected_candidate_hash\0\u{1}context\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}change_id\0\u{3}expected_candidate_hash\0\u{1}context\0\u{3}expected_configuration_candidate_hash\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1403,6 +1456,7 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeRequest: SwiftProtobuf.Mess
       case 2: try { try decoder.decodeSingularStringField(value: &self.changeID) }()
       case 3: try { try decoder.decodeSingularBytesField(value: &self.expectedCandidateHash) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 5: try { try decoder.decodeSingularBytesField(value: &self.expectedConfigurationCandidateHash) }()
       default: break
       }
     }
@@ -1425,6 +1479,9 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeRequest: SwiftProtobuf.Mess
     try { if let v = self._context {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
+    if !self.expectedConfigurationCandidateHash.isEmpty {
+      try visitor.visitSingularBytesField(value: self.expectedConfigurationCandidateHash, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1433,6 +1490,7 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeRequest: SwiftProtobuf.Mess
     if lhs.changeID != rhs.changeID {return false}
     if lhs.expectedCandidateHash != rhs.expectedCandidateHash {return false}
     if lhs._context != rhs._context {return false}
+    if lhs.expectedConfigurationCandidateHash != rhs.expectedConfigurationCandidateHash {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

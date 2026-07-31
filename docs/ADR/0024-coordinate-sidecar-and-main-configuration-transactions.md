@@ -12,9 +12,9 @@
 
 ## 决策
 
-1. `nonproxy-adapter-transaction` 的 manifest 升级到 v3。集成变更同时持久化 sidecar 候选、
+1. `nonproxy-adapter-transaction` 的 manifest 升级到 v4。集成变更同时持久化 sidecar 候选、
    主配置候选、两者 prepare 时的备份及各自 SHA-256；所有状态目录为 owner-only，状态文件
-   为 `0600`。旧 v1/v2 单文件 manifest 继续可读。
+   为 `0600`，并绑定请求直连出口。旧 v1/v2 单文件及 v3 双文件 manifest 继续可读。
 2. 服务层必须先调用 `preview_integrated` 并完成客户端原生校验，再把两个已校验候选哈希传给
    `prepare_integrated`。准备阶段重新生成候选；任一哈希变化都在创建 manifest 前失败，避免
    把校验前后的不同内容混为同一变更。
@@ -28,8 +28,9 @@
    的状态不自动覆盖，保留 manifest 和备份供显式处理。
 6. `verify` 对集成变更要求 sidecar 和主配置都等于各自候选才返回
    `configuration_verified=true`；真实流量路径仍未验证，`path_verified` 保持 false。
-7. 本阶段只提供事务内核。`adapter-host` 尚未登记主配置路径、调用双文件 API、重载客户端或
-   生成路径证据，因此桌面端不能把该能力显示为已接管。
+7. `adapter-host` 已登记主配置并调用双文件 API，完整接线见
+   [ADR-0025](0025-bind-integrated-configurations-to-adapter-rpc.md)。宿主尚未重载客户端或生成
+   路径证据，因此桌面端仍不能把该能力显示为已接管。
 
 ## 结果
 
@@ -37,5 +38,5 @@
 - 检测到的外部修改会阻断自动应用或回滚；NonProxy 只恢复能由备份/候选哈希证明归属的内容。
 - 主配置及其中可能存在的凭据会短期保存在本机私有事务目录中，以换取可恢复性；安全清理只
   能在确认两项目标均已恢复备份后执行。
-- 后续宿主接入必须验证完整主配置候选，再使用公开客户端重载接口，并分别记录配置、重载和
-  路径三类证据。
+- 宿主必须验证完整主配置候选，再使用公开客户端重载接口，并分别记录配置、重载和路径三类
+  证据；当前只完成前一项。

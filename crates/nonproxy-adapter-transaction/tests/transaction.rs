@@ -2,7 +2,7 @@ use std::{fs, path::Path};
 
 use nonproxy_adapter_api::{AdapterClient, AdapterVersion};
 use nonproxy_adapter_transaction::{
-    AdapterInstallation, AdapterTransactionError, AdapterTransactionManager,
+    AdapterInstallation, AdapterTransactionError, AdapterTransactionManager, IntegratedPreparation,
 };
 use tempfile::TempDir;
 
@@ -342,6 +342,42 @@ fn version_two_sidecar_manifest_remains_recoverable() {
 }
 
 #[test]
+fn version_three_integrated_manifest_remains_recoverable() {
+    let fixture = IntegratedFixture::new("manifest-v3");
+    let prepared = fixture.prepare(NOW);
+    let manifest_path = fixture
+        .state_path()
+        .join("changes")
+        .join(format!("{}.json", prepared.change_id));
+    let bytes =
+        fs::read(&manifest_path).unwrap_or_else(|error| panic!("manifest 读取失败: {error}"));
+    let mut document: serde_json::Value = serde_json::from_slice(&bytes)
+        .unwrap_or_else(|error| panic!("manifest JSON 解析失败: {error}"));
+    document["format_version"] = serde_json::Value::from(3);
+    if let Some(configuration) = document
+        .get_mut("configuration")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        configuration.remove("requested_direct_target");
+    }
+    let bytes = serde_json::to_vec(&document)
+        .unwrap_or_else(|error| panic!("v3 manifest 编码失败: {error}"));
+    fs::write(&manifest_path, bytes)
+        .unwrap_or_else(|error| panic!("v3 manifest 写入失败: {error}"));
+
+    let restarted = AdapterTransactionManager::open(fixture.state_path())
+        .unwrap_or_else(|error| panic!("v3 manifest 恢复失败: {error}"));
+    restarted
+        .apply_integrated(
+            &prepared.change_id,
+            &prepared.candidate_sha256,
+            &prepared_configuration_hash(&prepared),
+            NOW + 1,
+        )
+        .unwrap_or_else(|error| panic!("v3 manifest 应用失败: {error}"));
+}
+
+#[test]
 fn integrated_change_applies_verifies_and_rolls_back_both_files() {
     let fixture = IntegratedFixture::new("integrated-round-trip");
     let original_configuration = fs::read(&fixture.configuration_path)
@@ -442,16 +478,16 @@ fn integrated_prepare_rejects_a_configuration_changed_after_preview() {
     )
     .unwrap_or_else(|error| panic!("预览后主配置修改失败: {error}"));
 
-    let result = fixture.manager.prepare_integrated(
+    let request = IntegratedPreparation::new(
         &fixture.installation,
         &fixture.configuration_path,
-        None,
         &fixture.operation_id,
         fixture.policy_bytes(),
         preview.rendered_rules().sha256(),
         preview.configuration_sha256(),
         NOW,
     );
+    let result = fixture.manager.prepare_integrated(request);
 
     assert!(matches!(
         result,
@@ -690,17 +726,17 @@ impl IntegratedFixture {
             self.policy_bytes(),
         )
         .unwrap_or_else(|error| panic!("双文件候选预览失败: {error}"));
+        let request = IntegratedPreparation::new(
+            &self.installation,
+            &self.configuration_path,
+            &self.operation_id,
+            self.policy_bytes(),
+            preview.rendered_rules().sha256(),
+            preview.configuration_sha256(),
+            now_unix_ms,
+        );
         self.manager
-            .prepare_integrated(
-                &self.installation,
-                &self.configuration_path,
-                None,
-                &self.operation_id,
-                self.policy_bytes(),
-                preview.rendered_rules().sha256(),
-                preview.configuration_sha256(),
-                now_unix_ms,
-            )
+            .prepare_integrated(request)
             .unwrap_or_else(|error| panic!("双文件候选准备失败: {error}"))
     }
 

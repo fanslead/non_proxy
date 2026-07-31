@@ -52,11 +52,18 @@ pub(crate) fn installation_message(
         executable_path: value.executable_path.to_string_lossy().into_owned(),
         managed_rules_path: value.managed_rules_path.to_string_lossy().into_owned(),
         state: state.into(),
+        main_configuration_path: value
+            .main_configuration_path
+            .as_deref()
+            .map_or_else(String::new, |path| path.to_string_lossy().into_owned()),
+        direct_target: value.direct_target.clone().unwrap_or_default(),
     }
 }
 
 pub(crate) fn registered_state(value: &RegisteredInstallation) -> AdapterState {
-    if capabilities(value.client, value.client_version).is_empty() {
+    if value.main_configuration_path.is_none() {
+        AdapterState::Failed
+    } else if capabilities(value.client, value.client_version).is_empty() {
         AdapterState::Unsupported
     } else {
         AdapterState::Available

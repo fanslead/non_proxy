@@ -9,8 +9,9 @@ use nonproxy_proto::{
     adapter::v1::{
         AdapterCapability, AdapterClient, AdapterRequestContext, ApplyChangeRequest,
         ListInstallationsRequest, PrepareChangeRequest, ReadCapabilitiesRequest,
-        RegisterInstallationRequest, RollbackChangeRequest, VerifyChangeRequest,
-        adapter_service_client::AdapterServiceClient, adapter_service_server::AdapterService,
+        RegisterInstallationRequest, RemoveInstallationRequest, RollbackChangeRequest,
+        VerifyChangeRequest, adapter_service_client::AdapterServiceClient,
+        adapter_service_server::AdapterService,
     },
     common::v1::EvidenceLevel,
 };
@@ -84,6 +85,9 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
     assert!(prepared.error.is_none());
     assert_eq!(prepared.rule_count, 1);
     assert!(prepared.client_validated);
+    assert_eq!(prepared.configuration_candidate_hash.len(), 32);
+    assert_eq!(prepared.managed_rules_reference, "./nonproxy.yaml");
+    assert_eq!(prepared.direct_target, "DIRECT");
 
     let denied = service
         .apply_change(Request::new(ApplyChangeRequest {
@@ -91,10 +95,42 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
             change_id: prepared.change_id.clone(),
             expected_candidate_hash: prepared.candidate_hash.clone(),
             context: Some(context("apply-denied", [0; 32])),
+            expected_configuration_candidate_hash: prepared.configuration_candidate_hash.clone(),
         }))
         .await;
     assert!(matches!(denied, Err(status) if status.code() == Code::PermissionDenied));
     assert!(!fixture.managed_path.exists());
+    assert_eq!(
+        fs::read_to_string(&fixture.configuration_path)
+            .unwrap_or_else(|error| panic!("拒绝后主配置读取失败: {error}")),
+        Fixture::initial_configuration()
+    );
+
+    let wrong_configuration_hash = service
+        .apply_change(Request::new(ApplyChangeRequest {
+            operation_id: String::new(),
+            change_id: prepared.change_id.clone(),
+            expected_candidate_hash: prepared.candidate_hash.clone(),
+            context: Some(context("apply-wrong-configuration-hash", TOKEN)),
+            expected_configuration_candidate_hash: vec![9; 32],
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("错误主配置哈希应用 RPC 失败: {error}"))
+        .into_inner();
+    assert!(!wrong_configuration_hash.applied);
+    assert_eq!(
+        wrong_configuration_hash
+            .error
+            .as_ref()
+            .map(|error| error.code.as_str()),
+        Some("NP_ADAPTER_CANDIDATE_HASH_MISMATCH")
+    );
+    assert!(!fixture.managed_path.exists());
+    assert_eq!(
+        fs::read_to_string(&fixture.configuration_path)
+            .unwrap_or_else(|error| panic!("错误哈希后主配置读取失败: {error}")),
+        Fixture::initial_configuration()
+    );
 
     let applied = service
         .apply_change(Request::new(ApplyChangeRequest {
@@ -102,12 +138,18 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
             change_id: prepared.change_id.clone(),
             expected_candidate_hash: prepared.candidate_hash.clone(),
             context: Some(context("apply-1", TOKEN)),
+            expected_configuration_candidate_hash: prepared.configuration_candidate_hash.clone(),
         }))
         .await
         .unwrap_or_else(|error| panic!("变更应用 RPC 失败: {error}"))
         .into_inner();
     assert!(applied.applied);
     assert!(!applied.reloaded);
+    assert!(
+        fs::read_to_string(&fixture.configuration_path)
+            .unwrap_or_else(|error| panic!("已应用主配置读取失败: {error}"))
+            .contains("RULE-SET,nonproxy-mihomo-primary,DIRECT")
+    );
 
     let verified = service
         .verify_change(Request::new(VerifyChangeRequest {
@@ -136,6 +178,11 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
     assert!(rolled_back.restored);
     assert!(!rolled_back.reloaded);
     assert!(!fixture.managed_path.exists());
+    assert_eq!(
+        fs::read_to_string(&fixture.configuration_path)
+            .unwrap_or_else(|error| panic!("已回滚主配置读取失败: {error}")),
+        Fixture::initial_configuration()
+    );
 
     drop(service);
     let restarted = fixture.service();
@@ -147,6 +194,58 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
         .unwrap_or_else(|error| panic!("重启后目录读取失败: {error}"))
         .into_inner();
     assert_eq!(listed.installations.len(), 1);
+}
+
+#[tokio::test]
+async fn external_main_configuration_edit_blocks_both_target_writes() {
+    let fixture = Fixture::new();
+    let service = fixture.service();
+    let registered = service
+        .register_installation(Request::new(fixture.registration("register-external")))
+        .await
+        .unwrap_or_else(|error| panic!("外部修改测试安装项登记失败: {error}"))
+        .into_inner();
+    assert!(registered.error.is_none());
+    let policy = fixture.policy();
+    let prepared = service
+        .prepare_change(Request::new(PrepareChangeRequest {
+            operation_id: String::new(),
+            adapter_id: "mihomo-primary".to_owned(),
+            installation_id: "mihomo-primary".to_owned(),
+            normalized_policy_hash: Sha256::digest(policy).to_vec(),
+            normalized_policy: policy.to_vec(),
+            context: Some(context("prepare-external", TOKEN)),
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("外部修改测试准备失败: {error}"))
+        .into_inner();
+    assert!(prepared.error.is_none());
+    fs::write(&fixture.configuration_path, "external: true\n")
+        .unwrap_or_else(|error| panic!("外部主配置模拟失败: {error}"));
+
+    let applied = service
+        .apply_change(Request::new(ApplyChangeRequest {
+            operation_id: String::new(),
+            change_id: prepared.change_id,
+            expected_candidate_hash: prepared.candidate_hash,
+            context: Some(context("apply-external", TOKEN)),
+            expected_configuration_candidate_hash: prepared.configuration_candidate_hash,
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("外部修改测试应用 RPC 失败: {error}"))
+        .into_inner();
+
+    assert!(!applied.applied);
+    assert_eq!(
+        applied.error.as_ref().map(|error| error.code.as_str()),
+        Some("NP_ADAPTER_MANAGED_FILE_CHANGED")
+    );
+    assert!(!fixture.managed_path.exists());
+    assert_eq!(
+        fs::read_to_string(&fixture.configuration_path)
+            .unwrap_or_else(|error| panic!("受保护主配置读取失败: {error}")),
+        "external: true\n"
+    );
 }
 
 #[tokio::test]
@@ -181,6 +280,7 @@ async fn client_upgrade_between_prepare_and_apply_fails_closed() {
             change_id: prepared.change_id,
             expected_candidate_hash: prepared.candidate_hash,
             context: Some(context("apply-version", TOKEN)),
+            expected_configuration_candidate_hash: prepared.configuration_candidate_hash,
         }))
         .await
         .unwrap_or_else(|error| panic!("版本门禁应用 RPC 失败: {error}"))
@@ -192,6 +292,73 @@ async fn client_upgrade_between_prepare_and_apply_fails_closed() {
         Some("NP_ADAPTER_CLIENT_VERSION_CHANGED")
     );
     assert!(!fixture.managed_path.exists());
+}
+
+#[tokio::test]
+async fn installation_re_registration_invalidates_a_prepared_change() {
+    let fixture = Fixture::new();
+    let service = fixture.service();
+    let registered = service
+        .register_installation(Request::new(fixture.registration("register-binding")))
+        .await
+        .unwrap_or_else(|error| panic!("绑定测试安装项登记失败: {error}"))
+        .into_inner();
+    assert!(registered.error.is_none());
+    let policy = fixture.policy();
+    let prepared = service
+        .prepare_change(Request::new(PrepareChangeRequest {
+            operation_id: String::new(),
+            adapter_id: "mihomo-primary".to_owned(),
+            installation_id: "mihomo-primary".to_owned(),
+            normalized_policy_hash: Sha256::digest(policy).to_vec(),
+            normalized_policy: policy.to_vec(),
+            context: Some(context("prepare-binding", TOKEN)),
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("绑定测试准备失败: {error}"))
+        .into_inner();
+    assert!(prepared.error.is_none());
+    let removed = service
+        .remove_installation(Request::new(RemoveInstallationRequest {
+            context: Some(context("remove-binding", TOKEN)),
+            adapter_id: "mihomo-primary".to_owned(),
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("绑定测试移除失败: {error}"))
+        .into_inner();
+    assert!(removed.removed);
+    let mut replacement = fixture.registration("register-replacement");
+    replacement.direct_target = "DIRECT".to_owned();
+    let replaced = service
+        .register_installation(Request::new(replacement))
+        .await
+        .unwrap_or_else(|error| panic!("绑定测试重新登记失败: {error}"))
+        .into_inner();
+    assert!(replaced.error.is_none());
+
+    let applied = service
+        .apply_change(Request::new(ApplyChangeRequest {
+            operation_id: String::new(),
+            change_id: prepared.change_id,
+            expected_candidate_hash: prepared.candidate_hash,
+            context: Some(context("apply-binding", TOKEN)),
+            expected_configuration_candidate_hash: prepared.configuration_candidate_hash,
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("绑定测试应用失败: {error}"))
+        .into_inner();
+
+    assert!(!applied.applied);
+    assert_eq!(
+        applied.error.as_ref().map(|error| error.code.as_str()),
+        Some("NP_ADAPTER_INSTALLATION_CHANGED")
+    );
+    assert!(!fixture.managed_path.exists());
+    assert_eq!(
+        fs::read_to_string(&fixture.configuration_path)
+            .unwrap_or_else(|error| panic!("绑定测试主配置读取失败: {error}")),
+        Fixture::initial_configuration()
+    );
 }
 
 #[tokio::test]
@@ -294,6 +461,7 @@ struct Fixture {
     state: std::path::PathBuf,
     executable: std::path::PathBuf,
     managed_path: std::path::PathBuf,
+    configuration_path: std::path::PathBuf,
 }
 
 impl Fixture {
@@ -312,8 +480,12 @@ impl Fixture {
             .unwrap_or_else(|error| panic!("Mihomo fixture 写入失败: {error}"));
         fs::set_permissions(&executable, fs::Permissions::from_mode(0o700))
             .unwrap_or_else(|error| panic!("Mihomo fixture 权限设置失败: {error}"));
+        let configuration_path = managed.join("config.yaml");
+        fs::write(&configuration_path, Self::initial_configuration())
+            .unwrap_or_else(|error| panic!("Mihomo 主配置写入失败: {error}"));
         Self {
             managed_path: managed.join("nonproxy.yaml"),
+            configuration_path,
             _root: root,
             state,
             executable,
@@ -336,7 +508,13 @@ impl Fixture {
             client: AdapterClient::Mihomo as i32,
             executable_path: self.executable.to_string_lossy().into_owned(),
             managed_rules_path: self.managed_path.to_string_lossy().into_owned(),
+            main_configuration_path: self.configuration_path.to_string_lossy().into_owned(),
+            direct_target: String::new(),
         }
+    }
+
+    fn initial_configuration() -> &'static str {
+        "mode: rule\nproxies: []\nproxy-groups: []\nrules:\n  - MATCH,DIRECT\n"
     }
 
     fn policy(&self) -> &'static [u8] {
@@ -365,7 +543,7 @@ impl Fixture {
 fn mihomo_script(version: &str, validation_succeeds: bool) -> String {
     let validation_exit = if validation_succeeds { 0 } else { 1 };
     format!(
-        "#!/bin/sh\nif [ \"$1\" = \"-v\" ]; then printf '%s\\n' 'Mihomo Meta v{version} darwin arm64'; exit 0; fi\nif [ \"$1\" = \"-t\" ] && [ \"$2\" = \"-d\" ] && [ \"$4\" = \"-f\" ] && grep -q 'RULE-SET,nonproxy,DIRECT' \"$5\" && grep -q 'DOMAIN-SUFFIX,example.com' \"$3/nonproxy.yaml\"; then exit {validation_exit}; fi\nexit 1\n"
+        "#!/bin/sh\nif [ \"$1\" = \"-v\" ]; then printf '%s\\n' 'Mihomo Meta v{version} darwin arm64'; exit 0; fi\nif [ \"$1\" = \"-t\" ] && [ \"$2\" = \"-d\" ] && [ \"$4\" = \"-f\" ] && grep -q 'RULE-SET,nonproxy-mihomo-primary,DIRECT' \"$5\" && grep -q 'DOMAIN-SUFFIX,example.com' \"$3/nonproxy.yaml\"; then exit {validation_exit}; fi\nexit 1\n"
     )
 }
 

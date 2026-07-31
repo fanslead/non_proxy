@@ -1476,10 +1476,10 @@ owner-only candidate、backup 和带 SHA-256 的持久 change manifest；应用�
 RPC 幂等边界见 [ADR-0021](ADR/0021-run-adapters-in-an-authenticated-host.md)。
 
 prepare 在持久化 change 前先进行确定性预渲染，并在 `0700` 隔离临时目录内执行客户端
-原生校验：Surge 通过 App 随包 `surge-cli -c` 校验引用候选的最小 profile；Mihomo 通过
-`-t -d <isolated> -f <config>` 校验本地 classical provider；sing-box 通过
-`rule-set compile` 校验 source rule-set，并要求产生非空、有界、非符号链接的二进制
-产物。命令继续复用无 shell、清空环境、五秒超时和 64 KiB 输出上限；原生校验失败不会
+原生校验：Surge 通过 App 随包 `surge-cli -c` 校验完整候选；Mihomo 通过
+`-t -d <isolated> -f <config>` 校验完整候选和本地 classical provider；sing-box 先通过
+`rule-set compile` 校验 source rule-set 并要求产生非空、有界、非符号链接的二进制产物，
+再通过 `check -c` 校验完整主配置。命令继续复用无 shell、清空环境、五秒超时和 64 KiB 输出上限；原生校验失败不会
 建立持久 change，成功响应显式返回 `client_validated=true`。完整理由见
 [ADR-0022](ADR/0022-validate-adapter-candidates-before-persistence.md)。
 
@@ -1491,15 +1491,17 @@ rule-set 和首条 direct route rule，保留注释、缩进与尾逗号。sidec
 幂等性、格式保留和注入边界见
 [ADR-0023](ADR/0023-patch-adapter-main-configurations-losslessly.md)。
 
-`nonproxy-adapter-transaction` 的 v3 manifest 已把 sidecar 与主配置纳入同一恢复单元：准备
+`nonproxy-adapter-transaction` 的 v4 manifest 已把 sidecar 与主配置纳入同一恢复单元：准备
 阶段持久化两个候选、两个 prepare 备份和独立哈希；apply 同时预检两个目标后先写 sidecar、
 再写主配置，rollback 反向执行。重启只自动恢复可由候选/备份哈希证明的半完成状态，遇到
 第三方内容时保留现场且不覆盖；主配置替换保留原权限位。完整状态机见
-[ADR-0024](ADR/0024-coordinate-sidecar-and-main-configuration-transactions.md)。该 API 目前尚未
-接入 `adapter-host` 的安装目录与 RPC，因此还不会修改真实主配置。
+[ADR-0024](ADR/0024-coordinate-sidecar-and-main-configuration-transactions.md)。`adapter-host`
+目录 v2 和追加式 RPC 字段已绑定主配置路径、请求出口、两份候选哈希、受管引用与实际出口；
+apply 前再次校验客户端版本和目录绑定，再调用双文件事务。旧目录可读但必须重新登记主配置。
+完整接线见 [ADR-0025](ADR/0025-bind-integrated-configurations-to-adapter-rpc.md)。
 
-当前宿主返回的 `reloaded` 与 `path_verified` 均为 false，最高只有配置证据。主配置引用、
-公开重载以及实际路径验证未完成前，桌面端仍不得开放“已接管”。
+当前宿主返回的 `reloaded` 与 `path_verified` 均为 false，最高只有配置证据。公开重载以及
+实际路径验证未完成前，桌面端仍不得开放“已接管”。
 
 适配器接口：
 

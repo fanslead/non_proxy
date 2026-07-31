@@ -18,6 +18,7 @@ use crate::{
     path_guard::{prepare_private_state_directory, validate_installation_path},
     recovery::recover_state,
     renderer_catalog,
+    transaction_checks::{matches_backup, validate_installation},
     types::{
         AdapterInstallation, ApplyOutcome, ChangeInstallation, PreparedChange, RollbackOutcome,
         VerificationOutcome,
@@ -210,7 +211,7 @@ impl AdapterTransactionManager {
         validate_identifier(change_id)?;
         let manifest = self.load_manifest(change_id)?;
         if manifest.configuration.is_some() {
-            return crate::integrated::verify_integrated_manifest(&manifest);
+            return crate::integrated_state::verify_integrated_manifest(&manifest);
         }
         let candidate_hash = decode_hash(&manifest.candidate_sha256)?;
         let target_path = validate_installation_path(Path::new(&manifest.managed_rules_path))?;
@@ -238,6 +239,18 @@ impl AdapterTransactionManager {
             adapter_id: manifest.adapter_id,
             client: manifest.client,
             client_version,
+            managed_rules_path: PathBuf::from(manifest.managed_rules_path),
+            main_configuration_path: manifest
+                .configuration
+                .as_ref()
+                .map(|configuration| PathBuf::from(&configuration.path)),
+            direct_target: manifest
+                .configuration
+                .as_ref()
+                .map(|configuration| configuration.direct_target.clone()),
+            requested_direct_target: manifest
+                .configuration
+                .and_then(|configuration| configuration.requested_direct_target),
         })
     }
 
@@ -257,7 +270,7 @@ impl AdapterTransactionManager {
             return Err(AdapterTransactionError::ChangeConflict);
         }
         if manifest.configuration.is_some() {
-            return crate::integrated::rollback_integrated_locked(self, &manifest);
+            return crate::integrated_state::rollback_integrated_locked(self, &manifest);
         }
         let candidate_hash = decode_hash(&manifest.candidate_sha256)?;
         let target_path = validate_installation_path(Path::new(&manifest.managed_rules_path))?;
@@ -306,7 +319,7 @@ impl AdapterTransactionManager {
         validate_identifier(change_id)?;
         let manifest = self.load_manifest(change_id)?;
         if manifest.configuration.is_some() {
-            if !crate::integrated::integrated_targets_are_backups(&manifest)? {
+            if !crate::integrated_state::integrated_targets_are_backups(&manifest)? {
                 return Err(AdapterTransactionError::ChangeConflict);
             }
         } else {
@@ -345,7 +358,7 @@ impl AdapterTransactionManager {
                 continue;
             }
             if manifest.configuration.is_some() {
-                if !crate::integrated::integrated_targets_are_backups(&manifest)? {
+                if !crate::integrated_state::integrated_targets_are_backups(&manifest)? {
                     continue;
                 }
             } else {
@@ -475,24 +488,5 @@ impl AdapterTransactionManager {
         self.state_directory
             .join("changes")
             .join(format!("{change_id}.json"))
-    }
-}
-
-pub(crate) fn validate_installation(
-    installation: &AdapterInstallation,
-) -> Result<(), AdapterTransactionError> {
-    validate_identifier(&installation.adapter_id)
-        .map_err(|_| AdapterTransactionError::InstallationInvalid)
-}
-
-pub(crate) fn matches_backup(
-    manifest: &ChangeManifest,
-    current: Option<&[u8]>,
-) -> Result<bool, AdapterTransactionError> {
-    match (manifest.backup_existed, &manifest.backup_sha256, current) {
-        (false, None, None) => Ok(true),
-        (true, Some(expected), Some(bytes)) => Ok(sha256(bytes) == decode_hash(expected)?),
-        (false, None, Some(_)) | (true, Some(_), None) => Ok(false),
-        _ => Err(AdapterTransactionError::StateCorrupt),
     }
 }

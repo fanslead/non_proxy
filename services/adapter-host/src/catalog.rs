@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AdapterHostError, model::RegisteredInstallation};
 
-const CATALOG_FORMAT_VERSION: u32 = 1;
+const CATALOG_FORMAT_VERSION: u32 = 2;
+const LEGACY_CATALOG_FORMAT_VERSION: u32 = 1;
 const MAXIMUM_CATALOG_BYTES: u64 = 1024 * 1024;
 const MAXIMUM_INSTALLATIONS: usize = 32;
 const TEMPORARY_ATTEMPTS: usize = 4;
@@ -37,6 +38,10 @@ impl InstallationCatalog {
         validate_identifier(&installation.adapter_id)?;
         validate_stored_path(&installation.executable_path)?;
         validate_stored_path(&installation.managed_rules_path)?;
+        if let Some(path) = installation.main_configuration_path.as_deref() {
+            validate_stored_path(path)?;
+        }
+        validate_direct_target(installation.direct_target.as_deref())?;
         let mut entries = self
             .entries
             .lock()
@@ -108,8 +113,10 @@ fn read_catalog(path: &Path) -> Result<BTreeMap<String, RegisteredInstallation>,
     };
     let document: CatalogDocument =
         serde_json::from_slice(&bytes).map_err(|_| AdapterHostError::CatalogCorrupt)?;
-    if document.format_version != CATALOG_FORMAT_VERSION
-        || document.installations.len() > MAXIMUM_INSTALLATIONS
+    if !matches!(
+        document.format_version,
+        LEGACY_CATALOG_FORMAT_VERSION | CATALOG_FORMAT_VERSION
+    ) || document.installations.len() > MAXIMUM_INSTALLATIONS
     {
         return Err(AdapterHostError::CatalogCorrupt);
     }
@@ -120,6 +127,11 @@ fn read_catalog(path: &Path) -> Result<BTreeMap<String, RegisteredInstallation>,
         validate_stored_path(&installation.executable_path)
             .map_err(|_| AdapterHostError::CatalogCorrupt)?;
         validate_stored_path(&installation.managed_rules_path)
+            .map_err(|_| AdapterHostError::CatalogCorrupt)?;
+        if let Some(path) = installation.main_configuration_path.as_deref() {
+            validate_stored_path(path).map_err(|_| AdapterHostError::CatalogCorrupt)?;
+        }
+        validate_direct_target(installation.direct_target.as_deref())
             .map_err(|_| AdapterHostError::CatalogCorrupt)?;
         if entries
             .insert(installation.adapter_id.clone(), installation)
@@ -234,11 +246,80 @@ pub(crate) fn validate_identifier(value: &str) -> Result<(), AdapterHostError> {
 }
 
 fn validate_stored_path(path: &Path) -> Result<(), AdapterHostError> {
-    if !path.is_absolute()
-        || path.file_name().is_none()
-        || path.to_string_lossy().chars().any(char::is_control)
-    {
+    let value = path.to_str().ok_or(AdapterHostError::InstallationInvalid)?;
+    if !path.is_absolute() || path.file_name().is_none() || value.chars().any(char::is_control) {
         return Err(AdapterHostError::InstallationInvalid);
     }
     Ok(())
+}
+
+fn validate_direct_target(value: Option<&str>) -> Result<(), AdapterHostError> {
+    if value.is_some_and(|value| {
+        value.is_empty() || value.len() > 256 || value.chars().any(char::is_control)
+    }) {
+        return Err(AdapterHostError::InstallationInvalid);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use nonproxy_adapter_api::{AdapterClient, AdapterVersion};
+
+    use super::{CatalogDocument, InstallationCatalog};
+    use crate::model::RegisteredInstallation;
+
+    #[cfg(unix)]
+    #[test]
+    fn legacy_catalog_is_readable_and_next_write_upgrades_the_format() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory =
+            tempfile::tempdir().unwrap_or_else(|error| panic!("临时目录创建失败: {error}"));
+        let path = directory.path().join("installations.json");
+        let legacy = RegisteredInstallation {
+            adapter_id: "legacy".to_owned(),
+            client: AdapterClient::Mihomo,
+            client_version: AdapterVersion::new(1, 19, 16),
+            executable_path: directory.path().join("mihomo"),
+            managed_rules_path: directory.path().join("nonproxy.yaml"),
+            main_configuration_path: None,
+            direct_target: None,
+        };
+        let bytes = serde_json::to_vec(&CatalogDocument {
+            format_version: 1,
+            installations: vec![legacy],
+        })
+        .unwrap_or_else(|error| panic!("旧目录编码失败: {error}"));
+        fs::write(&path, bytes).unwrap_or_else(|error| panic!("旧目录写入失败: {error}"));
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))
+            .unwrap_or_else(|error| panic!("旧目录权限设置失败: {error}"));
+
+        let catalog = InstallationCatalog::open(&path)
+            .unwrap_or_else(|error| panic!("旧目录打开失败: {error}"));
+        let listed = catalog
+            .list()
+            .unwrap_or_else(|error| panic!("旧目录读取失败: {error}"));
+        assert_eq!(listed.len(), 1);
+        assert!(listed[0].main_configuration_path.is_none());
+        catalog
+            .register(RegisteredInstallation {
+                adapter_id: "current".to_owned(),
+                client: AdapterClient::Mihomo,
+                client_version: AdapterVersion::new(1, 19, 16),
+                executable_path: directory.path().join("mihomo-current"),
+                managed_rules_path: directory.path().join("nonproxy-current.yaml"),
+                main_configuration_path: Some(directory.path().join("config.yaml")),
+                direct_target: None,
+            })
+            .unwrap_or_else(|error| panic!("新目录项登记失败: {error}"));
+
+        let document: serde_json::Value = serde_json::from_slice(
+            &fs::read(&path).unwrap_or_else(|error| panic!("升级目录读取失败: {error}")),
+        )
+        .unwrap_or_else(|error| panic!("升级目录解析失败: {error}"));
+        assert_eq!(document["format_version"], 2);
+    }
 }

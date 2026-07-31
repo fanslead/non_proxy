@@ -5,7 +5,7 @@ use crate::{
     atomic_file::{read_optional_bounded, remove_private_file, sha256},
     digest::decode_hash,
     identifier::validate_identifier,
-    integrated::recover_partial_integrated,
+    integrated_state::recover_partial_integrated,
     manifest::ChangeManifest,
 };
 
@@ -57,7 +57,7 @@ pub(crate) fn recover_state(
             _ => return Err(AdapterTransactionError::StateCorrupt),
         }
         if let Some(configuration) = manifest.configuration.as_ref() {
-            if manifest.format_version != ChangeManifest::format_version() {
+            if !ChangeManifest::supports_integrated(manifest.format_version) {
                 return Err(AdapterTransactionError::StateCorrupt);
             }
             let configuration_candidate_hash = decode_hash(&configuration.candidate_sha256)?;

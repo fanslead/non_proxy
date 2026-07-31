@@ -17,7 +17,9 @@ use crate::{
         detected_response, error_detail, installation_message, parse_client, registered_state,
     },
     model::RegisteredInstallation,
-    path_validation::canonical_managed_path,
+    path_validation::{
+        canonical_main_configuration, canonical_managed_path, validate_integration_paths,
+    },
     rpc_state::AdapterRpcService,
 };
 
@@ -153,13 +155,19 @@ impl AdapterRpcService {
         validate_identifier(&request.adapter_id)?;
         let client = parse_client(request.client)?;
         let detected = detect(client, Path::new(&request.executable_path)).await?;
+        let main_configuration_path =
+            canonical_main_configuration(Path::new(&request.main_configuration_path))?;
         let managed_rules_path = canonical_managed_path(Path::new(&request.managed_rules_path))?;
+        validate_integration_paths(&main_configuration_path, &managed_rules_path)?;
+        let direct_target = (!request.direct_target.is_empty()).then_some(request.direct_target);
         let installation = RegisteredInstallation {
             adapter_id: request.adapter_id,
             client,
             client_version: detected.version,
             executable_path: detected.executable_path,
             managed_rules_path,
+            main_configuration_path: Some(main_configuration_path),
+            direct_target,
         };
         let catalog = self.catalog.clone();
         let stored = installation.clone();

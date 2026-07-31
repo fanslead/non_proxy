@@ -66,15 +66,21 @@ message AdapterInstallation {
   string executable_path = 5;
   string managed_rules_path = 6;
   AdapterState state = 7;
+  string main_configuration_path = 8;
+  // direct_target 为空时由适配器从主配置中唯一解析。
+  string direct_target = 9;
 }
 
-// RegisterInstallationRequest 登记用户明确选择的客户端和托管 sidecar。
+// RegisterInstallationRequest 登记用户明确选择的客户端、主配置和托管 sidecar。
 message RegisterInstallationRequest {
   AdapterRequestContext context = 1;
   string adapter_id = 2;
   AdapterClient client = 3;
   string executable_path = 4;
   string managed_rules_path = 5;
+  string main_configuration_path = 6;
+  // direct_target 仅在主配置存在多个直连出口时需要显式提供。
+  string direct_target = 7;
 }
 
 // RegisterInstallationResponse 返回只含本机配置元数据的安装项。
@@ -155,6 +161,9 @@ message PrepareChangeResponse {
   nonproxy.common.v1.ErrorDetail error = 5;
   uint32 rule_count = 6;
   bool client_validated = 7;
+  bytes configuration_candidate_hash = 8;
+  string managed_rules_reference = 9;
+  string direct_target = 10;
 }
 
 // ApplyChangeRequest 请求原子应用已经准备的变更。
@@ -164,6 +173,7 @@ message ApplyChangeRequest {
   string change_id = 2;
   bytes expected_candidate_hash = 3;
   AdapterRequestContext context = 4;
+  bytes expected_configuration_candidate_hash = 5;
 }
 
 // ApplyChangeResponse 返回应用和重载结果。

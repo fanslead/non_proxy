@@ -22,7 +22,7 @@
 2. 宿主启动时生成独立的 32 字节 `adapter.capability`。每个 RPC 都携带经过统一校验的
    operation ID 和能力令牌；令牌使用固定形状比较。认证文件逻辑位于共享
    `nonproxy-local-auth`，`gatewayd` 同步复用该内核，避免两套权限语义漂移。
-3. 安装项只来自用户明确选择的客户端可执行文件和 NonProxy 专属 sidecar 路径。目录最多
+3. 安装项只来自用户明确选择的客户端可执行文件、主配置和 NonProxy 专属 sidecar 路径。目录最多
    32 项，保存为 `0600`、有界、原子替换的版本化 JSON；重复登记相同内容幂等，同一 ID
    指向不同路径或客户端时拒绝覆盖。移除登记不删除第三方配置或事务恢复材料。
 4. 可执行文件先规范化并验证为可执行普通文件。Surge 从其 App Bundle 的
@@ -36,15 +36,14 @@
    `nonproxy-adapter-transaction`。策略正文带 SHA-256，hash 不匹配时不生成候选；同步文件
    IO 在 blocking task 边界运行。prepare 在持久化前先确定性预渲染并执行客户端原生校验，
    原生校验失败时不会产生可应用 change；具体边界见 ADR-0022。
-7. 当前 `apply` 只原子应用专属 sidecar，`reloaded` 固定为 false；`verify` 最多返回
+7. 当前 `apply` 通过协调事务原子应用专属 sidecar 与主配置，`reloaded` 固定为 false；`verify` 最多返回
    `EVIDENCE_LEVEL_CONFIGURATION`，顶层 `verified` 与 `path_verified` 固定为 false。
    桌面端不得把这一步显示为“已接管”或“已经直连”。
 
 ## 当前边界
 
-- 尚未修改或引导第三方客户端主配置引用 sidecar。
-- 尚未接入第三方主配置、公开重载 API、实际决策/出口路径验证和失败后的服务层自动回滚
-  编排。
+- 已接入第三方主配置和双文件回滚；尚未接入公开重载 API、实际决策/出口路径验证和重载失败
+  后的服务层自动回滚编排。完整演进见 ADR-0025。
 - Windows 将复用 Protobuf、目录和事务领域语义，但命名管道、ACL 与进程创建限制需要
   独立实现和系统验收；当前非 Unix 服务会明确拒绝启动。
 - NonProxy 不捆绑、下载或托管 Mihomo/sing-box 核心；这里只调用用户明确选择的既有

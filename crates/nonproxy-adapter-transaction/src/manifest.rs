@@ -8,7 +8,8 @@ use crate::{
     atomic_file::{read_optional_bounded, remove_private_file, write_private_new},
 };
 
-const MANIFEST_FORMAT_VERSION: u32 = 3;
+const MANIFEST_FORMAT_VERSION: u32 = 4;
+const INTEGRATED_MANIFEST_FORMAT_VERSION: u32 = 3;
 const PREVIOUS_MANIFEST_FORMAT_VERSION: u32 = 2;
 const LEGACY_MANIFEST_FORMAT_VERSION: u32 = 1;
 
@@ -20,6 +21,8 @@ pub(crate) struct ConfigurationManifest {
     pub backup_sha256: String,
     pub managed_rules_reference: String,
     pub direct_target: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_direct_target: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -60,6 +63,7 @@ impl ChangeManifest {
             value.format_version,
             LEGACY_MANIFEST_FORMAT_VERSION
                 | PREVIOUS_MANIFEST_FORMAT_VERSION
+                | INTEGRATED_MANIFEST_FORMAT_VERSION
                 | MANIFEST_FORMAT_VERSION
         ) {
             return Err(AdapterTransactionError::StateCorrupt);
@@ -69,6 +73,13 @@ impl ChangeManifest {
 
     pub const fn format_version() -> u32 {
         MANIFEST_FORMAT_VERSION
+    }
+
+    pub const fn supports_integrated(format_version: u32) -> bool {
+        matches!(
+            format_version,
+            INTEGRATED_MANIFEST_FORMAT_VERSION | MANIFEST_FORMAT_VERSION
+        )
     }
 }
 

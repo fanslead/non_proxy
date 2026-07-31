@@ -9,13 +9,18 @@ use crate::{
         replace_atomically_preserving_permissions, sha256, write_private_new,
     },
     digest::{decode_hash, encode_hash, stable_identifier},
-    host::{AdapterTransactionManager, matches_backup, validate_installation},
+    host::AdapterTransactionManager,
     identifier::validate_identifier,
+    integrated_state::{
+        IntegratedTargetStates, configuration_state, rules_state, validate_manifest_backups,
+        verify_integrated_manifest,
+    },
     manifest::{ChangeManifest, ConfigurationManifest},
     path_guard::{validate_installation_path, validate_main_configuration_path},
+    transaction_checks::validate_installation,
     types::{
-        AdapterInstallation, ApplyOutcome, IntegratedCandidate, PreparedChange, RollbackOutcome,
-        VerificationOutcome,
+        AdapterInstallation, ApplyOutcome, IntegratedCandidate, IntegratedPreparation,
+        PreparedChange,
     },
 };
 
@@ -56,18 +61,20 @@ impl AdapterTransactionManager {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn prepare_integrated(
         &self,
-        installation: &AdapterInstallation,
-        main_configuration_path: &Path,
-        direct_target: Option<String>,
-        operation_id: &str,
-        normalized_policy: &[u8],
-        expected_rules_sha256: &[u8],
-        expected_configuration_sha256: &[u8],
-        now_unix_ms: u64,
+        request: IntegratedPreparation<'_>,
     ) -> Result<PreparedChange, AdapterTransactionError> {
+        let IntegratedPreparation {
+            installation,
+            main_configuration_path,
+            direct_target,
+            operation_id,
+            normalized_policy,
+            expected_rules_sha256,
+            expected_configuration_sha256,
+            now_unix_ms,
+        } = request;
         let _guard = self
             .mutation_gate
             .lock()
@@ -79,7 +86,7 @@ impl AdapterTransactionManager {
         let preview = Self::preview_integrated(
             installation,
             &main_configuration_path,
-            direct_target,
+            direct_target.clone(),
             normalized_policy,
         )?;
         let rules_hash = *preview.rendered_rules.sha256();
@@ -100,8 +107,11 @@ impl AdapterTransactionManager {
                     existing,
                     installation,
                     operation_id,
-                    &managed_rules_path,
-                    &main_configuration_path,
+                    IntegratedPreparationBinding {
+                        managed_rules_path: &managed_rules_path,
+                        main_configuration_path: &main_configuration_path,
+                        requested_direct_target: direct_target.as_deref(),
+                    },
                     &preview,
                 );
             }
@@ -161,6 +171,7 @@ impl AdapterTransactionManager {
                     backup_sha256: encode_hash(&configuration_backup_hash),
                     managed_rules_reference: preview.managed_rules_reference.clone(),
                     direct_target: preview.direct_target.clone(),
+                    requested_direct_target: direct_target,
                 }),
             };
             manifest.write_new(&manifest_path)
@@ -169,16 +180,16 @@ impl AdapterTransactionManager {
             paths.remove_uncommitted(rules_backup.is_some());
             return Err(error);
         }
-        Ok(prepared_from_manifest_values(
+        Ok(PreparedChange {
             change_id,
             backup_id,
-            rules_hash,
-            configuration_hash,
+            candidate_sha256: rules_hash,
             expires_at_unix_ms,
-            preview.rendered_rules.rule_count(),
-            preview.managed_rules_reference,
-            preview.direct_target,
-        ))
+            rule_count: preview.rendered_rules.rule_count(),
+            configuration_candidate_sha256: Some(configuration_hash),
+            managed_rules_reference: Some(preview.managed_rules_reference),
+            direct_target: Some(preview.direct_target),
+        })
     }
 
     pub fn apply_integrated(
@@ -285,8 +296,7 @@ impl AdapterTransactionManager {
         manifest: ChangeManifest,
         installation: &AdapterInstallation,
         operation_id: &str,
-        managed_rules_path: &Path,
-        main_configuration_path: &Path,
+        binding: IntegratedPreparationBinding<'_>,
         preview: &IntegratedCandidate,
     ) -> Result<PreparedChange, AdapterTransactionError> {
         let configuration = manifest
@@ -298,12 +308,13 @@ impl AdapterTransactionManager {
             && manifest.adapter_id == installation.adapter_id
             && manifest.client == installation.client
             && manifest.client_version == Some(installation.client_version)
-            && Path::new(&manifest.managed_rules_path) == managed_rules_path
-            && Path::new(&configuration.path) == main_configuration_path
+            && Path::new(&manifest.managed_rules_path) == binding.managed_rules_path
+            && Path::new(&configuration.path) == binding.main_configuration_path
             && decode_hash(&manifest.candidate_sha256)? == rules_hash
             && decode_hash(&configuration.candidate_sha256)? == preview.configuration_sha256
             && configuration.managed_rules_reference == preview.managed_rules_reference
-            && configuration.direct_target == preview.direct_target;
+            && configuration.direct_target == preview.direct_target
+            && configuration.requested_direct_target.as_deref() == binding.requested_direct_target;
         if !identical {
             return Err(AdapterTransactionError::ChangeConflict);
         }
@@ -314,250 +325,23 @@ impl AdapterTransactionManager {
             &preview.configuration_sha256,
         )?;
         validate_manifest_backups(self, &manifest)?;
-        Ok(prepared_from_manifest_values(
-            manifest.change_id,
-            manifest.backup_id,
-            rules_hash,
-            preview.configuration_sha256,
-            manifest.expires_at_unix_ms,
-            manifest.rule_count,
-            preview.managed_rules_reference.clone(),
-            preview.direct_target.clone(),
-        ))
-    }
-}
-
-pub(crate) fn verify_integrated_manifest(
-    manifest: &ChangeManifest,
-) -> Result<VerificationOutcome, AdapterTransactionError> {
-    let configuration = manifest
-        .configuration
-        .as_ref()
-        .ok_or(AdapterTransactionError::StateCorrupt)?;
-    let rules_hash = decode_hash(&manifest.candidate_sha256)?;
-    let configuration_hash = decode_hash(&configuration.candidate_sha256)?;
-    let rules_target = validate_installation_path(Path::new(&manifest.managed_rules_path))?;
-    let configuration_target = validate_main_configuration_path(Path::new(&configuration.path))?;
-    let rules_current = read_optional_bounded(&rules_target)?;
-    let configuration_current = read_optional_bounded(&configuration_target)?;
-    let configuration_verified = rules_current
-        .as_deref()
-        .is_some_and(|bytes| sha256(bytes) == rules_hash)
-        && configuration_current
-            .as_deref()
-            .is_some_and(|bytes| sha256(bytes) == configuration_hash);
-    Ok(VerificationOutcome {
-        configuration_verified,
-        path_verified: false,
-        candidate_sha256: rules_hash,
-        configuration_candidate_sha256: Some(configuration_hash),
-    })
-}
-
-pub(crate) fn rollback_integrated_locked(
-    manager: &AdapterTransactionManager,
-    manifest: &ChangeManifest,
-) -> Result<RollbackOutcome, AdapterTransactionError> {
-    let configuration = manifest
-        .configuration
-        .as_ref()
-        .ok_or(AdapterTransactionError::StateCorrupt)?;
-    let rules_target = validate_installation_path(Path::new(&manifest.managed_rules_path))?;
-    let configuration_target = validate_main_configuration_path(Path::new(&configuration.path))?;
-    let rules_current = read_optional_bounded(&rules_target)?;
-    let configuration_current = read_optional_bounded(&configuration_target)?;
-    let states = IntegratedTargetStates::new(
-        manifest,
-        configuration,
-        rules_current.as_deref(),
-        configuration_current.as_deref(),
-    )?;
-    states.require_known()?;
-    if states.rules.backup && states.configuration.backup {
-        return Ok(RollbackOutcome {
-            restored: true,
-            replayed: true,
-        });
-    }
-    if !states.configuration.backup {
-        let current = read_optional_bounded(&configuration_target)?;
-        let fresh = configuration_state(configuration, current.as_deref())?;
-        fresh.require_known()?;
-        if !fresh.backup {
-            let backup_hash = decode_hash(&configuration.backup_sha256)?;
-            let backup = read_hashed_required(
-                &manager.configuration_backup_path(&manifest.backup_id),
-                &backup_hash,
-            )?;
-            replace_atomically_preserving_permissions(
-                &configuration_target,
-                &backup,
-                &manifest.change_id,
-            )?;
-        }
-    }
-    if !states.rules.backup {
-        let current = read_optional_bounded(&rules_target)?;
-        let fresh = rules_state(manifest, current.as_deref())?;
-        fresh.require_known()?;
-        if !fresh.backup {
-            restore_rules_backup(manager, manifest, &rules_target, &manifest.change_id)?;
-        }
-    }
-    if !integrated_targets_are_backups(manifest)? {
-        return Err(AdapterTransactionError::FileTransaction);
-    }
-    Ok(RollbackOutcome {
-        restored: true,
-        replayed: false,
-    })
-}
-
-pub(crate) fn integrated_targets_are_backups(
-    manifest: &ChangeManifest,
-) -> Result<bool, AdapterTransactionError> {
-    let configuration = manifest
-        .configuration
-        .as_ref()
-        .ok_or(AdapterTransactionError::StateCorrupt)?;
-    let rules_target = validate_installation_path(Path::new(&manifest.managed_rules_path))?;
-    let configuration_target = validate_main_configuration_path(Path::new(&configuration.path))?;
-    let rules_current = read_optional_bounded(&rules_target)?;
-    let configuration_current = read_optional_bounded(&configuration_target)?;
-    let configuration_backup_hash = decode_hash(&configuration.backup_sha256)?;
-    Ok(matches_backup(manifest, rules_current.as_deref())?
-        && configuration_current
-            .as_deref()
-            .is_some_and(|bytes| sha256(bytes) == configuration_backup_hash))
-}
-
-pub(crate) fn validate_manifest_backups(
-    manager: &AdapterTransactionManager,
-    manifest: &ChangeManifest,
-) -> Result<(), AdapterTransactionError> {
-    match (manifest.backup_existed, manifest.backup_sha256.as_deref()) {
-        (true, Some(expected)) => {
-            let expected = decode_hash(expected)?;
-            let _backup =
-                read_hashed_required(&manager.backup_path(&manifest.backup_id), &expected)?;
-        }
-        (false, None) => {}
-        _ => return Err(AdapterTransactionError::StateCorrupt),
-    }
-    let configuration = manifest
-        .configuration
-        .as_ref()
-        .ok_or(AdapterTransactionError::StateCorrupt)?;
-    let expected = decode_hash(&configuration.backup_sha256)?;
-    let _backup = read_hashed_required(
-        &manager.configuration_backup_path(&manifest.backup_id),
-        &expected,
-    )?;
-    Ok(())
-}
-
-pub(crate) fn recover_partial_integrated(
-    manager: &AdapterTransactionManager,
-    manifest: &ChangeManifest,
-) -> Result<(), AdapterTransactionError> {
-    let configuration = manifest
-        .configuration
-        .as_ref()
-        .ok_or(AdapterTransactionError::StateCorrupt)?;
-    let rules_target = validate_installation_path(Path::new(&manifest.managed_rules_path))?;
-    let configuration_target = validate_main_configuration_path(Path::new(&configuration.path))?;
-    let rules_current = read_optional_bounded(&rules_target)?;
-    let configuration_current = read_optional_bounded(&configuration_target)?;
-    let states = IntegratedTargetStates::new(
-        manifest,
-        configuration,
-        rules_current.as_deref(),
-        configuration_current.as_deref(),
-    )?;
-    if states.rules.candidate
-        && states.configuration.backup
-        && !states.rules.backup
-        && !states.configuration.candidate
-    {
-        restore_rules_backup(manager, manifest, &rules_target, &manifest.change_id)?;
-    } else if states.rules.backup
-        && states.configuration.candidate
-        && !states.rules.candidate
-        && !states.configuration.backup
-    {
-        let backup_hash = decode_hash(&configuration.backup_sha256)?;
-        let backup = read_hashed_required(
-            &manager.configuration_backup_path(&manifest.backup_id),
-            &backup_hash,
-        )?;
-        replace_atomically_preserving_permissions(
-            &configuration_target,
-            &backup,
-            &manifest.change_id,
-        )?;
-    }
-    Ok(())
-}
-
-struct IntegratedTargetStates {
-    rules: ArtifactState,
-    configuration: ArtifactState,
-}
-
-impl IntegratedTargetStates {
-    fn new(
-        manifest: &ChangeManifest,
-        configuration: &ConfigurationManifest,
-        rules_current: Option<&[u8]>,
-        configuration_current: Option<&[u8]>,
-    ) -> Result<Self, AdapterTransactionError> {
-        Ok(Self {
-            rules: rules_state(manifest, rules_current)?,
-            configuration: configuration_state(configuration, configuration_current)?,
+        Ok(PreparedChange {
+            change_id: manifest.change_id,
+            backup_id: manifest.backup_id,
+            candidate_sha256: rules_hash,
+            expires_at_unix_ms: manifest.expires_at_unix_ms,
+            rule_count: manifest.rule_count,
+            configuration_candidate_sha256: Some(preview.configuration_sha256),
+            managed_rules_reference: Some(preview.managed_rules_reference.clone()),
+            direct_target: Some(preview.direct_target.clone()),
         })
     }
-
-    fn require_known(&self) -> Result<(), AdapterTransactionError> {
-        self.rules.require_known()?;
-        self.configuration.require_known()
-    }
 }
 
-struct ArtifactState {
-    backup: bool,
-    candidate: bool,
-}
-
-impl ArtifactState {
-    fn require_known(&self) -> Result<(), AdapterTransactionError> {
-        if !self.backup && !self.candidate {
-            return Err(AdapterTransactionError::ManagedFileChanged);
-        }
-        Ok(())
-    }
-}
-
-fn rules_state(
-    manifest: &ChangeManifest,
-    current: Option<&[u8]>,
-) -> Result<ArtifactState, AdapterTransactionError> {
-    let candidate_hash = decode_hash(&manifest.candidate_sha256)?;
-    Ok(ArtifactState {
-        backup: matches_backup(manifest, current)?,
-        candidate: current.is_some_and(|bytes| sha256(bytes) == candidate_hash),
-    })
-}
-
-fn configuration_state(
-    configuration: &ConfigurationManifest,
-    current: Option<&[u8]>,
-) -> Result<ArtifactState, AdapterTransactionError> {
-    let backup_hash = decode_hash(&configuration.backup_sha256)?;
-    let candidate_hash = decode_hash(&configuration.candidate_sha256)?;
-    Ok(ArtifactState {
-        backup: current.is_some_and(|bytes| sha256(bytes) == backup_hash),
-        candidate: current.is_some_and(|bytes| sha256(bytes) == candidate_hash),
-    })
+struct IntegratedPreparationBinding<'a> {
+    managed_rules_path: &'a Path,
+    main_configuration_path: &'a Path,
+    requested_direct_target: Option<&'a str>,
 }
 
 struct IntegratedStatePaths {
@@ -587,7 +371,7 @@ impl IntegratedStatePaths {
     }
 }
 
-fn read_hashed_required(
+pub(crate) fn read_hashed_required(
     path: &Path,
     expected_hash: &[u8; 32],
 ) -> Result<Vec<u8>, AdapterTransactionError> {
@@ -598,7 +382,7 @@ fn read_hashed_required(
     Ok(bytes)
 }
 
-fn restore_rules_backup(
+pub(crate) fn restore_rules_backup(
     manager: &AdapterTransactionManager,
     manifest: &ChangeManifest,
     target: &Path,
@@ -614,28 +398,5 @@ fn restore_rules_backup(
         replace_atomically(target, &backup, change_id)
     } else {
         remove_managed_file(target)
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn prepared_from_manifest_values(
-    change_id: String,
-    backup_id: String,
-    rules_hash: [u8; 32],
-    configuration_hash: [u8; 32],
-    expires_at_unix_ms: u64,
-    rule_count: usize,
-    managed_rules_reference: String,
-    direct_target: String,
-) -> PreparedChange {
-    PreparedChange {
-        change_id,
-        backup_id,
-        candidate_sha256: rules_hash,
-        expires_at_unix_ms,
-        rule_count,
-        configuration_candidate_sha256: Some(configuration_hash),
-        managed_rules_reference: Some(managed_rules_reference),
-        direct_target: Some(direct_target),
     }
 }

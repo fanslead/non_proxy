@@ -1,8 +1,8 @@
 use std::{
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     fs::{self, OpenOptions},
     io::Write,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     time::Duration,
 };
 
@@ -10,6 +10,7 @@ use std::{
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 
 use nonproxy_adapter_api::AdapterClient;
+use nonproxy_adapter_transaction::IntegratedCandidate;
 use tempfile::TempDir;
 
 use crate::{
@@ -22,24 +23,40 @@ use crate::{
 const VALIDATION_TIMEOUT: Duration = Duration::from_secs(5);
 const MAXIMUM_COMPILED_RULE_SET_BYTES: u64 = 4 * 1024 * 1024;
 
-pub(crate) async fn validate(
+pub(crate) async fn validate_integrated(
     detected: &DetectedClient,
-    candidate: &[u8],
+    main_configuration_path: &Path,
+    candidate: &IntegratedCandidate,
 ) -> Result<(), AdapterHostError> {
     let client = detected.client;
     let executable = detected.executable_path.clone();
-    let candidate = candidate.to_vec();
-    let workspace =
-        tokio::task::spawn_blocking(move || ValidationWorkspace::create(client, &candidate))
-            .await
-            .map_err(AdapterHostError::CandidateValidationTask)??;
-    let request = workspace.request(client, &executable)?;
-    run(request).await.map_err(validation_error)?;
-    if client == AdapterClient::SingBox {
-        let output = workspace.output_path()?;
-        tokio::task::spawn_blocking(move || validate_compiled_output(&output))
-            .await
-            .map_err(AdapterHostError::CandidateValidationTask)??;
+    let configuration_name = main_configuration_path
+        .file_name()
+        .ok_or(AdapterHostError::InstallationInvalid)?
+        .to_owned();
+    let rules = candidate.rendered_rules().bytes().to_vec();
+    let configuration = candidate.configuration_bytes().to_vec();
+    let managed_reference = candidate.managed_rules_reference().to_owned();
+    let workspace = tokio::task::spawn_blocking(move || {
+        ValidationWorkspace::create(
+            client,
+            &configuration_name,
+            &managed_reference,
+            &rules,
+            &configuration,
+        )
+    })
+    .await
+    .map_err(AdapterHostError::CandidateValidationTask)??;
+    let requests = workspace.requests(client, &executable)?;
+    for (index, request) in requests.into_iter().enumerate() {
+        run(request).await.map_err(validation_error)?;
+        if client == AdapterClient::SingBox && index == 0 {
+            let output = workspace.output_path()?;
+            tokio::task::spawn_blocking(move || validate_compiled_output(&output))
+                .await
+                .map_err(AdapterHostError::CandidateValidationTask)??;
+        }
     }
     Ok(())
 }
@@ -52,83 +69,84 @@ struct ValidationWorkspace {
 }
 
 impl ValidationWorkspace {
-    fn create(client: AdapterClient, candidate: &[u8]) -> Result<Self, AdapterHostError> {
+    fn create(
+        client: AdapterClient,
+        configuration_name: &OsStr,
+        managed_reference: &str,
+        rules: &[u8],
+        configuration: &[u8],
+    ) -> Result<Self, AdapterHostError> {
         let directory = tempfile::tempdir().map_err(AdapterHostError::CandidateValidationIo)?;
         #[cfg(unix)]
         fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700))
             .map_err(AdapterHostError::CandidateValidationIo)?;
-        let (candidate_name, config) = match client {
-            AdapterClient::Surge => (
-                "nonproxy.rules",
-                Some((
-                    "nonproxy.conf",
-                    b"[General]\n\n[Rule]\nRULE-SET,nonproxy.rules,DIRECT\nFINAL,DIRECT\n".as_slice(),
-                )),
-            ),
-            AdapterClient::Mihomo => (
-                "nonproxy.yaml",
-                Some((
-                    "config.yaml",
-                    b"mode: rule\nlog-level: silent\nrule-providers:\n  nonproxy:\n    type: file\n    behavior: classical\n    format: yaml\n    path: ./nonproxy.yaml\nrules:\n  - RULE-SET,nonproxy,DIRECT\n  - MATCH,DIRECT\n".as_slice(),
-                )),
-            ),
-            AdapterClient::SingBox => ("nonproxy.json", None),
-        };
-        let candidate_path = directory.path().join(candidate_name);
-        write_private(&candidate_path, candidate)?;
-        let config_path = if let Some((name, bytes)) = config {
-            let path = directory.path().join(name);
-            write_private(&path, bytes)?;
-            Some(path)
-        } else {
-            None
-        };
+        let managed_path = managed_reference_path(managed_reference)?;
+        let candidate_path = directory.path().join(managed_path);
+        if let Some(parent) = candidate_path.parent() {
+            create_private_directories(directory.path(), parent)?;
+        }
+        write_private(&candidate_path, rules)?;
+        let config_path = directory.path().join(configuration_name);
+        if config_path == candidate_path {
+            return Err(AdapterHostError::InstallationInvalid);
+        }
+        write_private(&config_path, configuration)?;
         let output_path =
             (client == AdapterClient::SingBox).then(|| directory.path().join("nonproxy.srs"));
         Ok(Self {
             directory,
             candidate_path,
-            config_path,
+            config_path: Some(config_path),
             output_path,
         })
     }
 
-    fn request(
+    fn requests(
         &self,
         client: AdapterClient,
         detected_executable: &Path,
-    ) -> Result<ProcessRequest, AdapterHostError> {
+    ) -> Result<Vec<ProcessRequest>, AdapterHostError> {
         let executable = match client {
             AdapterClient::Surge => surge_cli(detected_executable)?,
             AdapterClient::Mihomo | AdapterClient::SingBox => detected_executable.to_path_buf(),
         };
         let arguments = match client {
-            AdapterClient::Surge => vec![
+            AdapterClient::Surge => vec![vec![
                 OsString::from("-c"),
                 self.required_config_path()?.as_os_str().to_owned(),
-            ],
-            AdapterClient::Mihomo => vec![
+            ]],
+            AdapterClient::Mihomo => vec![vec![
                 OsString::from("-t"),
                 OsString::from("-d"),
                 self.directory.path().as_os_str().to_owned(),
                 OsString::from("-f"),
                 self.required_config_path()?.as_os_str().to_owned(),
-            ],
+            ]],
             AdapterClient::SingBox => vec![
-                OsString::from("rule-set"),
-                OsString::from("compile"),
-                OsString::from("--output"),
-                self.required_output_path()?.as_os_str().to_owned(),
-                self.candidate_path.as_os_str().to_owned(),
+                vec![
+                    OsString::from("rule-set"),
+                    OsString::from("compile"),
+                    OsString::from("--output"),
+                    self.required_output_path()?.as_os_str().to_owned(),
+                    self.candidate_path.as_os_str().to_owned(),
+                ],
+                vec![
+                    OsString::from("check"),
+                    OsString::from("-c"),
+                    self.required_config_path()?.as_os_str().to_owned(),
+                ],
             ],
         };
-        Ok(ProcessRequest {
-            executable,
-            arguments,
-            working_directory: Some(self.directory.path().to_path_buf()),
-            home_directory: Some(self.directory.path().to_path_buf()),
-            timeout: VALIDATION_TIMEOUT,
-        })
+        Ok(arguments
+            .into_iter()
+            .map(|arguments| ProcessRequest {
+                executable: executable.clone(),
+                arguments,
+                working_directory: Some(self.directory.path().to_path_buf()),
+                home_directory: Some(self.directory.path().to_path_buf()),
+                timeout: VALIDATION_TIMEOUT,
+            })
+            .collect())
     }
 
     fn required_config_path(&self) -> Result<&Path, AdapterHostError> {
@@ -148,6 +166,47 @@ impl ValidationWorkspace {
             .clone()
             .ok_or(AdapterHostError::CandidateValidationFailed)
     }
+}
+
+fn managed_reference_path(value: &str) -> Result<&Path, AdapterHostError> {
+    let relative = value
+        .strip_prefix("./")
+        .ok_or(AdapterHostError::InstallationInvalid)?;
+    let path = Path::new(relative);
+    if path.file_name().is_none()
+        || !path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+    {
+        return Err(AdapterHostError::InstallationInvalid);
+    }
+    Ok(path)
+}
+
+fn create_private_directories(root: &Path, target: &Path) -> Result<(), AdapterHostError> {
+    let relative = target
+        .strip_prefix(root)
+        .map_err(|_| AdapterHostError::InstallationInvalid)?;
+    let mut current = root.to_path_buf();
+    for component in relative.components() {
+        let Component::Normal(value) = component else {
+            return Err(AdapterHostError::InstallationInvalid);
+        };
+        current.push(value);
+        fs::create_dir(&current)
+            .or_else(|error| {
+                if error.kind() == std::io::ErrorKind::AlreadyExists {
+                    Ok(())
+                } else {
+                    Err(error)
+                }
+            })
+            .map_err(AdapterHostError::CandidateValidationIo)?;
+        #[cfg(unix)]
+        fs::set_permissions(&current, fs::Permissions::from_mode(0o700))
+            .map_err(AdapterHostError::CandidateValidationIo)?;
+    }
+    Ok(())
 }
 
 fn surge_cli(executable: &Path) -> Result<PathBuf, AdapterHostError> {
@@ -211,7 +270,17 @@ mod tests {
 
     use crate::detection::DetectedClient;
 
-    use super::validate;
+    use nonproxy_adapter_transaction::{AdapterInstallation, AdapterTransactionManager};
+
+    use super::validate_integrated;
+
+    const POLICY: &[u8] = br#"{
+      "format_version":1,
+      "revision":1,
+      "rules":[{"id":"site","action":"direct","selector":{
+        "kind":"domain","match_kind":"suffix","value":"example.com"
+      }}]
+    }"#;
 
     #[cfg(unix)]
     #[tokio::test]
@@ -223,7 +292,7 @@ mod tests {
         let executable = directory.path().join("sing-box");
         fs::write(
             &executable,
-            b"#!/bin/sh\nif [ \"$1\" = version ]; then echo 'sing-box version 1.12.4'; exit 0; fi\nif [ \"$1\" = rule-set ] && [ \"$2\" = compile ] && [ \"$3\" = --output ]; then printf 'compiled' > \"$4\"; exit 0; fi\nexit 1\n",
+            b"#!/bin/sh\nif [ \"$1\" = version ]; then echo 'sing-box version 1.12.4'; exit 0; fi\nif [ \"$1\" = rule-set ] && [ \"$2\" = compile ] && [ \"$3\" = --output ]; then printf 'compiled' > \"$4\"; exit 0; fi\nif [ \"$1\" = check ] && [ \"$2\" = -c ] && grep -q 'nonproxy-sing' \"$3\" && grep -q 'example.com' nonproxy.json; then printf checked > \"$0.checked\"; exit 0; fi\nexit 1\n",
         )
         .unwrap_or_else(|error| panic!("测试客户端写入失败: {error}"));
         fs::set_permissions(&executable, fs::Permissions::from_mode(0o700))
@@ -233,12 +302,33 @@ mod tests {
             version: AdapterVersion::new(1, 12, 4),
             executable_path: executable,
         };
+        let configuration_path = directory.path().join("config.json");
+        let managed_path = directory.path().join("nonproxy.json");
+        fs::write(
+            &configuration_path,
+            br#"{"outbounds":[{"type":"direct","tag":"direct"}]}"#,
+        )
+        .unwrap_or_else(|error| panic!("sing-box 主配置写入失败: {error}"));
+        let installation = AdapterInstallation::new(
+            "sing",
+            AdapterClient::SingBox,
+            AdapterVersion::new(1, 12, 4),
+            managed_path,
+        );
+        let candidate = AdapterTransactionManager::preview_integrated(
+            &installation,
+            &configuration_path,
+            None,
+            POLICY,
+        )
+        .unwrap_or_else(|error| panic!("sing-box 候选生成失败: {error}"));
 
         assert!(
-            validate(&detected, br#"{"version":3,"rules":[]}"#)
+            validate_integrated(&detected, &configuration_path, &candidate)
                 .await
                 .is_ok()
         );
+        assert!(directory.path().join("sing-box.checked").is_file());
     }
 
     #[cfg(unix)]
@@ -260,7 +350,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("Surge 测试入口写入失败: {error}"));
         fs::write(
             &cli,
-            b"#!/bin/sh\nif [ \"$1\" = -c ] && grep -q 'RULE-SET,nonproxy.rules,DIRECT' \"$2\" && grep -q 'DOMAIN-SUFFIX,example.com' nonproxy.rules; then exit 0; fi\nexit 1\n",
+            b"#!/bin/sh\nif [ \"$1\" = -c ] && grep -q 'RULE-SET,./nonproxy.rules,DIRECT' \"$2\" && grep -q 'DOMAIN-SUFFIX,example.com' nonproxy.rules; then exit 0; fi\nexit 1\n",
         )
         .unwrap_or_else(|error| panic!("Surge CLI fixture 写入失败: {error}"));
         fs::set_permissions(&executable, fs::Permissions::from_mode(0o700))
@@ -271,9 +361,26 @@ mod tests {
             version: AdapterVersion::new(6, 1, 2),
             executable_path: executable,
         };
+        let configuration_path = directory.path().join("surge.conf");
+        let managed_path = directory.path().join("nonproxy.rules");
+        fs::write(&configuration_path, b"[General]\n\n[Rule]\nFINAL,DIRECT\n")
+            .unwrap_or_else(|error| panic!("Surge 主配置写入失败: {error}"));
+        let installation = AdapterInstallation::new(
+            "surge",
+            AdapterClient::Surge,
+            AdapterVersion::new(6, 1, 2),
+            managed_path,
+        );
+        let candidate = AdapterTransactionManager::preview_integrated(
+            &installation,
+            &configuration_path,
+            None,
+            POLICY,
+        )
+        .unwrap_or_else(|error| panic!("Surge 候选生成失败: {error}"));
 
         assert!(
-            validate(&detected, b"DOMAIN-SUFFIX,example.com\n")
+            validate_integrated(&detected, &configuration_path, &candidate)
                 .await
                 .is_ok()
         );
