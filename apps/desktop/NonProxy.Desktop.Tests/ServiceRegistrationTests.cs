@@ -35,6 +35,7 @@ public sealed class ServiceRegistrationTests
             shell.Dashboard);
         Assert.Equal(10, shell.NavigationItems.Count);
         Assert.Equal("运行概览", shell.CurrentPage.Title);
+        Assert.NotNull(services.GetRequiredService<DesktopLifetimeController>());
     }
 
     [Fact]

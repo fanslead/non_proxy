@@ -15,6 +15,7 @@ using NonProxy.Desktop.Core.Services.Control;
 using NonProxy.Desktop.Core.Services.Control.Gateway;
 using NonProxy.Desktop.Core.Services.Control.Rpc;
 using NonProxy.Desktop.Core.Services.Control.Transport;
+using NonProxy.Desktop.Core.Services.Settings;
 using NonProxy.Desktop.Core.Views;
 
 namespace NonProxy.Desktop.Core.Bootstrap;
@@ -38,6 +39,7 @@ public static class ServiceRegistration
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
+        services.AddSingleton<DesktopLifetimeController>();
         services.AddSingleton<IApplicationCatalog, UnavailableApplicationCatalog>();
         services.AddSingleton<ILocalProxyDiscovery, UnavailableLocalProxyDiscovery>();
         services.AddSingleton<
@@ -47,16 +49,17 @@ public static class ServiceRegistration
         services.AddSingleton<IControlChannelFactory, UnavailableControlChannelFactory>();
         services.AddSingleton<ISessionCapabilityProvider, UnavailableSessionCapabilityProvider>();
         services.AddSingleton<OperationContextProvider>();
+        services.AddSingleton(DesktopSettingsPath.ForCurrentUser());
+        services.AddSingleton<IDesktopSettingsService, JsonDesktopSettingsService>();
+        services.AddSingleton<IDesktopThemeService, AvaloniaDesktopThemeService>();
         services.AddSingleton<IControlRpcClient, GrpcControlRpcClient>();
         services.AddSingleton<PolicyContractMapper>();
         services.AddSingleton<ISystemStatusService, GatewaySystemStatusService>();
         services.AddSingleton<IPolicyService, GatewayPolicyService>();
         services.AddSingleton<INetworkProfileService, GatewayNetworkProfileService>();
         services.AddSingleton<IOutboundService, GatewayOutboundService>();
-        services.AddSingleton<ILearningService, DisconnectedLearningService>();
         services.AddSingleton<IActivityService, GatewayActivityService>();
         services.AddSingleton<IDiagnosticsService, GatewayDiagnosticsService>();
-        services.AddSingleton<IDesktopSettingsService, DisconnectedDesktopSettingsService>();
 
         registerPlatformServices(services);
         EnsureRegistered<IPlatformInformation>(services);

@@ -11,7 +11,7 @@
                 <TextBlock Theme="{StaticResource NpPageTitle}"
                            Text="设置" />
                 <TextBlock Theme="{StaticResource NpMutedText}"
-                           Text="管理桌面体验、启动行为和本地诊断数据。" />
+                           Text="管理本机桌面体验；网络规则和后台服务具有独立生命周期。" />
             </StackPanel>
 
             <Border Theme="{StaticResource NpCard}">
@@ -32,27 +32,22 @@
             </Border>
 
             <Border Theme="{StaticResource NpCard}">
-                <StackPanel Spacing="18">
+                <StackPanel Spacing="10">
                     <TextBlock Theme="{StaticResource NpSectionTitle}"
-                               Text="启动与运行" />
-                    <CheckBox IsChecked="{Binding StartAtLogin}"
-                              Content="登录电脑后自动启动 NonProxy"
-                              AutomationProperties.Name="登录时自动启动" />
-                    <CheckBox IsChecked="{Binding KeepDataPlaneRunning}"
-                              Content="关闭窗口后继续执行已激活规则"
-                              AutomationProperties.Name="关闭窗口后保持数据面运行" />
+                               Text="窗口与后台" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="关闭主窗口会把界面隐藏到菜单栏或通知区域。使用托盘菜单可恢复窗口或只退出桌面界面；已激活规则由独立后台服务继续执行。"
+                               TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
             <Border Theme="{StaticResource NpCard}">
-                <StackPanel Spacing="18">
+                <StackPanel Spacing="10">
                     <TextBlock Theme="{StaticResource NpSectionTitle}"
                                Text="隐私" />
-                    <CheckBox IsChecked="{Binding CollectDecisionHistory}"
-                              Content="保留本机近期决策记录"
-                              AutomationProperties.Name="保留本机决策历史" />
                     <TextBlock Theme="{StaticResource NpMutedText}"
-                               Text="关闭后仍会保留必要的安全审计，但不再保存用于活动页面的连接历史。" />
+                               Text="决策记录和诊断包只保存在本机。诊断导出采用严格脱敏且不会自动上传；当前版本不提供会让必要安全证据消失的伪关闭开关。"
+                               TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 

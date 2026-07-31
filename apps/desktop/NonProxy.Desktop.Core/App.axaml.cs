@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using NonProxy.Desktop.Core.Bootstrap;
 using NonProxy.Desktop.Core.Views;
 
 namespace NonProxy.Desktop.Core;
@@ -24,7 +25,11 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = _services.GetRequiredService<MainWindow>();
+            var window = _services.GetRequiredService<MainWindow>();
+            desktop.MainWindow = window;
+            _services
+                .GetRequiredService<DesktopLifetimeController>()
+                .Attach(this, desktop, window);
         }
 
         base.OnFrameworkInitializationCompleted();

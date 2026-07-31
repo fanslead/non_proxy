@@ -11,38 +11,45 @@
                 <TextBlock Theme="{StaticResource NpPageTitle}"
                            Text="智能学习" />
                 <TextBlock Theme="{StaticResource NpMutedText}"
-                           Text="临时观察你主动使用的软件和网站，生成候选规则；未经确认不会自动放行。" />
+                           Text="临时识别当前网站的依赖域名并生成候选规则；未经确认不会自动放行。" />
             </StackPanel>
 
             <Border Theme="{StaticResource NpCard}">
-                <StackPanel Spacing="16">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Spacing="6">
-                            <TextBlock Theme="{StaticResource NpSectionTitle}"
-                                       Text="学习会话" />
+                <StackPanel Spacing="18">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="在当前网站完成识别" />
+                    <Grid ColumnDefinitions="36,*"
+                          RowDefinitions="Auto,Auto,Auto"
+                          RowSpacing="14">
+                        <TextBlock FontSize="20" Text="1" />
+                        <StackPanel Grid.Column="1" Spacing="3">
+                            <TextBlock FontWeight="SemiBold" Text="打开需要直连的网站" />
                             <TextBlock Theme="{StaticResource NpMutedText}"
-                                       Text="{Binding Status.Detail}" />
+                                       Text="保持在要处理的标签页，不需要查找它请求了哪些地址。" />
                         </StackPanel>
-                        <TextBlock Grid.Column="1"
-                                   FontSize="18"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding Status.CandidateCount, StringFormat='候选规则：{0}'}" />
+                        <TextBlock Grid.Row="1" FontSize="20" Text="2" />
+                        <StackPanel Grid.Row="1" Grid.Column="1" Spacing="3">
+                            <TextBlock FontWeight="SemiBold" Text="点击 NonProxy 浏览器扩展" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="扩展只为当前标签页申请临时权限，并在 60 秒内聚合域名。" />
+                        </StackPanel>
+                        <TextBlock Grid.Row="2" FontSize="20" Text="3" />
+                        <StackPanel Grid.Row="2" Grid.Column="1" Spacing="3">
+                            <TextBlock FontWeight="SemiBold" Text="逐项确认后再创建规则" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="主站、登录、接口和 CDN 会分类展示；第三方域名不会自动放行。" />
+                        </StackPanel>
                     </Grid>
-                    <StackPanel Orientation="Horizontal"
-                                Spacing="10">
-                        <Button Theme="{StaticResource NpPrimaryButton}"
-                                Command="{Binding StartCommand}"
-                                Content="开始学习"
-                                AutomationProperties.Name="开始智能学习" />
-                        <Button Theme="{StaticResource NpSecondaryButton}"
-                                Command="{Binding StopCommand}"
-                                Content="停止学习"
-                                AutomationProperties.Name="停止智能学习" />
-                        <Button Theme="{StaticResource NpSecondaryButton}"
-                                Command="{Binding RefreshCommand}"
-                                Content="刷新状态"
-                                AutomationProperties.Name="刷新学习状态" />
-                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="10">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="应用不需要学习地址" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="在“应用直连”中选择软件后，NonProxy 按经过签名校验的应用身份匹配它后续发起的连接，不依赖进程名、安装路径或预先知道的服务器地址。"
+                               TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
@@ -51,7 +58,8 @@
                     <TextBlock Theme="{StaticResource NpSectionTitle}"
                                Text="隐私边界" />
                     <TextBlock Theme="{StaticResource NpMutedText}"
-                               Text="仅采集做出网络决策所需的应用身份、域名、目标地址和时间，不读取网页正文。历史记录可在设置中关闭。" />
+                               Text="网站识别只处理规范化域名和资源类别，不读取 URL 路径、查询参数、网页正文或浏览历史。候选未经你的明确确认不会写入规则。"
+                               TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
         </StackPanel>

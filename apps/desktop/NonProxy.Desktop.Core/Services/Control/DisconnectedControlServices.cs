@@ -135,33 +135,6 @@ public sealed class DisconnectedOutboundService : IOutboundService
     }
 }
 
-public sealed class DisconnectedLearningService : ILearningService
-{
-    private static LearningStatus Unavailable { get; } = new(
-        false,
-        0,
-        null,
-        "控制服务尚未连接，学习模式没有启动。");
-
-    public Task<LearningStatus> GetStatusAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(Unavailable);
-    }
-
-    public Task<LearningStatus> StartAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(Unavailable);
-    }
-
-    public Task<LearningStatus> StopAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(Unavailable);
-    }
-}
-
 public sealed class DisconnectedActivityService : IActivityService
 {
     public Task<IReadOnlyList<ActivityItem>> GetRecentAsync(
@@ -205,31 +178,5 @@ public sealed class DisconnectedDiagnosticsService : IDiagnosticsService
         throw new ControlServiceException(
             "NP_CONTROL_UNAVAILABLE",
             "控制服务尚未连接，诊断包没有生成。");
-    }
-}
-
-public sealed class DisconnectedDesktopSettingsService : IDesktopSettingsService
-{
-    private static DesktopSettings Defaults { get; } = new(
-        "System",
-        false,
-        true,
-        true);
-
-    public Task<DesktopSettings> GetAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(Defaults);
-    }
-
-    public Task SaveAsync(
-        DesktopSettings settings,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(settings);
-        cancellationToken.ThrowIfCancellationRequested();
-        throw new ControlServiceException(
-            "NP_CONTROL_UNAVAILABLE",
-            "控制服务尚未连接，设置没有保存。");
     }
 }

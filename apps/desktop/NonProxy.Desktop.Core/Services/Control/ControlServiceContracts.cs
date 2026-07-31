@@ -71,15 +71,6 @@ public interface IOutboundService
         CancellationToken cancellationToken);
 }
 
-public interface ILearningService
-{
-    Task<LearningStatus> GetStatusAsync(CancellationToken cancellationToken);
-
-    Task<LearningStatus> StartAsync(CancellationToken cancellationToken);
-
-    Task<LearningStatus> StopAsync(CancellationToken cancellationToken);
-}
-
 public interface IActivityService
 {
     Task<IReadOnlyList<ActivityItem>> GetRecentAsync(
@@ -92,13 +83,4 @@ public interface IDiagnosticsService
     Task<IReadOnlyList<DiagnosticCheck>> RunChecksAsync(CancellationToken cancellationToken);
 
     Task<DiagnosticExport> ExportAsync(CancellationToken cancellationToken);
-}
-
-public interface IDesktopSettingsService
-{
-    Task<DesktopSettings> GetAsync(CancellationToken cancellationToken);
-
-    Task SaveAsync(
-        DesktopSettings settings,
-        CancellationToken cancellationToken);
 }

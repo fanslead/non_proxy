@@ -1647,6 +1647,19 @@ macOS 原生桥 ABI 约束：
 - macOS 可配置不在 Dock 显示，但必须验证启动、激活和窗口恢复。
 - 托盘退出只停止 UI；是否停止 `gatewayd` 和数据面由明确用户动作决定。
 
+当前共享实现由 `DesktopLifetimeController` 统一持有 Avalonia 显式生命周期。用户关闭
+主窗口时只隐藏；托盘、`NativeMenu`、macOS Dock 菜单和 `ActivationKind.Reopen` 恢复
+同一个窗口。“退出 NonProxy 界面”调用显式关闭且不操作后台服务。退出请求被拒绝时
+必须恢复关闭到托盘状态，系统退出请求则不得被窗口隐藏逻辑阻塞。托盘图标由确定性的
+内存 PNG 生成，不依赖平台外部文件路径。
+
+桌面偏好与控制面策略分离。当前只持久化真实生效的主题，文件位于当前用户本地应用
+数据目录并通过同目录临时文件原子替换；损坏、未知主题或超过 64 KiB 的文件回退系统
+主题。开机启动和决策历史在平台/控制面实现前不得显示为可保存开关。浏览器学习由扩展
+持有标签页 capability 和候选审核，桌面页只说明入口，不创建无法与标签页绑定的会话。
+完整理由见
+[ADR-0017](ADR/0017-own-desktop-lifetime-and-truthful-local-settings.md)。
+
 ### 17.6 状态同步
 
 - UI 启动先读取 `GetSystemStatus` 快照，再订阅事件。

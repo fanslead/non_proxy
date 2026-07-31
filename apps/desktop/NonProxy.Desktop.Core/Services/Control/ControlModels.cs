@@ -241,12 +241,6 @@ public sealed record OutboundImportResult(
     IReadOnlyList<OutboundListItem> Outbounds,
     IReadOnlyList<string> Warnings);
 
-public sealed record LearningStatus(
-    bool IsRunning,
-    int CandidateCount,
-    DateTimeOffset? StartedAt,
-    string Detail);
-
 public sealed record ActivityItem(
     long Sequence,
     DateTimeOffset OccurredAt,
@@ -300,9 +294,3 @@ public sealed record DiagnosticExport(
     public string Summary =>
         $"{Redaction}；连接样本 {ConnectionSampleCount} 条，错误记录 {ErrorCount} 条。";
 }
-
-public sealed record DesktopSettings(
-    string Theme,
-    bool StartAtLogin,
-    bool KeepDataPlaneRunning,
-    bool CollectDecisionHistory);

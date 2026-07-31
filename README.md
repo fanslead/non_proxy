@@ -14,6 +14,8 @@ Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名
 
 运行概览会按“后台服务 → 透明代理 → DNS 分流 → 网络接管”显示真实分段状态。等待授权时可通过原生桥直接打开 macOS“登录项与扩展”，允许后重新检查；部分安装可执行修复，卸载需要二次确认。诊断页复用同一组分段证据并显示稳定错误码，还可以生成最近 24 小时的严格脱敏本地 JSON；页面会预览内容范围、大小和 SHA-256，文件不包含凭据、代理端点、网络载荷或逐连接样本，也不会自动上传。
 
+共享桌面端已经加入当前网络一键直连：macOS 只在用户点击时采集当前物理网络并在宿主进程内生成隐私安全指纹，原始 SSID 不跨越原生边界；网络档案、网络作用域规则和待确认快照按 revision 编排，明确区分“已保存”“等待确认”和“已激活”。桌面生命周期使用跨平台托盘与原生菜单，关闭窗口只隐藏界面，恢复窗口和“只退出界面”是不同动作；系统/浅色/深色主题采用有界、原子、本地设置。智能学习的实际入口位于当前浏览器标签页，桌面页不再提供无法关联标签页的伪开始按钮。
+
 正式签名 macOS 包的只读查询、安装、升级、卸载和完整生命周期验收使用 [macOS 系统组件验收手册](docs/MACOS_SYSTEM_ACCEPTANCE.md)。验收命令拒绝临时签名、非 `/Applications` 包和未经显式确认的系统变更，并输出带 SHA-256 清单的独立证据目录。
 
 Safari 扩展的正式登记、启用、普通/无痕窗口与多标签页验收使用 [Safari Web Extension 正式验收](docs/SAFARI_EXTENSION_ACCEPTANCE.md)。
@@ -49,6 +51,10 @@ TCP/DNS/UDP/QUIC 验收使用
 - [标准代理链接导入 ADR](docs/ADR/0011-import-standard-proxy-uris.md)
 - [系统代理自动发现 ADR](docs/ADR/0012-discover-public-system-proxy-settings.md)
 - [默认代理握手门禁 ADR](docs/ADR/0013-require-fresh-handshake-before-default-route.md)
+- [网络档案快照绑定 ADR](docs/ADR/0014-bind-network-profiles-to-signed-snapshots.md)
+- [macOS 当前网络身份 ADR](docs/ADR/0015-resolve-macos-network-environment-at-runtime.md)
+- [当前网络一键直连 ADR](docs/ADR/0016-orchestrate-one-click-network-direct.md)
+- [桌面生命周期与真实设置 ADR](docs/ADR/0017-own-desktop-lifetime-and-truthful-local-settings.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链
