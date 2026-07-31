@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using NonProxy.Desktop.Core.Features.Activity;
+using NonProxy.Desktop.Core.Features.Adapters;
 using NonProxy.Desktop.Core.Features.Applications;
 using NonProxy.Desktop.Core.Features.Dashboard;
 using NonProxy.Desktop.Core.Features.Diagnostics;
@@ -33,6 +34,7 @@ public static class ServiceRegistration
         var services = new ServiceCollection();
         services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<PoliciesViewModel>();
+        services.AddSingleton<AdaptersViewModel>();
         services.AddSingleton<ApplicationsViewModel>();
         services.AddSingleton<WebsitesViewModel>();
         services.AddSingleton<OutboundsViewModel>();

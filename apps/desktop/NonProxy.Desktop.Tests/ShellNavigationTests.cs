@@ -37,6 +37,7 @@ public sealed class ShellNavigationTests
                 "网站直连",
                 "网络环境",
                 "网络出口",
+                "客户端协同",
                 "智能学习",
                 "活动记录",
                 "诊断",

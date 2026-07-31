@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NonProxy.Desktop.Core.Features.Activity;
+using NonProxy.Desktop.Core.Features.Adapters;
 using NonProxy.Desktop.Core.Features.Applications;
 using NonProxy.Desktop.Core.Features.Common;
 using NonProxy.Desktop.Core.Features.Dashboard;
@@ -51,6 +52,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         WebsitesViewModel websites,
         NetworkProfilesViewModel networks,
         OutboundsViewModel outbounds,
+        AdaptersViewModel adapters,
         LearningViewModel learning,
         ActivityViewModel activity,
         DiagnosticsViewModel diagnostics,
@@ -70,6 +72,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             new("网站直连", "◎", websites),
             new("网络环境", "⌁", networks),
             new("网络出口", "⇄", outbounds),
+            new("客户端协同", "⟷", adapters),
             new("智能学习", "✦", learning),
             new("活动记录", "◷", activity),
             new("诊断", "◇", diagnostics),
@@ -254,7 +257,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         var refreshCurrent = (impact & RefreshCurrent) != 0
             || (impact & RefreshPolicies) != 0 && CurrentPage is
                 PoliciesViewModel or ApplicationsViewModel or WebsitesViewModel
-                or NetworkProfilesViewModel or OutboundsViewModel
+                or NetworkProfilesViewModel or OutboundsViewModel or AdaptersViewModel
             || (impact & RefreshActivity) != 0 && CurrentPage is ActivityViewModel
             || (impact & RefreshDiagnostics) != 0 && CurrentPage is DiagnosticsViewModel;
         if (refreshCurrent)

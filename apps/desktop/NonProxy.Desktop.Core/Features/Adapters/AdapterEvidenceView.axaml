@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:adapters="using:NonProxy.Desktop.Core.Features.Adapters"
+             x:Class="NonProxy.Desktop.Core.Features.Adapters.AdapterEvidenceView"
+             x:DataType="adapters:AdaptersViewModel">
+    <Border Theme="{StaticResource NpCard}">
+        <StackPanel Spacing="14">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="16">
+                <StackPanel Spacing="4">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="同步证据护照" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="三个阶段独立取证；前两项通过不等于真实流量已经绕过 VPN。"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            Spacing="3">
+                    <TextBlock FontWeight="SemiBold"
+                               Text="{Binding LastSnapshotLabel}" />
+                    <TextBlock HorizontalAlignment="Right"
+                               Theme="{StaticResource NpMutedText}"
+                               Text="{Binding LastRuleCountLabel}" />
+                </StackPanel>
+            </Grid>
+            <Grid ColumnDefinitions="*,*,*"
+                  ColumnSpacing="12">
+                <Border Padding="14"
+                        CornerRadius="9"
+                        Background="{DynamicResource NpCanvasBrush}">
+                    <StackPanel Spacing="5">
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="01 · 原生候选校验" />
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="{Binding ClientValidationLabel}" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="版本、路径与配置边界"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1"
+                        Padding="14"
+                        CornerRadius="9"
+                        Background="{DynamicResource NpCanvasBrush}">
+                    <StackPanel Spacing="5">
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="02 · 配置载入" />
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="{Binding ConfigurationVerificationLabel}" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="客户端确认托管文件生效"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2"
+                        Padding="14"
+                        CornerRadius="9"
+                        BorderBrush="{DynamicResource NpWarningBrush}"
+                        BorderThickness="1"
+                        Background="{DynamicResource NpCanvasBrush}">
+                    <StackPanel Spacing="5">
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="03 · 真实路径" />
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="{Binding PathVerificationLabel}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="需要独立的路径级证据"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+            <TextBlock Theme="{StaticResource NpMutedText}"
+                       Text="{Binding LastEvidenceMessage}"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+    </Border>
+</UserControl>

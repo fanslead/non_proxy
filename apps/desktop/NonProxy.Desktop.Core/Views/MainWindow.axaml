@@ -9,6 +9,7 @@
         xmlns:outbounds="using:NonProxy.Desktop.Core.Features.Outbounds"
         xmlns:learning="using:NonProxy.Desktop.Core.Features.Learning"
         xmlns:activity="using:NonProxy.Desktop.Core.Features.Activity"
+        xmlns:adapters="using:NonProxy.Desktop.Core.Features.Adapters"
         xmlns:diagnostics="using:NonProxy.Desktop.Core.Features.Diagnostics"
         xmlns:settings="using:NonProxy.Desktop.Core.Features.Settings"
         x:Class="NonProxy.Desktop.Core.Views.MainWindow"
@@ -37,6 +38,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type outbounds:OutboundsViewModel}">
             <outbounds:OutboundsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type adapters:AdaptersViewModel}">
+            <adapters:AdaptersView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type learning:LearningViewModel}">
             <learning:LearningView />

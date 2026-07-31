@@ -1,0 +1,196 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:adapters="using:NonProxy.Desktop.Core.Features.Adapters"
+             xmlns:services="using:NonProxy.Desktop.Core.Services.Adapters"
+             x:Name="Root"
+             x:Class="NonProxy.Desktop.Core.Features.Adapters.AdaptersView"
+             x:DataType="adapters:AdaptersViewModel">
+    <ScrollViewer>
+        <StackPanel Margin="40"
+                    MaxWidth="960"
+                    Spacing="24">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="20">
+                <StackPanel Spacing="6">
+                    <TextBlock Theme="{StaticResource NpPageTitle}"
+                               Text="客户端协同" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="继续使用 Surge、Clash/Mihomo 或 sing-box；NonProxy 只管理一份专用规则文件。"
+                               TextWrapping="Wrap" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="每次同步都会校验客户端、备份旧文件并准备回滚；登记本身不会修改主配置。"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Theme="{StaticResource NpSecondaryButton}"
+                        Command="{Binding RefreshCommand}"
+                        Content="刷新客户端"
+                        AutomationProperties.Name="刷新已登记代理客户端" />
+            </Grid>
+
+            <adapters:AdapterEvidenceView x:Name="AdapterEvidenceRail" />
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="14">
+                    <StackPanel Spacing="4">
+                        <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                   Text="登记一个正在使用的客户端" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="请选择真实运行文件和当前主配置。托管规则必须是主配置同目录下的独立 sidecar 文件。"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,*"
+                          RowDefinitions="Auto,Auto,Auto"
+                          ColumnSpacing="16"
+                          RowSpacing="12">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="客户端类型" />
+                            <ComboBox x:Name="AdapterClientTypeSelector"
+                                      ItemsSource="{Binding ClientOptions}"
+                                      SelectedItem="{Binding SelectedClient}"
+                                      AutomationProperties.Name="代理客户端类型" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1"
+                                    Spacing="6">
+                            <TextBlock Text="登记名称" />
+                            <TextBox Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding AdapterId}"
+                                     AutomationProperties.Name="代理客户端登记名称" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="1"
+                                    Spacing="6">
+                            <TextBlock Text="客户端可执行文件" />
+                            <TextBox x:Name="AdapterExecutablePath"
+                                     Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding ExecutablePath}"
+                                     PlaceholderText="{Binding ClientExecutableHint}"
+                                     AutomationProperties.Name="代理客户端可执行文件绝对路径" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="1"
+                                    Grid.Column="1"
+                                    Spacing="6">
+                            <TextBlock Text="当前主配置" />
+                            <TextBox Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding MainConfigurationPath}"
+                                     PlaceholderText="{Binding ClientConfigurationHint}"
+                                     AutomationProperties.Name="代理客户端当前主配置绝对路径" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="2"
+                                    Spacing="6">
+                            <TextBlock Text="NonProxy 托管规则" />
+                            <TextBox Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding ManagedRulesPath}"
+                                     AutomationProperties.Name="NonProxy 托管规则绝对路径" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="2"
+                                    Grid.Column="1"
+                                    Spacing="6">
+                            <TextBlock Text="直连出口名称（可选）" />
+                            <TextBox Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding DirectTarget}"
+                                     PlaceholderText="{Binding ClientDirectTargetHint}"
+                                     AutomationProperties.Name="代理客户端直连出口名称" />
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                               Text="{Binding ValidationMessage}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="{Binding OperationMessage}"
+                               TextWrapping="Wrap" />
+                    <Button x:Name="AdapterRegisterButton"
+                            HorizontalAlignment="Left"
+                            Theme="{StaticResource NpPrimaryButton}"
+                            Command="{Binding RegisterCommand}"
+                            Content="校验并登记"
+                            AutomationProperties.Name="校验并登记代理客户端" />
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="14">
+                    <StackPanel Spacing="4">
+                        <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                   Text="已登记客户端" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="同步前会重新校验活动快照；移除登记不会删除客户端配置或已有备份。"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ItemsControl x:Name="AdapterInstallationsList"
+                                  ItemsSource="{Binding Items}"
+                                  IsVisible="{Binding HasItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="services:AdapterInstallationItem">
+                                <Grid ColumnDefinitions="*,Auto"
+                                      ColumnSpacing="16"
+                                      Margin="0,8">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock FontWeight="SemiBold"
+                                                   Text="{Binding ClientName}" />
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   Text="{Binding StateLabel}" />
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   Text="{Binding ManagedRulesPath}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1"
+                                                VerticalAlignment="Center"
+                                                Orientation="Horizontal"
+                                                Spacing="10">
+                                        <Button Theme="{StaticResource NpPrimaryButton}"
+                                                Command="{ReflectionBinding DataContext.SyncCommand, ElementName=Root}"
+                                                CommandParameter="{Binding}"
+                                                Content="校验并同步"
+                                                AutomationProperties.Name="校验并同步代理客户端规则" />
+                                        <Button Theme="{StaticResource NpSecondaryButton}"
+                                                Command="{ReflectionBinding DataContext.RemoveCommand, ElementName=Root}"
+                                                CommandParameter="{Binding}"
+                                                Content="移除登记"
+                                                AutomationProperties.Name="移除代理客户端登记" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Border Padding="16"
+                            CornerRadius="8"
+                            Background="{DynamicResource NpCanvasBrush}"
+                            IsVisible="{Binding HasNoItems}">
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="尚未登记客户端。先完成上方校验，再执行第一次同步。" />
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}"
+                    IsVisible="{Binding HasBlockers}">
+                <StackPanel Spacing="12">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="未同步的规则" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="这些规则无法被当前客户端安全表达，因此本次同步已停止。" />
+                    <ItemsControl ItemsSource="{Binding Blockers}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="services:AdapterProjectionBlocker">
+                                <StackPanel Margin="0,5"
+                                            Spacing="3">
+                                    <TextBlock FontWeight="SemiBold"
+                                               Text="{Binding PolicyId}" />
+                                    <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                                               Text="{Binding Message}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                       IsVisible="{Binding HasError}"
+                       Text="{Binding ErrorMessage}"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
