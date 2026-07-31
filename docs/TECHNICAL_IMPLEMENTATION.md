@@ -1450,6 +1450,17 @@ HTTP CONNECT 只具备 TCP 能力，在完整网关捕获 TCP/UDP 的配置下�
 
 ## 16. 第三方客户端适配器
 
+首层适配契约和三个候选渲染器已经落地：`nonproxy-adapter-api` 接受最大 1 MiB、最多
+4096 条规则的 `normalized-policy-v1`，拒绝未知字段、重复 ID、非 DIRECT 动作、非法
+域名/CIDR 和可造成规则注入的路径。它在渲染前规范化并稳定排序，输出记录客户端、
+格式、规则数和 SHA-256。
+
+`adapters/surge` 生成不含策略名的外部 Ruleset，并只在 Surge Mac 6.0+ 为应用生成
+App Bundle 前缀规则；`adapters/mihomo` 生成 classical provider YAML；
+`adapters/sing-box` 生成 source rule-set version 3，且不猜测用户 direct outbound tag。
+三者目前只生成候选，不触碰真实配置，也不声称热重载或路径证据。完整格式与许可证
+边界见 [ADR-0019](ADR/0019-generate-versioned-client-rule-sets.md)。
+
 适配器接口：
 
 ```text

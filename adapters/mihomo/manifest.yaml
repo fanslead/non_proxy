@@ -1,0 +1,10 @@
+schema_version: 1
+adapter_id: mihomo
+client_name: Mihomo
+minimum_version: 1.18.0
+output_format: mihomo-classical-provider-v1
+capabilities:
+  - application_rule
+  - domain_rule
+  - cidr_rule
+integration_state: candidate_rendering_only

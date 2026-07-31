@@ -1,0 +1,10 @@
+schema_version: 1
+adapter_id: sing-box
+client_name: sing-box
+minimum_version: 1.11.0
+output_format: sing-box-source-rule-set-v3
+capabilities:
+  - application_rule
+  - domain_rule
+  - cidr_rule
+integration_state: candidate_rendering_only

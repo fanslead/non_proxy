@@ -1425,6 +1425,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "nonproxy-adapter-api"
+version = "0.1.0"
+dependencies = [
+ "nonproxy-model",
+ "proptest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "nonproxy-adapter-mihomo"
+version = "0.1.0"
+dependencies = [
+ "nonproxy-adapter-api",
+]
+
+[[package]]
+name = "nonproxy-adapter-sing-box"
+version = "0.1.0"
+dependencies = [
+ "nonproxy-adapter-api",
+ "serde_json",
+]
+
+[[package]]
+name = "nonproxy-adapter-surge"
+version = "0.1.0"
+dependencies = [
+ "nonproxy-adapter-api",
+]
+
+[[package]]
 name = "nonproxy-dns"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,13 @@
+[package]
+name = "nonproxy-adapter-sing-box"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+nonproxy-adapter-api = { path = "../../crates/nonproxy-adapter-api" }
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,23 @@
+{
+  "format_version": 1,
+  "revision": 1,
+  "rules": [
+    {
+      "id": "app-chat",
+      "action": "direct",
+      "selector": {
+        "kind": "application",
+        "bundle_path": "/Applications/Chat.app"
+      }
+    },
+    {
+      "id": "site-example",
+      "action": "direct",
+      "selector": {
+        "kind": "domain",
+        "match_kind": "suffix",
+        "value": "example.com"
+      }
+    }
+  ]
+}
