@@ -183,6 +183,12 @@ plutil -insert teamIdentifier -string "${team_identifier}" "${manifest}"
 plutil -insert hostSha256 -string \
     "$(shasum -a 256 "${host_binary}" | awk '{print $1}')" \
     "${manifest}"
+plutil -insert gatewaySha256 -string \
+    "$(shasum -a 256 "${app_bundle}/Contents/Resources/nonproxy-gatewayd" | awk '{print $1}')" \
+    "${manifest}"
+plutil -insert adapterHostSha256 -string \
+    "$(shasum -a 256 "${app_bundle}/Contents/Resources/nonproxy-adapter-host" | awk '{print $1}')" \
+    "${manifest}"
 plutil -insert startedAtUtc -string \
     "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
     "${manifest}"
@@ -226,6 +232,7 @@ assert_installed_state() {
     local path=$1
     for key in \
         state.gatewayAgent.ready \
+        state.adapterHostAgent.ready \
         state.transparentExtension.enabled \
         state.dnsExtension.enabled \
         state.transparentPreference.enabled \
@@ -241,6 +248,7 @@ assert_uninstalled_state() {
     local path=$1
     for key in \
         state.gatewayAgent.registered \
+        state.adapterHostAgent.registered \
         state.transparentExtension.installed \
         state.dnsExtension.installed \
         state.transparentPreference.configured \
@@ -256,7 +264,7 @@ assert_upgrade_precondition() {
     local path=$1
     for key in \
         state.gatewayAgent.enabled \
-        state.gatewayAgent.requiresUpgrade \
+        state.adapterHostAgent.enabled \
         state.transparentExtension.enabled \
         state.dnsExtension.enabled \
         state.transparentPreference.enabled \
@@ -266,6 +274,11 @@ assert_upgrade_precondition() {
             return 68
         fi
     done
+    if [[ "$(json_value "${path}" state.gatewayAgent.requiresUpgrade)" != true &&
+          "$(json_value "${path}" state.adapterHostAgent.requiresUpgrade)" != true ]]; then
+        echo "升级验收前 gatewayd 与 adapter-host 均未报告旧版本" >&2
+        return 68
+    fi
 }
 
 case "${action}" in

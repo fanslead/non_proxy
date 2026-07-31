@@ -19,6 +19,14 @@ struct MacSharedRuntimePathsTests {
             == "/tmp/nonproxy-runtime/provider.capability")
         #expect(paths.runtimeIdentity.path
             == "/tmp/nonproxy-runtime/gateway.runtime.json")
+        #expect(paths.adapterHostStateDirectory.path
+            == "/tmp/nonproxy-runtime/adapter-host")
+        #expect(paths.adapterHostSocket.path
+            == "/tmp/nonproxy-runtime/adapter-host/adapter-host.sock")
+        #expect(paths.adapterHostCapability.path
+            == "/tmp/nonproxy-runtime/adapter-host/adapter.capability")
+        #expect(paths.adapterHostRuntimeIdentity.path
+            == "/tmp/nonproxy-runtime/adapter-host/adapter.runtime.json")
         #expect(paths.providerCacheDirectory.path
             == "/tmp/nonproxy-runtime/provider-cache")
     }

@@ -4,11 +4,18 @@ public struct MacSharedRuntimePaths: Equatable, Sendable {
     public static let appGroupIdentifier = "group.com.nonproxy.shared"
     public static let gatewayAgentPlistName =
         "com.nonproxy.gatewayd.plist"
+    public static let adapterHostAgentPlistName =
+        "com.nonproxy.adapter-host.plist"
     public static let controlSocketFileName = "gatewayd.sock"
     public static let flowSocketFileName = "gatewayd-flow.sock"
     public static let controlCapabilityFileName = "session.capability"
     public static let providerCapabilityFileName = "provider.capability"
     public static let runtimeIdentityFileName = "gateway.runtime.json"
+    public static let adapterHostDirectoryName = "adapter-host"
+    public static let adapterHostSocketFileName = "adapter-host.sock"
+    public static let adapterHostCapabilityFileName = "adapter.capability"
+    public static let adapterHostRuntimeIdentityFileName =
+        "adapter.runtime.json"
     public static let nativeMessagingHostFileName =
         "nonproxy-native-messaging-host"
     public static let chromiumExtensionID =
@@ -69,6 +76,31 @@ public struct MacSharedRuntimePaths: Equatable, Sendable {
     public var runtimeIdentity: URL {
         stateDirectory.appendingPathComponent(
             Self.runtimeIdentityFileName
+        )
+    }
+
+    public var adapterHostStateDirectory: URL {
+        stateDirectory.appendingPathComponent(
+            Self.adapterHostDirectoryName,
+            isDirectory: true
+        )
+    }
+
+    public var adapterHostSocket: URL {
+        adapterHostStateDirectory.appendingPathComponent(
+            Self.adapterHostSocketFileName
+        )
+    }
+
+    public var adapterHostCapability: URL {
+        adapterHostStateDirectory.appendingPathComponent(
+            Self.adapterHostCapabilityFileName
+        )
+    }
+
+    public var adapterHostRuntimeIdentity: URL {
+        adapterHostStateDirectory.appendingPathComponent(
+            Self.adapterHostRuntimeIdentityFileName
         )
     }
 

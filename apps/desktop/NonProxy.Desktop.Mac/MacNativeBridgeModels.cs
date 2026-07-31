@@ -77,7 +77,9 @@ internal sealed record MacBridgeEventPayload(
 
 internal sealed record MacHostState(
     [property: JsonPropertyName("gatewayAgent")]
-        MacGatewayAgentSnapshot GatewayAgent,
+        MacBackgroundAgentSnapshot GatewayAgent,
+    [property: JsonPropertyName("adapterHostAgent")]
+        MacBackgroundAgentSnapshot AdapterHostAgent,
     [property: JsonPropertyName("transparentExtension")]
         MacSystemExtensionSnapshot TransparentExtension,
     [property: JsonPropertyName("dnsExtension")]
@@ -87,7 +89,7 @@ internal sealed record MacHostState(
     [property: JsonPropertyName("dnsPreference")]
         MacNetworkPreferenceSnapshot DnsPreference);
 
-internal sealed record MacGatewayAgentSnapshot(
+internal sealed record MacBackgroundAgentSnapshot(
     [property: JsonPropertyName("registered")] bool Registered,
     [property: JsonPropertyName("enabled")] bool Enabled,
     [property: JsonPropertyName("requiresApproval")] bool RequiresApproval,

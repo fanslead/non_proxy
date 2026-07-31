@@ -469,7 +469,7 @@ flowchart LR
 
 `SystemExtensionController`
 
-- 位于 Mac 薄宿主，只编排 `gatewayd` LaunchAgent、macOS System Extension 和网络偏好的安装、授权、升级与卸载。
+- 位于 Mac 薄宿主，只编排 `gatewayd`/`adapter-host` LaunchAgent、macOS System Extension 和网络偏好的安装、授权、升级与卸载。
 - C# 只接收 UTF-8 JSON 领域 DTO；Swift 原生桥持有系统 delegate 并执行框架调用。
 - 向 Avalonia UI 返回结构化状态和需要用户完成的系统操作。
 - 不包含页面、策略、数据库或代理协议逻辑。
@@ -1662,7 +1662,7 @@ Mac 宿主目标为 `net10.0-macos`。它通过 `LibraryImport` 调用同包 Swi
 
 macOS 原生桥 ABI 约束：
 
-- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `7`；第二版状态模型加入 `gatewayAgent`，第三版加入官方系统设置导航入口，第四版加入后台服务升级状态，第五版加入应用目录与原生应用选择器，第六版加入只读系统代理发现，第七版加入当前网络的隐私安全捕获。
+- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `8`；第二版状态模型加入 `gatewayAgent`，第三版加入官方系统设置导航入口，第四版加入后台服务升级状态，第五版加入应用目录与原生应用选择器，第六版加入只读系统代理发现，第七版加入当前网络的隐私安全捕获，第八版加入 `adapterHostAgent` 生命周期状态。
 - Swift 回调只在回调执行期间借出 UTF-8 JSON 字节，C# 必须立即复制；两侧不互相释放内存。
 - C 的 `size_t` 精确映射为 C# `nuint`，回调使用 `UnmanagedCallersOnly`，任何托管异常都不得越过 ABI。
 - 托管 `GCHandle` 必须持有到原生 completed 事件；调用方取消等待不能提前释放仍可能被系统回调使用的上下文。
@@ -1760,27 +1760,27 @@ macOS：
 - `NonProxyTransparentSystemExtension` 与 `NonProxyDNSSystemExtension` 是只负责启动 Provider 的独立 Swift 可执行 target，业务实现仍留在对应 Provider 模块。
 - `NonProxyMacHostBridge` 是动态 Swift target，负责 `SMAppService`、System Extension 请求、审批进度、状态查询以及 Transparent Proxy/DNS Proxy 偏好事务；它不承载策略或流量。
 - `gatewayd` plist 位于 `.app/Contents/Library/LaunchAgents/com.nonproxy.gatewayd.plist`，通过相对 `BundleProgram` 启动 `.app/Contents/Resources/nonproxy-gatewayd`。它是当前用户会话内的后台项目，不是 root daemon；`RunAtLoad` 与 `KeepAlive` 保证 UI 退出后仍可运行，明确卸载使用异步 `unregister` 等待进程终止。
-- `adapter-host` 以第二个独立签名二进制和 `com.nonproxy.adapter-host.plist` 嵌入同一 App。它使用相对 `BundleProgram`、固定代码签名 identifier 和独立 SHA-256 包指纹；状态位于共享根目录下的私有 `adapter-host` 子目录。当前批次只建立可分发与可验证包边界，桌面桥尚未登记或卸载该第二后台项目，因此系统生命周期不能把它计入“全部就绪”。
-- UI、LaunchAgent 和 Provider 的默认状态目录统一为 App Group `group.com.nonproxy.shared` 容器内的 `Library/Application Support/NonProxy`。控制 Socket、数据 Socket、UI capability、Provider capability、`gateway.runtime.json` 和 Provider cache 都从这一根目录派生；`NONPROXY_STATE_DIR` 等覆盖只用于开发与测试。
-- 打包时先签名 `gatewayd`，再用已签名二进制和源 LaunchAgent 模板的 SHA-256 生成包指纹并注入 plist 环境变量。服务只在两个 Socket 绑定成功后原子写入权限为 `0600` 的运行身份，内容包括 schema、包指纹、PID、语义版本和构建标识；退出时只清理自己写入且内容未被替换的身份文件。
-- 激活先登记 `gatewayd`，并在限定时间内验证两个 Unix Socket 是 Socket、两个 capability 是权限受限的 32 字节普通文件，同时验证运行身份是同一用户所有的 `0600` 普通文件、PID 仍存活且包指纹与当前 App 完全一致；后台项目未获用户允许时返回可恢复的等待授权状态。后台服务就绪后才依次处理两个扩展；扩展需要重启时不会提前写入网络偏好。
-- `SMAppService.status == enabled` 不能证明运行的是当前包版本。发现旧指纹、旧版缺少运行身份或后台通道异常时，修复事务先移除 Network Extension 偏好，再异步 `unregister` 并等待旧进程退出，登记当前 LaunchAgent，确认新运行身份后重新安装并启用网络组件。替换过程后段失败时保留已登记的新后台服务并保持网络偏好关闭，不回滚到旧进程；仅首次安装失败才撤销本次新登记。
-- 偏好保存前会快照旧值，DNS 保存失败时恢复两份旧配置；重复的透明代理配置会停止并返回稳定错误。后续安装失败时，只回滚本次新登记的 `gatewayd`，不误停先前已运行的服务。
-- 卸载先停用并移除网络偏好，再停用两个扩展和 `gatewayd`；不存在的组件按幂等成功处理，需要重启会明确返回。普通 UI 退出不触发这一流程。
+- `adapter-host` 以第二个独立签名二进制和 `com.nonproxy.adapter-host.plist` 嵌入同一 App。它使用相对 `BundleProgram`、固定代码签名 identifier 和独立 SHA-256 包指纹；状态位于共享根目录下的私有 `adapter-host` 子目录。桌面桥通过同一受限后台项目状态机独立登记、检查、升级和卸载它。
+- UI、LaunchAgent 和 Provider 的默认状态目录统一为 App Group `group.com.nonproxy.shared` 容器内的 `Library/Application Support/NonProxy`。gatewayd 的控制 Socket、数据 Socket、两个 capability、运行身份和 Provider cache 从共享根目录派生；adapter-host 的 Socket、capability 与运行身份只从其私有子目录派生。环境覆盖只用于开发与测试。
+- 打包时分别签名两个 Rust 服务，再用各自已签名二进制和源 LaunchAgent 模板的 SHA-256 生成独立包指纹并注入 plist 环境变量。每个服务只在自身通道绑定成功后原子写入权限为 `0600` 的运行身份，内容包括 schema、包指纹、PID、语义版本和构建标识；退出时只清理自己写入且内容未被替换的身份文件。
+- 激活依次登记 `gatewayd` 和 `adapter-host`。原生桥分别验证私有 Socket、32 字节 capability、目录所有权/权限，以及同一用户所有的 `0600` 运行身份、存活 PID 和当前包指纹；任何后台项目未获用户允许时都返回可恢复的等待授权状态。两个后台服务就绪后才处理两个系统扩展；扩展需要重启时不会提前写入网络偏好。
+- `SMAppService.status == enabled` 不能证明运行的是当前包版本。任一后台服务发现旧指纹、旧版缺少运行身份或后台通道异常时，修复事务先移除 Network Extension 偏好，再异步 `unregister` 并等待对应旧进程退出，登记当前 LaunchAgent，确认新运行身份后重新安装并启用网络组件。替换过程后段失败时保留已登记的新后台服务并保持网络偏好关闭，不回滚到旧进程；仅首次安装失败才按 adapter-host → gatewayd 的逆序撤销本次新登记。
+- 偏好保存前会快照旧值，DNS 保存失败时恢复两份旧配置；重复的透明代理配置会停止并返回稳定错误。后续安装失败只回滚本次新登记的后台项目，不误停先前已运行的服务。
+- 卸载先停用并移除网络偏好，再停用两个扩展，并按 `adapter-host`、`gatewayd` 的顺序撤销后台项目；不存在的组件按幂等成功处理，需要重启会明确返回。普通 UI 退出不触发这一流程。
 - `NonProxy.Desktop.Mac` 构建完成后调用 `scripts/macos/package-system-extensions.sh`，把两个 `SYSX` Bundle 放入最终 `.app/Contents/Library/SystemExtensions/`，把真实 Safari Web Extension 放入 `.app/Contents/PlugIns/NonProxySafariWebExtension.appex`，把原生桥放入 `.app/Contents/Frameworks/`，并嵌入两个 LaunchAgent plist、`gatewayd` 与 `adapter-host`。
 - Debug 构建生成当前机器架构；不指定 RID 的 Release 构建同时生成 `arm64` 与 `x86_64`，并要求宿主、原生桥、两个 Rust 后台服务、两个 System Extension 和 Safari `.appex` 的架构集合完全一致。
 - 默认使用临时签名验证开发包结构，不代表系统会批准真实激活。正式包必须设置 `NONPROXY_RESTRICTED_SIGNING=1`，并提供 `NONPROXY_CODESIGN_IDENTITY`、`NONPROXY_HOST_PROFILE`、`NONPROXY_TRANSPARENT_PROFILE`、`NONPROXY_DNS_PROFILE` 与 `NONPROXY_SAFARI_PROFILE`。
 - 签名按两个 System Extension、Safari `.appex`、原生桥、`gatewayd`、`adapter-host`、外层 App 的嵌套顺序执行；Safari 扩展启用 App Sandbox、App Group 和仅用于认证本地 UDS 的网络客户端权限，外层 App 只在正式受限签名时应用安装 System Extension 所需 entitlement。
 - `scripts/macos/verify-system-extension-bundle.sh` 还校验原生桥导出符号、SystemExtensions/NetworkExtension/ServiceManagement 链接、LaunchAgent 的固定字段、包指纹与签名；`scripts/macos/native-bridge-smoke.sh` 从最终 App 宿主跨 C ABI 验证版本及非 ASCII UTF-8。
 - `scripts/macos/gateway-bundle-smoke.sh` 使用隔离临时目录直接启动包内 `gatewayd`，验证 Socket/capability 类型、长度、`0600` 权限，核对运行身份指纹和 PID，并确认 SIGTERM 清理。它不调用 `SMAppService.register()`，因此不能代替系统“后台项目”授权与登录重启测试。
-- `scripts/macos/adapter-host-bundle-smoke.sh` 同样直接启动包内 `adapter-host`，验证独立 Socket、能力文件、运行身份、包指纹和 SIGTERM 清理；它只证明签名包内二进制可运行，不证明第二个 LaunchAgent 已获系统登记。
-- 运行概览把后台服务、Transparent Proxy、DNS Proxy 和网络偏好建模为四段有序状态，不用一个总开关掩盖部分失败；诊断页从同一领域状态生成逐段检查和稳定错误码。
+- `scripts/macos/adapter-host-bundle-smoke.sh` 同样直接启动包内 `adapter-host`，验证独立 Socket、能力文件、运行身份、包指纹和 SIGTERM 清理；真实 LaunchAgent 登记仍由系统生命周期验收证明。
+- 运行概览把路由后台服务、客户端适配服务、Transparent Proxy、DNS Proxy 和网络偏好建模为五段有序状态，不用一个总开关掩盖部分失败；诊断页从同一领域状态生成逐段检查和稳定错误码。
 - 等待授权时，UI 通过 C ABI v4 调用 `SMAppService.openSystemSettingsLoginItems()` 打开官方设置入口；允许后重新执行幂等安装事务。等待授权不显示为红色故障。
 - 卸载入口使用页面内二次确认；确认后仍由原生事务先撤销网络偏好，再移除扩展和 LaunchAgent，规则数据库和代理配置不在该动作中删除。
 - 当前证据证明可执行 Bundle 可构建、可嵌入、签名结构自洽，且托管/原生调用链和包内后台二进制真实连通；默认临时签名不能证明系统会接受权限请求。Developer ID 签名、系统审批、真实 `SMAppService` 登记、登录后启动、偏好写入、Provider 启动、升级、卸载和流量路径仍按系统测试门禁验收。
 - 最终 Mac 宿主提供三个受限诊断入口：只读查询、安装和卸载。变更入口在调用原生桥前强制检查 `NONPROXY_ALLOW_SYSTEM_MUTATION=1`；正常 UI 不依赖这些命令。`scripts/macos/system-lifecycle-e2e.sh` 只接受 `/Applications` 内具备 TeamIdentifier、证书链、受限 entitlement 和 provisioning profile 的 App，支持 query/install/upgrade/uninstall/lifecycle，拒绝覆盖非空证据目录。
 - 诊断模式初始化 AppKit 并在主线程泵送 `NSRunLoop`，因为 `OSSystemExtensionRequest` 明确把 delegate 回调投递到主队列；不能用阻塞 `Task.GetResult()` 代替事件循环。正常 Avalonia 模式继续使用自身事件循环。
-- 系统验收不把“原生操作返回成功”直接视为通过：安装后重新查询当前包运行身份、两个扩展和两份偏好，卸载后重新查询五类残留；需要重启返回独立中间态。upgrade 要求前置查询明确报告旧包指纹，避免在未发生升级时制造通过记录。Developer ID 严格模式另行执行 Gatekeeper 和公证票据验证，所有步骤输出 JSON、签名详情和 SHA-256 证据清单。操作手册见 `docs/MACOS_SYSTEM_ACCEPTANCE.md`。
+- 系统验收不把“原生操作返回成功”直接视为通过：安装后重新查询两个当前包后台运行身份、两个扩展和两份偏好，卸载后重新查询六类残留；需要重启返回独立中间态。upgrade 要求前置查询至少一个后台项目明确报告旧包指纹，避免在未发生升级时制造通过记录。Developer ID 严格模式另行执行 Gatekeeper 和公证票据验证，所有步骤输出 JSON、签名详情和 SHA-256 证据清单。操作手册见 `docs/MACOS_SYSTEM_ACCEPTANCE.md`。
 
 Windows：
 

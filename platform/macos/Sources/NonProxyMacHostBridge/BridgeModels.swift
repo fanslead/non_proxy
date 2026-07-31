@@ -3,7 +3,7 @@ import NonProxyMacNetworkIdentity
 import SystemExtensions
 
 enum BridgeConstants {
-    static let abiVersion: UInt32 = 7
+    static let abiVersion: UInt32 = 8
     static let transparentBundleIdentifier =
         "com.nonproxy.desktop.transparent-proxy"
     static let dnsBundleIdentifier = "com.nonproxy.desktop.dns-proxy"
@@ -212,7 +212,7 @@ struct NetworkPreferenceSnapshot: Codable, Equatable, Sendable {
     let enabled: Bool
 }
 
-struct GatewayAgentSnapshot: Codable, Equatable, Sendable {
+struct BackgroundAgentSnapshot: Codable, Equatable, Sendable {
     let registered: Bool
     let enabled: Bool
     let requiresApproval: Bool
@@ -222,7 +222,8 @@ struct GatewayAgentSnapshot: Codable, Equatable, Sendable {
 }
 
 struct MacHostState: Codable, Equatable, Sendable {
-    let gatewayAgent: GatewayAgentSnapshot
+    let gatewayAgent: BackgroundAgentSnapshot
+    let adapterHostAgent: BackgroundAgentSnapshot
     let transparentExtension: SystemExtensionSnapshot
     let dnsExtension: SystemExtensionSnapshot
     let transparentPreference: NetworkPreferenceSnapshot
@@ -323,6 +324,6 @@ struct SystemExtensionMutationOutcome: Equatable, Sendable {
     let requiresReboot: Bool
 }
 
-struct GatewayAgentRegistrationOutcome: Equatable, Sendable {
+struct BackgroundAgentRegistrationOutcome: Equatable, Sendable {
     let newlyRegistered: Bool
 }

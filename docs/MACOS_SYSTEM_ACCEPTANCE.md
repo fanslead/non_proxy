@@ -1,7 +1,7 @@
 # macOS 系统组件验收手册
 
 本文只用于真实 `SMAppService`、System Extension 和 Network Extension
-生命周期验收。编译、临时签名、直接运行包内 `gatewayd`、单元测试和跨语言
+生命周期验收。编译、临时签名、直接运行包内后台二进制、单元测试和跨语言
 Unix Socket 冒烟都不能替代本流程。
 
 ## 1. 前置条件
@@ -60,7 +60,7 @@ NONPROXY_ALLOW_SYSTEM_MUTATION=1 \
 
 ## 4. 后台服务升级
 
-升级动作验证旧 `gatewayd` 被当前包识别并按安全顺序替换：
+升级动作验证旧 `gatewayd` 或 `adapter-host` 被当前包识别并按安全顺序替换：
 
 1. 安装并启用旧的正式签名版本。
 2. 退出 UI，确认后台服务仍处于已登记状态。
@@ -76,8 +76,9 @@ NONPROXY_ALLOW_SYSTEM_MUTATION=1 \
   artifacts/macos-system-e2e/upgrade-001
 ```
 
-升级前查询必须出现 `gatewayAgent.requiresUpgrade=true`。随后脚本验证网络偏好
-已由产品事务安全撤销、新后台服务完成登记、当前包运行身份匹配，两个扩展和
+升级前查询必须至少出现 `gatewayAgent.requiresUpgrade=true` 或
+`adapterHostAgent.requiresUpgrade=true`。随后脚本验证网络偏好已由产品事务
+安全撤销、两个后台服务完成登记、当前包运行身份匹配，两个扩展和
 两份网络偏好重新就绪。若前置状态不是旧版本，升级验收会拒绝制造假阳性。
 
 ## 5. 发布候选验收
@@ -99,7 +100,7 @@ NONPROXY_REQUIRE_DEVELOPER_ID=1 \
 
 每次执行产生：
 
-- `manifest.json`：动作、Bundle 版本、TeamIdentifier、宿主 SHA-256 和时间。
+- `manifest.json`：动作、Bundle 版本、TeamIdentifier、宿主及两个后台服务的 SHA-256 和时间。
 - `codesign.txt`：代码签名详情。
 - 每一步的 UTF-8 JSON 终态及独立标准错误输出。
 - 发布候选的 `gatekeeper.txt` 和 `notarization.txt`。
@@ -108,11 +109,12 @@ NONPROXY_REQUIRE_DEVELOPER_ID=1 \
 安装通过必须同时满足：
 
 - 当前包指纹的 `gatewayd` 运行身份就绪。
+- 当前包指纹的 `adapter-host` 运行身份就绪。
 - Transparent Proxy 与 DNS Proxy 均已启用。
 - 两份 Network Extension 偏好均已启用。
 - 操作不要求待处理重启。
 
-卸载通过必须同时满足后台项目未登记、两个扩展未安装、两份偏好未配置。
+卸载通过必须同时满足两个后台项目未登记、两个扩展未安装、两份偏好未配置。
 
 本流程仍不证明 DIRECT 流量绕过任意第三方 VPN。VPN 共存需要另行记录
 测试矩阵、出口 IP/接口路径和失败策略证据。

@@ -126,7 +126,15 @@ struct BridgeModelsTests {
             enabled: true
         )
         let state = MacHostState(
-            gatewayAgent: GatewayAgentSnapshot(
+            gatewayAgent: BackgroundAgentSnapshot(
+                registered: true,
+                enabled: true,
+                requiresApproval: false,
+                found: true,
+                ready: true,
+                requiresUpgrade: false
+            ),
+            adapterHostAgent: BackgroundAgentSnapshot(
                 registered: true,
                 enabled: true,
                 requiresApproval: false,
@@ -148,6 +156,7 @@ struct BridgeModelsTests {
         )
 
         #expect(json.contains(#""gatewayAgent""#))
+        #expect(json.contains(#""adapterHostAgent""#))
         #expect(decoded == state)
     }
 
@@ -168,11 +177,19 @@ struct BridgeModelsTests {
             enabled: false
         )
         let missingPackage = MacHostState(
-            gatewayAgent: GatewayAgentSnapshot(
+            gatewayAgent: BackgroundAgentSnapshot(
                 registered: false,
                 enabled: false,
                 requiresApproval: false,
                 found: false,
+                ready: false,
+                requiresUpgrade: false
+            ),
+            adapterHostAgent: BackgroundAgentSnapshot(
+                registered: false,
+                enabled: false,
+                requiresApproval: false,
+                found: true,
                 ready: false,
                 requiresUpgrade: false
             ),
@@ -182,7 +199,15 @@ struct BridgeModelsTests {
             dnsPreference: disabledPreference
         )
         let stalePreferences = MacHostState(
-            gatewayAgent: GatewayAgentSnapshot(
+            gatewayAgent: BackgroundAgentSnapshot(
+                registered: false,
+                enabled: false,
+                requiresApproval: false,
+                found: true,
+                ready: false,
+                requiresUpgrade: false
+            ),
+            adapterHostAgent: BackgroundAgentSnapshot(
                 registered: false,
                 enabled: false,
                 requiresApproval: false,

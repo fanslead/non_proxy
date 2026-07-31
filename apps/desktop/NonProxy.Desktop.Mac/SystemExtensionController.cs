@@ -10,9 +10,15 @@ internal sealed class SystemExtensionController(
     private const string MissingGatewayCode = "NP_MAC_GATEWAY_NOT_PACKAGED";
     private const string InvalidGatewaySignatureCode =
         "NP_MAC_GATEWAY_INVALID_SIGNATURE";
+    private const string MissingAdapterHostCode =
+        "NP_MAC_ADAPTER_HOST_NOT_PACKAGED";
+    private const string InvalidAdapterHostSignatureCode =
+        "NP_MAC_ADAPTER_HOST_INVALID_SIGNATURE";
     private const string MissingAppGroupCode =
         "NP_MAC_APP_GROUP_UNAVAILABLE";
     private const string GatewayApprovalCode = "NP_MAC_GATEWAY_APPROVAL_REQUIRED";
+    private const string AdapterHostApprovalCode =
+        "NP_MAC_ADAPTER_HOST_APPROVAL_REQUIRED";
     private const string UserApprovalCode = "NP_MAC_USER_APPROVAL_REQUIRED";
     private const string BridgeBusyCode = "NP_MAC_BRIDGE_BUSY";
     private int _awaitingApproval;
@@ -55,6 +61,15 @@ internal sealed class SystemExtensionController(
                     SystemComponentStatus.Unavailable,
                     "当前安装包缺少 gatewayd 后台项目。",
                     MissingGatewayCode,
+                    BuildSteps(state));
+            }
+
+            if (!state.AdapterHostAgent.Found)
+            {
+                return new SystemComponentState(
+                    SystemComponentStatus.Unavailable,
+                    "当前安装包缺少 adapter-host 后台项目。",
+                    MissingAdapterHostCode,
                     BuildSteps(state));
             }
 
@@ -154,13 +169,16 @@ internal sealed class SystemExtensionController(
     {
         return state.TransparentExtension.AwaitingUserApproval
             || state.DnsExtension.AwaitingUserApproval
-            || state.GatewayAgent.RequiresApproval;
+            || state.GatewayAgent.RequiresApproval
+            || state.AdapterHostAgent.RequiresApproval;
     }
 
     private static bool IsReady(MacHostState state)
     {
         return state.GatewayAgent.Enabled
             && state.GatewayAgent.Ready
+            && state.AdapterHostAgent.Enabled
+            && state.AdapterHostAgent.Ready
             && state.TransparentExtension.Enabled
             && state.DnsExtension.Enabled
             && state.TransparentPreference.Enabled
@@ -171,6 +189,8 @@ internal sealed class SystemExtensionController(
     {
         return !state.GatewayAgent.Registered
             && state.GatewayAgent.Found
+            && !state.AdapterHostAgent.Registered
+            && state.AdapterHostAgent.Found
             && !state.TransparentExtension.Installed
             && !state.DnsExtension.Installed
             && !state.TransparentPreference.Configured
@@ -206,7 +226,18 @@ internal sealed class SystemExtensionController(
     {
         return
         [
-            GatewayStep(state.GatewayAgent),
+            BackgroundAgentStep(
+                "gateway",
+                "路由后台服务",
+                "gatewayd",
+                "两个本地私有通道已就绪。",
+                state.GatewayAgent),
+            BackgroundAgentStep(
+                "adapter-host",
+                "客户端适配服务",
+                "adapter-host",
+                "适配器私有通道已就绪。",
+                state.AdapterHostAgent),
             ExtensionStep(
                 "transparent-proxy",
                 "透明代理",
@@ -219,52 +250,56 @@ internal sealed class SystemExtensionController(
         ];
     }
 
-    private static SystemComponentStep GatewayStep(
-        MacGatewayAgentSnapshot gateway)
+    private static SystemComponentStep BackgroundAgentStep(
+        string id,
+        string name,
+        string productName,
+        string readyDescription,
+        MacBackgroundAgentSnapshot agent)
     {
-        if (!gateway.Found)
+        if (!agent.Found)
         {
             return new SystemComponentStep(
-                "gateway",
-                "后台服务",
+                id,
+                name,
                 SystemComponentStepStatus.Unavailable,
-                "安装包中缺少 gatewayd。");
+                $"安装包中缺少 {productName}。");
         }
-        if (gateway.RequiresApproval)
+        if (agent.RequiresApproval)
         {
             return new SystemComponentStep(
-                "gateway",
-                "后台服务",
+                id,
+                name,
                 SystemComponentStepStatus.AwaitingApproval,
                 "需要在系统设置中允许后台项目。");
         }
-        if (gateway.RequiresUpgrade)
+        if (agent.RequiresUpgrade)
         {
             return new SystemComponentStep(
-                "gateway",
-                "后台服务",
+                id,
+                name,
                 SystemComponentStepStatus.NeedsRepair,
-                "运行中的后台服务版本较旧，需要安全升级。");
+                $"运行中的 {productName} 版本较旧，需要安全升级。");
         }
-        if (gateway.Enabled && gateway.Ready)
+        if (agent.Enabled && agent.Ready)
         {
             return new SystemComponentStep(
-                "gateway",
-                "后台服务",
+                id,
+                name,
                 SystemComponentStepStatus.Ready,
-                "两个本地私有通道已就绪。");
+                readyDescription);
         }
-        if (gateway.Registered)
+        if (agent.Registered)
         {
             return new SystemComponentStep(
-                "gateway",
-                "后台服务",
+                id,
+                name,
                 SystemComponentStepStatus.NeedsRepair,
                 "已登记，但本地通道未就绪。");
         }
         return new SystemComponentStep(
-            "gateway",
-            "后台服务",
+            id,
+            name,
             SystemComponentStepStatus.NotInstalled,
             "尚未登记用户级后台项目。");
     }
@@ -335,7 +370,9 @@ internal sealed class SystemExtensionController(
 
     private static SystemComponentStatus StatusForErrorCode(string? errorCode)
     {
-        if (errorCode is GatewayApprovalCode or UserApprovalCode)
+        if (errorCode is GatewayApprovalCode
+            or AdapterHostApprovalCode
+            or UserApprovalCode)
         {
             return SystemComponentStatus.AwaitingApproval;
         }
@@ -356,6 +393,8 @@ internal sealed class SystemExtensionController(
             or MissingEntitlementCode
             or MissingGatewayCode
             or InvalidGatewaySignatureCode
+            or MissingAdapterHostCode
+            or InvalidAdapterHostSignatureCode
             or MissingAppGroupCode;
     }
 }

@@ -23,7 +23,7 @@ if [[ ! -x "${host_binary}" ]]; then
 fi
 
 output=$("${host_binary}" --native-bridge-smoke)
-if ! grep -F '"abiVersion":7' <<<"${output}" >/dev/null ||
+if ! grep -F '"abiVersion":8' <<<"${output}" >/dev/null ||
    ! grep -F '"applicationCatalog":true' <<<"${output}" >/dev/null ||
    ! grep -F '"proxyDiscovery":true' <<<"${output}" >/dev/null; then
     echo "原生桥接冒烟输出缺少预期 ABI 版本：${output}" >&2
@@ -46,7 +46,8 @@ fi
 query_output=$("${host_binary}" --system-components-query)
 if ! grep -F '"operation":"query"' <<<"${query_output}" >/dev/null ||
    ! grep -F '"success":true' <<<"${query_output}" >/dev/null ||
-   ! grep -F '"state":{' <<<"${query_output}" >/dev/null; then
+   ! grep -F '"state":{' <<<"${query_output}" >/dev/null ||
+   ! grep -F '"adapterHostAgent":{' <<<"${query_output}" >/dev/null; then
     echo "只读系统组件查询未返回结构化状态：${query_output}" >&2
     exit 68
 fi

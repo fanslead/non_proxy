@@ -7,46 +7,35 @@ public enum GatewayBundleFingerprint {
     public static func live(
         bundle: Bundle = .main
     ) throws -> String {
-        let plistURL = bundle.bundleURL
-            .appendingPathComponent("Contents", isDirectory: true)
-            .appendingPathComponent("Library", isDirectory: true)
-            .appendingPathComponent("LaunchAgents", isDirectory: true)
-            .appendingPathComponent(
-                MacSharedRuntimePaths.gatewayAgentPlistName
+        do {
+            return try LaunchAgentBundleFingerprint.live(
+                plistName: MacSharedRuntimePaths.gatewayAgentPlistName,
+                environmentKey: environmentKey,
+                bundle: bundle
             )
-        return try read(plistURL: plistURL)
+        } catch {
+            throw map(error)
+        }
     }
 
     public static func read(plistURL: URL) throws -> String {
         do {
-            let data = try Data(
-                contentsOf: plistURL,
-                options: [.mappedIfSafe]
+            return try LaunchAgentBundleFingerprint.read(
+                plistURL: plistURL,
+                environmentKey: environmentKey
             )
-            guard let root = try PropertyListSerialization
-                .propertyList(from: data, options: [], format: nil)
-                    as? [String: Any],
-                  let environment =
-                    root["EnvironmentVariables"] as? [String: Any],
-                  let fingerprint =
-                    environment[environmentKey] as? String,
-                  isCanonical(fingerprint)
-            else {
-                throw GatewayBundleFingerprintError.invalidFingerprint
-            }
-            return fingerprint
-        } catch let error as GatewayBundleFingerprintError {
-            throw error
         } catch {
-            throw GatewayBundleFingerprintError.unreadablePlist
+            throw map(error)
         }
     }
 
-    private static func isCanonical(_ value: String) -> Bool {
-        value.utf8.count == 64
-            && value.utf8.allSatisfy {
-                ($0 >= 48 && $0 <= 57) || ($0 >= 97 && $0 <= 102)
-            }
+    private static func map(_ error: Error) -> GatewayBundleFingerprintError {
+        switch error {
+        case BundleFingerprintError.invalidFingerprint:
+            .invalidFingerprint
+        default:
+            .unreadablePlist
+        }
     }
 }
 

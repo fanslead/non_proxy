@@ -28,7 +28,8 @@ enum MacHostBridgeService {
             ))
         }
         let gatewayController = GatewayAgentController()
-        let gatewayApprovalHandler = {
+        let adapterHostController = AdapterHostAgentController()
+        let backgroundApprovalHandler = {
             sink.progress(BridgeEventPayload(
                 operation: .installAndEnable,
                 success: true,
@@ -40,41 +41,67 @@ enum MacHostBridgeService {
             ))
         }
         let manifestController = NativeMessagingManifestController()
+        let prepareForBackgroundReplacement: () async throws -> Void = {
+            sink.progress(BridgeEventPayload(
+                operation: .installAndEnable,
+                success: true,
+                message:
+                    "检测到后台服务需要升级或重启，正在先停用网络接管。",
+                errorCode: nil,
+                requiresReboot: false,
+                state: nil
+            ))
+            try await NetworkPreferencesController().disableAndRemove()
+        }
 
         do {
             let gatewayOutcome = try await gatewayController.registerAndWait(
-                approvalHandler: gatewayApprovalHandler,
-                prepareForReplacement: {
-                    sink.progress(BridgeEventPayload(
-                        operation: .installAndEnable,
-                        success: true,
-                        message:
-                            "检测到后台服务需要升级或重启，正在先停用网络接管。",
-                        errorCode: nil,
-                        requiresReboot: false,
-                        state: nil
-                    ))
-                    try await NetworkPreferencesController()
-                        .disableAndRemove()
-                }
+                approvalHandler: backgroundApprovalHandler,
+                prepareForReplacement: prepareForBackgroundReplacement
             )
+            let adapterHostOutcome: BackgroundAgentRegistrationOutcome
+            do {
+                adapterHostOutcome = try await adapterHostController
+                    .registerAndWait(
+                        approvalHandler: backgroundApprovalHandler,
+                        prepareForReplacement:
+                            prepareForBackgroundReplacement
+                    )
+            } catch {
+                let rollbackErrors = await rollbackBackgroundAgents(
+                    adapterHostController: adapterHostController,
+                    adapterHostOutcome: nil,
+                    gatewayController: gatewayController,
+                    gatewayOutcome: gatewayOutcome
+                )
+                guard rollbackErrors.isEmpty else {
+                    throw BridgeError(
+                        code: "NP_MAC_INSTALL_ROLLBACK_FAILED",
+                        message:
+                            "\(error.localizedDescription)；"
+                            + rollbackErrors.joined(separator: "；")
+                    )
+                }
+                throw error
+            }
             let manifestBackups: [
                 NativeMessagingManifestController.Backup
             ]
             do {
                 manifestBackups = try manifestController.install()
             } catch {
-                guard gatewayOutcome.newlyRegistered else {
-                    throw error
-                }
-                do {
-                    try await gatewayController.unregister()
-                } catch let rollbackError {
+                let rollbackErrors = await rollbackBackgroundAgents(
+                    adapterHostController: adapterHostController,
+                    adapterHostOutcome: adapterHostOutcome,
+                    gatewayController: gatewayController,
+                    gatewayOutcome: gatewayOutcome
+                )
+                if !rollbackErrors.isEmpty {
                     throw BridgeError(
                         code: "NP_MAC_INSTALL_ROLLBACK_FAILED",
                         message:
-                            "\(error.localizedDescription)；gatewayd 回滚失败："
-                            + rollbackError.localizedDescription
+                            "\(error.localizedDescription)；"
+                            + rollbackErrors.joined(separator: "；")
                     )
                 }
                 throw error
@@ -96,16 +123,13 @@ enum MacHostBridgeService {
                             + manifestError.localizedDescription
                     )
                 }
-                if gatewayOutcome.newlyRegistered {
-                    do {
-                        try await gatewayController.unregister()
-                    } catch let rollbackError {
-                        rollbackErrors.append(
-                            "gatewayd 回滚失败："
-                                + rollbackError.localizedDescription
-                        )
-                    }
-                }
+                rollbackErrors.append(contentsOf:
+                    await rollbackBackgroundAgents(
+                        adapterHostController: adapterHostController,
+                        adapterHostOutcome: adapterHostOutcome,
+                        gatewayController: gatewayController,
+                        gatewayOutcome: gatewayOutcome
+                    ))
                 if !rollbackErrors.isEmpty {
                     throw BridgeError(
                         code: "NP_MAC_INSTALL_ROLLBACK_FAILED",
@@ -227,6 +251,11 @@ enum MacHostBridgeService {
                 }
             }
             do {
+                try await AdapterHostAgentController().unregister()
+            } catch {
+                errors.append(error.localizedDescription)
+            }
+            do {
                 try await GatewayAgentController().unregister()
             } catch {
                 errors.append(error.localizedDescription)
@@ -264,6 +293,7 @@ enum MacHostBridgeService {
 
     private static func queryState() async throws -> MacHostState {
         let gatewayAgent = GatewayAgentController().query()
+        let adapterHostAgent = AdapterHostAgentController().query()
         let systemController = SystemExtensionController()
         let transparent = try await systemController.query(
             bundleIdentifier: BridgeConstants.transparentBundleIdentifier
@@ -274,6 +304,7 @@ enum MacHostBridgeService {
         let preferences = try await NetworkPreferencesController().query()
         return MacHostState(
             gatewayAgent: gatewayAgent,
+            adapterHostAgent: adapterHostAgent,
             transparentExtension: transparent,
             dnsExtension: dns,
             transparentPreference: preferences.transparent,
@@ -285,17 +316,26 @@ enum MacHostBridgeService {
         if !state.gatewayAgent.found {
             return "当前安装包缺少 gatewayd 后台项目。"
         }
+        if !state.adapterHostAgent.found {
+            return "当前安装包缺少 adapter-host 后台项目。"
+        }
         if state.gatewayAgent.requiresApproval
+            || state.adapterHostAgent.requiresApproval
             || state.transparentExtension.awaitingUserApproval
             || state.dnsExtension.awaitingUserApproval
         {
             return "系统正在等待用户允许 NonProxy 后台项目或网络扩展。"
         }
         if state.gatewayAgent.requiresUpgrade {
-            return "后台服务版本与当前安装包不一致，需要安全升级。"
+            return "gatewayd 版本与当前安装包不一致，需要安全升级。"
+        }
+        if state.adapterHostAgent.requiresUpgrade {
+            return "adapter-host 版本与当前安装包不一致，需要安全升级。"
         }
         if state.gatewayAgent.enabled,
            state.gatewayAgent.ready,
+           state.adapterHostAgent.enabled,
+           state.adapterHostAgent.ready,
            state.transparentExtension.enabled,
            state.dnsExtension.enabled,
            state.transparentPreference.enabled,
@@ -304,6 +344,7 @@ enum MacHostBridgeService {
             return "后台服务、系统扩展和网络配置均已就绪。"
         }
         if !state.gatewayAgent.registered,
+           !state.adapterHostAgent.registered,
            !state.transparentExtension.installed,
            !state.dnsExtension.installed,
            !state.transparentPreference.configured,
@@ -312,6 +353,34 @@ enum MacHostBridgeService {
             return "NonProxy 系统组件尚未安装。"
         }
         return "NonProxy 系统组件仅部分就绪，需要修复。"
+    }
+
+    private static func rollbackBackgroundAgents(
+        adapterHostController: AdapterHostAgentController,
+        adapterHostOutcome: BackgroundAgentRegistrationOutcome?,
+        gatewayController: GatewayAgentController,
+        gatewayOutcome: BackgroundAgentRegistrationOutcome?
+    ) async -> [String] {
+        var errors: [String] = []
+        if adapterHostOutcome?.newlyRegistered == true {
+            do {
+                try await adapterHostController.unregister()
+            } catch {
+                errors.append(
+                    "adapter-host 回滚失败：" + error.localizedDescription
+                )
+            }
+        }
+        if gatewayOutcome?.newlyRegistered == true {
+            do {
+                try await gatewayController.unregister()
+            } catch {
+                errors.append(
+                    "gatewayd 回滚失败：" + error.localizedDescription
+                )
+            }
+        }
+        return errors
     }
 
     private static func restoreExtensionActivation(
