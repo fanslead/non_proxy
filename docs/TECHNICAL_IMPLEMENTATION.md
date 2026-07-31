@@ -1534,6 +1534,14 @@ configuration verify 执行。投影只接受客户端能无损表达的单维 D
 `scripts/smoke/adapter-desktop-e2e.sh` 会启动隔离的 Rust adapter-host，再由真实 C# 客户端经
 独立 UDS 和能力文件读取空登记目录，防止两侧生成契约、认证或传输接线漂移。
 
+共享 Avalonia “客户端协同”页负责显式登记和同步，不承载配置解析或事务逻辑。用户可通过
+系统原生文件选择器选择客户端/可执行文件和当前主配置；选择器返回的本地路径仍是不受信
+输入，允许手动粘贴只作为选择器不可用时的高级回退。Surge `.app` 选择只做确定性的
+`Contents/Applications/surge-cli` 候选展开，真实存在性、代码来源、版本和活动 profile
+仍由 adapter-host 验证。页面把原生候选校验、配置载入和真实路径分成三段证据，前两段通过
+时仍显示“尚未证明绕过 VPN”。macOS 使用独立 UDS；Windows 复用页面和文件选择接口，但
+命名管道 Adapter 传输落地前保持 `NP_ADAPTER_UNAVAILABLE`，不能显示伪成功。
+
 适配器接口：
 
 ```text
@@ -1704,6 +1712,12 @@ public interface ICurrentNetworkEnvironment
 {
     Task<CurrentNetworkEnvironment> CaptureAsync(CancellationToken cancellationToken);
 }
+
+public interface IAdapterFilePicker
+{
+    Task<AdapterFileSelection> PickExecutableAsync(...);
+    Task<AdapterFileSelection> PickConfigurationAsync(...);
+}
 ```
 
 Mac 宿主目标为 `net10.0-macos`。它通过 `LibraryImport` 调用同包 Swift 动态库的固定 C ABI，由动态库在最终 containing app 进程中使用 SystemExtensions 和 NetworkExtension framework；Windows 宿主调用 Windows Service/Installer。接口返回领域 DTO，不泄漏 `OSSystemExtensionRequest`、Win32 handle 或 WFP struct。
@@ -1720,6 +1734,9 @@ macOS 原生桥 ABI 约束：
 - `ICurrentNetworkEnvironment` 只在用户点击“检测当前网络”时调用平台采集。macOS 实现
   通过 ABI v7 返回单个最佳脱敏指纹、定位权限状态和通用建议名，不返回 SSID；Windows
   未接入前返回明确不可用状态，但继续复用相同 `Networks` 页面、控制 RPC 和策略模型。
+- `IAdapterFilePicker` 只封装系统文件选择器并返回本地路径候选，不读取文件内容、不探测
+  端口、不判断配置已经生效。用户取消选择不改变表单；非本地存储项和选择器不可用返回明确
+  边界。最终校验只在认证的 adapter-host 中执行。
 
 ### 17.5 托盘、菜单和窗口
 

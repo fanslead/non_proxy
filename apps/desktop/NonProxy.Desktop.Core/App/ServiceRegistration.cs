@@ -47,6 +47,7 @@ public static class ServiceRegistration
         services.AddSingleton<MainWindow>();
         services.AddSingleton<DesktopLifetimeController>();
         services.AddSingleton<IApplicationCatalog, UnavailableApplicationCatalog>();
+        services.AddSingleton<IAdapterFilePicker, AvaloniaAdapterFilePicker>();
         services.AddSingleton<ILocalProxyDiscovery, UnavailableLocalProxyDiscovery>();
         services.AddSingleton<
             ICurrentNetworkEnvironment,

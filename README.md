@@ -16,6 +16,8 @@ Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名
 
 共享桌面端已经加入当前网络一键直连：macOS 只在用户点击时采集当前物理网络并在宿主进程内生成隐私安全指纹，原始 SSID 不跨越原生边界；网络档案、网络作用域规则和待确认快照按 revision 编排，明确区分“已保存”“等待确认”和“已激活”。桌面生命周期使用跨平台托盘与原生菜单，关闭窗口只隐藏界面，恢复窗口和“只退出界面”是不同动作；系统/浅色/深色主题采用有界、原子、本地设置。控制事件作为页面失效信号，侧栏会显示订阅连接状态，中断重连后重新读取权威 RPC 快照，不把事件摘要当成本地事实。智能学习的实际入口位于当前浏览器标签页，桌面页不再提供无法关联标签页的伪开始按钮。
 
+第三方客户端协同已覆盖 Surge、Clash/Mihomo 和 sing-box 的显式登记、活动快照无损投影、客户端原生校验、主配置与 sidecar 双文件事务、公开重载、配置确认和失败恢复。共享页面可用系统原生文件选择器选取客户端与当前配置，也保留绝对路径高级回退；所有选择结果仍由隔离 adapter-host 重新验证。页面独立显示候选校验、配置载入和真实路径，当前没有路径级证据时始终提示“尚未证明绕过 VPN”。Windows 复用同一页面，但 Adapter 命名管道未接入前保持明确不可用。
+
 正式签名 macOS 包的只读查询、安装、升级、卸载和完整生命周期验收使用 [macOS 系统组件验收手册](docs/MACOS_SYSTEM_ACCEPTANCE.md)。验收命令拒绝临时签名、非 `/Applications` 包和未经显式确认的系统变更，并输出带 SHA-256 清单的独立证据目录。
 
 Safari 扩展的正式登记、启用、普通/无痕窗口与多标签页验收使用 [Safari Web Extension 正式验收](docs/SAFARI_EXTENSION_ACCEPTANCE.md)。
@@ -56,6 +58,16 @@ TCP/DNS/UDP/QUIC 验收使用
 - [当前网络一键直连 ADR](docs/ADR/0016-orchestrate-one-click-network-direct.md)
 - [桌面生命周期与真实设置 ADR](docs/ADR/0017-own-desktop-lifetime-and-truthful-local-settings.md)
 - [桌面控制事件失效信号 ADR](docs/ADR/0018-use-control-events-as-invalidation-signals.md)
+- [第三方客户端规则格式 ADR](docs/ADR/0019-generate-versioned-client-rule-sets.md)
+- [可恢复 Adapter 文件事务 ADR](docs/ADR/0020-use-recoverable-adapter-file-transactions.md)
+- [认证 Adapter Host ADR](docs/ADR/0021-run-adapters-in-an-authenticated-host.md)
+- [客户端原生候选校验 ADR](docs/ADR/0022-validate-adapter-candidates-before-persistence.md)
+- [第三方主配置无损集成 ADR](docs/ADR/0023-patch-adapter-main-configurations-losslessly.md)
+- [sidecar 与主配置事务 ADR](docs/ADR/0024-coordinate-sidecar-and-main-configuration-transactions.md)
+- [Adapter RPC 配置绑定 ADR](docs/ADR/0025-bind-integrated-configurations-to-adapter-rpc.md)
+- [公开客户端重载 ADR](docs/ADR/0026-reload-adapter-clients-with-public-controls.md)
+- [活动快照 Adapter 投影 ADR](docs/ADR/0027-project-adapter-rules-from-active-snapshots.md)
+- [桌面 Adapter 同步编排 ADR](docs/ADR/0028-orchestrate-adapter-sync-from-the-desktop.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链

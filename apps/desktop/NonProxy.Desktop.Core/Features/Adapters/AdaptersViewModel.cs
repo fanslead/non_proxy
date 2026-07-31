@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NonProxy.Adapter.V1;
 using NonProxy.Desktop.Core.Features.Common;
+using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Adapters;
 
 namespace NonProxy.Desktop.Core.Features.Adapters;
@@ -10,6 +10,7 @@ namespace NonProxy.Desktop.Core.Features.Adapters;
 public sealed partial class AdaptersViewModel : LoadableViewModel
 {
     private readonly IAdapterManagementService _adapterService;
+    private readonly IAdapterFilePicker _filePicker;
     private string? _suggestedManagedRulesPath;
 
     [ObservableProperty]
@@ -54,10 +55,19 @@ public sealed partial class AdaptersViewModel : LoadableViewModel
     [ObservableProperty]
     private string _lastEvidenceMessage = "完成客户端同步后，这里会分别显示候选校验、配置载入和真实路径证据。";
 
-    public AdaptersViewModel(IAdapterManagementService adapterService)
+    public AdaptersViewModel(
+        IAdapterManagementService adapterService,
+        IAdapterFilePicker filePicker)
         : base("客户端协同")
     {
         _adapterService = adapterService;
+        _filePicker = filePicker;
+        ChooseExecutableCommand = new AsyncRelayCommand(
+            ChooseExecutableAsync,
+            () => !IsBusy);
+        ChooseConfigurationCommand = new AsyncRelayCommand(
+            ChooseConfigurationAsync,
+            () => !IsBusy);
         RegisterCommand = new AsyncRelayCommand(RegisterAsync, CanRegister);
         SyncCommand = new AsyncRelayCommand<AdapterInstallationItem>(
             SyncAsync,
@@ -66,34 +76,6 @@ public sealed partial class AdaptersViewModel : LoadableViewModel
             RemoveAsync,
             CanManage);
     }
-
-    public static IReadOnlyList<AdapterClientOption> ClientOptions { get; } =
-    [
-        new(
-            "Surge for Mac",
-            AdapterClient.Surge,
-            "surge-primary",
-            "nonproxy.list",
-            "选择 Surge.app 内的 surge-cli 可执行文件。",
-            "选择当前正在使用的 Surge 配置文件。",
-            "Surge 固定使用 DIRECT，通常留空即可。"),
-        new(
-            "Clash / Mihomo",
-            AdapterClient.Mihomo,
-            "mihomo-primary",
-            "nonproxy.yaml",
-            "选择当前客户端实际运行的 Mihomo 可执行文件。",
-            "选择包含 external-controller 的当前主配置。",
-            "Mihomo 固定使用 DIRECT，通常留空即可。"),
-        new(
-            "sing-box",
-            AdapterClient.SingBox,
-            "sing-box-primary",
-            "nonproxy.json",
-            "选择当前客户端实际运行的 sing-box 可执行文件。",
-            "选择唯一运行进程正在使用的主配置。",
-            "存在多个 direct outbound 时，填写要使用的 outbound tag。"),
-    ];
 
     public ObservableCollection<AdapterInstallationItem> Items { get; } = [];
 
@@ -120,6 +102,10 @@ public sealed partial class AdaptersViewModel : LoadableViewModel
     public string ClientDirectTargetHint => SelectedClient.DirectTargetHint;
 
     public IAsyncRelayCommand RegisterCommand { get; }
+
+    public IAsyncRelayCommand ChooseExecutableCommand { get; }
+
+    public IAsyncRelayCommand ChooseConfigurationCommand { get; }
 
     public IAsyncRelayCommand<AdapterInstallationItem> SyncCommand { get; }
 
@@ -336,6 +322,8 @@ public sealed partial class AdaptersViewModel : LoadableViewModel
 
     private void NotifyOperationCommands()
     {
+        ChooseExecutableCommand.NotifyCanExecuteChanged();
+        ChooseConfigurationCommand.NotifyCanExecuteChanged();
         RegisterCommand.NotifyCanExecuteChanged();
         SyncCommand.NotifyCanExecuteChanged();
         RemoveCommand.NotifyCanExecuteChanged();

@@ -53,6 +53,18 @@ public sealed class AdaptersViewTests
             Assert.NotNull(view.FindControl<AdapterEvidenceView>("AdapterEvidenceRail"));
             Assert.NotNull(view.FindControl<ComboBox>("AdapterClientTypeSelector"));
             Assert.NotNull(view.FindControl<TextBox>("AdapterExecutablePath"));
+            var chooseExecutable = Assert.IsType<Button>(
+                view.FindControl<Button>("ChooseAdapterExecutableButton"));
+            var chooseConfiguration = Assert.IsType<Button>(
+                view.FindControl<Button>("ChooseAdapterConfigurationButton"));
+            Assert.Equal(
+                "选择代理客户端或可执行文件",
+                AutomationProperties.GetName(chooseExecutable));
+            Assert.Equal(
+                "选择代理客户端当前主配置",
+                AutomationProperties.GetName(chooseConfiguration));
+            Assert.True(chooseExecutable.IsEnabled);
+            Assert.True(chooseConfiguration.IsEnabled);
             var register = Assert.IsType<Button>(
                 view.FindControl<Button>("AdapterRegisterButton"));
             Assert.Equal(

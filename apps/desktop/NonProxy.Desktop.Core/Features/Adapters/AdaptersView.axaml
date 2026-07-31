@@ -61,20 +61,38 @@
                         <StackPanel Grid.Row="1"
                                     Spacing="6">
                             <TextBlock Text="客户端可执行文件" />
-                            <TextBox x:Name="AdapterExecutablePath"
-                                     Theme="{StaticResource NpTextBox}"
-                                     Text="{Binding ExecutablePath}"
-                                     PlaceholderText="{Binding ClientExecutableHint}"
-                                     AutomationProperties.Name="代理客户端可执行文件绝对路径" />
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="8">
+                                <TextBox x:Name="AdapterExecutablePath"
+                                         Theme="{StaticResource NpTextBox}"
+                                         Text="{Binding ExecutablePath}"
+                                         PlaceholderText="{Binding ClientExecutableHint}"
+                                         AutomationProperties.Name="代理客户端可执行文件绝对路径" />
+                                <Button x:Name="ChooseAdapterExecutableButton"
+                                        Grid.Column="1"
+                                        Theme="{StaticResource NpSecondaryButton}"
+                                        Command="{Binding ChooseExecutableCommand}"
+                                        Content="选择…"
+                                        AutomationProperties.Name="选择代理客户端或可执行文件" />
+                            </Grid>
                         </StackPanel>
                         <StackPanel Grid.Row="1"
                                     Grid.Column="1"
                                     Spacing="6">
                             <TextBlock Text="当前主配置" />
-                            <TextBox Theme="{StaticResource NpTextBox}"
-                                     Text="{Binding MainConfigurationPath}"
-                                     PlaceholderText="{Binding ClientConfigurationHint}"
-                                     AutomationProperties.Name="代理客户端当前主配置绝对路径" />
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="8">
+                                <TextBox Theme="{StaticResource NpTextBox}"
+                                         Text="{Binding MainConfigurationPath}"
+                                         PlaceholderText="{Binding ClientConfigurationHint}"
+                                         AutomationProperties.Name="代理客户端当前主配置绝对路径" />
+                                <Button x:Name="ChooseAdapterConfigurationButton"
+                                        Grid.Column="1"
+                                        Theme="{StaticResource NpSecondaryButton}"
+                                        Command="{Binding ChooseConfigurationCommand}"
+                                        Content="选择…"
+                                        AutomationProperties.Name="选择代理客户端当前主配置" />
+                            </Grid>
                         </StackPanel>
                         <StackPanel Grid.Row="2"
                                     Spacing="6">

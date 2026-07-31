@@ -1,6 +1,7 @@
 using NonProxy.Adapter.V1;
 using NonProxy.Common.V1;
 using NonProxy.Desktop.Core.Features.Adapters;
+using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Adapters;
 
 namespace NonProxy.Desktop.Tests;
@@ -11,7 +12,7 @@ public sealed class AdaptersViewModelTests
     public async Task RegistrationSuggestsDedicatedSidecarBesideMainConfiguration()
     {
         var service = new RecordingAdapterManagementService();
-        var viewModel = new AdaptersViewModel(service)
+        var viewModel = new AdaptersViewModel(service, NoSelectionPicker.Instance)
         {
             SelectedClient = AdaptersViewModel.ClientOptions.Single(option =>
                 option.Client == AdapterClient.Mihomo),
@@ -31,7 +32,7 @@ public sealed class AdaptersViewModelTests
     public async Task RegistrationRejectsMainConfigurationAsManagedRulesFile()
     {
         var service = new RecordingAdapterManagementService();
-        var viewModel = new AdaptersViewModel(service)
+        var viewModel = new AdaptersViewModel(service, NoSelectionPicker.Instance)
         {
             ExecutablePath = "/opt/nonproxy-test/surge-cli",
             MainConfigurationPath = "/opt/nonproxy-test/current.conf",
@@ -51,7 +52,7 @@ public sealed class AdaptersViewModelTests
     public async Task SyncPresentsConfigurationAndPathEvidenceSeparately()
     {
         var service = new RecordingAdapterManagementService();
-        var viewModel = new AdaptersViewModel(service);
+        var viewModel = new AdaptersViewModel(service, NoSelectionPicker.Instance);
         await viewModel.RefreshCommand.ExecuteAsync(null);
 
         await viewModel.SyncCommand.ExecuteAsync(viewModel.Items.Single());
@@ -71,7 +72,7 @@ public sealed class AdaptersViewModelTests
             RegistrationGate = new TaskCompletionSource(
                 TaskCreationOptions.RunContinuationsAsynchronously),
         };
-        var viewModel = new AdaptersViewModel(service)
+        var viewModel = new AdaptersViewModel(service, NoSelectionPicker.Instance)
         {
             ExecutablePath = "/opt/nonproxy-test/surge-cli",
             MainConfigurationPath = "/opt/nonproxy-test/current.conf",
@@ -85,6 +86,8 @@ public sealed class AdaptersViewModelTests
             TestContext.Current.CancellationToken);
 
         var installation = viewModel.Items.Single();
+        Assert.False(viewModel.ChooseExecutableCommand.CanExecute(null));
+        Assert.False(viewModel.ChooseConfigurationCommand.CanExecute(null));
         Assert.False(viewModel.RegisterCommand.CanExecute(null));
         Assert.False(viewModel.SyncCommand.CanExecute(installation));
         Assert.False(viewModel.RemoveCommand.CanExecute(installation));
@@ -92,6 +95,85 @@ public sealed class AdaptersViewModelTests
         service.RegistrationGate.SetResult();
         await operation;
         Assert.True(viewModel.SyncCommand.CanExecute(installation));
+    }
+
+    [Fact]
+    public async Task NativeSelectionStillProducesUntrustedRegistrationCandidates()
+    {
+        var picker = new RecordingAdapterFilePicker
+        {
+            ExecutableSelection = AdapterFileSelection.Selected(
+                "/Applications/Surge.app"),
+            ConfigurationSelection = AdapterFileSelection.Selected(
+                "/opt/nonproxy-test/current.conf"),
+        };
+        var viewModel = new AdaptersViewModel(
+            new RecordingAdapterManagementService(),
+            picker);
+
+        await viewModel.ChooseExecutableCommand.ExecuteAsync(null);
+        await viewModel.ChooseConfigurationCommand.ExecuteAsync(null);
+
+        Assert.Equal(
+            "/Applications/Surge.app/Contents/Applications/surge-cli",
+            viewModel.ExecutablePath);
+        Assert.Equal(
+            "/opt/nonproxy-test/current.conf",
+            viewModel.MainConfigurationPath);
+        Assert.Equal(
+            "/opt/nonproxy-test/nonproxy.list",
+            viewModel.ManagedRulesPath);
+        Assert.Contains("仍会确认", viewModel.OperationMessage, StringComparison.Ordinal);
+    }
+
+    private sealed class NoSelectionPicker : IAdapterFilePicker
+    {
+        public static NoSelectionPicker Instance { get; } = new();
+
+        public Task<AdapterFileSelection> PickExecutableAsync(
+            AdapterClient client,
+            string clientName,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(AdapterFileSelection.Cancelled);
+        }
+
+        public Task<AdapterFileSelection> PickConfigurationAsync(
+            AdapterClient client,
+            string clientName,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(AdapterFileSelection.Cancelled);
+        }
+    }
+
+    private sealed class RecordingAdapterFilePicker : IAdapterFilePicker
+    {
+        public AdapterFileSelection ExecutableSelection { get; init; } =
+            AdapterFileSelection.Cancelled;
+
+        public AdapterFileSelection ConfigurationSelection { get; init; } =
+            AdapterFileSelection.Cancelled;
+
+        public Task<AdapterFileSelection> PickExecutableAsync(
+            AdapterClient client,
+            string clientName,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(ExecutableSelection);
+        }
+
+        public Task<AdapterFileSelection> PickConfigurationAsync(
+            AdapterClient client,
+            string clientName,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(ConfigurationSelection);
+        }
     }
 
     private sealed class RecordingAdapterManagementService : IAdapterManagementService
