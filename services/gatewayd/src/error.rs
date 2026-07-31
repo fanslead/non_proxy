@@ -62,6 +62,10 @@ impl GatewayError {
             Self::Storage(StorageError::OutboundRevisionConflict) => {
                 "NP_OUTBOUND_REVISION_CONFLICT"
             }
+            Self::Storage(StorageError::RoutingRevisionConflict) => "NP_ROUTING_REVISION_CONFLICT",
+            Self::Storage(StorageError::DefaultOutboundUnavailable) => {
+                "NP_DEFAULT_OUTBOUND_UNAVAILABLE"
+            }
             Self::Storage(StorageError::PendingSnapshotExists) => "NP_SNAPSHOT_ALREADY_PENDING",
             Self::Storage(
                 error @ (StorageError::LearningSessionNotFound

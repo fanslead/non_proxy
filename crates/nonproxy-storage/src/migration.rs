@@ -20,6 +20,7 @@ const LEARNING_CONFIRMATIONS: &str =
     include_str!("../../../migrations/V0005__learning_confirmations.sql");
 const SYNTHETIC_DNS_BINDINGS: &str =
     include_str!("../../../migrations/V0006__synthetic_dns_bindings.sql");
+const ROUTING_SETTINGS: &str = include_str!("../../../migrations/V0007__routing_settings.sql");
 
 struct Migration {
     version: i64,
@@ -57,6 +58,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 6,
         name: "synthetic_dns_bindings",
         sql: SYNTHETIC_DNS_BINDINGS,
+    },
+    Migration {
+        version: 7,
+        name: "routing_settings",
+        sql: ROUTING_SETTINGS,
     },
 ];
 

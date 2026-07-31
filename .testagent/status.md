@@ -72,3 +72,35 @@
 - 测试覆盖正常握手、鉴权拒绝、连接失败、超时、过期、revision 不匹配、容量边界、协议畸形、单行 UI 更新以及 macOS/Windows 共享视图入口。
 - 主要可抵抗变异包括：`>= 60 秒` 被误写为 `> 60 秒`、timeout 上限被放宽、旧 revision 被复用、失败仍保留 Ready、UI 误更新全部行、成功文案夸大为公网出口验证。
 - 静态配对结果仅是源文件到测试文件的解析启发式，不代表行/分支覆盖率；真实公网出口 IP、最终策略路径以及 Windows 真机网络栈仍不在本批证明范围。
+
+## 默认代理原子发布批次状态
+
+- [x] 缺口研究、事务设计与测试计划
+- [x] V7 migration 与权威 routing repository
+- [x] 默认决策编译、原子发布与回滚恢复
+- [x] Control RPC、C#/Swift 契约生成
+- [x] 共享 Desktop service/ViewModel/UI
+- [x] Rust 定向测试
+- [x] .NET 定向测试
+- [x] 契约、格式、lint 与全仓回归
+- [x] macOS/Windows 打包门禁
+- [x] 提交前 diff、缺口与断言质量复核
+
+### 干净验证
+
+- `cargo test --workspace`：全仓通过；其中 gatewayd 65 个库测试、11 个集成测试、1 个 Provider RPC 测试通过。
+- `dotnet test apps/desktop/NonProxy.Desktop.slnx --no-restore --configuration Release`：78/78 通过。
+- `pnpm run test`：28/28 通过；`pnpm run typecheck`、`pnpm run lint`、`pnpm run format:check` 通过。
+- `swift test --package-path platform/macos --disable-sandbox`：XCTest 87/87、Swift Testing 28/28 通过。
+- `just contracts`、`just contracts-swift`、`just contracts-breaking`：C#/Swift 生成物一致，Buf 对 `HEAD` 无破坏性变更。
+- `cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`dotnet format ... --verify-no-changes`：通过。
+- `nonproxy-windows-ipc --tests` 在 `x86_64-pc-windows-msvc` target check 通过；设置仅用于 `cargo check` 的临时 SQLite link metadata 后，`nonproxy-gatewayd --tests` 在 Windows x64 与 arm64 target check 通过。
+- `dotnet build apps/desktop/NonProxy.Desktop.slnx -c Release --no-restore`：Windows 宿主、macOS x64/arm64 宿主、universal System Extension、Safari App Extension、Native Messaging Host、gatewayd 与签名后 Bundle 校验全部通过，0 warning、0 error。
+- `just control-e2e`、`just native-messaging-e2e`、`just provider-e2e`：控制平面、Native Messaging、代理数据面及两个 Provider ACK/active 链路全部通过。
+
+### 缺口与断言质量
+
+- 原子事务测试同时断言 routing revision、默认出口与 pending snapshot，能识别“先改设置后发布失败”及其反向顺序造成的部分写入。
+- 乐观锁、缺失/禁用出口、已有 pending、无效回滚源与不兼容能力均有负向断言；删除任一校验或把事务拆开都会使对应测试失败。
+- RPC 测试断言鉴权、oneof、revision、稳定业务错误和状态/目录一致性；Desktop 测试断言跨页 revision、默认标记、pending 文案、恢复直连和 macOS/Windows 共享入口。
+- 本批证明的是“期望默认路由配置与待发布快照”的一致性；真实已激活策略、签名系统扩展安装、其他 VPN 共存和真实公网出口仍需后续运行态诊断及真机验收。

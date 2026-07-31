@@ -30,11 +30,16 @@ internal sealed class StubControlRpcClient : IControlRpcClient
     public ListOutboundsResponse OutboundsResponse { get; set; } = new()
     {
         Page = new NonProxy.Common.V1.PageResponse(),
+        RoutingRevision = 1,
     };
+
+    public Queue<ListOutboundsResponse> OutboundsResponses { get; } = new();
 
     public ImportConfigurationResponse ImportResponse { get; set; } = new();
 
     public TestOutboundResponse TestOutboundResponse { get; set; } = new();
+
+    public SetDefaultRouteResponse SetDefaultRouteResponse { get; set; } = new();
 
     public StartLearningSessionResponse StartLearningResponse { get; set; } = new();
 
@@ -47,6 +52,12 @@ internal sealed class StubControlRpcClient : IControlRpcClient
     public string? LastImportedConfiguration { get; private set; }
 
     public string? LastTestedOutboundId { get; private set; }
+
+    public string? LastDefaultOutboundId { get; private set; }
+
+    public ulong LastExpectedRoutingRevision { get; private set; }
+
+    public bool LastRouteWasDirect { get; private set; }
 
     public ProtoPolicy? LastUpsertedPolicy { get; private set; }
 
@@ -119,7 +130,9 @@ internal sealed class StubControlRpcClient : IControlRpcClient
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(OutboundsResponse);
+        return Task.FromResult(OutboundsResponses.Count > 0
+            ? OutboundsResponses.Dequeue()
+            : OutboundsResponse);
     }
 
     public Task<ImportConfigurationResponse> ImportConfigurationAsync(
@@ -138,6 +151,29 @@ internal sealed class StubControlRpcClient : IControlRpcClient
         cancellationToken.ThrowIfCancellationRequested();
         LastTestedOutboundId = outboundId;
         return Task.FromResult(TestOutboundResponse);
+    }
+
+    public Task<SetDefaultRouteResponse> SetDefaultRouteAsync(
+        string outboundId,
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastDefaultOutboundId = outboundId;
+        LastExpectedRoutingRevision = expectedRoutingRevision;
+        LastRouteWasDirect = false;
+        return Task.FromResult(SetDefaultRouteResponse);
+    }
+
+    public Task<SetDefaultRouteResponse> SetDirectRouteAsync(
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastDefaultOutboundId = null;
+        LastExpectedRoutingRevision = expectedRoutingRevision;
+        LastRouteWasDirect = true;
+        return Task.FromResult(SetDefaultRouteResponse);
     }
 
     public Task<StartLearningSessionResponse> StartLearningSessionAsync(

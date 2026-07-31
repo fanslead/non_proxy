@@ -21,30 +21,125 @@ public sealed class GatewayOutboundServiceTests
             OutboundsResponse = new ListOutboundsResponse
             {
                 Page = new PageResponse(),
+                RoutingRevision = 3,
                 Outbounds =
                 {
                     new OutboundSummary
                     {
                         Id = "office",
                         DisplayName = "Office proxy",
-                        Kind = OutboundKind.HttpConnect,
+                        Kind = OutboundKind.Socks5,
                         EndpointHost = "127.0.0.1",
                         EndpointPort = 8_080,
                         Health = NonProxy.Events.V1.RuntimeState.Ready,
+                        Enabled = true,
+                        Capabilities =
+                        {
+                            CapabilityName.Tcp,
+                            CapabilityName.Udp,
+                            CapabilityName.Ipv4,
+                            CapabilityName.Ipv6,
+                        },
                         LastCheckedAt = Timestamp.FromDateTimeOffset(checkedAt),
                         Latency = Duration.FromTimeSpan(TimeSpan.FromMilliseconds(42)),
+                        IsDefault = true,
                     },
                 },
             },
         };
         var service = new GatewayOutboundService(client);
 
-        var item = Assert.Single(await service.ListAsync(
-            TestContext.Current.CancellationToken));
+        var catalog = await service.ListAsync(
+            TestContext.Current.CancellationToken);
+        var item = Assert.Single(catalog.Items);
 
+        Assert.Equal<ulong>(3, catalog.RoutingRevision);
+        Assert.True(item.IsDefault);
+        Assert.True(item.SupportsDefaultRoute);
         Assert.Equal("代理握手可用", item.Health);
         Assert.Equal(TimeSpan.FromMilliseconds(42), item.Latency);
         Assert.Equal(checkedAt, item.LastCheckedAt);
+    }
+
+    [Fact]
+    public async Task SetDefaultUsesRoutingRevisionAndReportsPendingActivation()
+    {
+        var client = new StubControlRpcClient
+        {
+            SetDefaultRouteResponse = new SetDefaultRouteResponse
+            {
+                RoutingRevision = 5,
+                Snapshot = new NonProxy.Policy.V1.PolicySnapshotMetadata
+                {
+                    SnapshotVersion = 9,
+                    State = NonProxy.Policy.V1.SnapshotState.PendingAck,
+                },
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var result = await service.SetDefaultAsync(
+            "office",
+            4,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("office", client.LastDefaultOutboundId);
+        Assert.Equal<ulong>(4, client.LastExpectedRoutingRevision);
+        Assert.True(result.Accepted);
+        Assert.False(result.Applied);
+        Assert.Equal((ulong?)9, result.SnapshotVersion);
+        Assert.Contains("等待系统组件确认", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SetDirectUsesTheSameRevisionAndPendingSemantics()
+    {
+        var client = new StubControlRpcClient
+        {
+            SetDefaultRouteResponse = new SetDefaultRouteResponse
+            {
+                RoutingRevision = 6,
+                Snapshot = new NonProxy.Policy.V1.PolicySnapshotMetadata
+                {
+                    SnapshotVersion = 10,
+                    State = NonProxy.Policy.V1.SnapshotState.PendingAck,
+                },
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var result = await service.SetDirectAsync(
+            5,
+            TestContext.Current.CancellationToken);
+
+        Assert.True(client.LastRouteWasDirect);
+        Assert.Equal<ulong>(5, client.LastExpectedRoutingRevision);
+        Assert.True(result.Accepted);
+        Assert.False(result.Applied);
+        Assert.Contains("默认直连已保存", result.Message, StringComparison.Ordinal);
+        Assert.Contains("等待系统组件确认", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ListRejectsRoutingRevisionChangeAcrossPages()
+    {
+        var client = new StubControlRpcClient();
+        client.OutboundsResponses.Enqueue(new ListOutboundsResponse
+        {
+            RoutingRevision = 2,
+            Page = new PageResponse { NextPageToken = "next" },
+        });
+        client.OutboundsResponses.Enqueue(new ListOutboundsResponse
+        {
+            RoutingRevision = 3,
+            Page = new PageResponse(),
+        });
+        var service = new GatewayOutboundService(client);
+
+        var error = await Assert.ThrowsAsync<ControlServiceException>(() =>
+            service.ListAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("NP_CONTROL_PAGING_INVALID", error.Code);
     }
 
     [Fact]

@@ -1,9 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
-using Google.Protobuf.WellKnownTypes;
 using NonProxy.Control.V1;
 using NonProxy.Desktop.Core.Services.Control.Rpc;
-using NonProxy.Events.V1;
 
 namespace NonProxy.Desktop.Core.Services.Control.Gateway;
 
@@ -11,7 +9,6 @@ public sealed class GatewayOutboundService : IOutboundService
 {
     private const int MaximumPages = 100;
     private const int MaximumCredentialLength = 255;
-    private static readonly TimeSpan MaximumProbeLatency = TimeSpan.FromSeconds(30);
 
     private readonly IControlRpcClient _client;
 
@@ -20,12 +17,13 @@ public sealed class GatewayOutboundService : IOutboundService
         _client = client;
     }
 
-    public async Task<IReadOnlyList<OutboundListItem>> ListAsync(
+    public async Task<OutboundCatalog> ListAsync(
         CancellationToken cancellationToken)
     {
         var items = new List<OutboundListItem>();
         var tokens = new HashSet<string>(StringComparer.Ordinal);
         var pageToken = string.Empty;
+        ulong? routingRevision = null;
         for (var page = 0; page < MaximumPages; page++)
         {
             if (!tokens.Add(pageToken))
@@ -36,15 +34,105 @@ public sealed class GatewayOutboundService : IOutboundService
             var response = await _client.ListOutboundsAsync(
                 pageToken,
                 cancellationToken);
-            items.AddRange(response.Outbounds.Select(ToItem));
+            if (response.RoutingRevision == 0
+                || routingRevision is not null
+                    && routingRevision != response.RoutingRevision)
+            {
+                throw InvalidPaging();
+            }
+
+            routingRevision = response.RoutingRevision;
+            items.AddRange(response.Outbounds.Select(OutboundContractMapper.ToItem));
             pageToken = response.Page?.NextPageToken ?? string.Empty;
             if (string.IsNullOrEmpty(pageToken))
             {
-                return items;
+                if (items.Select(item => item.Id).Distinct(
+                        StringComparer.Ordinal).Count() != items.Count
+                    || items.Count(item => item.IsDefault) > 1)
+                {
+                    throw InvalidPaging();
+                }
+
+                return new OutboundCatalog(
+                    items,
+                    routingRevision.Value,
+                    items.SingleOrDefault(item => item.IsDefault)?.Id);
             }
         }
 
         throw InvalidPaging();
+    }
+
+    public async Task<ApplyResult> SetDefaultAsync(
+        string outboundId,
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outboundId);
+        ValidateRoutingRevision(expectedRoutingRevision);
+        var response = await _client.SetDefaultRouteAsync(
+            outboundId,
+            expectedRoutingRevision,
+            cancellationToken);
+        return MapRouteChange(
+            response,
+            expectedRoutingRevision,
+            "默认代理已保存，新的路由快照正在等待系统组件确认。");
+    }
+
+    public async Task<ApplyResult> SetDirectAsync(
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken)
+    {
+        ValidateRoutingRevision(expectedRoutingRevision);
+        var response = await _client.SetDirectRouteAsync(
+            expectedRoutingRevision,
+            cancellationToken);
+        return MapRouteChange(
+            response,
+            expectedRoutingRevision,
+            "默认直连已保存，新的路由快照正在等待系统组件确认。");
+    }
+
+    private static ApplyResult MapRouteChange(
+        SetDefaultRouteResponse response,
+        ulong expectedRoutingRevision,
+        string acceptedMessage)
+    {
+        if (response.Error is { } error)
+        {
+            return new ApplyResult(
+                false,
+                false,
+                error.Code,
+                DefaultRouteErrorMessage(error.Code),
+                null);
+        }
+        if (response.RoutingRevision != expectedRoutingRevision + 1
+            || response.Snapshot is null
+            || response.Snapshot.SnapshotVersion == 0
+            || response.Snapshot.State
+                != NonProxy.Policy.V1.SnapshotState.PendingAck)
+        {
+            throw new ControlServiceException(
+                "NP_CONTROL_CONTRACT_INVALID",
+                "控制服务没有返回完整的默认路由发布结果。");
+        }
+
+        return new ApplyResult(
+            true,
+            false,
+            "NP_SNAPSHOT_PENDING_ACK",
+            acceptedMessage,
+            response.Snapshot.SnapshotVersion);
+    }
+
+    private static void ValidateRoutingRevision(ulong expectedRoutingRevision)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(expectedRoutingRevision);
+        ArgumentOutOfRangeException.ThrowIfEqual(
+            expectedRoutingRevision,
+            ulong.MaxValue);
     }
 
     public async Task<OutboundImportResult> ImportAsync(
@@ -99,7 +187,7 @@ public sealed class GatewayOutboundService : IOutboundService
 
         return new OutboundImportResult(
             response.ImportId,
-            response.Outbounds.Select(ToItem).ToArray(),
+            response.Outbounds.Select(OutboundContractMapper.ToItem).ToArray(),
             response.Warnings.ToArray());
     }
 
@@ -124,66 +212,16 @@ public sealed class GatewayOutboundService : IOutboundService
         }
         if (!response.Healthy || response.Latency is null)
         {
-            throw InvalidProbeContract();
+            throw OutboundContractMapper.InvalidProbeContract();
         }
 
         return new OutboundTestResult(
             outboundId,
             true,
             "代理握手可用",
-            ToTimeSpan(response.Latency),
+            OutboundContractMapper.ToTimeSpan(response.Latency),
             checkedAt,
             "代理握手成功；该结果不代表公网出口 IP 或最终规则路径已经验证。");
-    }
-
-    private static OutboundListItem ToItem(OutboundSummary outbound)
-    {
-        return new OutboundListItem(
-            outbound.Id,
-            string.IsNullOrWhiteSpace(outbound.DisplayName)
-                ? outbound.Id
-                : outbound.DisplayName,
-            KindLabel(outbound.Kind),
-            EndpointLabel(outbound.EndpointHost, outbound.EndpointPort),
-            HealthLabel(outbound.Health),
-            outbound.Latency is null ? null : ToTimeSpan(outbound.Latency),
-            outbound.LastCheckedAt is null
-                ? null
-                : ToDateTimeOffset(outbound.LastCheckedAt));
-    }
-
-    private static string EndpointLabel(string host, uint port)
-    {
-        return string.IsNullOrWhiteSpace(host) || port == 0
-            ? "由本地适配器管理"
-            : $"{host}:{port}";
-    }
-
-    private static string KindLabel(OutboundKind kind)
-    {
-        return kind switch
-        {
-            OutboundKind.Direct => "直连",
-            OutboundKind.HttpConnect => "HTTP CONNECT",
-            OutboundKind.Socks5 => "SOCKS5",
-            OutboundKind.Wireguard => "WireGuard",
-            OutboundKind.Openvpn => "OpenVPN",
-            OutboundKind.ExternalAdapter => "外部适配器",
-            _ => "未知",
-        };
-    }
-
-    private static string HealthLabel(RuntimeState state)
-    {
-        return state switch
-        {
-            RuntimeState.Ready => "代理握手可用",
-            RuntimeState.Degraded => "握手降级",
-            RuntimeState.Starting => "检测中",
-            RuntimeState.Failed => "握手异常",
-            RuntimeState.Stopped => "未验证",
-            _ => "未验证",
-        };
     }
 
     private static string KindValue(OutboundProxyKind kind)
@@ -257,43 +295,19 @@ public sealed class GatewayOutboundService : IOutboundService
         };
     }
 
-    private static TimeSpan ToTimeSpan(Duration value)
+    private static string DefaultRouteErrorMessage(string code)
     {
-        try
+        return code switch
         {
-            var result = value.ToTimeSpan();
-            if (result < TimeSpan.Zero || result > MaximumProbeLatency)
-            {
-                throw InvalidProbeContract();
-            }
-
-            return result;
-        }
-        catch (InvalidOperationException exception)
-        {
-            throw InvalidProbeContract(exception);
-        }
-    }
-
-    private static DateTimeOffset ToDateTimeOffset(Timestamp value)
-    {
-        try
-        {
-            return value.ToDateTimeOffset();
-        }
-        catch (InvalidOperationException exception)
-        {
-            throw InvalidProbeContract(exception);
-        }
-    }
-
-    private static ControlServiceException InvalidProbeContract(
-        Exception? innerException = null)
-    {
-        return new ControlServiceException(
-            "NP_CONTROL_CONTRACT_INVALID",
-            "控制服务返回了无效的代理测试结果。",
-            innerException);
+            "NP_ROUTING_REVISION_CONFLICT" => "默认路由已被其他操作修改，请刷新后重试。",
+            "NP_DEFAULT_OUTBOUND_UNAVAILABLE"
+                => "该代理已不存在、已停用或能力不足，请刷新列表。",
+            "NP_SNAPSHOT_ALREADY_PENDING"
+                => "已有路由快照等待系统组件确认，请稍后刷新再试。",
+            "NP_POLICY_COMPILE_REJECTED"
+                => "当前代理能力不足以承载所有未匹配流量，请检查代理类型和规则。",
+            _ => "控制服务没有接受本次默认代理修改。",
+        };
     }
 
     private static ControlServiceException InvalidPaging()

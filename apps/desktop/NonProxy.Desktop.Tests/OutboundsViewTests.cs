@@ -71,6 +71,16 @@ public sealed class OutboundsViewTests
                 $"未找到测试按钮。已渲染按钮：{string.Join(", ", buttons.Select(button => button.Content))}");
             Assert.True(action.IsEnabled);
             Assert.Equal("测试代理握手", AutomationProperties.GetName(action));
+            var defaultAction = buttons.SingleOrDefault(button =>
+                string.Equals(
+                    button.Content as string,
+                    "设为默认",
+                    StringComparison.Ordinal));
+            Assert.NotNull(defaultAction);
+            Assert.True(defaultAction.IsEnabled);
+            Assert.Equal(
+                "设为默认代理",
+                AutomationProperties.GetName(defaultAction));
         }
         finally
         {
@@ -87,13 +97,14 @@ public sealed class OutboundsViewTests
             "127.0.0.1:1080",
             "未验证",
             null,
-            null);
+            null,
+            SupportsDefaultRoute: true);
 
-        public Task<IReadOnlyList<OutboundListItem>> ListAsync(
+        public Task<OutboundCatalog> ListAsync(
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult<IReadOnlyList<OutboundListItem>>([Outbound]);
+            return Task.FromResult(new OutboundCatalog([Outbound], 1));
         }
 
         public Task<OutboundTestResult> TestAsync(
@@ -119,6 +130,33 @@ public sealed class OutboundsViewTests
                 "unused",
                 [Outbound],
                 []));
+        }
+
+        public Task<ApplyResult> SetDefaultAsync(
+            string outboundId,
+            ulong expectedRoutingRevision,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new ApplyResult(
+                true,
+                false,
+                "NP_SNAPSHOT_PENDING_ACK",
+                "等待系统组件确认。",
+                1));
+        }
+
+        public Task<ApplyResult> SetDirectAsync(
+            ulong expectedRoutingRevision,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new ApplyResult(
+                true,
+                false,
+                "NP_SNAPSHOT_PENDING_ACK",
+                "等待系统组件确认。",
+                1));
         }
     }
 }

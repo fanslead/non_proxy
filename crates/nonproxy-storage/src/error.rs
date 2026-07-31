@@ -45,6 +45,10 @@ pub enum StorageError {
     OutboundRevisionConflict,
     #[error("出口配置无效")]
     OutboundInvalid,
+    #[error("默认路由配置修订冲突")]
+    RoutingRevisionConflict,
+    #[error("默认代理出口不存在、未启用或能力不足")]
+    DefaultOutboundUnavailable,
     #[error("凭据引用无效")]
     CredentialReferenceInvalid,
     #[error("网络画像无效")]
@@ -119,6 +123,8 @@ impl StorageError {
             Self::PolicyRevisionConflict => "NP_STORAGE_POLICY_REVISION_CONFLICT",
             Self::OutboundRevisionConflict => "NP_STORAGE_OUTBOUND_REVISION_CONFLICT",
             Self::OutboundInvalid => "NP_STORAGE_OUTBOUND_INVALID",
+            Self::RoutingRevisionConflict => "NP_STORAGE_ROUTING_REVISION_CONFLICT",
+            Self::DefaultOutboundUnavailable => "NP_STORAGE_DEFAULT_OUTBOUND_UNAVAILABLE",
             Self::CredentialReferenceInvalid => "NP_STORAGE_CREDENTIAL_REFERENCE_INVALID",
             Self::NetworkProfileInvalid => "NP_STORAGE_NETWORK_PROFILE_INVALID",
             Self::NetworkProfileRevisionConflict => "NP_STORAGE_NETWORK_PROFILE_REVISION_CONFLICT",

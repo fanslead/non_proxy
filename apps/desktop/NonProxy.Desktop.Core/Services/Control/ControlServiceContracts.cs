@@ -24,10 +24,19 @@ public interface IPolicyService
 
 public interface IOutboundService
 {
-    Task<IReadOnlyList<OutboundListItem>> ListAsync(CancellationToken cancellationToken);
+    Task<OutboundCatalog> ListAsync(CancellationToken cancellationToken);
 
     Task<OutboundTestResult> TestAsync(
         string outboundId,
+        CancellationToken cancellationToken);
+
+    Task<ApplyResult> SetDefaultAsync(
+        string outboundId,
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken);
+
+    Task<ApplyResult> SetDirectAsync(
+        ulong expectedRoutingRevision,
         CancellationToken cancellationToken);
 
     Task<OutboundImportResult> ImportAsync(

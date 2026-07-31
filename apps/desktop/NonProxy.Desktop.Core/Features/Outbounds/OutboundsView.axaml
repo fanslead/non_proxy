@@ -15,6 +15,8 @@
                                Text="网络出口" />
                     <TextBlock Theme="{StaticResource NpMutedText}"
                                Text="检查代理握手是否可用；这不会把结果误报为公网出口或最终规则路径验证。" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="选择默认代理后，未命中直连规则的流量才会走该代理；修改需等待系统组件确认后生效。" />
                 </StackPanel>
                 <Button Grid.Column="1"
                         Theme="{StaticResource NpSecondaryButton}"
@@ -105,7 +107,21 @@
 
             <Border Theme="{StaticResource NpCard}">
                 <StackPanel Spacing="14">
-                    <Grid ColumnDefinitions="2*,*,2.4*,1.4*,*,1.4*,Auto"
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="16">
+                        <StackPanel Spacing="4">
+                            <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                       Text="默认路由" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="{Binding DefaultRouteSummary}" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding SetDirectCommand}"
+                                Content="恢复默认直连"
+                                AutomationProperties.Name="恢复未命中流量默认直连" />
+                    </Grid>
+                    <Grid ColumnDefinitions="2.2*,*,2.2*,1.3*,*,1.3*,Auto"
                           ColumnSpacing="16">
                         <TextBlock FontWeight="SemiBold"
                                    Text="名称" />
@@ -129,10 +145,19 @@
                                   ItemsSource="{Binding Items}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="control:OutboundListItem">
-                                <Grid ColumnDefinitions="2*,*,2.4*,1.4*,*,1.4*,Auto"
+                                <Grid ColumnDefinitions="2.2*,*,2.2*,1.3*,*,1.3*,Auto"
                                       ColumnSpacing="16"
                                       Margin="0,8">
-                                    <TextBlock Text="{Binding Name}" />
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="{Binding Name}" />
+                                        <TextBlock Foreground="{DynamicResource NpBrandBrush}"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   Text="{Binding DefaultLabel}" />
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   FontSize="11"
+                                                   Text="{Binding DefaultEligibilityLabel}" />
+                                    </StackPanel>
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Kind}" />
                                     <TextBlock Grid.Column="2"
@@ -144,13 +169,23 @@
                                                Text="{Binding LatencyLabel}" />
                                     <TextBlock Grid.Column="5"
                                                Text="{Binding LastCheckedLabel}" />
-                                    <Button Grid.Column="6"
-                                            VerticalAlignment="Center"
-                                            Theme="{StaticResource NpSecondaryButton}"
-                                            Command="{ReflectionBinding DataContext.TestCommand, ElementName=Root}"
-                                            CommandParameter="{Binding}"
-                                            Content="测试"
-                                            AutomationProperties.Name="测试代理握手" />
+                                    <StackPanel Grid.Column="6"
+                                                Orientation="Horizontal"
+                                                Spacing="8">
+                                        <Button VerticalAlignment="Center"
+                                                Theme="{StaticResource NpSecondaryButton}"
+                                                Command="{ReflectionBinding DataContext.SetDefaultCommand, ElementName=Root}"
+                                                CommandParameter="{Binding}"
+                                                IsEnabled="{Binding CanSetAsDefault}"
+                                                Content="设为默认"
+                                                AutomationProperties.Name="设为默认代理" />
+                                        <Button VerticalAlignment="Center"
+                                                Theme="{StaticResource NpSecondaryButton}"
+                                                Command="{ReflectionBinding DataContext.TestCommand, ElementName=Root}"
+                                                CommandParameter="{Binding}"
+                                                Content="测试"
+                                                AutomationProperties.Name="测试代理握手" />
+                                    </StackPanel>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

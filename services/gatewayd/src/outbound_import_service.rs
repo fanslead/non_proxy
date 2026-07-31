@@ -38,7 +38,7 @@ pub async fn import(
     let summaries = prepared
         .outbounds
         .iter()
-        .map(|(value, _)| crate::control_mapping::outbound_summary(value, None))
+        .map(|(value, _)| crate::control_mapping::outbound_summary(value, None, false))
         .collect();
     if request.validate_only {
         return ImportConfigurationResponse {

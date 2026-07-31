@@ -621,6 +621,7 @@ RollbackPolicySnapshot
 ListOutbounds
 ImportConfiguration
 TestOutbound
+SetDefaultRoute
 StartLearningSession
 RecordLearningObservation
 ListLearningCandidates
@@ -890,6 +891,45 @@ Adapter 输入不拥有单独的优先级层。Compiler 根据它实际包含的
 10. 失败则继续使用上一份快照。
 
 Rust 服务使用 `Arc`，Swift Provider 使用不可变值和同步只读引用完成原子切换；两端都不得为切换快照暂停全部流量。
+
+### 11.5 默认路由配置与原子发布
+
+普通用户的核心模型是“默认走代理，少数应用或网站直连”。默认路由不是 UI
+偏好，也不能在编译器中硬编码。SQLite 使用单例 `routing_settings` 保存：
+
+```text
+RoutingSettings
+  default_action: DIRECT | PROXY
+  default_outbound_id
+  revision
+  updated_at
+```
+
+新安装和旧数据库升级后先保持 `DIRECT`，避免在用户尚未选择并验证代理出口时静默
+改变网络路径。用户在“网络出口”页选择默认代理后，桌面端携带当前
+`routing_revision` 调用 `SetDefaultRoute`。`gatewayd` 必须在同一个
+`BEGIN IMMEDIATE` 事务中完成以下操作：
+
+1. 校验 revision 未过期。
+2. 校验代理出口存在、启用且可承载完整网关。
+3. 用所选出口生成 fail-closed 的默认 `PROXY` decision。
+4. 编译包含该默认 decision 的完整不可变快照。
+5. 更新 `routing_settings` 并递增 revision。
+6. 写入唯一 pending 快照和审计事件。
+
+任一步失败都回滚默认路由和快照，不能出现权威配置与待确认快照内容分裂。
+RPC 成功只表示配置已保存且快照进入
+`PENDING_ACK`；只有所需 Provider 全部确认后才能显示为已生效。
+
+`ListOutbounds` 在每页返回同一个 `routing_revision`，并只允许一个出口带
+`is_default`。桌面端跨页发现 revision 变化、重复出口或多个默认出口时拒绝该
+目录并要求刷新。回滚到历史快照时，`gatewayd` 从历史 payload 解码
+`default_decision`，在同一事务内同步恢复 `routing_settings` 和回滚快照；不允许
+把回滚默认值硬编码为 `DIRECT`。
+
+当前默认出口不能通过后续导入被改成停用状态或当前完整网关无法承载的 TCP-only
+类型；该批次写入必须整体回滚。普通用户可以点击“恢复默认直连”，该操作使用相同的
+鉴权、revision、编译、pending ACK 和事务边界，不通过直接改 UI 状态实现。
 
 ## 12. macOS Transparent Proxy 实现
 
@@ -1243,6 +1283,27 @@ pub trait OutboundConnector: Send + Sync {
 - UDP、QUIC、DNS 或指定用户目标已经可用。
 
 这些结论必须由决策证据、接口路径和自有出口探针联合验证，不能由本健康状态替代。
+
+### 15.4 默认代理选择
+
+保存或测试一个代理不会自动改变默认路径。只有用户显式点击“设为默认”，且
+`SetDefaultRoute` 通过鉴权、revision、出口可用性和策略能力校验后，系统才生成
+新的待确认快照。未命中应用/网站直连规则的流量使用该快照中的默认代理；直连规则
+仍具有更高的显式策略优先级。
+
+桌面端必须区分三种事实：
+
+- `is_default`：权威配置当前选择了该出口；
+- `PENDING_ACK`：新快照已保存但尚未由所有系统组件确认；
+- `ACTIVE`：Provider 已加载该快照。
+
+因此“默认代理已保存”不能改写为“已经走代理”。代理握手健康同样不能替代
+Provider ACK、实际规则命中、物理接口路径或公网出口证据。
+
+HTTP CONNECT 只具备 TCP 能力，在完整网关捕获 TCP/UDP 的配置下不能作为全局
+默认出口；共享桌面端会禁用其“设为默认”操作并显示“不支持全局默认”。SOCKS5
+只有同时声明 TCP、UDP、IPv4 和 IPv6 且处于启用状态时才显示可选。用户仍可把
+这些出口用于能力匹配的显式代理规则。
 
 ## 16. 第三方客户端适配器
 

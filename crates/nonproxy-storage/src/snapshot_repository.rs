@@ -22,15 +22,7 @@ impl<'connection> SnapshotRepository<'connection> {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        ensure_can_stage(&transaction, artifact.snapshot_version())?;
-        insert_snapshot(&transaction, artifact, None)?;
-        insert_audit(
-            &transaction,
-            "snapshot_staged",
-            artifact.snapshot_version(),
-            artifact.created_at_unix_ms(),
-            None,
-        )?;
+        stage_in_transaction(&transaction, artifact)?;
         transaction.commit()?;
         Ok(())
     }
@@ -44,32 +36,11 @@ impl<'connection> SnapshotRepository<'connection> {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        ensure_can_stage(&transaction, new_snapshot_version)?;
-        let source = read_snapshot(&transaction, source_snapshot_version)?
-            .ok_or(StorageError::SnapshotNotFound)?;
-        if !matches!(
-            source.status(),
-            SnapshotStatus::Active | SnapshotStatus::Superseded
-        ) {
-            return Err(StorageError::SnapshotStateConflict);
-        }
-        let artifact = SnapshotArtifact::new(
-            new_snapshot_version,
-            source.artifact().schema_version(),
-            created_at_unix_ms,
-            *source.artifact().content_hash(),
-            source.artifact().policy_count(),
-            source.artifact().payload().to_vec(),
-        )?;
-        insert_snapshot(&transaction, &artifact, Some(source_snapshot_version))?;
-        insert_audit(
+        let artifact = stage_rollback_in_transaction(
             &transaction,
-            "snapshot_rollback_staged",
             new_snapshot_version,
+            source_snapshot_version,
             created_at_unix_ms,
-            Some(&format!(
-                "source_snapshot_version={source_snapshot_version}"
-            )),
         )?;
         transaction.commit()?;
         Ok(artifact)
@@ -287,6 +258,57 @@ impl<'connection> SnapshotRepository<'connection> {
             })
             .transpose()
     }
+}
+
+pub(crate) fn stage_in_transaction(
+    transaction: &Transaction<'_>,
+    artifact: &SnapshotArtifact,
+) -> Result<(), StorageError> {
+    ensure_can_stage(transaction, artifact.snapshot_version())?;
+    insert_snapshot(transaction, artifact, None)?;
+    insert_audit(
+        transaction,
+        "snapshot_staged",
+        artifact.snapshot_version(),
+        artifact.created_at_unix_ms(),
+        None,
+    )
+}
+
+pub(crate) fn stage_rollback_in_transaction(
+    transaction: &Transaction<'_>,
+    new_snapshot_version: u64,
+    source_snapshot_version: u64,
+    created_at_unix_ms: u64,
+) -> Result<SnapshotArtifact, StorageError> {
+    ensure_can_stage(transaction, new_snapshot_version)?;
+    let source = read_snapshot(transaction, source_snapshot_version)?
+        .ok_or(StorageError::SnapshotNotFound)?;
+    if !matches!(
+        source.status(),
+        SnapshotStatus::Active | SnapshotStatus::Superseded
+    ) {
+        return Err(StorageError::SnapshotStateConflict);
+    }
+    let artifact = SnapshotArtifact::new(
+        new_snapshot_version,
+        source.artifact().schema_version(),
+        created_at_unix_ms,
+        *source.artifact().content_hash(),
+        source.artifact().policy_count(),
+        source.artifact().payload().to_vec(),
+    )?;
+    insert_snapshot(transaction, &artifact, Some(source_snapshot_version))?;
+    insert_audit(
+        transaction,
+        "snapshot_rollback_staged",
+        new_snapshot_version,
+        created_at_unix_ms,
+        Some(&format!(
+            "source_snapshot_version={source_snapshot_version}"
+        )),
+    )?;
+    Ok(artifact)
 }
 
 fn ensure_can_stage(

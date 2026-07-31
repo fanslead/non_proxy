@@ -64,14 +64,14 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         panic!("V1 数据库升级失败: {upgraded:?}");
     };
     assert_eq!(upgraded.previous_version(), 1);
-    assert_eq!(upgraded.current_version(), 6);
+    assert_eq!(upgraded.current_version(), 7);
     assert_eq!(
         upgraded
             .applied()
             .iter()
             .map(AppliedMigration::version)
             .collect::<Vec<_>>(),
-        vec![2, 3, 4, 5, 6]
+        vec![2, 3, 4, 5, 6, 7]
     );
     let generation: i64 = match connection.query_row(
         "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
@@ -82,6 +82,16 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         Err(error) => panic!("升级后目录代数读取失败: {error}"),
     };
     assert_eq!(generation, 0);
+    let routing_settings: (String, Option<String>, i64) = match connection.query_row(
+        "SELECT default_action, default_outbound_id, revision
+         FROM routing_settings WHERE singleton_id = 1",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    ) {
+        Ok(value) => value,
+        Err(error) => panic!("升级后默认路由配置读取失败: {error}"),
+    };
+    assert_eq!(routing_settings, ("direct".to_owned(), None, 1));
 }
 
 #[test]
@@ -122,7 +132,7 @@ fn legacy_learning_rows_upgrade_without_losing_candidates() {
     let Ok(upgraded) = upgraded else {
         panic!("旧学习数据升级失败: {upgraded:?}");
     };
-    assert_eq!(upgraded.current_version(), 6);
+    assert_eq!(upgraded.current_version(), 7);
     let session: (String, String, i64) = match connection.query_row(
         "SELECT browser_context_id, state, expires_at_unix_ms
          FROM learning_session WHERE id = 'legacy-session'",

@@ -6,13 +6,13 @@ use nonproxy_model::{
     PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction,
 };
 use nonproxy_storage::{
-    LearningConfirmationReceipt, LearningPolicySelection, OutboundReference, SnapshotRecord,
-    StorageError,
+    DefaultRoute, LearningConfirmationReceipt, LearningPolicySelection, OutboundReference,
+    SnapshotRecord, StorageError,
 };
 
 use crate::{
     Gateway, GatewayError, clock::unix_time_ms, gateway::PublishedSnapshot, outbound_capabilities,
-    snapshot_builder::build_snapshot, snapshot_payload,
+    routing_gateway::decision_for_route, snapshot_builder::build_snapshot, snapshot_payload,
 };
 
 #[derive(Debug)]
@@ -49,6 +49,7 @@ struct ConfirmationState {
     receipt: Option<LearningConfirmationReceipt>,
     policies: Vec<Policy>,
     outbounds: Vec<OutboundReference>,
+    default_route: DefaultRoute,
     pending: Option<SnapshotRecord>,
     latest_snapshot_version: u64,
 }
@@ -71,6 +72,7 @@ impl Gateway {
                     receipt: database.learning_confirmations().get(&lookup_id)?,
                     policies: database.policies().list()?,
                     outbounds: database.outbounds().list()?,
+                    default_route: database.routing_settings().get()?.route().clone(),
                     pending: database.snapshots().pending()?,
                     latest_snapshot_version: database.snapshots().latest_version()?.unwrap_or(0),
                 })
@@ -107,10 +109,12 @@ impl Gateway {
                 .map(|value| value.policy().clone()),
         );
         let next_snapshot_version = next_version(state.latest_snapshot_version)?;
+        let default_decision = decision_for_route(&state.default_route)?;
         let published = build_snapshot(
             self.capabilities().clone(),
             &proposed,
             &state.outbounds,
+            default_decision,
             next_snapshot_version,
             now,
         )?;
@@ -154,6 +158,7 @@ impl Gateway {
                 pending,
                 &state.policies,
                 &state.outbounds,
+                &decision_for_route(&state.default_route)?,
                 self.capabilities().clone(),
             )? {
                 self.mark_confirmation_snapshot(
@@ -169,6 +174,7 @@ impl Gateway {
             self.capabilities().clone(),
             &state.policies,
             &state.outbounds,
+            decision_for_route(&state.default_route)?,
             next_version(state.latest_snapshot_version)?,
             now_unix_ms,
         )?;
@@ -348,9 +354,10 @@ fn snapshot_contains(
     snapshot: &SnapshotRecord,
     policies: &[Policy],
     outbounds: &[OutboundReference],
+    default_decision: &DecisionSpec,
     capabilities: nonproxy_policy_compiler::CompileCapabilities,
 ) -> Result<bool, GatewayError> {
     let capabilities = outbound_capabilities::for_configured_outbounds(capabilities, outbounds);
-    let expected = snapshot_payload::encode(policies, &capabilities, &DecisionSpec::direct())?;
+    let expected = snapshot_payload::encode(policies, &capabilities, default_decision)?;
     Ok(snapshot.artifact().payload() == expected)
 }

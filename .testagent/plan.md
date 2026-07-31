@@ -63,3 +63,32 @@
 4. 扩展 ViewModel 和共享 Avalonia 视图。
 5. 完成窄范围测试、质量审查、全仓相关门禁。
 6. 执行 macOS Release universal Native Messaging Host 与完整桌面 solution 打包门禁。
+
+## 默认代理原子发布批次
+
+| 验收项 | 计划测试 |
+| --- | --- |
+| 新库升级后默认 direct/revision 1 | migration 与 `initial_route_is_direct_at_revision_one` |
+| 路由和 pending snapshot 同事务 | `proxy_route_and_snapshot_are_staged_atomically` |
+| revision 冲突无部分写入 | `stale_revision_changes_neither_route_nor_snapshot` |
+| 缺失、禁用或 TCP-only 出口拒绝 | `missing_disabled_or_incompatible_default_outbound_is_rejected` |
+| 已选默认出口不能被停用或降为 TCP-only | `active_default_outbound_cannot_be_disabled_or_limited_to_tcp` |
+| 已有 pending 时路由回滚 | `pending_snapshot_rolls_back_the_route_update` |
+| 回滚源无效时路由设置也回滚 | `invalid_rollback_source_rolls_back_the_route_update` |
+| 默认 PROXY 进入 snapshot payload | `selecting_default_proxy_stages_a_proxy_default_snapshot` |
+| 历史回滚恢复默认路由 | `rollback_restores_the_source_snapshot_default_route` |
+| RPC 鉴权、状态与目录一致 | ControlService 默认路由测试 |
+| C# 请求携带 context 与 revision | `SetDefaultRouteBuildsAuthenticatedOptimisticRequest` |
+| 跨页 revision 变化拒绝 | `ListRejectsRoutingRevisionChangeAcrossPages` |
+| ViewModel 接受后刷新并保留 pending 语义 | `SetDefaultReloadsOnlyAfterServerAcceptsPendingSnapshot` |
+| 一键恢复默认直连使用同一 revision/ACK 语义 | Rust/C# direct route 与 ViewModel 测试 |
+| macOS/Windows 共享 UI 都有入口 | 两个平台 headless view 测试 |
+
+### 执行顺序
+
+1. 迁移、仓储和事务原子性测试。
+2. Gateway 默认决策、回滚和 Control RPC 测试。
+3. 生成 C#/Swift 契约。
+4. Desktop RPC/service/ViewModel/headless UI 测试。
+5. 契约兼容、格式、lint、全仓测试与双平台打包门禁。
+6. 对 diff、错误语义、断言质量和剩余缺口做提交前 review。

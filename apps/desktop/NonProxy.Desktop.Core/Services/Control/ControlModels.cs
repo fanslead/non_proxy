@@ -148,8 +148,18 @@ public sealed record OutboundListItem(
     string Endpoint,
     string Health,
     TimeSpan? Latency,
-    DateTimeOffset? LastCheckedAt)
+    DateTimeOffset? LastCheckedAt,
+    bool IsDefault = false,
+    bool SupportsDefaultRoute = false)
 {
+    public bool CanSetAsDefault => !IsDefault && SupportsDefaultRoute;
+
+    public string DefaultLabel => IsDefault ? "默认代理配置" : string.Empty;
+
+    public string DefaultEligibilityLabel => !IsDefault && !SupportsDefaultRoute
+        ? "不支持全局默认"
+        : string.Empty;
+
     public string LatencyLabel => Latency is { } value
         ? $"{Math.Ceiling(value.TotalMilliseconds):0} ms"
         : "—";
@@ -157,6 +167,14 @@ public sealed record OutboundListItem(
     public string LastCheckedLabel => LastCheckedAt is { } value
         ? value.ToLocalTime().ToString("MM-dd HH:mm:ss", CultureInfo.CurrentCulture)
         : "尚未检查";
+}
+
+public sealed record OutboundCatalog(
+    IReadOnlyList<OutboundListItem> Items,
+    ulong RoutingRevision,
+    string? DefaultOutboundId = null)
+{
+    public bool UsesDirectByDefault => DefaultOutboundId is null;
 }
 
 public sealed record OutboundTestResult(

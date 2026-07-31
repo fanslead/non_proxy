@@ -150,6 +150,19 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "SetDefaultRoute" metadata.
+        public enum SetDefaultRoute: Sendable {
+            /// Request type for "SetDefaultRoute".
+            public typealias Input = Nonproxy_Control_V1_SetDefaultRouteRequest
+            /// Response type for "SetDefaultRoute".
+            public typealias Output = Nonproxy_Control_V1_SetDefaultRouteResponse
+            /// Descriptor for "SetDefaultRoute".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "SetDefaultRoute",
+                type: .unary
+            )
+        }
         /// Namespace for "StartLearningSession" metadata.
         public enum StartLearningSession: Sendable {
             /// Request type for "StartLearningSession".
@@ -253,6 +266,7 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             ListOutbounds.descriptor,
             ImportConfiguration.descriptor,
             TestOutbound.descriptor,
+            SetDefaultRoute.descriptor,
             StartLearningSession.descriptor,
             RecordLearningObservation.descriptor,
             ListLearningCandidates.descriptor,
@@ -471,6 +485,25 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_TestOutboundResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_TestOutboundResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "SetDefaultRoute" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_SetDefaultRouteRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_SetDefaultRouteRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_SetDefaultRouteResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func setDefaultRoute<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_SetDefaultRouteRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_SetDefaultRouteRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_SetDefaultRouteResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_SetDefaultRouteResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "StartLearningSession" method.
@@ -920,6 +953,36 @@ extension Nonproxy_Control_V1_ControlService {
             try await self.client.unary(
                 request: request,
                 descriptor: Nonproxy_Control_V1_ControlService.Method.TestOutbound.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "SetDefaultRoute" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_SetDefaultRouteRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_SetDefaultRouteRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_SetDefaultRouteResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func setDefaultRoute<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_SetDefaultRouteRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_SetDefaultRouteRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_SetDefaultRouteResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_SetDefaultRouteResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.SetDefaultRoute.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1390,6 +1453,31 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
         )
     }
 
+    /// Call the "SetDefaultRoute" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_SetDefaultRouteRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setDefaultRoute<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_SetDefaultRouteRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_SetDefaultRouteResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.setDefaultRoute(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_SetDefaultRouteRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_SetDefaultRouteResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "StartLearningSession" method.
     ///
     /// - Parameters:
@@ -1851,6 +1939,35 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.testOutbound(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "SetDefaultRoute" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setDefaultRoute<Result>(
+        _ message: Nonproxy_Control_V1_SetDefaultRouteRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_SetDefaultRouteResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_SetDefaultRouteRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.setDefaultRoute(
             request: request,
             options: options,
             onResponse: handleResponse

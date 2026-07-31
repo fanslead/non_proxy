@@ -103,3 +103,34 @@
 - 网关探测编排通过内部异步探测函数注入测试结果，避免新单元测试绑定端口或访问外部网络。
 - HTTP CONNECT/SOCKS5 的字节级握手继续由 `nonproxy-outbound` 既有连接器测试覆盖。
 - .NET 通过 `StubControlRpcClient` 和 `RecordingOutboundService` 验证请求、映射及 UI 状态替换。
+
+## 默认代理原子发布批次
+
+### 缺口与根因
+
+- 产品默认模型要求“默认 PROXY，应用/网站例外 DIRECT”，但快照构建器此前把
+  `default_decision` 固定为 `DIRECT`，因此直连规则无法形成例外语义。
+- 出口导入与握手测试只证明配置和连接器可用，没有权威的“选择默认出口”配置。
+- 历史快照回滚返回值也固定声明 `DIRECT`，与 payload 内的真实默认决策可能不一致。
+
+### 设计约束
+
+- `routing_settings` 是单例权威配置，初始为 direct/revision 1，升级不得自动改变
+  既有用户网络路径。
+- 默认路由更新和 pending snapshot 必须共享一个 SQLite Immediate 事务。
+- 默认代理必须引用存在、启用且可承载完整网关的出口，并经 Compiler 再次校验；
+  默认 PROXY 使用 fail-closed。
+- 桌面端使用 routing revision 乐观并发，RPC 成功只表述为 pending ACK。
+- 跨页出口目录必须携带稳定 revision，且最多一个 `is_default`。
+- 回滚必须从历史 payload 解码默认 decision，并原子同步权威默认路由。
+- 当前默认出口不得被后续批量导入停用或改成完整网关不支持的 TCP-only 类型。
+- UI 必须提供恢复默认直连的安全退路；该操作不能绕过快照发布与 Provider ACK。
+
+### 静态配对
+
+- `routing_settings_repository.rs` → `routing_settings_repository.rs` integration tests。
+- `routing_gateway.rs`、`gateway.rs` → `services/gatewayd/tests/gateway.rs`。
+- `control_service.rs` → `control_service/tests.rs`。
+- `GatewayOutboundService.cs` → `GatewayOutboundServiceTests.cs`。
+- `OutboundsViewModel.cs`、`OutboundsView.axaml` →
+  `OutboundsViewModelTests.cs`、`OutboundsViewTests.cs`。

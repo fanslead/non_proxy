@@ -22,6 +22,7 @@ service ControlService {
   rpc ListOutbounds(ListOutboundsRequest) returns (ListOutboundsResponse);
   rpc ImportConfiguration(ImportConfigurationRequest) returns (ImportConfigurationResponse);
   rpc TestOutbound(TestOutboundRequest) returns (TestOutboundResponse);
+  rpc SetDefaultRoute(SetDefaultRouteRequest) returns (SetDefaultRouteResponse);
   rpc StartLearningSession(StartLearningSessionRequest) returns (StartLearningSessionResponse);
   rpc RecordLearningObservation(RecordLearningObservationRequest) returns (RecordLearningObservationResponse);
   rpc ListLearningCandidates(ListLearningCandidatesRequest) returns (ListLearningCandidatesResponse);
@@ -56,6 +57,13 @@ enum OutboundKind {
   OUTBOUND_KIND_WIREGUARD = 4;
   OUTBOUND_KIND_OPENVPN = 5;
   OUTBOUND_KIND_EXTERNAL_ADAPTER = 6;
+}
+
+// DefaultRouteKind 表示未命中用户规则时采用的基础路由。
+enum DefaultRouteKind {
+  DEFAULT_ROUTE_KIND_UNSPECIFIED = 0;
+  DEFAULT_ROUTE_KIND_DIRECT = 1;
+  DEFAULT_ROUTE_KIND_PROXY = 2;
 }
 
 // LearningSessionKind 表示学习会话的上下文。
@@ -132,6 +140,9 @@ message GetSystemStatusResponse {
   uint64 latest_event_sequence = 5;
   nonproxy.common.v1.ErrorDetail error = 6;
   uint64 pending_snapshot_version = 7;
+  DefaultRouteKind default_route = 8;
+  string default_outbound_id = 9;
+  uint64 routing_revision = 10;
 }
 
 // ComponentStatus 描述单个进程或 Provider 的状态。
@@ -241,6 +252,7 @@ message OutboundSummary {
   uint32 endpoint_port = 8;
   google.protobuf.Timestamp last_checked_at = 9;
   google.protobuf.Duration latency = 10;
+  bool is_default = 11;
 }
 
 // ListOutboundsRequest 请求出站列表。
@@ -252,6 +264,7 @@ message ListOutboundsRequest {
 message ListOutboundsResponse {
   repeated OutboundSummary outbounds = 1;
   nonproxy.common.v1.PageResponse page = 2;
+  uint64 routing_revision = 3;
 }
 
 // ImportConfigurationRequest 发送有大小上限且不得记录日志的配置内容。
@@ -281,6 +294,23 @@ message TestOutboundRequest {
 message TestOutboundResponse {
   bool healthy = 1;
   google.protobuf.Duration latency = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// SetDefaultRouteRequest 原子修改默认路由并生成新的待确认快照。
+message SetDefaultRouteRequest {
+  OperationContext context = 1;
+  oneof route {
+    bool direct = 2;
+    string outbound_id = 3;
+  }
+  uint64 expected_routing_revision = 4;
+}
+
+// SetDefaultRouteResponse 返回持久化 revision 和待确认快照。
+message SetDefaultRouteResponse {
+  uint64 routing_revision = 1;
+  nonproxy.policy.v1.PolicySnapshotMetadata snapshot = 2;
   nonproxy.common.v1.ErrorDetail error = 3;
 }
 

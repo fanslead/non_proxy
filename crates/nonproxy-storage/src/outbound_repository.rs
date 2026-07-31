@@ -41,6 +41,7 @@ impl<'connection> OutboundRepository<'connection> {
         for (outbound, expected_revision) in outbounds {
             validate_revision(&transaction, outbound, *expected_revision)?;
         }
+        validate_default_outbound(&transaction, outbounds)?;
         for (outbound, _) in outbounds {
             save_outbound(&transaction, outbound, updated_at_unix_ms)?;
         }
@@ -94,6 +95,31 @@ impl<'connection> OutboundRepository<'connection> {
             })
             .collect()
     }
+}
+
+fn validate_default_outbound(
+    transaction: &Transaction<'_>,
+    outbounds: &[(OutboundReference, Option<u64>)],
+) -> Result<(), StorageError> {
+    let default_outbound_id = transaction
+        .query_row(
+            "SELECT default_outbound_id
+             FROM routing_settings
+             WHERE singleton_id = 1 AND default_action = 'proxy'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    let Some(default_outbound_id) = default_outbound_id else {
+        return Ok(());
+    };
+    if outbounds.iter().any(|(outbound, _)| {
+        outbound.id().as_str() == default_outbound_id
+            && (!outbound.enabled() || outbound.kind() != OutboundKind::Socks5)
+    }) {
+        return Err(StorageError::DefaultOutboundUnavailable);
+    }
+    Ok(())
 }
 
 fn save_outbound(

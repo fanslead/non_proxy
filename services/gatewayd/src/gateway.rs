@@ -9,8 +9,8 @@ use nonproxy_model::{DecisionSpec, DomainName, OutboundId, Policy, PolicyId};
 use nonproxy_policy::CompiledPolicySnapshot;
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
 use nonproxy_storage::{
-    OutboundReference, PolicyDatabase, ProviderAck, ProviderAckState, SnapshotArtifact,
-    SnapshotRecord, StorageError, SyntheticDnsBinding,
+    OutboundReference, PolicyDatabase, ProviderAck, ProviderAckState, RoutingSettings,
+    SnapshotArtifact, SnapshotRecord, StorageError, SyntheticDnsBinding,
 };
 use tokio::sync::Mutex;
 
@@ -22,6 +22,7 @@ use crate::{
     outbound_health::{OutboundHealthObservation, OutboundHealthRegistry},
     provider_health::ProviderHealthRegistry,
     provider_requirements,
+    routing_gateway::decision_for_route,
     runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, build_runtime_catalog},
     snapshot_builder::build_snapshot,
     snapshot_payload,
@@ -55,6 +56,7 @@ pub struct GatewayStatus {
     pub pending: Option<SnapshotRecord>,
     pub policy_count: usize,
     pub data_plane_ready: bool,
+    pub routing: RoutingSettings,
 }
 
 impl Gateway {
@@ -99,11 +101,13 @@ impl Gateway {
                 let active = database.snapshots().active()?;
                 let pending = database.snapshots().pending()?;
                 let policy_count = database.policies().list()?.len();
+                let routing = database.routing_settings().get()?;
                 Ok(GatewayStatus {
                     active,
                     pending,
                     policy_count,
                     data_plane_ready: false,
+                    routing,
                 })
             })
             .await?;
@@ -186,6 +190,7 @@ impl Gateway {
             .run(move |database| {
                 let policies = database.policies().list()?;
                 let outbounds = database.outbounds().list()?;
+                let routing = database.routing_settings().get()?;
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
                 let snapshot_version = current
                     .checked_add(1)
@@ -194,6 +199,7 @@ impl Gateway {
                     capabilities,
                     &policies,
                     &outbounds,
+                    decision_for_route(routing.route())?,
                     snapshot_version,
                     now_unix_ms,
                 )?;
@@ -207,23 +213,7 @@ impl Gateway {
         &self,
         target_snapshot_version: u64,
     ) -> Result<PublishedSnapshot, GatewayError> {
-        let _operation = self.mutation_gate.lock().await;
-        let now = unix_time_ms()?;
-        self.database
-            .run(move |database| {
-                let current = database.snapshots().latest_version()?.unwrap_or(0);
-                let next = current
-                    .checked_add(1)
-                    .ok_or(GatewayError::SnapshotVersionExhausted)?;
-                let artifact =
-                    database
-                        .snapshots()
-                        .stage_rollback(next, target_snapshot_version, now)?;
-                Ok(PublishedSnapshot {
-                    artifact,
-                    default_decision: DecisionSpec::direct(),
-                })
-            })
+        self.stage_rollback_with_route(target_snapshot_version)
             .await
     }
 

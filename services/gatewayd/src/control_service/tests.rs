@@ -6,11 +6,12 @@ use nonproxy_model::{
 };
 use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::control::v1::{
-    ApplyPolicySnapshotRequest, ConfirmLearningCandidatesRequest, ImportConfigurationRequest,
-    LearningObservationKind, LearningResourceType, LearningSessionKind,
-    ListLearningCandidatesRequest, ListOutboundsRequest, OperationContext,
-    RecordLearningObservationRequest, StartLearningSessionRequest, StopLearningSessionRequest,
-    TestOutboundRequest, UpsertPolicyRequest, control_service_server::ControlService,
+    ApplyPolicySnapshotRequest, ConfirmLearningCandidatesRequest, DefaultRouteKind,
+    GetSystemStatusRequest, ImportConfigurationRequest, LearningObservationKind,
+    LearningResourceType, LearningSessionKind, ListLearningCandidatesRequest, ListOutboundsRequest,
+    OperationContext, RecordLearningObservationRequest, SetDefaultRouteRequest,
+    StartLearningSessionRequest, StopLearningSessionRequest, TestOutboundRequest,
+    UpsertPolicyRequest, control_service_server::ControlService, set_default_route_request,
     start_learning_session_request,
 };
 use nonproxy_proto::events::v1::{LearningCandidateKind, RuntimeState, event_envelope};
@@ -112,6 +113,135 @@ async fn list_outbounds_returns_fresh_probe_observation() {
     assert!(matches!(
         outbound.latency,
         Some(value) if value.seconds == 0 && value.nanos == 42_000_000
+    ));
+}
+
+#[tokio::test]
+async fn authenticated_default_route_change_is_visible_in_status_and_catalog() {
+    let database = match PolicyDatabase::open_in_memory(1) {
+        Ok(value) => value,
+        Err(error) => panic!("默认路由 RPC 测试数据库打开失败: {error}"),
+    };
+    let gateway = Gateway::new(database, CompileCapabilities::full());
+    let outbound_id = match OutboundId::new("primary") {
+        Ok(value) => value,
+        Err(error) => panic!("默认路由 RPC 测试 ID 创建失败: {error}"),
+    };
+    let outbound = match OutboundReference::new(
+        outbound_id,
+        OutboundKind::Socks5,
+        Some("127.0.0.1"),
+        Some(1_080),
+        None,
+        1,
+    ) {
+        Ok(value) => value,
+        Err(error) => panic!("默认路由 RPC 测试出口创建失败: {error}"),
+    };
+    if let Err(error) = gateway.save_outbounds(vec![(outbound, None)]).await {
+        panic!("默认路由 RPC 测试出口保存失败: {error}");
+    }
+    let service = ControlRpcService::new(gateway.clone(), SessionCapability::from_token([7; 32]));
+
+    let changed = service
+        .set_default_route(Request::new(SetDefaultRouteRequest {
+            context: Some(context([7; 32], "set-default-route")),
+            expected_routing_revision: 1,
+            route: Some(set_default_route_request::Route::OutboundId(
+                "primary".to_owned(),
+            )),
+        }))
+        .await;
+    let Ok(changed) = changed else {
+        panic!("默认路由 RPC 修改失败: {changed:?}");
+    };
+    let changed = changed.into_inner();
+    assert!(changed.error.is_none());
+    assert_eq!(changed.routing_revision, 2);
+    assert!(matches!(
+        changed.snapshot,
+        Some(value) if value.snapshot_version == 1
+    ));
+
+    let status = service
+        .get_system_status(Request::new(GetSystemStatusRequest {}))
+        .await;
+    let Ok(status) = status else {
+        panic!("默认路由状态读取失败: {status:?}");
+    };
+    let status = status.into_inner();
+    assert_eq!(status.default_route, DefaultRouteKind::Proxy as i32);
+    assert_eq!(status.default_outbound_id, "primary");
+    assert_eq!(status.routing_revision, 2);
+
+    let listed = service
+        .list_outbounds(Request::new(ListOutboundsRequest { page: None }))
+        .await;
+    let Ok(listed) = listed else {
+        panic!("默认出口列表读取失败: {listed:?}");
+    };
+    let listed = listed.into_inner();
+    assert_eq!(listed.routing_revision, 2);
+    assert!(matches!(
+        listed.outbounds.as_slice(),
+        [value] if value.id == "primary" && value.is_default
+    ));
+
+    let stale = service
+        .set_default_route(Request::new(SetDefaultRouteRequest {
+            context: Some(context([7; 32], "set-default-route-stale")),
+            expected_routing_revision: 1,
+            route: Some(set_default_route_request::Route::Direct(true)),
+        }))
+        .await;
+    assert!(matches!(
+        stale,
+        Ok(value)
+            if value.get_ref().routing_revision == 0
+                && matches!(
+                    value.get_ref().error.as_ref(),
+                    Some(error) if error.code == "NP_ROUTING_REVISION_CONFLICT"
+                )
+    ));
+}
+
+#[tokio::test]
+async fn default_route_change_requires_the_exact_session_capability() {
+    let service = service([7; 32]);
+    let result = service
+        .set_default_route(Request::new(SetDefaultRouteRequest {
+            context: Some(context([8; 32], "set-default-route")),
+            expected_routing_revision: 1,
+            route: Some(set_default_route_request::Route::Direct(true)),
+        }))
+        .await;
+
+    assert!(matches!(
+        result,
+        Err(status) if status.code() == Code::PermissionDenied
+    ));
+}
+
+#[tokio::test]
+async fn authenticated_request_can_restore_direct_as_an_explicit_route() {
+    let service = service([7; 32]);
+    let result = service
+        .set_default_route(Request::new(SetDefaultRouteRequest {
+            context: Some(context([7; 32], "set-direct-route")),
+            expected_routing_revision: 1,
+            route: Some(set_default_route_request::Route::Direct(true)),
+        }))
+        .await;
+    let Ok(result) = result else {
+        panic!("恢复默认直连 RPC 失败: {result:?}");
+    };
+    let result = result.into_inner();
+
+    assert!(result.error.is_none());
+    assert_eq!(result.routing_revision, 2);
+    assert!(matches!(
+        result.snapshot,
+        Some(value) if value.snapshot_version == 1
     ));
 }
 

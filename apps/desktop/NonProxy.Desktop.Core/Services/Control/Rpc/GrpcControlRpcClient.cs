@@ -199,6 +199,79 @@ public sealed class GrpcControlRpcClient : IControlRpcClient, IDisposable
                 Options(OutboundProbeRpcTimeout, cancellationToken)).ResponseAsync);
     }
 
+    public async Task<SetDefaultRouteResponse> SetDefaultRouteAsync(
+        string outboundId,
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outboundId);
+        ValidateRoutingRevision(expectedRoutingRevision);
+        var context = await _contextProvider.CreateAsync(
+            "set-default-route",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.SetDefaultRouteAsync(
+                CreateSetDefaultRouteRequest(
+                    outboundId,
+                    expectedRoutingRevision,
+                    context),
+                MutationOptions(cancellationToken)).ResponseAsync);
+    }
+
+    public async Task<SetDefaultRouteResponse> SetDirectRouteAsync(
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken)
+    {
+        ValidateRoutingRevision(expectedRoutingRevision);
+        var context = await _contextProvider.CreateAsync(
+            "set-direct-route",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.SetDefaultRouteAsync(
+                CreateSetDirectRouteRequest(
+                    expectedRoutingRevision,
+                    context),
+                MutationOptions(cancellationToken)).ResponseAsync);
+    }
+
+    internal static SetDefaultRouteRequest CreateSetDefaultRouteRequest(
+        string outboundId,
+        ulong expectedRoutingRevision,
+        OperationContext context)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outboundId);
+        ValidateRoutingRevision(expectedRoutingRevision);
+        ArgumentNullException.ThrowIfNull(context);
+        return new SetDefaultRouteRequest
+        {
+            Context = context,
+            OutboundId = outboundId,
+            ExpectedRoutingRevision = expectedRoutingRevision,
+        };
+    }
+
+    internal static SetDefaultRouteRequest CreateSetDirectRouteRequest(
+        ulong expectedRoutingRevision,
+        OperationContext context)
+    {
+        ValidateRoutingRevision(expectedRoutingRevision);
+        ArgumentNullException.ThrowIfNull(context);
+        return new SetDefaultRouteRequest
+        {
+            Context = context,
+            Direct = true,
+            ExpectedRoutingRevision = expectedRoutingRevision,
+        };
+    }
+
+    private static void ValidateRoutingRevision(ulong expectedRoutingRevision)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(expectedRoutingRevision);
+        ArgumentOutOfRangeException.ThrowIfEqual(
+            expectedRoutingRevision,
+            ulong.MaxValue);
+    }
+
     internal static TestOutboundRequest CreateTestOutboundRequest(
         string outboundId,
         OperationContext context)

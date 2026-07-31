@@ -1,11 +1,14 @@
+mod support;
+
 use nonproxy_model::{
     AppMatcher, DecisionSpec, FailureMode, OutboundId, Platform, Policy, PolicyId, PolicyMatch,
     PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction,
 };
 use nonproxy_storage::{
-    CredentialKind, CredentialReference, OutboundKind, OutboundReference, PolicyDatabase,
-    StorageError,
+    CredentialKind, CredentialReference, DefaultRoute, OutboundKind, OutboundReference,
+    PolicyDatabase, StorageError,
 };
+use support::artifact;
 
 fn outbound(revision: u64) -> OutboundReference {
     let credential = match CredentialReference::new(
@@ -179,6 +182,54 @@ fn outbound_batch_rolls_back_every_item_on_revision_conflict() {
     ));
     let loaded = database.outbounds().get(new_outbound.id());
     assert!(matches!(loaded, Ok(None)));
+}
+
+#[test]
+fn active_default_outbound_cannot_be_disabled_or_limited_to_tcp() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let initial = outbound_with_id("default-proxy", 1, None);
+    if let Err(error) = database.outbounds().save(&initial, None, 1_100) {
+        panic!("默认出口保存失败: {error}");
+    }
+    let snapshot = artifact(1, 5);
+    let Ok(snapshot) = snapshot else {
+        panic!("默认出口测试快照创建失败: {snapshot:?}");
+    };
+    if let Err(error) = database.routing_settings().set_and_stage(
+        &DefaultRoute::Proxy(initial.id().clone()),
+        1,
+        &snapshot,
+        1_200,
+    ) {
+        panic!("默认出口选择失败: {error}");
+    }
+    let disabled = outbound_with_id("default-proxy", 2, None).disabled();
+    assert!(matches!(
+        database.outbounds().save(&disabled, Some(1), 1_300),
+        Err(StorageError::DefaultOutboundUnavailable)
+    ));
+    let limited = OutboundReference::new(
+        initial.id().clone(),
+        OutboundKind::HttpConnect,
+        Some("proxy.example.com"),
+        Some(8_080),
+        None,
+        2,
+    );
+    let Ok(limited) = limited else {
+        panic!("受限默认出口创建失败: {limited:?}");
+    };
+    assert!(matches!(
+        database.outbounds().save(&limited, Some(1), 1_400),
+        Err(StorageError::DefaultOutboundUnavailable)
+    ));
+    assert!(matches!(
+        database.outbounds().get(initial.id()),
+        Ok(Some(value)) if value == initial
+    ));
 }
 
 fn proxy_policy(outbound_id: OutboundId) -> Policy {

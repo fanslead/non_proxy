@@ -58,12 +58,13 @@ public sealed class DisconnectedPolicyService : IPolicyService
 
 public sealed class DisconnectedOutboundService : IOutboundService
 {
-    public Task<IReadOnlyList<OutboundListItem>> ListAsync(
+    public Task<OutboundCatalog> ListAsync(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult<IReadOnlyList<OutboundListItem>>(
-            Array.Empty<OutboundListItem>());
+        return Task.FromResult(new OutboundCatalog(
+            Array.Empty<OutboundListItem>(),
+            0));
     }
 
     public Task<OutboundImportResult> ImportAsync(
@@ -86,6 +87,24 @@ public sealed class DisconnectedOutboundService : IOutboundService
         throw new ControlServiceException(
             "NP_CONTROL_UNAVAILABLE",
             "控制服务尚未连接，无法测试代理握手。");
+    }
+
+    public Task<ApplyResult> SetDefaultAsync(
+        string outboundId,
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outboundId);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ApplyResult.Unavailable);
+    }
+
+    public Task<ApplyResult> SetDirectAsync(
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ApplyResult.Unavailable);
     }
 }
 

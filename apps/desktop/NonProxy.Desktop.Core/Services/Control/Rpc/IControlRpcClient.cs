@@ -41,6 +41,15 @@ public interface IControlRpcClient
         string outboundId,
         CancellationToken cancellationToken);
 
+    Task<SetDefaultRouteResponse> SetDefaultRouteAsync(
+        string outboundId,
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken);
+
+    Task<SetDefaultRouteResponse> SetDirectRouteAsync(
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken);
+
     Task<StartLearningSessionResponse> StartLearningSessionAsync(
         StartLearningSessionRequest request,
         CancellationToken cancellationToken);

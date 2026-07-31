@@ -67,7 +67,8 @@ public sealed class OutboundsViewModelTests
                 "127.0.0.1:8080",
                 "未验证",
                 null,
-                null));
+                null,
+                SupportsDefaultRoute: true));
         using var services = TestPlatformServices.Create(
             configure: collection =>
                 collection.AddSingleton<IOutboundService>(outboundService));
@@ -84,6 +85,78 @@ public sealed class OutboundsViewModelTests
         Assert.Contains("不代表公网出口", viewModel.OperationMessage, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task SetDefaultReloadsOnlyAfterServerAcceptsPendingSnapshot()
+    {
+        var outboundService = new RecordingOutboundService();
+        outboundService.Seed(
+            new OutboundListItem(
+                "office",
+                "Office",
+                "SOCKS5",
+                "127.0.0.1:1080",
+                "未验证",
+                null,
+                null,
+                SupportsDefaultRoute: true));
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+                collection.AddSingleton<IOutboundService>(outboundService));
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        await viewModel.SetDefaultCommand.ExecuteAsync(viewModel.Items[0]);
+
+        Assert.Equal("office", outboundService.LastDefaultOutboundId);
+        Assert.Equal<ulong>(1, outboundService.LastExpectedRoutingRevision);
+        Assert.True(Assert.Single(viewModel.Items).IsDefault);
+        Assert.Contains("等待系统组件确认", viewModel.OperationMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RestoreDirectClearsDefaultProxyAfterServerAcceptance()
+    {
+        var outboundService = new RecordingOutboundService();
+        outboundService.Seed(
+            new OutboundListItem(
+                "office",
+                "Office",
+                "SOCKS5",
+                "127.0.0.1:1080",
+                "未验证",
+                null,
+                null,
+                IsDefault: true,
+                SupportsDefaultRoute: true));
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+                collection.AddSingleton<IOutboundService>(outboundService));
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        await viewModel.SetDirectCommand.ExecuteAsync(null);
+
+        Assert.True(outboundService.LastRouteWasDirect);
+        Assert.False(Assert.Single(viewModel.Items).IsDefault);
+        Assert.Contains("默认直连", viewModel.DefaultRouteSummary, StringComparison.Ordinal);
+        Assert.Contains("等待系统组件确认", viewModel.OperationMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DisconnectedCatalogDoesNotClaimDirectConfiguration()
+    {
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+                collection.AddSingleton<IOutboundService>(
+                    new DisconnectedOutboundService()));
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        Assert.Contains("无法读取", viewModel.DefaultRouteSummary, StringComparison.Ordinal);
+        Assert.False(viewModel.SetDirectCommand.CanExecute(null));
+    }
+
     private sealed class RecordingOutboundService : IOutboundService
     {
         private readonly List<OutboundListItem> _items = [];
@@ -92,17 +165,27 @@ public sealed class OutboundsViewModelTests
 
         public string? LastTestedOutboundId { get; private set; }
 
+        public string? LastDefaultOutboundId { get; private set; }
+
+        public ulong LastExpectedRoutingRevision { get; private set; }
+
+        public bool LastRouteWasDirect { get; private set; }
+
+        private ulong RoutingRevision { get; set; } = 1;
+
         public void Seed(params OutboundListItem[] items)
         {
             _items.AddRange(items);
         }
 
-        public Task<IReadOnlyList<OutboundListItem>> ListAsync(
+        public Task<OutboundCatalog> ListAsync(
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult<IReadOnlyList<OutboundListItem>>(
-                _items.ToArray());
+            return Task.FromResult(new OutboundCatalog(
+                _items.ToArray(),
+                RoutingRevision,
+                _items.SingleOrDefault(item => item.IsDefault)?.Id));
         }
 
         public Task<OutboundImportResult> ImportAsync(
@@ -141,6 +224,75 @@ public sealed class OutboundsViewModelTests
                     "2026-07-31T01:02:03Z",
                     CultureInfo.InvariantCulture),
                 "代理握手成功；该结果不代表公网出口 IP 或最终规则路径已经验证。"));
+        }
+
+        public Task<ApplyResult> SetDefaultAsync(
+            string outboundId,
+            ulong expectedRoutingRevision,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LastDefaultOutboundId = outboundId;
+            LastExpectedRoutingRevision = expectedRoutingRevision;
+            if (expectedRoutingRevision != RoutingRevision)
+            {
+                return Task.FromResult(new ApplyResult(
+                    false,
+                    false,
+                    "NP_ROUTING_REVISION_CONFLICT",
+                    "默认路由已变化。",
+                    null));
+            }
+
+            RoutingRevision++;
+            for (var index = 0; index < _items.Count; index++)
+            {
+                _items[index] = _items[index] with
+                {
+                    IsDefault = string.Equals(
+                        _items[index].Id,
+                        outboundId,
+                        StringComparison.Ordinal),
+                };
+            }
+
+            return Task.FromResult(new ApplyResult(
+                true,
+                false,
+                "NP_SNAPSHOT_PENDING_ACK",
+                "默认代理已保存，新的路由快照正在等待系统组件确认。",
+                1));
+        }
+
+        public Task<ApplyResult> SetDirectAsync(
+            ulong expectedRoutingRevision,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LastExpectedRoutingRevision = expectedRoutingRevision;
+            LastRouteWasDirect = true;
+            if (expectedRoutingRevision != RoutingRevision)
+            {
+                return Task.FromResult(new ApplyResult(
+                    false,
+                    false,
+                    "NP_ROUTING_REVISION_CONFLICT",
+                    "默认路由已变化。",
+                    null));
+            }
+
+            RoutingRevision++;
+            for (var index = 0; index < _items.Count; index++)
+            {
+                _items[index] = _items[index] with { IsDefault = false };
+            }
+
+            return Task.FromResult(new ApplyResult(
+                true,
+                false,
+                "NP_SNAPSHOT_PENDING_ACK",
+                "默认直连已保存，新的路由快照正在等待系统组件确认。",
+                2));
         }
     }
 }

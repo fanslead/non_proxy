@@ -8,11 +8,11 @@ pub(crate) fn build_snapshot(
     capabilities: CompileCapabilities,
     policies: &[Policy],
     outbounds: &[OutboundReference],
+    default_decision: DecisionSpec,
     snapshot_version: u64,
     created_at_unix_ms: u64,
 ) -> Result<PublishedSnapshot, GatewayError> {
     let capabilities = outbound_capabilities::for_configured_outbounds(capabilities, outbounds);
-    let default_decision = DecisionSpec::direct();
     let compiled = PolicyCompiler::compile(CompileRequest::new(
         snapshot_version,
         created_at_unix_ms,

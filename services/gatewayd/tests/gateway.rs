@@ -4,11 +4,14 @@ use nonproxy_learning::{
     LearningResourceType, LearningSession, LearningSessionId, LearningSubject, ObservationId,
 };
 use nonproxy_model::{
-    DecisionSpec, DomainMatchKind, DomainMatcher, DomainName, Policy, PolicyId, PolicyMatch,
-    PolicyMetadata, PolicyOrigin, PolicySourceKind,
+    DecisionSpec, DomainMatchKind, DomainMatcher, DomainName, OutboundId, Policy, PolicyId,
+    PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction,
 };
 use nonproxy_policy_compiler::{CompileCapabilities, CompileError};
-use nonproxy_storage::{LearningPolicySelection, PolicyDatabase, StorageError};
+use nonproxy_storage::{
+    DefaultRoute, LearningPolicySelection, OutboundKind, OutboundReference, PolicyDatabase,
+    ProviderAck, StorageError,
+};
 
 #[tokio::test]
 async fn policy_draft_round_trip_preserves_authoritative_model() {
@@ -79,6 +82,84 @@ async fn validated_snapshot_is_staged_and_payload_can_be_rebuilt() {
             .map(|value| value.artifact().snapshot_version()),
         Some(1)
     );
+}
+
+#[tokio::test]
+async fn selecting_default_proxy_stages_a_proxy_default_snapshot() {
+    let gateway = gateway();
+    let outbound = proxy_outbound("primary-proxy");
+    if let Err(error) = gateway.save_outbounds(vec![(outbound.clone(), None)]).await {
+        panic!("默认代理测试出口保存失败: {error}");
+    }
+
+    let update = gateway
+        .set_default_route_and_stage(DefaultRoute::Proxy(outbound.id().clone()), 1)
+        .await;
+    let Ok(update) = update else {
+        panic!("默认代理设置失败: {update:?}");
+    };
+    let decoded = decode_snapshot_payload(update.snapshot().artifact().payload());
+    let Ok((_policies, _capabilities, decision)) = decoded else {
+        panic!("默认代理快照解码失败: {decoded:?}");
+    };
+    let settings = gateway.routing_settings().await;
+    let Ok(settings) = settings else {
+        panic!("默认代理配置读取失败: {settings:?}");
+    };
+
+    assert_eq!(update.settings().revision(), 2);
+    assert_eq!(
+        update.settings().route(),
+        &DefaultRoute::Proxy(outbound.id().clone())
+    );
+    assert_eq!(decision.action(), RouteAction::Proxy);
+    assert_eq!(decision.outbound_id(), Some(outbound.id()));
+    assert_eq!(settings, update.settings().clone());
+}
+
+#[tokio::test]
+async fn rollback_restores_the_source_snapshot_default_route() {
+    let gateway = gateway();
+    let outbound = proxy_outbound("rollback-proxy");
+    if let Err(error) = gateway.save_outbounds(vec![(outbound.clone(), None)]).await {
+        panic!("回滚测试出口保存失败: {error}");
+    }
+    let proxy = gateway
+        .set_default_route_and_stage(DefaultRoute::Proxy(outbound.id().clone()), 1)
+        .await;
+    let Ok(proxy) = proxy else {
+        panic!("回滚测试代理快照暂存失败: {proxy:?}");
+    };
+    activate(&gateway, proxy.snapshot()).await;
+
+    let direct = gateway
+        .set_default_route_and_stage(DefaultRoute::Direct, 2)
+        .await;
+    let Ok(direct) = direct else {
+        panic!("回滚测试直连快照暂存失败: {direct:?}");
+    };
+    activate(&gateway, direct.snapshot()).await;
+
+    let rollback = gateway.stage_rollback(1).await;
+    let Ok(rollback) = rollback else {
+        panic!("回滚快照暂存失败: {rollback:?}");
+    };
+    let settings = gateway.routing_settings().await;
+    let Ok(settings) = settings else {
+        panic!("回滚后的默认路由读取失败: {settings:?}");
+    };
+
+    assert_eq!(rollback.artifact().snapshot_version(), 3);
+    assert_eq!(rollback.default_decision().action(), RouteAction::Proxy);
+    assert_eq!(
+        rollback.default_decision().outbound_id(),
+        Some(outbound.id())
+    );
+    assert_eq!(
+        settings.route(),
+        &DefaultRoute::Proxy(outbound.id().clone())
+    );
+    assert_eq!(settings.revision(), 4);
 }
 
 #[tokio::test]
@@ -418,6 +499,50 @@ fn gateway() -> Gateway {
         panic!("测试数据库打开失败: {database:?}");
     };
     Gateway::new(database, CompileCapabilities::full())
+}
+
+fn proxy_outbound(id: &str) -> OutboundReference {
+    let id = OutboundId::new(id);
+    let Ok(id) = id else {
+        panic!("测试出口 ID 无效: {id:?}");
+    };
+    let outbound = OutboundReference::new(
+        id,
+        OutboundKind::Socks5,
+        Some("127.0.0.1"),
+        Some(1080),
+        None,
+        1,
+    );
+    let Ok(outbound) = outbound else {
+        panic!("测试出口无效: {outbound:?}");
+    };
+    outbound
+}
+
+async fn activate(gateway: &Gateway, snapshot: &nonproxy_gatewayd::PublishedSnapshot) {
+    let providers = vec!["transparent-proxy".to_owned(), "dns-proxy".to_owned()];
+    for provider in &providers {
+        let ack = ProviderAck::loaded(
+            provider,
+            snapshot.artifact().snapshot_version(),
+            *snapshot.artifact().content_hash(),
+            1_000,
+        );
+        let Ok(ack) = ack else {
+            panic!("测试 Provider ACK 创建失败: {ack:?}");
+        };
+        if let Err(error) = gateway
+            .acknowledge_provider_snapshot(
+                snapshot.artifact().snapshot_version(),
+                ack,
+                providers.clone(),
+            )
+            .await
+        {
+            panic!("测试快照激活失败: {error}");
+        }
+    }
 }
 
 fn site_policy(id: &str, domain: &str, revision: u64) -> Policy {

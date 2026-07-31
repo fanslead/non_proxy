@@ -9,7 +9,9 @@ use nonproxy_proto::{
     events::v1::RuntimeState,
     policy::v1::{PolicyConflict as ProtoPolicyConflict, PolicySnapshotMetadata, SnapshotState},
 };
-use nonproxy_storage::{OutboundKind, OutboundReference, SnapshotArtifact, SnapshotStatus};
+use nonproxy_storage::{
+    DefaultRoute, OutboundKind, OutboundReference, SnapshotArtifact, SnapshotStatus,
+};
 
 use crate::{
     GatewayError, RuntimePolicyRecord, RuntimePolicyState, clock::timestamp_from_unix_ms,
@@ -91,6 +93,7 @@ pub fn capability_names(capabilities: &CompileCapabilities) -> Vec<i32> {
 pub fn outbound_summary(
     value: &OutboundReference,
     health: Option<&OutboundHealthObservation>,
+    is_default: bool,
 ) -> OutboundSummary {
     let (kind, capabilities) = match value.kind() {
         OutboundKind::HttpConnect => (
@@ -126,6 +129,21 @@ pub fn outbound_summary(
         latency: health
             .and_then(|value| value.latency_ms)
             .and_then(duration_from_millis),
+        is_default,
+    }
+}
+
+#[must_use]
+pub fn default_route(route: &DefaultRoute) -> (i32, String) {
+    match route {
+        DefaultRoute::Direct => (
+            nonproxy_proto::control::v1::DefaultRouteKind::Direct as i32,
+            String::new(),
+        ),
+        DefaultRoute::Proxy(outbound_id) => (
+            nonproxy_proto::control::v1::DefaultRouteKind::Proxy as i32,
+            outbound_id.as_str().to_owned(),
+        ),
     }
 }
 

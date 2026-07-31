@@ -9,6 +9,7 @@ use nonproxy_proto::{
     events::v1::RuntimeState,
     policy::v1::SnapshotState,
 };
+use nonproxy_storage::DefaultRoute;
 use tokio_stream::{Stream, StreamExt, wrappers::BroadcastStream};
 use tonic::{Request, Response, Status};
 
@@ -23,6 +24,7 @@ use crate::{
     control_rpc_service::ControlRpcService,
     learning_rpc, outbound_import_service, outbound_probe,
     proto_policy::{policy_from_proto, policy_to_proto},
+    routing_rpc,
 };
 
 #[tonic::async_trait]
@@ -53,6 +55,8 @@ impl ControlService for ControlRpcService {
             last_seen_at: Some(timestamp_from_unix_ms(now).map_err(internal_status)?),
             error: None,
         };
+        let (default_route, default_outbound_id) =
+            control_mapping::default_route(status.routing.route());
         Ok(Response::new(control_proto::GetSystemStatusResponse {
             state: state as i32,
             active_snapshot_version: active_version,
@@ -65,6 +69,9 @@ impl ControlService for ControlRpcService {
                 .map_err(internal_status)?,
             error: None,
             pending_snapshot_version: pending_version,
+            default_route,
+            default_outbound_id,
+            routing_revision: status.routing.revision(),
         }))
     }
 
@@ -239,9 +246,9 @@ impl ControlService for ControlRpcService {
         request: Request<control_proto::ListOutboundsRequest>,
     ) -> Result<Response<control_proto::ListOutboundsResponse>, Status> {
         let request = request.into_inner();
-        let outbounds = self
+        let (outbounds, routing) = self
             .gateway
-            .list_outbounds()
+            .list_outbounds_with_routing()
             .await
             .map_err(internal_status)?;
         let page = request.page.unwrap_or(PageRequest {
@@ -261,10 +268,15 @@ impl ControlService for ControlRpcService {
                 .iter()
                 .zip(health.iter())
                 .map(|(outbound, health)| {
-                    control_mapping::outbound_summary(outbound, health.as_ref())
+                    let is_default = matches!(
+                        routing.route(),
+                        DefaultRoute::Proxy(outbound_id) if outbound_id == outbound.id()
+                    );
+                    control_mapping::outbound_summary(outbound, health.as_ref(), is_default)
                 })
                 .collect(),
             page: Some(page_response),
+            routing_revision: routing.revision(),
         }))
     }
 
@@ -296,6 +308,15 @@ impl ControlService for ControlRpcService {
                 request.into_inner(),
             )
             .await,
+        ))
+    }
+
+    async fn set_default_route(
+        &self,
+        request: Request<control_proto::SetDefaultRouteRequest>,
+    ) -> Result<Response<control_proto::SetDefaultRouteResponse>, Status> {
+        Ok(Response::new(
+            routing_rpc::set_default_route(self, request.into_inner()).await?,
         ))
     }
 

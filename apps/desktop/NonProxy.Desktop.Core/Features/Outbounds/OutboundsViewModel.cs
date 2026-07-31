@@ -10,6 +10,7 @@ namespace NonProxy.Desktop.Core.Features.Outbounds;
 public sealed partial class OutboundsViewModel : LoadableViewModel
 {
     private readonly IOutboundService _outboundService;
+    private ulong _routingRevision;
 
     [ObservableProperty]
     private string _outboundId = "local-proxy";
@@ -35,12 +36,23 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
     [ObservableProperty]
     private string? _operationMessage;
 
+    [ObservableProperty]
+    private string _defaultRouteSummary = "配置：读取中";
+
+    private bool _usesDirectByDefault = true;
+
     public OutboundsViewModel(IOutboundService outboundService)
         : base("网络出口")
     {
         _outboundService = outboundService;
         ImportCommand = new AsyncRelayCommand(ImportAsync, CanImport);
         TestCommand = new AsyncRelayCommand<OutboundListItem>(TestAsync);
+        SetDefaultCommand = new AsyncRelayCommand<OutboundListItem>(
+            SetDefaultAsync,
+            CanSetDefault);
+        SetDirectCommand = new AsyncRelayCommand(
+            SetDirectAsync,
+            CanSetDirect);
     }
 
     public static IReadOnlyList<OutboundKindOption> KindOptions { get; } =
@@ -54,6 +66,10 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
     public IAsyncRelayCommand ImportCommand { get; }
 
     public IAsyncRelayCommand<OutboundListItem> TestCommand { get; }
+
+    public IAsyncRelayCommand<OutboundListItem> SetDefaultCommand { get; }
+
+    public IAsyncRelayCommand SetDirectCommand { get; }
 
     partial void OnOutboundIdChanged(string value)
     {
@@ -82,12 +98,21 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
 
     protected override async Task LoadCoreAsync(CancellationToken cancellationToken)
     {
-        var items = await _outboundService.ListAsync(cancellationToken);
+        var catalog = await _outboundService.ListAsync(cancellationToken);
+        _routingRevision = catalog.RoutingRevision;
+        _usesDirectByDefault = catalog.UsesDirectByDefault;
+        DefaultRouteSummary = _routingRevision == 0
+            ? "配置：暂时无法读取"
+            : catalog.DefaultOutboundId is { } outboundId
+                ? $"配置：未命中规则时使用代理 {outboundId}"
+                : "配置：未命中规则时默认直连";
         Items.Clear();
-        foreach (var item in items.OrderBy(item => item.Name))
+        foreach (var item in catalog.Items.OrderBy(item => item.Name))
         {
             Items.Add(item);
         }
+        SetDefaultCommand.NotifyCanExecuteChanged();
+        SetDirectCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanImport()
@@ -163,6 +188,63 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
                 }
 
                 OperationMessage = result.Message;
+            },
+            cancellationToken);
+    }
+
+    private bool CanSetDefault(OutboundListItem? item)
+    {
+        return item is { CanSetAsDefault: true } && _routingRevision > 0;
+    }
+
+    private Task SetDefaultAsync(
+        OutboundListItem? item,
+        CancellationToken cancellationToken)
+    {
+        if (item is null || !item.CanSetAsDefault || _routingRevision == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunOperationAsync(
+            async token =>
+            {
+                var result = await _outboundService.SetDefaultAsync(
+                    item.Id,
+                    _routingRevision,
+                    token);
+                OperationMessage = result.Message;
+                if (result.Accepted)
+                {
+                    await LoadCoreAsync(token);
+                }
+            },
+            cancellationToken);
+    }
+
+    private bool CanSetDirect()
+    {
+        return !_usesDirectByDefault && _routingRevision > 0;
+    }
+
+    private Task SetDirectAsync(CancellationToken cancellationToken)
+    {
+        if (_usesDirectByDefault || _routingRevision == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunOperationAsync(
+            async token =>
+            {
+                var result = await _outboundService.SetDirectAsync(
+                    _routingRevision,
+                    token);
+                OperationMessage = result.Message;
+                if (result.Accepted)
+                {
+                    await LoadCoreAsync(token);
+                }
             },
             cancellationToken);
     }

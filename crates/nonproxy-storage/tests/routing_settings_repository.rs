@@ -1,0 +1,222 @@
+mod support;
+
+use nonproxy_model::OutboundId;
+use nonproxy_storage::{
+    DefaultRoute, OutboundKind, OutboundReference, PolicyDatabase, StorageError,
+};
+use support::artifact;
+
+fn outbound(id: &str, enabled: bool) -> OutboundReference {
+    let id = match OutboundId::new(id) {
+        Ok(value) => value,
+        Err(error) => panic!("测试出口标识创建失败: {error}"),
+    };
+    let value = match OutboundReference::new(
+        id,
+        OutboundKind::Socks5,
+        Some("proxy.example.com"),
+        Some(1080),
+        None,
+        1,
+    ) {
+        Ok(value) => value,
+        Err(error) => panic!("测试出口创建失败: {error}"),
+    };
+    if enabled { value } else { value.disabled() }
+}
+
+#[test]
+fn initial_route_is_direct_at_revision_one() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+
+    let settings = database.routing_settings().get();
+    let Ok(settings) = settings else {
+        panic!("默认路由读取失败: {settings:?}");
+    };
+
+    assert_eq!(settings.route(), &DefaultRoute::Direct);
+    assert_eq!(settings.revision(), 1);
+}
+
+#[test]
+fn proxy_route_and_snapshot_are_staged_atomically() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let outbound = outbound("primary-proxy", true);
+    if let Err(error) = database.outbounds().save(&outbound, None, 1_100) {
+        panic!("测试出口保存失败: {error}");
+    }
+    let snapshot = artifact(1, 7);
+    let Ok(snapshot) = snapshot else {
+        panic!("测试快照创建失败: {snapshot:?}");
+    };
+    let route = DefaultRoute::Proxy(outbound.id().clone());
+
+    let result = database
+        .routing_settings()
+        .set_and_stage(&route, 1, &snapshot, 1_200);
+    let Ok(settings) = result else {
+        panic!("默认代理和快照原子保存失败: {result:?}");
+    };
+
+    assert_eq!(settings.route(), &route);
+    assert_eq!(settings.revision(), 2);
+    assert!(matches!(
+        database.snapshots().pending(),
+        Ok(Some(record)) if record.artifact() == &snapshot
+    ));
+}
+
+#[test]
+fn stale_revision_changes_neither_route_nor_snapshot() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let outbound = outbound("stale-proxy", true);
+    if let Err(error) = database.outbounds().save(&outbound, None, 1_100) {
+        panic!("测试出口保存失败: {error}");
+    }
+    let snapshot = artifact(1, 8);
+    let Ok(snapshot) = snapshot else {
+        panic!("测试快照创建失败: {snapshot:?}");
+    };
+
+    let result = database.routing_settings().set_and_stage(
+        &DefaultRoute::Proxy(outbound.id().clone()),
+        9,
+        &snapshot,
+        1_200,
+    );
+
+    assert!(matches!(result, Err(StorageError::RoutingRevisionConflict)));
+    assert!(matches!(
+        database.routing_settings().get(),
+        Ok(settings)
+            if settings.route() == &DefaultRoute::Direct && settings.revision() == 1
+    ));
+    assert!(matches!(database.snapshots().pending(), Ok(None)));
+}
+
+#[test]
+fn missing_disabled_or_incompatible_default_outbound_is_rejected() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let disabled = outbound("disabled-proxy", false);
+    if let Err(error) = database.outbounds().save(&disabled, None, 1_100) {
+        panic!("禁用测试出口保存失败: {error}");
+    }
+    let incompatible_id = match OutboundId::new("tcp-only-proxy") {
+        Ok(value) => value,
+        Err(error) => panic!("受限出口标识创建失败: {error}"),
+    };
+    let incompatible = OutboundReference::new(
+        incompatible_id,
+        OutboundKind::HttpConnect,
+        Some("proxy.example.com"),
+        Some(8_080),
+        None,
+        1,
+    );
+    let Ok(incompatible) = incompatible else {
+        panic!("受限出口创建失败: {incompatible:?}");
+    };
+    if let Err(error) = database.outbounds().save(&incompatible, None, 1_100) {
+        panic!("受限出口保存失败: {error}");
+    }
+    let snapshot = artifact(1, 9);
+    let Ok(snapshot) = snapshot else {
+        panic!("测试快照创建失败: {snapshot:?}");
+    };
+    let missing_id = match OutboundId::new("missing-proxy") {
+        Ok(value) => value,
+        Err(error) => panic!("缺失出口标识创建失败: {error}"),
+    };
+
+    for route in [
+        DefaultRoute::Proxy(missing_id),
+        DefaultRoute::Proxy(disabled.id().clone()),
+        DefaultRoute::Proxy(incompatible.id().clone()),
+    ] {
+        assert!(matches!(
+            database
+                .routing_settings()
+                .set_and_stage(&route, 1, &snapshot, 1_200),
+            Err(StorageError::DefaultOutboundUnavailable)
+        ));
+    }
+    assert!(matches!(database.snapshots().pending(), Ok(None)));
+}
+
+#[test]
+fn pending_snapshot_rolls_back_the_route_update() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let outbound = outbound("pending-proxy", true);
+    if let Err(error) = database.outbounds().save(&outbound, None, 1_100) {
+        panic!("测试出口保存失败: {error}");
+    }
+    let existing = artifact(1, 1);
+    let Ok(existing) = existing else {
+        panic!("已有测试快照创建失败: {existing:?}");
+    };
+    if let Err(error) = database.snapshots().stage(&existing) {
+        panic!("已有测试快照暂存失败: {error}");
+    }
+    let next = artifact(2, 2);
+    let Ok(next) = next else {
+        panic!("新测试快照创建失败: {next:?}");
+    };
+
+    let result = database.routing_settings().set_and_stage(
+        &DefaultRoute::Proxy(outbound.id().clone()),
+        1,
+        &next,
+        1_200,
+    );
+
+    assert!(matches!(result, Err(StorageError::PendingSnapshotExists)));
+    assert!(matches!(
+        database.routing_settings().get(),
+        Ok(settings)
+            if settings.route() == &DefaultRoute::Direct && settings.revision() == 1
+    ));
+    assert!(matches!(database.snapshots().latest_version(), Ok(Some(1))));
+}
+
+#[test]
+fn invalid_rollback_source_rolls_back_the_route_update() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let outbound = outbound("rollback-proxy", true);
+    if let Err(error) = database.outbounds().save(&outbound, None, 1_100) {
+        panic!("回滚原子性测试出口保存失败: {error}");
+    }
+
+    let result = database.routing_settings().set_and_stage_rollback(
+        &DefaultRoute::Proxy(outbound.id().clone()),
+        1,
+        1,
+        99,
+        1_200,
+    );
+
+    assert!(matches!(result, Err(StorageError::SnapshotNotFound)));
+    assert!(matches!(
+        database.routing_settings().get(),
+        Ok(settings)
+            if settings.route() == &DefaultRoute::Direct && settings.revision() == 1
+    ));
+    assert!(matches!(database.snapshots().pending(), Ok(None)));
+}

@@ -28,4 +28,47 @@ public sealed class GrpcControlRpcClientTests
         Assert.Equal(0, request.Timeout.Nanos);
         Assert.Equal(32, request.Context.SessionCapabilityToken.Length);
     }
+
+    [Fact]
+    public void SetDefaultRouteBuildsAuthenticatedOptimisticRequest()
+    {
+        var context = new OperationContext
+        {
+            OperationId = "desktop:set-default-route:operation",
+            SessionCapabilityToken = ByteString.CopyFrom(new byte[32]),
+        };
+
+        var request = GrpcControlRpcClient.CreateSetDefaultRouteRequest(
+            "office",
+            7,
+            context);
+
+        Assert.Same(context, request.Context);
+        Assert.Equal("office", request.OutboundId);
+        Assert.Equal<ulong>(7, request.ExpectedRoutingRevision);
+        Assert.Equal(
+            SetDefaultRouteRequest.RouteOneofCase.OutboundId,
+            request.RouteCase);
+    }
+
+    [Fact]
+    public void SetDirectRouteUsesExplicitTrueOneOf()
+    {
+        var context = new OperationContext
+        {
+            OperationId = "desktop:set-direct-route:operation",
+            SessionCapabilityToken = ByteString.CopyFrom(new byte[32]),
+        };
+
+        var request = GrpcControlRpcClient.CreateSetDirectRouteRequest(
+            8,
+            context);
+
+        Assert.Same(context, request.Context);
+        Assert.True(request.Direct);
+        Assert.Equal<ulong>(8, request.ExpectedRoutingRevision);
+        Assert.Equal(
+            SetDefaultRouteRequest.RouteOneofCase.Direct,
+            request.RouteCase);
+    }
 }

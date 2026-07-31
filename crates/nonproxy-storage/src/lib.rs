@@ -12,6 +12,7 @@ mod policy_codec;
 mod policy_repository;
 mod provider_repository;
 mod retention;
+mod routing_settings_repository;
 mod snapshot_query;
 mod snapshot_repository;
 mod synthetic_dns_repository;
@@ -33,6 +34,7 @@ pub use outbound_types::{CredentialKind, CredentialReference, OutboundKind, Outb
 pub use policy_repository::PolicyRepository;
 pub use provider_repository::ProviderRepository;
 pub use retention::{DEFAULT_DETAIL_RETENTION_MS, RetentionRepository, RetentionResult};
+pub use routing_settings_repository::{DefaultRoute, RoutingSettings, RoutingSettingsRepository};
 pub use snapshot_repository::SnapshotRepository;
 pub use synthetic_dns_repository::{
     SYNTHETIC_BINDING_RETENTION_MS, SyntheticDnsBinding, SyntheticDnsRepository,
