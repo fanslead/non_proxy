@@ -5,4 +5,5 @@
   <Project Path="NonProxy.Desktop.Tests/NonProxy.Desktop.Tests.csproj" />
   <Project Path="NonProxy.Desktop.Windows/NonProxy.Desktop.Windows.csproj" />
   <Project Path="../../tests/control-smoke/NonProxy.ControlSmoke.csproj" />
+  <Project Path="../../tests/adapter-desktop-smoke/NonProxy.AdapterDesktopSmoke.csproj" />
 </Solution>

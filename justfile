@@ -53,6 +53,9 @@ test:
 control-e2e:
   source "{{env}}" && ./scripts/smoke/control-plane-e2e.sh
 
+adapter-desktop-e2e:
+  source "{{env}}" && ./scripts/smoke/adapter-desktop-e2e.sh
+
 provider-e2e:
   source "{{env}}" && ./scripts/smoke/provider-cross-language-e2e.sh
 
@@ -77,7 +80,7 @@ gateway-bundle-smoke: verify-macos-bundle
 adapter-host-bundle-smoke: verify-macos-bundle
   source "{{env}}" && native_rid="$(dotnet msbuild apps/desktop/NonProxy.Desktop.Mac/NonProxy.Desktop.Mac.csproj -getProperty:NETCoreSdkRuntimeIdentifier)" && ./scripts/macos/adapter-host-bundle-smoke.sh "apps/desktop/NonProxy.Desktop.Mac/bin/Debug/net10.0-macos/${native_rid}/NonProxy.app"
 
-check: check-tools contracts contracts-swift restore-desktop restore-node format-check lint native-bridge-smoke gateway-bundle-smoke adapter-host-bundle-smoke test test-macos control-e2e native-messaging-e2e provider-e2e
+check: check-tools contracts contracts-swift restore-desktop restore-node format-check lint native-bridge-smoke gateway-bundle-smoke adapter-host-bundle-smoke test test-macos control-e2e adapter-desktop-e2e native-messaging-e2e provider-e2e
 
 status:
   source "{{env}}" && cargo run --quiet -p xtask -- status

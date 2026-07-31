@@ -12,6 +12,9 @@ public interface IControlRpcClient
         string pageToken,
         CancellationToken cancellationToken);
 
+    Task<GetActivePolicySnapshotResponse> GetActivePolicySnapshotAsync(
+        CancellationToken cancellationToken);
+
     Task<UpsertPolicyResponse> UpsertPolicyAsync(
         ProtoPolicy policy,
         ulong expectedRevision,

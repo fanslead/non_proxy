@@ -23,4 +23,11 @@ internal static class MacRuntimePaths
             "Application Support",
             "NonProxy");
     }
+
+    internal static string ResolveAdapterStateDirectory()
+    {
+        return Path.Combine(
+            ResolveDefaultStateDirectory(),
+            "adapter-host");
+    }
 }

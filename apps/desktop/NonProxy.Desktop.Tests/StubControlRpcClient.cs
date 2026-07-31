@@ -20,6 +20,10 @@ internal sealed class StubControlRpcClient : IControlRpcClient
         Page = new NonProxy.Common.V1.PageResponse(),
     };
 
+    public GetActivePolicySnapshotResponse ActivePolicySnapshotResponse { get; set; } = new();
+
+    public Queue<GetActivePolicySnapshotResponse> ActivePolicySnapshotResponses { get; } = new();
+
     public UpsertPolicyResponse UpsertResponse { get; set; } = new();
 
     public DeletePolicyResponse DeleteResponse { get; set; } = new();
@@ -126,6 +130,15 @@ internal sealed class StubControlRpcClient : IControlRpcClient
             ? PoliciesResponses.Dequeue()
             : PoliciesResponse;
         return Task.FromResult(response);
+    }
+
+    public Task<GetActivePolicySnapshotResponse> GetActivePolicySnapshotAsync(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ActivePolicySnapshotResponses.Count > 0
+            ? ActivePolicySnapshotResponses.Dequeue()
+            : ActivePolicySnapshotResponse);
     }
 
     public Task<UpsertPolicyResponse> UpsertPolicyAsync(

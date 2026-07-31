@@ -28,6 +28,15 @@ public sealed partial class GrpcControlRpcClient
                 ReadOptions(cancellationToken)).ResponseAsync);
     }
 
+    public Task<GetActivePolicySnapshotResponse> GetActivePolicySnapshotAsync(
+        CancellationToken cancellationToken)
+    {
+        return ExecuteAsync(
+            () => Client.GetActivePolicySnapshotAsync(
+                new GetActivePolicySnapshotRequest(),
+                ReadOptions(cancellationToken)).ResponseAsync);
+    }
+
     public Task<ListOutboundsResponse> ListOutboundsAsync(
         string pageToken,
         CancellationToken cancellationToken)

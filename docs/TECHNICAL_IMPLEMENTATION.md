@@ -1524,6 +1524,16 @@ apply 在写文件前先执行不产生目标写入的事务预检，再构造�
 本机路径，完整一致性边界见
 [ADR-0027](ADR/0027-project-adapter-rules-from-active-snapshots.md)。
 
+桌面端已通过独立 Adapter UDS 与能力文件接入宿主，不复用 gatewayd 会话。同步按检测、能力
+读取、活动快照投影、客户端原生 prepare、活动快照版本与内容哈希二次确认、apply/reload、
+configuration verify 执行。投影只接受客户端能无损表达的单维 DIRECT 规则；应用路径必须由
+当前平台的签名应用目录唯一补全。组合、网络、端口、传输、辅助进程、缺失路径或能力会阻断
+整次同步并返回逐规则原因，绝不拆成更宽规则。配置验证失败会立即回滚并重载备份；配置确认
+仍不等同路径或出口确认。完整编排边界见
+[ADR-0028](ADR/0028-orchestrate-adapter-sync-from-the-desktop.md)。
+`scripts/smoke/adapter-desktop-e2e.sh` 会启动隔离的 Rust adapter-host，再由真实 C# 客户端经
+独立 UDS 和能力文件读取空登记目录，防止两侧生成契约、认证或传输接线漂移。
+
 适配器接口：
 
 ```text

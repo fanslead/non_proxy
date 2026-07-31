@@ -11,6 +11,9 @@ using NonProxy.Desktop.Core.Features.Settings;
 using NonProxy.Desktop.Core.Features.Shell;
 using NonProxy.Desktop.Core.Features.Websites;
 using NonProxy.Desktop.Core.Platform;
+using NonProxy.Desktop.Core.Services.Adapters;
+using NonProxy.Desktop.Core.Services.Adapters.Rpc;
+using NonProxy.Desktop.Core.Services.Adapters.Transport;
 using NonProxy.Desktop.Core.Services.Control;
 using NonProxy.Desktop.Core.Services.Control.Events;
 using NonProxy.Desktop.Core.Services.Control.Gateway;
@@ -49,7 +52,15 @@ public static class ServiceRegistration
         services.AddSingleton(LocalControlEndpoint.Unavailable);
         services.AddSingleton<IControlChannelFactory, UnavailableControlChannelFactory>();
         services.AddSingleton<ISessionCapabilityProvider, UnavailableSessionCapabilityProvider>();
+        services.AddSingleton(LocalAdapterEndpoint.Unavailable);
+        services.AddSingleton<
+            IAdapterChannelFactory,
+            UnavailableAdapterChannelFactory>();
+        services.AddSingleton<
+            IAdapterCapabilityProvider,
+            UnavailableAdapterCapabilityProvider>();
         services.AddSingleton<OperationContextProvider>();
+        services.AddSingleton<AdapterRequestContextProvider>();
         services.AddSingleton(DesktopSettingsPath.ForCurrentUser());
         services.AddSingleton<IDesktopSettingsService, JsonDesktopSettingsService>();
         services.AddSingleton<IDesktopThemeService, AvaloniaDesktopThemeService>();
@@ -59,6 +70,13 @@ public static class ServiceRegistration
         services.AddSingleton<IControlEventSource>(provider =>
             provider.GetRequiredService<GrpcControlRpcClient>());
         services.AddSingleton<IControlEventMonitor, ControlEventMonitor>();
+        services.AddSingleton<GrpcAdapterRpcClient>();
+        services.AddSingleton<IAdapterRpcClient>(provider =>
+            provider.GetRequiredService<GrpcAdapterRpcClient>());
+        services.AddSingleton<AdapterPolicyProjector>();
+        services.AddSingleton<
+            IAdapterManagementService,
+            GatewayAdapterManagementService>();
         services.AddSingleton<PolicyContractMapper>();
         services.AddSingleton<ISystemStatusService, GatewaySystemStatusService>();
         services.AddSingleton<IPolicyService, GatewayPolicyService>();

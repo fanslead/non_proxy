@@ -2,6 +2,7 @@ using Avalonia;
 using Microsoft.Extensions.DependencyInjection;
 using NonProxy.Desktop.Core.Bootstrap;
 using NonProxy.Desktop.Core.Platform;
+using NonProxy.Desktop.Core.Services.Adapters.Transport;
 using NonProxy.Desktop.Core.Services.Control.Transport;
 
 namespace NonProxy.Desktop.Mac;
@@ -52,6 +53,15 @@ internal static class Program
             collection.AddSingleton<
                 ISessionCapabilityProvider,
                 FileSessionCapabilityProvider>();
+            collection.AddSingleton(
+                LocalAdapterEndpoint.FromUnixEnvironment(
+                    MacRuntimePaths.ResolveAdapterStateDirectory()));
+            collection.AddSingleton<
+                IAdapterChannelFactory,
+                UnixDomainSocketAdapterChannelFactory>();
+            collection.AddSingleton<
+                IAdapterCapabilityProvider,
+                FileAdapterCapabilityProvider>();
         });
 
         DesktopBootstrap

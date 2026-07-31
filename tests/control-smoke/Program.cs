@@ -36,6 +36,15 @@ internal static class Program
             {
                 throw new InvalidOperationException("隔离测试状态目录不是空状态。");
             }
+            var initialActive = await client.GetActivePolicySnapshotAsync(
+                timeout.Token);
+            if (initialActive.Error is not null
+                || initialActive.SnapshotVersion != 0
+                || initialActive.ContentHash.Length != 0
+                || initialActive.Policies.Count != 0)
+            {
+                throw new InvalidOperationException("空状态活动快照语义不一致。");
+            }
 
             var saved = await policies.SaveAsync(
                 new PolicyDraft(
@@ -58,9 +67,18 @@ internal static class Program
             {
                 throw new InvalidOperationException("跨语言规则状态回读不一致。");
             }
+            var activeWhilePending = await client.GetActivePolicySnapshotAsync(
+                timeout.Token);
+            if (activeWhilePending.Error is not null
+                || activeWhilePending.SnapshotVersion != 0
+                || activeWhilePending.Policies.Count != 0)
+            {
+                throw new InvalidOperationException(
+                    "待确认草稿被错误暴露为活动快照。");
+            }
 
             Console.WriteLine(
-                "控制平面跨语言联调通过：UDS、会话认证、写入、发布、学习会话、严格脱敏诊断和状态回读一致。");
+                "控制平面跨语言联调通过：UDS、会话认证、活动快照隔离、写入、发布、学习会话、严格脱敏诊断和状态回读一致。");
             return 0;
         }
         catch (Exception exception)

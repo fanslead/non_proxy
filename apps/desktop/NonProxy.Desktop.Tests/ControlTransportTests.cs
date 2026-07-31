@@ -1,3 +1,4 @@
+using NonProxy.Desktop.Core.Services.Adapters.Transport;
 using NonProxy.Desktop.Core.Services.Control;
 using NonProxy.Desktop.Core.Services.Control.Transport;
 
@@ -5,6 +6,39 @@ namespace NonProxy.Desktop.Tests;
 
 public sealed class ControlTransportTests
 {
+    [Fact]
+    public void AdapterEndpointUsesItsOwnPrivateStateDirectory()
+    {
+        var stateDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "nonproxy-adapter-transport-test");
+
+        var endpoint = LocalAdapterEndpoint.FromStateDirectory(stateDirectory);
+
+        Assert.Equal(
+            Path.Combine(stateDirectory, "adapter-host.sock"),
+            endpoint.SocketPath);
+        Assert.Equal(
+            Path.Combine(stateDirectory, "adapter.capability"),
+            endpoint.CapabilityPath);
+        Assert.True(endpoint.IsConfigured);
+    }
+
+    [Fact]
+    public void AdapterEndpointRejectsSocketOutsideItsStateDirectory()
+    {
+        var stateDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "nonproxy-adapter-transport-test");
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            LocalAdapterEndpoint.FromStateDirectory(
+                stateDirectory,
+                Path.Combine(Path.GetTempPath(), "escaped.sock")));
+
+        Assert.Equal("socketPath", exception.ParamName);
+    }
+
     [Fact]
     public void EndpointDerivesControlFilesFromOneStateDirectory()
     {
