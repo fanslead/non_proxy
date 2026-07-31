@@ -94,6 +94,10 @@
                                Text="当前平台" />
                     <TextBlock Foreground="#D8DFEC"
                                Text="{Binding PlatformLabel}" />
+                    <TextBlock Margin="0,8,0,0"
+                               Foreground="{DynamicResource NpSidebarMutedBrush}"
+                               FontSize="12"
+                               Text="{Binding LiveStatusLabel}" />
                 </StackPanel>
             </Grid>
         </Border>

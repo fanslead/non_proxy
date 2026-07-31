@@ -3,6 +3,8 @@ using NonProxy.Desktop.Core.Bootstrap;
 using NonProxy.Desktop.Core.Features.Dashboard;
 using NonProxy.Desktop.Core.Features.Shell;
 using NonProxy.Desktop.Core.Platform;
+using NonProxy.Desktop.Core.Services.Control.Events;
+using NonProxy.Desktop.Core.Services.Control.Rpc;
 
 namespace NonProxy.Desktop.Tests;
 
@@ -36,6 +38,9 @@ public sealed class ServiceRegistrationTests
         Assert.Equal(10, shell.NavigationItems.Count);
         Assert.Equal("运行概览", shell.CurrentPage.Title);
         Assert.NotNull(services.GetRequiredService<DesktopLifetimeController>());
+        Assert.Same(
+            services.GetRequiredService<GrpcControlRpcClient>(),
+            services.GetRequiredService<IControlEventSource>());
     }
 
     [Fact]

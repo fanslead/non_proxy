@@ -12,6 +12,7 @@ using NonProxy.Desktop.Core.Features.Shell;
 using NonProxy.Desktop.Core.Features.Websites;
 using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Control;
+using NonProxy.Desktop.Core.Services.Control.Events;
 using NonProxy.Desktop.Core.Services.Control.Gateway;
 using NonProxy.Desktop.Core.Services.Control.Rpc;
 using NonProxy.Desktop.Core.Services.Control.Transport;
@@ -52,7 +53,12 @@ public static class ServiceRegistration
         services.AddSingleton(DesktopSettingsPath.ForCurrentUser());
         services.AddSingleton<IDesktopSettingsService, JsonDesktopSettingsService>();
         services.AddSingleton<IDesktopThemeService, AvaloniaDesktopThemeService>();
-        services.AddSingleton<IControlRpcClient, GrpcControlRpcClient>();
+        services.AddSingleton<GrpcControlRpcClient>();
+        services.AddSingleton<IControlRpcClient>(provider =>
+            provider.GetRequiredService<GrpcControlRpcClient>());
+        services.AddSingleton<IControlEventSource>(provider =>
+            provider.GetRequiredService<GrpcControlRpcClient>());
+        services.AddSingleton<IControlEventMonitor, ControlEventMonitor>();
         services.AddSingleton<PolicyContractMapper>();
         services.AddSingleton<ISystemStatusService, GatewaySystemStatusService>();
         services.AddSingleton<IPolicyService, GatewayPolicyService>();

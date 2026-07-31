@@ -11,6 +11,7 @@ public sealed partial class DashboardViewModel : LoadableViewModel
     private readonly IPlatformInformation _platformInformation;
     private readonly ISystemStatusService _statusService;
     private readonly ISystemComponentInstaller _componentInstaller;
+    private ConnectionState? _liveConnectionState;
 
     [ObservableProperty]
     private DashboardState _state = DashboardState.Initial;
@@ -63,10 +64,13 @@ public sealed partial class DashboardViewModel : LoadableViewModel
     protected override async Task LoadCoreAsync(CancellationToken cancellationToken)
     {
         var overview = await _statusService.GetOverviewAsync(cancellationToken);
+        var connection = overview.Connection == ConnectionState.Connected
+            ? _liveConnectionState ?? overview.Connection
+            : overview.Connection;
         State = new DashboardState(
             overview.Headline,
             overview.Detail,
-            ToConnectionLabel(overview.Connection),
+            ToConnectionLabel(connection),
             overview.ComponentState,
             SnapshotLabel(overview),
             overview.DirectApplicationCount,
@@ -74,6 +78,15 @@ public sealed partial class DashboardViewModel : LoadableViewModel
             overview.DirectNetworkCount,
             overview.RecentDecisionCount,
             overview.RecentDecisionCount > 0);
+    }
+
+    public void SetLiveConnectionState(ConnectionState state)
+    {
+        _liveConnectionState = state;
+        State = State with
+        {
+            ConnectionLabel = ToConnectionLabel(state),
+        };
     }
 
     private static string SnapshotLabel(SystemOverview overview)
@@ -141,7 +154,7 @@ public sealed partial class DashboardViewModel : LoadableViewModel
         }
     }
 
-    private static string ToConnectionLabel(ConnectionState state)
+    internal static string ToConnectionLabel(ConnectionState state)
     {
         return state switch
         {

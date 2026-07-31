@@ -1662,11 +1662,24 @@ macOS 原生桥 ABI 约束：
 
 ### 17.6 状态同步
 
-- UI 启动先读取 `GetSystemStatus` 快照，再订阅事件。
-- Event stream 断开时显示“状态更新中断”，不假设网络已停止。
-- 重连后使用 sequence/cursor 补齐或重新读取完整快照。
-- ViewModel 不把 transient UI state 写回权威策略库。
-- 策略编辑使用 draft，服务器确认 active snapshot 后再显示“已应用”。
+- UI 启动先读取当前页面的完整 RPC 状态，再订阅 `SubscribeEvents`。响应头到达即表示
+  订阅已建立，不要求先出现业务事件。
+- Event stream 只是页面失效信号，不是权威状态。桌面传输层只向 ViewModel 暴露序号和
+  事件类型；页面收到信号后重新调用认证 RPC，不把事件 payload 合并成新的本地事实。
+- 单次连接内的业务事件序号必须为正且严格递增。流结束、无效序号、RPC/HTTP/本地
+  套接字错误或服务端 `DATA_LOSS` 都显示“状态更新中断”，不假设网络已停止。
+- 重连从 250 毫秒到 5 秒指数退避，每次使用 `after_sequence = 0` 并在连接成功后重新
+  读取 Dashboard 和当前页面。这允许 `gatewayd` 重启后序号重新计数；重复保留事件只会
+  触发幂等重读，不会直接改变 UI 状态。
+- 事件按 200 毫秒窗口合并页面影响。快照刷新策略类页面，决策刷新活动页，系统/组件
+  刷新诊断页，未知类型至少刷新 Dashboard；窗口退出后取消订阅并忽略已排队回调。
+- ViewModel 不把 transient UI state 写回权威策略库。策略编辑使用 draft，服务器确认
+  active snapshot 后再显示“已应用”。
+
+当前服务端实际发布快照状态和学习候选事件；学习候选由持有标签页 capability 的浏览器
+扩展负责。桌面已为契约中的决策、系统状态和组件健康类型建立失效映射，但在相应服务端
+生产者接通前，不宣称这些页面已实时推送。完整理由见
+[ADR-0018](ADR/0018-use-control-events-as-invalidation-signals.md)。
 
 “网络环境”页的一键直连按以下顺序编排：
 

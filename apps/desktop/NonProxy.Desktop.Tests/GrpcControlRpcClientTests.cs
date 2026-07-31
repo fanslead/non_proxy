@@ -1,11 +1,54 @@
 using Google.Protobuf;
 using NonProxy.Control.V1;
+using NonProxy.Desktop.Core.Services.Control.Events;
 using NonProxy.Desktop.Core.Services.Control.Rpc;
+using NonProxy.Events.V1;
 
 namespace NonProxy.Desktop.Tests;
 
 public sealed class GrpcControlRpcClientTests
 {
+    [Fact]
+    public void EventMapperExposesOnlySequenceAndRefreshKind()
+    {
+        var events = new (EventEnvelope Envelope, ControlEventKind Expected)[]
+        {
+            (new EventEnvelope
+            {
+                Sequence = 1,
+                SystemStateChanged = new SystemStateChanged(),
+            }, ControlEventKind.SystemState),
+            (new EventEnvelope
+            {
+                Sequence = 2,
+                SnapshotStateChanged = new SnapshotStateChanged(),
+            }, ControlEventKind.Snapshot),
+            (new EventEnvelope
+            {
+                Sequence = 3,
+                DecisionObserved = new DecisionObserved(),
+            }, ControlEventKind.Decision),
+            (new EventEnvelope
+            {
+                Sequence = 4,
+                ComponentHealthChanged = new ComponentHealthChanged(),
+            }, ControlEventKind.ComponentHealth),
+            (new EventEnvelope
+            {
+                Sequence = 5,
+                LearningCandidateUpdated = new LearningCandidateUpdated(),
+            }, ControlEventKind.LearningCandidate),
+            (new EventEnvelope { Sequence = 6 }, ControlEventKind.Unknown),
+        };
+
+        foreach (var (envelope, expected) in events)
+        {
+            Assert.Equal(
+                new ControlEventNotification(envelope.Sequence, expected),
+                GrpcControlRpcClient.MapEvent(envelope));
+        }
+    }
+
     [Fact]
     public void TestOutboundBuildsAuthenticatedBoundedRequest()
     {

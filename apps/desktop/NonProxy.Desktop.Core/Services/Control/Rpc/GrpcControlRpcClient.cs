@@ -4,12 +4,16 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
 using NonProxy.Control.V1;
+using NonProxy.Desktop.Core.Services.Control.Events;
 using NonProxy.Desktop.Core.Services.Control.Transport;
 using ProtoPolicy = NonProxy.Policy.V1.Policy;
 
 namespace NonProxy.Desktop.Core.Services.Control.Rpc;
 
-public sealed partial class GrpcControlRpcClient : IControlRpcClient, IDisposable
+public sealed partial class GrpcControlRpcClient :
+    IControlRpcClient,
+    IControlEventSource,
+    IDisposable
 {
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan MutationTimeout = TimeSpan.FromSeconds(15);

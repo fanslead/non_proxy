@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NonProxy.Desktop.Core.Features.Dashboard;
 using NonProxy.Desktop.Core.Platform;
+using NonProxy.Desktop.Core.Services.Control;
 
 namespace NonProxy.Desktop.Tests;
 
@@ -47,5 +48,16 @@ public sealed class DashboardViewModelTests
         Assert.Equal("控制服务未连接", viewModel.State.ConnectionLabel);
         Assert.Equal("系统组件未安装", viewModel.State.ComponentLabel);
         Assert.Null(viewModel.ErrorMessage);
+    }
+
+    [Fact]
+    public void LiveInterruptionOverridesTheLastSnapshotLabelImmediately()
+    {
+        using var services = TestPlatformServices.Create();
+        var viewModel = services.GetRequiredService<DashboardViewModel>();
+
+        viewModel.SetLiveConnectionState(ConnectionState.Interrupted);
+
+        Assert.Equal("状态更新中断", viewModel.State.ConnectionLabel);
     }
 }
