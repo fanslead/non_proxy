@@ -61,6 +61,13 @@ pub struct GatewayStatus {
     pub dropped_decision_events: u64,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct ActivePolicySnapshot {
+    pub(crate) snapshot_version: u64,
+    pub(crate) content_hash: [u8; 32],
+    pub(crate) policies: Vec<Policy>,
+}
+
 impl Gateway {
     pub async fn open(
         database_path: impl AsRef<Path>,
@@ -507,6 +514,25 @@ impl Gateway {
                     .snapshots()
                     .active()?
                     .map(|record| record.artifact().snapshot_version()))
+            })
+            .await
+    }
+
+    pub(crate) async fn active_policy_snapshot(
+        &self,
+    ) -> Result<Option<ActivePolicySnapshot>, GatewayError> {
+        self.database
+            .run(|database| {
+                let Some(record) = database.snapshots().active()? else {
+                    return Ok(None);
+                };
+                let artifact = record.artifact();
+                let (policies, _, _) = snapshot_payload::decode(artifact.payload())?;
+                Ok(Some(ActivePolicySnapshot {
+                    snapshot_version: artifact.snapshot_version(),
+                    content_hash: *artifact.content_hash(),
+                    policies,
+                }))
             })
             .await
     }

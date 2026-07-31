@@ -1517,6 +1517,13 @@ apply 在写文件前先执行不产生目标写入的事务预检，再构造�
 尚未验证，`path_verified=false`，桌面端仍不得开放“已接管”。完整边界见
 [ADR-0026](ADR/0026-reload-adapter-clients-with-public-controls.md)。
 
+第三方适配器生成规则时不能直接读取桌面策略列表：列表在新修订 pending 时包含新草稿，
+而数据面仍执行旧修订。`ControlService.GetActivePolicySnapshot` 因此只从 SQLite 中的 active
+不可变快照解码权威策略，返回快照版本、内容哈希和已排序策略；没有活动快照时明确返回空
+状态，不回退到草稿或 pending。桌面后续投影必须绑定这两个快照身份，并由平台应用目录补全
+本机路径，完整一致性边界见
+[ADR-0027](ADR/0027-project-adapter-rules-from-active-snapshots.md)。
+
 适配器接口：
 
 ```text

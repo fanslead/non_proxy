@@ -84,6 +84,31 @@ impl ControlService for ControlRpcService {
         }))
     }
 
+    async fn get_active_policy_snapshot(
+        &self,
+        _request: Request<control_proto::GetActivePolicySnapshotRequest>,
+    ) -> Result<Response<control_proto::GetActivePolicySnapshotResponse>, Status> {
+        let snapshot = self
+            .gateway
+            .active_policy_snapshot()
+            .await
+            .map_err(internal_status)?;
+        Ok(Response::new(match snapshot {
+            Some(snapshot) => control_proto::GetActivePolicySnapshotResponse {
+                snapshot_version: snapshot.snapshot_version,
+                content_hash: snapshot.content_hash.to_vec(),
+                policies: snapshot.policies.iter().map(policy_to_proto).collect(),
+                error: None,
+            },
+            None => control_proto::GetActivePolicySnapshotResponse {
+                snapshot_version: 0,
+                content_hash: Vec::new(),
+                policies: Vec::new(),
+                error: None,
+            },
+        }))
+    }
+
     async fn upsert_policy(
         &self,
         request: Request<control_proto::UpsertPolicyRequest>,

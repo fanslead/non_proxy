@@ -717,6 +717,46 @@ public nonisolated struct Nonproxy_Control_V1_ListPoliciesResponse: Sendable {
   fileprivate var _page: Nonproxy_Common_V1_PageResponse? = nil
 }
 
+/// GetActivePolicySnapshotRequest 请求当前真正执行的不可变策略快照。
+public nonisolated struct Nonproxy_Control_V1_GetActivePolicySnapshotRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// GetActivePolicySnapshotResponse 返回活动快照中的权威策略，而不是可能尚未发布的草稿。
+/// 第三方客户端适配器必须使用本响应生成规则，避免在 pending/rejected 状态下误删旧规则。
+public nonisolated struct Nonproxy_Control_V1_GetActivePolicySnapshotResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var snapshotVersion: UInt64 = 0
+
+  public var contentHash: Data = Data()
+
+  public var policies: [Nonproxy_Policy_V1_Policy] = []
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+}
+
 /// PolicyStatus 保留规则草稿和仍在执行的旧修订之间的真实关系。
 public nonisolated struct Nonproxy_Control_V1_PolicyStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -2835,6 +2875,74 @@ nonisolated extension Nonproxy_Control_V1_ListPoliciesResponse: SwiftProtobuf.Me
     if lhs.pendingSnapshotVersion != rhs.pendingSnapshotVersion {return false}
     if lhs.policyStatuses != rhs.policyStatuses {return false}
     if lhs.policyCatalogGeneration != rhs.policyCatalogGeneration {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_GetActivePolicySnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetActivePolicySnapshotRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_GetActivePolicySnapshotRequest, rhs: Nonproxy_Control_V1_GetActivePolicySnapshotRequest) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_GetActivePolicySnapshotResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetActivePolicySnapshotResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}snapshot_version\0\u{3}content_hash\0\u{1}policies\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt64Field(value: &self.snapshotVersion) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.contentHash) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.policies) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.snapshotVersion != 0 {
+      try visitor.visitSingularUInt64Field(value: self.snapshotVersion, fieldNumber: 1)
+    }
+    if !self.contentHash.isEmpty {
+      try visitor.visitSingularBytesField(value: self.contentHash, fieldNumber: 2)
+    }
+    if !self.policies.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.policies, fieldNumber: 3)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_GetActivePolicySnapshotResponse, rhs: Nonproxy_Control_V1_GetActivePolicySnapshotResponse) -> Bool {
+    if lhs.snapshotVersion != rhs.snapshotVersion {return false}
+    if lhs.contentHash != rhs.contentHash {return false}
+    if lhs.policies != rhs.policies {return false}
+    if lhs._error != rhs._error {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

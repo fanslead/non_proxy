@@ -15,6 +15,7 @@ service ControlService {
   rpc GetSystemStatus(GetSystemStatusRequest) returns (GetSystemStatusResponse);
   rpc GetCapabilities(GetCapabilitiesRequest) returns (GetCapabilitiesResponse);
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
+  rpc GetActivePolicySnapshot(GetActivePolicySnapshotRequest) returns (GetActivePolicySnapshotResponse);
   rpc UpsertPolicy(UpsertPolicyRequest) returns (UpsertPolicyResponse);
   rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
   rpc ApplyPolicySnapshot(ApplyPolicySnapshotRequest) returns (ApplyPolicySnapshotResponse);
@@ -190,6 +191,18 @@ message ListPoliciesResponse {
   uint64 pending_snapshot_version = 4;
   repeated PolicyStatus policy_statuses = 5;
   uint64 policy_catalog_generation = 6;
+}
+
+// GetActivePolicySnapshotRequest 请求当前真正执行的不可变策略快照。
+message GetActivePolicySnapshotRequest {}
+
+// GetActivePolicySnapshotResponse 返回活动快照中的权威策略，而不是可能尚未发布的草稿。
+// 第三方客户端适配器必须使用本响应生成规则，避免在 pending/rejected 状态下误删旧规则。
+message GetActivePolicySnapshotResponse {
+  uint64 snapshot_version = 1;
+  bytes content_hash = 2;
+  repeated nonproxy.policy.v1.Policy policies = 3;
+  nonproxy.common.v1.ErrorDetail error = 4;
 }
 
 // PolicyStatus 保留规则草稿和仍在执行的旧修订之间的真实关系。

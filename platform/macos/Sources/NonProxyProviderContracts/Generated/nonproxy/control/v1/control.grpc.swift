@@ -59,6 +59,19 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "GetActivePolicySnapshot" metadata.
+        public enum GetActivePolicySnapshot: Sendable {
+            /// Request type for "GetActivePolicySnapshot".
+            public typealias Input = Nonproxy_Control_V1_GetActivePolicySnapshotRequest
+            /// Response type for "GetActivePolicySnapshot".
+            public typealias Output = Nonproxy_Control_V1_GetActivePolicySnapshotResponse
+            /// Descriptor for "GetActivePolicySnapshot".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "GetActivePolicySnapshot",
+                type: .unary
+            )
+        }
         /// Namespace for "UpsertPolicy" metadata.
         public enum UpsertPolicy: Sendable {
             /// Request type for "UpsertPolicy".
@@ -337,6 +350,7 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             GetSystemStatus.descriptor,
             GetCapabilities.descriptor,
             ListPolicies.descriptor,
+            GetActivePolicySnapshot.descriptor,
             UpsertPolicy.descriptor,
             DeletePolicy.descriptor,
             ApplyPolicySnapshot.descriptor,
@@ -436,6 +450,25 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListPoliciesResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListPoliciesResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "GetActivePolicySnapshot" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_GetActivePolicySnapshotRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_GetActivePolicySnapshotRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_GetActivePolicySnapshotResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func getActivePolicySnapshot<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_GetActivePolicySnapshotRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_GetActivePolicySnapshotRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_GetActivePolicySnapshotResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_GetActivePolicySnapshotResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "UpsertPolicy" method.
@@ -941,6 +974,36 @@ extension Nonproxy_Control_V1_ControlService {
             try await self.client.unary(
                 request: request,
                 descriptor: Nonproxy_Control_V1_ControlService.Method.ListPolicies.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "GetActivePolicySnapshot" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_GetActivePolicySnapshotRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_GetActivePolicySnapshotRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_GetActivePolicySnapshotResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func getActivePolicySnapshot<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_GetActivePolicySnapshotRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_GetActivePolicySnapshotRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_GetActivePolicySnapshotResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_GetActivePolicySnapshotResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.GetActivePolicySnapshot.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1656,6 +1719,31 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
         )
     }
 
+    /// Call the "GetActivePolicySnapshot" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_GetActivePolicySnapshotRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func getActivePolicySnapshot<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_GetActivePolicySnapshotRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_GetActivePolicySnapshotResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.getActivePolicySnapshot(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_GetActivePolicySnapshotRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_GetActivePolicySnapshotResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "UpsertPolicy" method.
     ///
     /// - Parameters:
@@ -2264,6 +2352,35 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.listPolicies(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "GetActivePolicySnapshot" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func getActivePolicySnapshot<Result>(
+        _ message: Nonproxy_Control_V1_GetActivePolicySnapshotRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_GetActivePolicySnapshotResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_GetActivePolicySnapshotRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.getActivePolicySnapshot(
             request: request,
             options: options,
             onResponse: handleResponse

@@ -10,18 +10,21 @@ use nonproxy_proto::common::v1::ComponentKind;
 use nonproxy_proto::control::v1::{
     ApplyPolicySnapshotRequest, CapabilityName, ConfirmLearningCandidatesRequest, DefaultRouteKind,
     DeleteNetworkProfileRequest, DiagnosticRedactionLevel, ExitProbeRouteKind,
-    ExportDiagnosticsRequest, GetCapabilitiesRequest, GetSystemStatusRequest,
-    ImportConfigurationRequest, LearningObservationKind, LearningResourceType, LearningSessionKind,
-    ListExitProbesRequest, ListLearningCandidatesRequest, ListNetworkProfilesRequest,
-    ListOutboundsRequest, OperationContext, RecordLearningObservationRequest,
-    SetDefaultRouteRequest, StartLearningSessionRequest, StopLearningSessionRequest,
-    TestOutboundRequest, UpsertNetworkProfileRequest, UpsertPolicyRequest, VerifyExitRequest,
+    ExportDiagnosticsRequest, GetActivePolicySnapshotRequest, GetCapabilitiesRequest,
+    GetSystemStatusRequest, ImportConfigurationRequest, LearningObservationKind,
+    LearningResourceType, LearningSessionKind, ListExitProbesRequest,
+    ListLearningCandidatesRequest, ListNetworkProfilesRequest, ListOutboundsRequest,
+    OperationContext, RecordLearningObservationRequest, SetDefaultRouteRequest,
+    StartLearningSessionRequest, StopLearningSessionRequest, TestOutboundRequest,
+    UpsertNetworkProfileRequest, UpsertPolicyRequest, VerifyExitRequest,
     control_service_server::ControlService, set_default_route_request,
     start_learning_session_request,
 };
 use nonproxy_proto::events::v1::{LearningCandidateKind, RuntimeState, event_envelope};
 use nonproxy_proto::policy::v1::{NetworkFingerprintKind, NetworkProfileSpec};
-use nonproxy_storage::{ExitProbeRoute, OutboundKind, OutboundReference, PolicyDatabase};
+use nonproxy_storage::{
+    ExitProbeRoute, OutboundKind, OutboundReference, PolicyDatabase, ProviderAck,
+};
 use tonic::{Code, Request};
 
 use crate::control_rpc_service::ControlRpcService;
@@ -638,6 +641,84 @@ async fn authenticated_policy_can_be_saved_then_staged() {
 }
 
 #[tokio::test]
+async fn active_policy_snapshot_ignores_newer_pending_drafts() {
+    let database = PolicyDatabase::open_in_memory(1)
+        .unwrap_or_else(|error| panic!("活动策略投影数据库打开失败: {error}"));
+    let gateway = Gateway::new(database, CompileCapabilities::full());
+    gateway
+        .save_policy(site_policy("policy-a", "active.example"), None)
+        .await
+        .unwrap_or_else(|error| panic!("活动策略保存失败: {error}"));
+    let first = gateway
+        .compile_and_stage()
+        .await
+        .unwrap_or_else(|error| panic!("活动策略快照生成失败: {error}"));
+    let content_hash = *first.artifact().content_hash();
+    let required = crate::provider_requirements::required_provider_ids()
+        .iter()
+        .map(|value| (*value).to_owned())
+        .collect::<Vec<_>>();
+    for (index, provider_id) in crate::provider_requirements::required_provider_ids()
+        .iter()
+        .enumerate()
+    {
+        let acknowledgement = ProviderAck::loaded(
+            *provider_id,
+            1,
+            content_hash,
+            1_000 + u64::try_from(index).unwrap_or(0),
+        )
+        .unwrap_or_else(|error| panic!("活动策略 ACK 创建失败: {error}"));
+        gateway
+            .acknowledge_provider_snapshot(1, acknowledgement, required.clone())
+            .await
+            .unwrap_or_else(|error| panic!("活动策略 ACK 保存失败: {error}"));
+    }
+    gateway
+        .save_policy(
+            site_policy_revision("policy-a", "pending.example", 2),
+            Some(1),
+        )
+        .await
+        .unwrap_or_else(|error| panic!("待确认策略保存失败: {error}"));
+    gateway
+        .compile_and_stage()
+        .await
+        .unwrap_or_else(|error| panic!("待确认策略快照生成失败: {error}"));
+    let service = ControlRpcService::new(gateway, SessionCapability::from_token([7; 32]));
+
+    let response = service
+        .get_active_policy_snapshot(Request::new(GetActivePolicySnapshotRequest {}))
+        .await
+        .unwrap_or_else(|error| panic!("活动策略投影读取失败: {error}"))
+        .into_inner();
+
+    assert_eq!(response.snapshot_version, 1);
+    assert_eq!(response.content_hash, content_hash);
+    assert!(response.error.is_none());
+    let projected = response
+        .policies
+        .iter()
+        .find(|policy| policy.id == "policy-a")
+        .unwrap_or_else(|| panic!("活动策略投影缺少用户策略"));
+    assert_eq!(projected.revision, 1);
+    assert!(
+        projected
+            .r#match
+            .as_ref()
+            .and_then(|value| value.domain.as_ref())
+            .is_some_and(|domain| domain.ascii_pattern == "active.example")
+    );
+    assert!(response.policies.iter().all(|policy| {
+        policy
+            .r#match
+            .as_ref()
+            .and_then(|value| value.domain.as_ref())
+            .is_none_or(|domain| domain.ascii_pattern != "pending.example")
+    }));
+}
+
+#[tokio::test]
 async fn authenticated_import_stores_secret_outside_database() {
     let database = PolicyDatabase::open_in_memory(1);
     let Ok(database) = database else {
@@ -1130,6 +1211,10 @@ fn uri_import_request(validate_only: bool) -> ImportConfigurationRequest {
 }
 
 fn site_policy(id: &str, domain: &str) -> Policy {
+    site_policy_revision(id, domain, 1)
+}
+
+fn site_policy_revision(id: &str, domain: &str, revision: u64) -> Policy {
     let matcher = DomainMatcher::new(DomainMatchKind::Exact, domain).and_then(|domain| {
         PolicyMatch::new(None, Some(domain), None, None, Vec::new(), Vec::new())
     });
@@ -1145,7 +1230,7 @@ fn site_policy(id: &str, domain: &str) -> Policy {
         "直连网站",
         matcher,
         DecisionSpec::direct(),
-        PolicyMetadata::new(PolicySourceKind::Site, 100, PolicyOrigin::User, 1),
+        PolicyMetadata::new(PolicySourceKind::Site, 100, PolicyOrigin::User, revision),
     );
     let Ok(policy) = policy else {
         panic!("测试策略创建失败: {policy:?}");
