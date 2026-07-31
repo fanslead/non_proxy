@@ -1475,8 +1475,16 @@ owner-only candidate、backup 和带 SHA-256 的持久 change manifest；应用�
 清空继承环境，并限制为三秒和 64 KiB 输出。宿主的私有 UDS、独立能力文件、版本降级和
 RPC 幂等边界见 [ADR-0021](ADR/0021-run-adapters-in-an-authenticated-host.md)。
 
+prepare 在持久化 change 前先进行确定性预渲染，并在 `0700` 隔离临时目录内执行客户端
+原生校验：Surge 通过 App 随包 `surge-cli -c` 校验引用候选的最小 profile；Mihomo 通过
+`-t -d <isolated> -f <config>` 校验本地 classical provider；sing-box 通过
+`rule-set compile` 校验 source rule-set，并要求产生非空、有界、非符号链接的二进制
+产物。命令继续复用无 shell、清空环境、五秒超时和 64 KiB 输出上限；原生校验失败不会
+建立持久 change，成功响应显式返回 `client_validated=true`。完整理由见
+[ADR-0022](ADR/0022-validate-adapter-candidates-before-persistence.md)。
+
 当前宿主返回的 `reloaded` 与 `path_verified` 均为 false，最高只有配置证据。主配置引用、
-客户端原生候选校验、公开重载以及实际路径验证未完成前，桌面端仍不得开放“已接管”。
+公开重载以及实际路径验证未完成前，桌面端仍不得开放“已接管”。
 
 适配器接口：
 

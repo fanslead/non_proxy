@@ -32,7 +32,8 @@
    低于 renderer 门限或事务窗口内发生升级时 fail-closed，不继续套用旧候选。
 6. `prepare/apply/verify/rollback` 通过独立 RPC 调用
    `nonproxy-adapter-transaction`。策略正文带 SHA-256，hash 不匹配时不生成候选；同步文件
-   IO 在 blocking task 边界运行。
+   IO 在 blocking task 边界运行。prepare 在持久化前先确定性预渲染并执行客户端原生校验，
+   原生校验失败时不会产生可应用 change；具体边界见 ADR-0022。
 7. 当前 `apply` 只原子应用专属 sidecar，`reloaded` 固定为 false；`verify` 最多返回
    `EVIDENCE_LEVEL_CONFIGURATION`，顶层 `verified` 与 `path_verified` 固定为 false。
    桌面端不得把这一步显示为“已接管”或“已经直连”。
@@ -40,8 +41,8 @@
 ## 当前边界
 
 - 尚未修改或引导第三方客户端主配置引用 sidecar。
-- 尚未接入客户端原生候选校验、公开重载 API、实际决策/出口路径验证和失败后的服务层
-  自动回滚编排。
+- 尚未接入第三方主配置、公开重载 API、实际决策/出口路径验证和失败后的服务层自动回滚
+  编排。
 - Windows 将复用 Protobuf、目录和事务领域语义，但命名管道、ACL 与进程创建限制需要
   独立实现和系统验收；当前非 Unix 服务会明确拒绝启动。
 - NonProxy 不捆绑、下载或托管 Mihomo/sing-box 核心；这里只调用用户明确选择的既有

@@ -7,4 +7,5 @@ capabilities:
   - application_rule
   - domain_rule
   - cidr_rule
-integration_state: candidate_rendering_only
+  - native_candidate_validation
+integration_state: authenticated_host_validation

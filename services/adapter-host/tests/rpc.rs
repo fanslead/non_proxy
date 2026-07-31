@@ -83,6 +83,7 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
         .into_inner();
     assert!(prepared.error.is_none());
     assert_eq!(prepared.rule_count, 1);
+    assert!(prepared.client_validated);
 
     let denied = service
         .apply_change(Request::new(ApplyChangeRequest {
@@ -194,6 +195,45 @@ async fn client_upgrade_between_prepare_and_apply_fails_closed() {
 }
 
 #[tokio::test]
+async fn client_native_validation_failure_creates_no_prepared_change() {
+    let fixture = Fixture::new();
+    let service = fixture.service();
+    let registered = service
+        .register_installation(Request::new(fixture.registration("register-validation")))
+        .await
+        .unwrap_or_else(|error| panic!("校验门禁安装项登记失败: {error}"))
+        .into_inner();
+    assert!(registered.error.is_none());
+    fixture.set_client("1.19.16", false);
+    let policy = fixture.policy();
+
+    let prepared = service
+        .prepare_change(Request::new(PrepareChangeRequest {
+            operation_id: String::new(),
+            adapter_id: "mihomo-primary".to_owned(),
+            installation_id: "mihomo-primary".to_owned(),
+            normalized_policy_hash: Sha256::digest(policy).to_vec(),
+            normalized_policy: policy.to_vec(),
+            context: Some(context("prepare-invalid-native", TOKEN)),
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("原生校验失败响应异常: {error}"))
+        .into_inner();
+
+    assert!(prepared.change_id.is_empty());
+    assert!(!prepared.client_validated);
+    assert_eq!(
+        prepared.error.as_ref().map(|error| error.code.as_str()),
+        Some("NP_ADAPTER_CANDIDATE_VALIDATION_FAILED")
+    );
+    let change_directory = fixture.state.join("transactions/changes");
+    let change_count = fs::read_dir(change_directory)
+        .unwrap_or_else(|error| panic!("事务目录读取失败: {error}"))
+        .count();
+    assert_eq!(change_count, 0);
+}
+
+#[tokio::test]
 async fn private_uds_serves_authenticated_adapter_contract_and_cleans_up() {
     use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 
@@ -268,11 +308,8 @@ impl Fixture {
             .unwrap_or_else(|error| panic!("状态目录权限设置失败: {error}"));
         fs::create_dir(&managed).unwrap_or_else(|error| panic!("托管目录创建失败: {error}"));
         let executable = root.path().join("mihomo-fixture");
-        fs::write(
-            &executable,
-            b"#!/bin/sh\nprintf '%s\\n' 'Mihomo Meta v1.19.16 darwin arm64'\n",
-        )
-        .unwrap_or_else(|error| panic!("Mihomo fixture 写入失败: {error}"));
+        fs::write(&executable, mihomo_script("1.19.16", true))
+            .unwrap_or_else(|error| panic!("Mihomo fixture 写入失败: {error}"));
         fs::set_permissions(&executable, fs::Permissions::from_mode(0o700))
             .unwrap_or_else(|error| panic!("Mihomo fixture 权限设置失败: {error}"));
         Self {
@@ -313,12 +350,23 @@ impl Fixture {
     }
 
     fn set_version(&self, version: &str) {
+        self.set_client(version, true);
+    }
+
+    fn set_client(&self, version: &str, validation_succeeds: bool) {
         fs::write(
             &self.executable,
-            format!("#!/bin/sh\nprintf '%s\\n' 'Mihomo Meta v{version} darwin arm64'\n"),
+            mihomo_script(version, validation_succeeds),
         )
         .unwrap_or_else(|error| panic!("Mihomo fixture 版本更新失败: {error}"));
     }
+}
+
+fn mihomo_script(version: &str, validation_succeeds: bool) -> String {
+    let validation_exit = if validation_succeeds { 0 } else { 1 };
+    format!(
+        "#!/bin/sh\nif [ \"$1\" = \"-v\" ]; then printf '%s\\n' 'Mihomo Meta v{version} darwin arm64'; exit 0; fi\nif [ \"$1\" = \"-t\" ] && [ \"$2\" = \"-d\" ] && [ \"$4\" = \"-f\" ] && grep -q 'RULE-SET,nonproxy,DIRECT' \"$5\" && grep -q 'DOMAIN-SUFFIX,example.com' \"$3/nonproxy.yaml\"; then exit {validation_exit}; fi\nexit 1\n"
+    )
 }
 
 fn context(operation_id: &str, token: [u8; 32]) -> AdapterRequestContext {

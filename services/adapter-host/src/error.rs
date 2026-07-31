@@ -28,6 +28,14 @@ pub enum AdapterHostError {
     DetectionIo(#[source] io::Error),
     #[error("适配器客户端检测任务失败")]
     DetectionTask(#[source] tokio::task::JoinError),
+    #[error("适配器候选未通过客户端原生校验")]
+    CandidateValidationFailed,
+    #[error("适配器客户端原生校验暂不可用")]
+    CandidateValidationUnavailable,
+    #[error("适配器候选原生校验文件操作失败")]
+    CandidateValidationIo(#[source] io::Error),
+    #[error("适配器候选原生校验任务失败")]
+    CandidateValidationTask(#[source] tokio::task::JoinError),
     #[error("适配器客户端版本不受支持")]
     ClientUnsupported,
     #[error("适配器客户端版本在变更期间已经变化")]
@@ -59,6 +67,10 @@ impl AdapterHostError {
             Self::DetectionFailed | Self::DetectionIo(_) | Self::DetectionTask(_) => {
                 "NP_ADAPTER_DETECTION_FAILED"
             }
+            Self::CandidateValidationFailed => "NP_ADAPTER_CANDIDATE_VALIDATION_FAILED",
+            Self::CandidateValidationUnavailable
+            | Self::CandidateValidationIo(_)
+            | Self::CandidateValidationTask(_) => "NP_ADAPTER_CANDIDATE_VALIDATION_UNAVAILABLE",
             Self::ClientUnsupported => "NP_ADAPTER_CLIENT_UNSUPPORTED",
             Self::ClientVersionChanged => "NP_ADAPTER_CLIENT_VERSION_CHANGED",
             Self::CatalogCorrupt => "NP_ADAPTER_CATALOG_CORRUPT",
@@ -82,6 +94,9 @@ impl AdapterHostError {
             | Self::DetectionFailed
             | Self::DetectionIo(_)
             | Self::DetectionTask(_)
+            | Self::CandidateValidationUnavailable
+            | Self::CandidateValidationIo(_)
+            | Self::CandidateValidationTask(_)
             | Self::Transport(_) => RetryableKind::Yes,
             Self::Transaction(AdapterTransactionError::FileTransaction) => RetryableKind::Yes,
             _ => RetryableKind::No,

@@ -4,7 +4,7 @@ use std::{
     sync::Mutex,
 };
 
-use nonproxy_adapter_api::NormalizedPolicy;
+use nonproxy_adapter_api::{NormalizedPolicy, RenderedRules};
 
 use crate::{
     AdapterTransactionError,
@@ -63,9 +63,7 @@ impl AdapterTransactionManager {
         let managed_rules_path = validate_installation_path(&installation.managed_rules_path)?;
         self.remove_expired_locked(now_unix_ms)?;
 
-        let policy = NormalizedPolicy::from_json(normalized_policy)?;
-        let rendered =
-            renderer_catalog::render(installation.client, installation.client_version, &policy)?;
+        let rendered = Self::render_candidate(installation, normalized_policy)?;
         let candidate_hash = *rendered.sha256();
         let change_id = stable_identifier(
             "change",
@@ -139,6 +137,16 @@ impl AdapterTransactionManager {
             expires_at_unix_ms,
             rule_count: rendered.rule_count(),
         })
+    }
+
+    pub fn render_candidate(
+        installation: &AdapterInstallation,
+        normalized_policy: &[u8],
+    ) -> Result<RenderedRules, AdapterTransactionError> {
+        validate_installation(installation)?;
+        let policy = NormalizedPolicy::from_json(normalized_policy)?;
+        renderer_catalog::render(installation.client, installation.client_version, &policy)
+            .map_err(AdapterTransactionError::from)
     }
 
     pub fn apply(

@@ -13,8 +13,8 @@ use sha2::{Digest, Sha256};
 use tonic::{Response, Status};
 
 use crate::{
-    AdapterHostError, capabilities::capabilities, detection::detect, mapping::error_detail,
-    rpc_state::AdapterRpcService,
+    AdapterHostError, candidate_validation::validate, capabilities::capabilities,
+    detection::detect, mapping::error_detail, rpc_state::AdapterRpcService,
 };
 
 impl AdapterRpcService {
@@ -36,6 +36,7 @@ impl AdapterRpcService {
                 error: None,
                 rule_count: u32::try_from(value.rule_count)
                     .map_err(|_| Status::internal("适配器规则数量溢出"))?,
+                client_validated: true,
             },
             Err(error) => PrepareChangeResponse {
                 change_id: String::new(),
@@ -44,6 +45,7 @@ impl AdapterRpcService {
                 expires_at: None,
                 error: Some(error_detail(&error)),
                 rule_count: 0,
+                client_validated: false,
             },
         }))
     }
@@ -179,13 +181,37 @@ impl AdapterRpcService {
         );
         let transactions = self.transactions.clone();
         let policy = request.normalized_policy;
+        let preview_installation = transaction_installation.clone();
+        let preview_policy = policy.clone();
+        let preview_transactions = transactions.clone();
+        let preview = tokio::task::spawn_blocking(move || {
+            nonproxy_adapter_transaction::AdapterTransactionManager::render_candidate(
+                &preview_installation,
+                &preview_policy,
+            )
+        })
+        .await
+        .map_err(AdapterHostError::Task)??;
+        validate(&detected, preview.bytes()).await?;
+        let preview_hash = *preview.sha256();
+        let preview_rule_count = preview.rule_count();
         let now = now_unix_millis()?;
-        tokio::task::spawn_blocking(move || {
+        let prepared = tokio::task::spawn_blocking(move || {
             transactions.prepare(&transaction_installation, &operation_id, &policy, now)
         })
         .await
         .map_err(AdapterHostError::Task)?
-        .map_err(AdapterHostError::from)
+        .map_err(AdapterHostError::from)?;
+        if prepared.candidate_sha256 != preview_hash || prepared.rule_count != preview_rule_count {
+            let change_id = prepared.change_id.clone();
+            tokio::task::spawn_blocking(move || preview_transactions.remove_change(&change_id))
+                .await
+                .map_err(AdapterHostError::Task)??;
+            return Err(AdapterHostError::Transaction(
+                nonproxy_adapter_transaction::AdapterTransactionError::StateCorrupt,
+            ));
+        }
+        Ok(prepared)
     }
 
     async fn validate_prepared_client(&self, change_id: &str) -> Result<(), AdapterHostError> {

@@ -549,6 +549,8 @@ public nonisolated struct Nonproxy_Adapter_V1_PrepareChangeResponse: Sendable {
 
   public var ruleCount: UInt32 = 0
 
+  public var clientValidated: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1325,7 +1327,7 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeRequest: SwiftProtobuf.Me
 
 nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PrepareChangeResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}change_id\0\u{3}backup_id\0\u{3}candidate_hash\0\u{3}expires_at\0\u{1}error\0\u{3}rule_count\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}change_id\0\u{3}backup_id\0\u{3}candidate_hash\0\u{3}expires_at\0\u{1}error\0\u{3}rule_count\0\u{3}client_validated\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1339,6 +1341,7 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
       case 4: try { try decoder.decodeSingularMessageField(value: &self._expiresAt) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._error) }()
       case 6: try { try decoder.decodeSingularUInt32Field(value: &self.ruleCount) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self.clientValidated) }()
       default: break
       }
     }
@@ -1367,6 +1370,9 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
     if self.ruleCount != 0 {
       try visitor.visitSingularUInt32Field(value: self.ruleCount, fieldNumber: 6)
     }
+    if self.clientValidated != false {
+      try visitor.visitSingularBoolField(value: self.clientValidated, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1377,6 +1383,7 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
     if lhs._expiresAt != rhs._expiresAt {return false}
     if lhs._error != rhs._error {return false}
     if lhs.ruleCount != rhs.ruleCount {return false}
+    if lhs.clientValidated != rhs.clientValidated {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

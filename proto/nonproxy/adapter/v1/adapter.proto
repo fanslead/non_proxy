@@ -154,6 +154,7 @@ message PrepareChangeResponse {
   google.protobuf.Timestamp expires_at = 4;
   nonproxy.common.v1.ErrorDetail error = 5;
   uint32 rule_count = 6;
+  bool client_validated = 7;
 }
 
 // ApplyChangeRequest 请求原子应用已经准备的变更。

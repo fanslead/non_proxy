@@ -1,3 +1,4 @@
+mod candidate_validation;
 mod capabilities;
 mod catalog;
 mod change_rpc;
@@ -8,6 +9,7 @@ mod installation_rpc;
 mod mapping;
 mod model;
 mod path_validation;
+mod process_runner;
 mod rpc;
 mod rpc_state;
 mod server;
