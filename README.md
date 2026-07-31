@@ -12,7 +12,7 @@ Windows DNS 不修改网卡设置：动态 WFP filter 先只把远端 TCP/UDP 53
 
 Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名清单绑定、复制后复验、版本化 Service/Driver 安装、失败回滚、默认保留数据的卸载、Driver Verifier 安全门与生命周期证据清单。当前 Rust 单测和 Windows 交叉门禁覆盖用户态与 ABI；WDK 实机结果、Hardware Dev Center 生产签名、SCM/UAC、Driver Verifier 与真实 VPN 路径尚未验收，因此 Windows UI 仍不会把系统组件表述为可用。
 
-运行概览会按“后台服务 → 透明代理 → DNS 分流 → 网络接管”显示真实分段状态。等待授权时可通过原生桥直接打开 macOS“登录项与扩展”，允许后重新检查；部分安装可执行修复，卸载需要二次确认。诊断页复用同一组分段证据并显示稳定错误码。
+运行概览会按“后台服务 → 透明代理 → DNS 分流 → 网络接管”显示真实分段状态。等待授权时可通过原生桥直接打开 macOS“登录项与扩展”，允许后重新检查；部分安装可执行修复，卸载需要二次确认。诊断页复用同一组分段证据并显示稳定错误码，还可以生成最近 24 小时的严格脱敏本地 JSON；页面会预览内容范围、大小和 SHA-256，文件不包含凭据、代理端点、网络载荷或逐连接样本，也不会自动上传。
 
 正式签名 macOS 包的只读查询、安装、升级、卸载和完整生命周期验收使用 [macOS 系统组件验收手册](docs/MACOS_SYSTEM_ACCEPTANCE.md)。验收命令拒绝临时签名、非 `/Applications` 包和未经显式确认的系统变更，并输出带 SHA-256 清单的独立证据目录。
 
@@ -45,6 +45,7 @@ TCP/DNS/UDP/QUIC 验收使用
 - [Windows WFP 明文 DNS 截获 ADR](docs/ADR/0007-intercept-windows-dns-with-wfp.md)
 - [Windows UDP/QUIC 数据报搬运 ADR](docs/ADR/0008-divert-windows-udp-datagrams.md)
 - [Windows 系统组件发行 ADR](docs/ADR/0009-distribute-windows-system-components.md)
+- [脱敏诊断包 ADR](docs/ADR/0010-export-redacted-diagnostics-from-gateway.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链

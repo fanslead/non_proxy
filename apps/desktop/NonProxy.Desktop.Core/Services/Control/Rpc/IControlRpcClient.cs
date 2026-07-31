@@ -79,4 +79,7 @@ public interface IControlRpcClient
     Task<StopLearningSessionResponse> StopLearningSessionAsync(
         string sessionId,
         CancellationToken cancellationToken);
+
+    Task<ExportDiagnosticsResponse> ExportDiagnosticsAsync(
+        CancellationToken cancellationToken);
 }

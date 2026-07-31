@@ -181,6 +181,14 @@ public sealed class DisconnectedDiagnosticsService : IDiagnosticsService
         SystemComponentDiagnostics.AddTo(checks, component);
         return checks;
     }
+
+    public Task<DiagnosticExport> ExportAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new ControlServiceException(
+            "NP_CONTROL_UNAVAILABLE",
+            "控制服务尚未连接，诊断包没有生成。");
+    }
 }
 
 public sealed class DisconnectedDesktopSettingsService : IDesktopSettingsService

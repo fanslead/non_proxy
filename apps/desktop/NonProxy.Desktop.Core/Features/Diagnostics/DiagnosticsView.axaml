@@ -1,0 +1,124 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:diagnostics="using:NonProxy.Desktop.Core.Features.Diagnostics"
+             xmlns:control="using:NonProxy.Desktop.Core.Services.Control"
+             x:Class="NonProxy.Desktop.Core.Features.Diagnostics.DiagnosticsView"
+             x:DataType="diagnostics:DiagnosticsViewModel">
+    <ScrollViewer>
+        <StackPanel Margin="40"
+                    MaxWidth="960"
+                    Spacing="24">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                    <TextBlock Theme="{StaticResource NpPageTitle}"
+                               Text="诊断" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="检查控制服务、系统组件、策略快照和数据面的真实状态。" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Theme="{StaticResource NpPrimaryButton}"
+                        Command="{Binding RefreshCommand}"
+                        Content="运行检查"
+                        AutomationProperties.Name="运行系统诊断检查" />
+            </Grid>
+
+            <ItemsControl ItemsSource="{Binding Checks}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="control:DiagnosticCheck">
+                        <Border Theme="{StaticResource NpCard}"
+                                Margin="0,0,0,12">
+                            <Grid ColumnDefinitions="2*,*,4*"
+                                  ColumnSpacing="16">
+                                <TextBlock FontWeight="SemiBold"
+                                           Text="{Binding Name}" />
+                                <TextBlock Grid.Column="1"
+                                           FontWeight="SemiBold"
+                                           Text="{Binding Status}" />
+                                <TextBlock Grid.Column="2"
+                                           Theme="{StaticResource NpMutedText}"
+                                           Text="{Binding Detail}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="10">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="诊断包" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="默认导出最近 24 小时的严格脱敏 JSON。不会包含凭据、代理地址、网络载荷，也不会自动上传。"
+                               TextWrapping="Wrap" />
+                    <Button HorizontalAlignment="Left"
+                            x:Name="ExportDiagnosticsButton"
+                            Theme="{StaticResource NpSecondaryButton}"
+                            Command="{Binding ExportCommand}"
+                            Content="导出诊断包"
+                            AutomationProperties.Name="导出脱敏诊断包" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="{Binding OperationMessage}"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding HasOperationMessage}" />
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="DiagnosticExportPreview"
+                    Theme="{StaticResource NpCard}"
+                    IsVisible="{Binding HasLatestExport}">
+                <StackPanel Spacing="12">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="导出预览" />
+                    <TextBlock FontWeight="SemiBold"
+                               Text="{Binding LatestExport.Summary}"
+                               TextWrapping="Wrap" />
+                    <Grid ColumnDefinitions="160,*"
+                          RowDefinitions="Auto,Auto,Auto,Auto"
+                          ColumnSpacing="16"
+                          RowSpacing="8">
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="时间范围" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding LatestExport.RangeLabel}" />
+                        <TextBlock Grid.Row="1"
+                                   Theme="{StaticResource NpMutedText}"
+                                   Text="文件大小" />
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="1"
+                                   Text="{Binding LatestExport.SizeLabel}" />
+                        <TextBlock Grid.Row="2"
+                                   Theme="{StaticResource NpMutedText}"
+                                   Text="SHA-256" />
+                        <TextBox Grid.Row="2"
+                                 Grid.Column="1"
+                                 IsReadOnly="True"
+                                 Text="{Binding LatestExport.Sha256}"
+                                 AutomationProperties.Name="诊断包 SHA-256" />
+                        <TextBlock Grid.Row="3"
+                                   Theme="{StaticResource NpMutedText}"
+                                   Text="本地文件" />
+                        <TextBox x:Name="DiagnosticLocalPath"
+                                 Grid.Row="3"
+                                 Grid.Column="1"
+                                 IsReadOnly="True"
+                                 Text="{Binding LatestExport.LocalPath}"
+                                 AutomationProperties.Name="诊断包本地路径" />
+                    </Grid>
+                    <TextBlock FontWeight="SemiBold"
+                               Text="包含内容" />
+                    <ItemsControl ItemsSource="{Binding LatestExport.IncludedSections}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Margin="0,2"
+                                           Text="{Binding StringFormat='• {0}'}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="请先检查上述范围和本地 JSON 内容，再自行决定是否发送给支持人员。"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

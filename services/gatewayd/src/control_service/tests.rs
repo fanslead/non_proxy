@@ -7,8 +7,9 @@ use nonproxy_model::{
 use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::control::v1::{
     ApplyPolicySnapshotRequest, CapabilityName, ConfirmLearningCandidatesRequest, DefaultRouteKind,
-    ExitProbeRouteKind, GetCapabilitiesRequest, GetSystemStatusRequest, ImportConfigurationRequest,
-    LearningObservationKind, LearningResourceType, LearningSessionKind, ListExitProbesRequest,
+    DiagnosticRedactionLevel, ExitProbeRouteKind, ExportDiagnosticsRequest, GetCapabilitiesRequest,
+    GetSystemStatusRequest, ImportConfigurationRequest, LearningObservationKind,
+    LearningResourceType, LearningSessionKind, ListExitProbesRequest,
     ListLearningCandidatesRequest, ListOutboundsRequest, OperationContext,
     RecordLearningObservationRequest, SetDefaultRouteRequest, StartLearningSessionRequest,
     StopLearningSessionRequest, TestOutboundRequest, UpsertPolicyRequest, VerifyExitRequest,
@@ -100,6 +101,23 @@ async fn verify_exit_requires_the_exact_session_capability() {
     };
 
     let result = service.verify_exit(Request::new(request)).await;
+
+    assert!(matches!(
+        result,
+        Err(status) if status.code() == Code::PermissionDenied
+    ));
+}
+
+#[tokio::test]
+async fn export_diagnostics_requires_the_exact_session_capability() {
+    let service = service([7; 32]);
+    let result = service
+        .export_diagnostics(Request::new(ExportDiagnosticsRequest {
+            context: Some(context([8; 32], "export-diagnostics")),
+            redaction_level: DiagnosticRedactionLevel::Strict as i32,
+            time_range: None,
+        }))
+        .await;
 
     assert!(matches!(
         result,

@@ -67,6 +67,8 @@ public interface IActivityService
 public interface IDiagnosticsService
 {
     Task<IReadOnlyList<DiagnosticCheck>> RunChecksAsync(CancellationToken cancellationToken);
+
+    Task<DiagnosticExport> ExportAsync(CancellationToken cancellationToken);
 }
 
 public interface IDesktopSettingsService

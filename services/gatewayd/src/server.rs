@@ -60,12 +60,14 @@ async fn run_with_lifecycle(
         .exit_probe()
         .map(crate::config::ExitProbeConfig::client)
         .transpose()?;
+    let diagnostics_directory = config.state_directory().join("diagnostics");
     let control = ControlRpcService::with_credential_store(
         gateway.clone(),
         control_capability,
         Arc::clone(&credential_store),
     )
-    .with_exit_probe_client(exit_probe_client);
+    .with_exit_probe_client(exit_probe_client)
+    .with_diagnostics_directory(diagnostics_directory);
     #[cfg(any(unix, windows))]
     {
         let provider = ProviderRpcService::with_credential_store(

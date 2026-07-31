@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Google.Protobuf.WellKnownTypes;
 using NonProxy.Control.V1;
 using NonProxy.Desktop.Core.Platform;
@@ -28,6 +29,7 @@ internal static class Program
                 new PolicyContractMapper(new SmokePlatformInformation()));
             await ImportSmokeOutboundIfRequestedAsync(client, timeout.Token);
             await VerifyLearningAsync(client, timeout.Token);
+            await VerifyDiagnosticsAsync(client, timeout.Token);
             var initial = await client.GetSystemStatusAsync(timeout.Token);
             if (initial.ActiveSnapshotVersion != 0
                 || initial.PendingSnapshotVersion != 0)
@@ -58,7 +60,7 @@ internal static class Program
             }
 
             Console.WriteLine(
-                "控制平面跨语言联调通过：UDS、会话认证、写入、发布、学习会话和状态回读一致。");
+                "控制平面跨语言联调通过：UDS、会话认证、写入、发布、学习会话、严格脱敏诊断和状态回读一致。");
             return 0;
         }
         catch (Exception exception)
@@ -158,6 +160,40 @@ internal static class Program
         {
             throw new InvalidOperationException(
                 $"学习会话停止失败：{stopped.Error?.Code ?? "invalid-stop"}");
+        }
+    }
+
+    private static async Task VerifyDiagnosticsAsync(
+        GrpcControlRpcClient client,
+        CancellationToken cancellationToken)
+    {
+        var response = await client.ExportDiagnosticsAsync(cancellationToken);
+        if (response.Error is not null
+            || response.AppliedRedactionLevel != DiagnosticRedactionLevel.Strict
+            || response.ConnectionSampleCount != 0
+            || response.Sha256.Length != 32
+            || string.IsNullOrWhiteSpace(response.LocalPath)
+            || response.IncludedSections.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"严格脱敏诊断导出失败：{response.Error?.Code ?? "invalid-result"}");
+        }
+        var content = await File.ReadAllBytesAsync(
+            response.LocalPath,
+            cancellationToken);
+        if (!CryptographicOperations.FixedTimeEquals(
+                SHA256.HashData(content),
+                response.Sha256.Span))
+        {
+            throw new InvalidOperationException("诊断文件 SHA-256 与控制响应不一致。");
+        }
+        var text = System.Text.Encoding.UTF8.GetString(content);
+        if (text.Contains(
+                "smoke-browser-context",
+                StringComparison.Ordinal)
+            || text.Contains("api.nonproxy.test", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("严格诊断文件泄漏了学习会话或目标域名。");
         }
     }
 

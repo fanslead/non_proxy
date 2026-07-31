@@ -544,6 +544,11 @@ message ExportDiagnosticsResponse {
   uint64 size_bytes = 3;
   bytes sha256 = 4;
   nonproxy.common.v1.ErrorDetail error = 5;
+  DiagnosticRedactionLevel applied_redaction_level = 6;
+  nonproxy.common.v1.TimeRange effective_time_range = 7;
+  repeated string included_sections = 8;
+  uint32 connection_sample_count = 9;
+  uint32 error_count = 10;
 }
 
 // SubscribeEventsRequest 从给定游标开始订阅事件。

@@ -21,8 +21,8 @@ use crate::{
         mutation_error, publish_snapshot_event, request_status,
     },
     control_rpc_service::ControlRpcService,
-    decision_rpc, exit_probe, exit_probe_rpc, learning_rpc, outbound_import_service,
-    outbound_probe,
+    decision_rpc, diagnostics_export, exit_probe, exit_probe_rpc, learning_rpc,
+    outbound_import_service, outbound_probe,
     proto_policy::{policy_from_proto, policy_to_proto},
     routing_rpc, system_rpc,
 };
@@ -373,13 +373,16 @@ impl ControlService for ControlRpcService {
         request: Request<control_proto::ExportDiagnosticsRequest>,
     ) -> Result<Response<control_proto::ExportDiagnosticsResponse>, Status> {
         self.session.validate(request.get_ref().context.as_ref())?;
-        Ok(Response::new(control_proto::ExportDiagnosticsResponse {
-            diagnostic_id: String::new(),
-            local_path: String::new(),
-            size_bytes: 0,
-            sha256: Vec::new(),
-            error: Some(control_mapping::feature_unavailable("诊断包导出")),
-        }))
+        let Some(directory) = self.diagnostics_directory.as_deref() else {
+            return Ok(Response::new(diagnostics_export::unavailable_response()));
+        };
+        match diagnostics_export::export(&self.gateway, directory, request.into_inner()).await {
+            Ok(exported) => Ok(Response::new(exported.into_response()?)),
+            Err(error) if error.is_invalid_request() => {
+                Err(Status::invalid_argument(error.user_message()))
+            }
+            Err(error) => Ok(Response::new(error.into_response())),
+        }
     }
 
     type SubscribeEventsStream =

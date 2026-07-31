@@ -65,6 +65,8 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public StopLearningSessionResponse StopLearningResponse { get; set; } = new();
 
+    public ExportDiagnosticsResponse ExportDiagnosticsResponse { get; set; } = new();
+
     public string? LastImportedConfiguration { get; private set; }
 
     public string? LastTestedOutboundId { get; private set; }
@@ -257,5 +259,12 @@ internal sealed class StubControlRpcClient : IControlRpcClient
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(StopLearningResponse);
+    }
+
+    public Task<ExportDiagnosticsResponse> ExportDiagnosticsAsync(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ExportDiagnosticsResponse);
     }
 }

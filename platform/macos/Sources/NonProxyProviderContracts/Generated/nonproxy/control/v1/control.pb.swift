@@ -2213,11 +2213,29 @@ public nonisolated struct Nonproxy_Control_V1_ExportDiagnosticsResponse: Sendabl
   /// Clears the value of `error`. Subsequent reads from it will return its default value.
   public mutating func clearError() {self._error = nil}
 
+  public var appliedRedactionLevel: Nonproxy_Control_V1_DiagnosticRedactionLevel = .unspecified
+
+  public var effectiveTimeRange: Nonproxy_Common_V1_TimeRange {
+    get {_effectiveTimeRange ?? Nonproxy_Common_V1_TimeRange()}
+    set {_effectiveTimeRange = newValue}
+  }
+  /// Returns true if `effectiveTimeRange` has been explicitly set.
+  public var hasEffectiveTimeRange: Bool {self._effectiveTimeRange != nil}
+  /// Clears the value of `effectiveTimeRange`. Subsequent reads from it will return its default value.
+  public mutating func clearEffectiveTimeRange() {self._effectiveTimeRange = nil}
+
+  public var includedSections: [String] = []
+
+  public var connectionSampleCount: UInt32 = 0
+
+  public var errorCount: UInt32 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+  fileprivate var _effectiveTimeRange: Nonproxy_Common_V1_TimeRange? = nil
 }
 
 /// SubscribeEventsRequest 从给定游标开始订阅事件。
@@ -4943,7 +4961,7 @@ nonisolated extension Nonproxy_Control_V1_ExportDiagnosticsRequest: SwiftProtobu
 
 nonisolated extension Nonproxy_Control_V1_ExportDiagnosticsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ExportDiagnosticsResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}diagnostic_id\0\u{3}local_path\0\u{3}size_bytes\0\u{1}sha256\0\u{1}error\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}diagnostic_id\0\u{3}local_path\0\u{3}size_bytes\0\u{1}sha256\0\u{1}error\0\u{3}applied_redaction_level\0\u{3}effective_time_range\0\u{3}included_sections\0\u{3}connection_sample_count\0\u{3}error_count\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4956,6 +4974,11 @@ nonisolated extension Nonproxy_Control_V1_ExportDiagnosticsResponse: SwiftProtob
       case 3: try { try decoder.decodeSingularUInt64Field(value: &self.sizeBytes) }()
       case 4: try { try decoder.decodeSingularBytesField(value: &self.sha256) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      case 6: try { try decoder.decodeSingularEnumField(value: &self.appliedRedactionLevel) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._effectiveTimeRange) }()
+      case 8: try { try decoder.decodeRepeatedStringField(value: &self.includedSections) }()
+      case 9: try { try decoder.decodeSingularUInt32Field(value: &self.connectionSampleCount) }()
+      case 10: try { try decoder.decodeSingularUInt32Field(value: &self.errorCount) }()
       default: break
       }
     }
@@ -4981,6 +5004,21 @@ nonisolated extension Nonproxy_Control_V1_ExportDiagnosticsResponse: SwiftProtob
     try { if let v = self._error {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
+    if self.appliedRedactionLevel != .unspecified {
+      try visitor.visitSingularEnumField(value: self.appliedRedactionLevel, fieldNumber: 6)
+    }
+    try { if let v = self._effectiveTimeRange {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    if !self.includedSections.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.includedSections, fieldNumber: 8)
+    }
+    if self.connectionSampleCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.connectionSampleCount, fieldNumber: 9)
+    }
+    if self.errorCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.errorCount, fieldNumber: 10)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -4990,6 +5028,11 @@ nonisolated extension Nonproxy_Control_V1_ExportDiagnosticsResponse: SwiftProtob
     if lhs.sizeBytes != rhs.sizeBytes {return false}
     if lhs.sha256 != rhs.sha256 {return false}
     if lhs._error != rhs._error {return false}
+    if lhs.appliedRedactionLevel != rhs.appliedRedactionLevel {return false}
+    if lhs._effectiveTimeRange != rhs._effectiveTimeRange {return false}
+    if lhs.includedSections != rhs.includedSections {return false}
+    if lhs.connectionSampleCount != rhs.connectionSampleCount {return false}
+    if lhs.errorCount != rhs.errorCount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

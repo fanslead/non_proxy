@@ -64,4 +64,4 @@ secrets/
 *.sqlite
 *.sqlite3
 *.log
-diagnostics/
+/diagnostics/

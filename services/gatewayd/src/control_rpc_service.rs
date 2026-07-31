@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 #[cfg(test)]
 use crate::credential_store::OsCredentialStore;
@@ -13,6 +13,7 @@ pub struct ControlRpcService {
     pub(crate) session: SessionCapability,
     pub(crate) credential_store: Arc<dyn CredentialStore>,
     pub(crate) exit_probe_client: Option<ExitProbeClient>,
+    pub(crate) diagnostics_directory: Option<PathBuf>,
 }
 
 impl ControlRpcService {
@@ -24,6 +25,7 @@ impl ControlRpcService {
             session,
             credential_store: Arc::new(OsCredentialStore),
             exit_probe_client: None,
+            diagnostics_directory: None,
         }
     }
 
@@ -37,12 +39,19 @@ impl ControlRpcService {
             session,
             credential_store,
             exit_probe_client: None,
+            diagnostics_directory: None,
         }
     }
 
     #[must_use]
     pub(crate) fn with_exit_probe_client(mut self, client: Option<ExitProbeClient>) -> Self {
         self.exit_probe_client = client;
+        self
+    }
+
+    #[must_use]
+    pub(crate) fn with_diagnostics_directory(mut self, directory: PathBuf) -> Self {
+        self.diagnostics_directory = Some(directory);
         self
     }
 

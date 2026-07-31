@@ -12,6 +12,13 @@ mod decision_ingest;
 mod decision_rpc;
 mod decision_snapshot_cache;
 mod decision_telemetry;
+mod diagnostics_document;
+mod diagnostics_export;
+#[cfg(test)]
+mod diagnostics_export_tests;
+mod diagnostics_file;
+mod diagnostics_labels;
+mod diagnostics_redaction;
 #[cfg(any(test, windows))]
 mod dns_policy;
 mod dns_service;

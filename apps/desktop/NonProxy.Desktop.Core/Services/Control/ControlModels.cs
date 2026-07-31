@@ -268,6 +268,29 @@ public sealed record DiagnosticCheck(
     string Status,
     string Detail);
 
+public sealed record DiagnosticExport(
+    string DiagnosticId,
+    string LocalPath,
+    long SizeBytes,
+    string Sha256,
+    string Redaction,
+    DateTimeOffset RangeStart,
+    DateTimeOffset RangeEnd,
+    IReadOnlyList<string> IncludedSections,
+    int ConnectionSampleCount,
+    int ErrorCount)
+{
+    public string SizeLabel => SizeBytes < 1024
+        ? $"{SizeBytes} B"
+        : $"{SizeBytes / 1024d:0.0} KiB";
+
+    public string RangeLabel =>
+        $"{RangeStart.ToLocalTime():MM-dd HH:mm} — {RangeEnd.ToLocalTime():MM-dd HH:mm}";
+
+    public string Summary =>
+        $"{Redaction}；连接样本 {ConnectionSampleCount} 条，错误记录 {ErrorCount} 条。";
+}
+
 public sealed record DesktopSettings(
     string Theme,
     bool StartAtLogin,
