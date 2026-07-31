@@ -34,6 +34,8 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public ImportConfigurationResponse ImportResponse { get; set; } = new();
 
+    public TestOutboundResponse TestOutboundResponse { get; set; } = new();
+
     public StartLearningSessionResponse StartLearningResponse { get; set; } = new();
 
     public RecordLearningObservationResponse RecordLearningResponse { get; set; } = new();
@@ -43,6 +45,8 @@ internal sealed class StubControlRpcClient : IControlRpcClient
     public StopLearningSessionResponse StopLearningResponse { get; set; } = new();
 
     public string? LastImportedConfiguration { get; private set; }
+
+    public string? LastTestedOutboundId { get; private set; }
 
     public ProtoPolicy? LastUpsertedPolicy { get; private set; }
 
@@ -125,6 +129,15 @@ internal sealed class StubControlRpcClient : IControlRpcClient
         cancellationToken.ThrowIfCancellationRequested();
         LastImportedConfiguration = Encoding.UTF8.GetString(configuration);
         return Task.FromResult(ImportResponse);
+    }
+
+    public Task<TestOutboundResponse> TestOutboundAsync(
+        string outboundId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastTestedOutboundId = outboundId;
+        return Task.FromResult(TestOutboundResponse);
     }
 
     public Task<StartLearningSessionResponse> StartLearningSessionAsync(

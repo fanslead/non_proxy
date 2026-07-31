@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using Google.Protobuf.WellKnownTypes;
 using NonProxy.Control.V1;
 using NonProxy.Desktop.Core.Services.Control.Rpc;
 using NonProxy.Events.V1;
@@ -10,6 +11,7 @@ public sealed class GatewayOutboundService : IOutboundService
 {
     private const int MaximumPages = 100;
     private const int MaximumCredentialLength = 255;
+    private static readonly TimeSpan MaximumProbeLatency = TimeSpan.FromSeconds(30);
 
     private readonly IControlRpcClient _client;
 
@@ -101,15 +103,53 @@ public sealed class GatewayOutboundService : IOutboundService
             response.Warnings.ToArray());
     }
 
+    public async Task<OutboundTestResult> TestAsync(
+        string outboundId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outboundId);
+        var response = await _client.TestOutboundAsync(
+            outboundId,
+            cancellationToken);
+        var checkedAt = DateTimeOffset.UtcNow;
+        if (response.Error is { } error)
+        {
+            return new OutboundTestResult(
+                outboundId,
+                false,
+                "握手异常",
+                null,
+                checkedAt,
+                TestErrorMessage(error.Code));
+        }
+        if (!response.Healthy || response.Latency is null)
+        {
+            throw InvalidProbeContract();
+        }
+
+        return new OutboundTestResult(
+            outboundId,
+            true,
+            "代理握手可用",
+            ToTimeSpan(response.Latency),
+            checkedAt,
+            "代理握手成功；该结果不代表公网出口 IP 或最终规则路径已经验证。");
+    }
+
     private static OutboundListItem ToItem(OutboundSummary outbound)
     {
         return new OutboundListItem(
             outbound.Id,
-            outbound.DisplayName,
+            string.IsNullOrWhiteSpace(outbound.DisplayName)
+                ? outbound.Id
+                : outbound.DisplayName,
             KindLabel(outbound.Kind),
             EndpointLabel(outbound.EndpointHost, outbound.EndpointPort),
             HealthLabel(outbound.Health),
-            null);
+            outbound.Latency is null ? null : ToTimeSpan(outbound.Latency),
+            outbound.LastCheckedAt is null
+                ? null
+                : ToDateTimeOffset(outbound.LastCheckedAt));
     }
 
     private static string EndpointLabel(string host, uint port)
@@ -137,11 +177,11 @@ public sealed class GatewayOutboundService : IOutboundService
     {
         return state switch
         {
-            RuntimeState.Ready => "可用",
-            RuntimeState.Degraded => "降级",
-            RuntimeState.Starting => "启动中",
-            RuntimeState.Failed => "异常",
-            RuntimeState.Stopped => "未启动",
+            RuntimeState.Ready => "代理握手可用",
+            RuntimeState.Degraded => "握手降级",
+            RuntimeState.Starting => "检测中",
+            RuntimeState.Failed => "握手异常",
+            RuntimeState.Stopped => "未验证",
             _ => "未验证",
         };
     }
@@ -197,6 +237,63 @@ public sealed class GatewayOutboundService : IOutboundService
             "NP_STORAGE_FAILURE" => "代理配置存储暂时不可用。",
             _ => "控制服务没有接受本次代理配置。",
         };
+    }
+
+    private static string TestErrorMessage(string code)
+    {
+        return code switch
+        {
+            "NP_FLOW_OUTBOUND_NOT_FOUND" => "代理配置已不存在，请刷新列表。",
+            "NP_FLOW_OUTBOUND_DISABLED" => "该代理已停用，请先启用后再测试。",
+            "NP_FLOW_OUTBOUND_UNSUPPORTED" => "当前代理类型暂不支持内置握手测试。",
+            "NP_FLOW_OUTBOUND_INVALID" => "代理配置不完整，请重新保存。",
+            "NP_FLOW_CREDENTIAL_UNAVAILABLE"
+                => "无法从系统凭据库读取代理账号密码。",
+            "NP_OUTBOUND_TEST_TIMEOUT"
+                => "代理握手超时，请检查地址、端口和网络状态。",
+            "NP_FLOW_OUTBOUND_CONNECT_FAILED" or "NP_FLOW_IO_FAILED"
+                => "代理握手失败，请检查地址、端口、认证信息和代理服务状态。",
+            _ => "代理握手未完成，请稍后重试。",
+        };
+    }
+
+    private static TimeSpan ToTimeSpan(Duration value)
+    {
+        try
+        {
+            var result = value.ToTimeSpan();
+            if (result < TimeSpan.Zero || result > MaximumProbeLatency)
+            {
+                throw InvalidProbeContract();
+            }
+
+            return result;
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw InvalidProbeContract(exception);
+        }
+    }
+
+    private static DateTimeOffset ToDateTimeOffset(Timestamp value)
+    {
+        try
+        {
+            return value.ToDateTimeOffset();
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw InvalidProbeContract(exception);
+        }
+    }
+
+    private static ControlServiceException InvalidProbeContract(
+        Exception? innerException = null)
+    {
+        return new ControlServiceException(
+            "NP_CONTROL_CONTRACT_INVALID",
+            "控制服务返回了无效的代理测试结果。",
+            innerException);
     }
 
     private static ControlServiceException InvalidPaging()

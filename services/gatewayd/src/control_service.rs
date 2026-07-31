@@ -21,7 +21,7 @@ use crate::{
         mutation_error, publish_snapshot_event, request_status,
     },
     control_rpc_service::ControlRpcService,
-    learning_rpc, outbound_import_service,
+    learning_rpc, outbound_import_service, outbound_probe,
     proto_policy::{policy_from_proto, policy_to_proto},
 };
 
@@ -250,10 +250,19 @@ impl ControlService for ControlRpcService {
         });
         let (start, end, page_response) =
             control_mapping::page_bounds(page.page_size, &page.page_token, outbounds.len())?;
+        let now = unix_time_ms().map_err(internal_status)?;
+        let health = outbounds[start..end]
+            .iter()
+            .map(|outbound| self.gateway.outbound_health(outbound, now))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(internal_status)?;
         Ok(Response::new(control_proto::ListOutboundsResponse {
             outbounds: outbounds[start..end]
                 .iter()
-                .map(control_mapping::outbound_summary)
+                .zip(health.iter())
+                .map(|(outbound, health)| {
+                    control_mapping::outbound_summary(outbound, health.as_ref())
+                })
                 .collect(),
             page: Some(page_response),
         }))
@@ -280,11 +289,14 @@ impl ControlService for ControlRpcService {
         request: Request<control_proto::TestOutboundRequest>,
     ) -> Result<Response<control_proto::TestOutboundResponse>, Status> {
         self.session.validate(request.get_ref().context.as_ref())?;
-        Ok(Response::new(control_proto::TestOutboundResponse {
-            healthy: false,
-            latency: None,
-            error: Some(control_mapping::feature_unavailable("出口探测")),
-        }))
+        Ok(Response::new(
+            outbound_probe::run(
+                &self.gateway,
+                Arc::clone(&self.credential_store),
+                request.into_inner(),
+            )
+            .await,
+        ))
     }
 
     async fn start_learning_session(

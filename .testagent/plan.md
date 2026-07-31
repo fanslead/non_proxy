@@ -37,3 +37,29 @@
 2. Windows x64/arm64 target compile 全部 Rust 测试代码。
 3. 运行完整 `nonproxy-gatewayd` 与 Desktop Tests。
 4. 执行格式、diff check、断言强度和测试缺口复核。
+
+## 出口健康测试批次
+
+## 验收清单与测试映射
+
+| 验收项 | 计划测试 |
+| --- | --- |
+| 鉴权后才能发起出口探测 | `test_outbound_requires_the_exact_session_capability` |
+| 合法请求执行代理握手并返回耗时 | `successful_probe_reports_latency_and_updates_current_health` |
+| 超时被限制在 1 到 30 秒且错误稳定 | `probe_rejects_out_of_range_timeout`、`timed_out_probe_returns_retryable_error` |
+| 出口 revision 变化后旧健康结果不可复用 | `health_requires_current_revision_and_fresh_observation` |
+| 过期健康结果恢复为“未验证” | `health_requires_current_revision_and_fresh_observation` |
+| 列表返回健康状态、检查时间和握手耗时 | `list_outbounds_returns_fresh_probe_observation`、`ListMapsFreshHealthObservation` |
+| 桌面 RPC 带会话能力和固定探测超时 | `TestOutboundBuildsAuthenticatedBoundedRequest` |
+| 失败映射为可操作中文且不夸大为公网验证 | `TestMapsHandshakeFailureToActionableMessage` |
+| ViewModel 只替换被测试行并显示耗时/时间 | `TestCommandUpdatesOnlySelectedOutbound` |
+| macOS/Windows 共享界面都显示逐行测试入口 | `MacCompositionRendersOutboundTestAction`、`WindowsCompositionRendersOutboundTestAction` |
+
+## 实现阶段
+
+1. 扩展向后兼容的出站摘要协议字段。
+2. 新增独立健康注册表和探测编排模块，接入 Gateway 与 ControlService。
+3. 扩展桌面 RPC/service/model。
+4. 扩展 ViewModel 和共享 Avalonia 视图。
+5. 完成窄范围测试、质量审查、全仓相关门禁。
+6. 执行 macOS Release universal Native Messaging Host 与完整桌面 solution 打包门禁。

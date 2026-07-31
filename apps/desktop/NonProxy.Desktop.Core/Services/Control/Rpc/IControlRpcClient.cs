@@ -37,6 +37,10 @@ public interface IControlRpcClient
         byte[] configuration,
         CancellationToken cancellationToken);
 
+    Task<TestOutboundResponse> TestOutboundAsync(
+        string outboundId,
+        CancellationToken cancellationToken);
+
     Task<StartLearningSessionResponse> StartLearningSessionAsync(
         StartLearningSessionRequest request,
         CancellationToken cancellationToken);

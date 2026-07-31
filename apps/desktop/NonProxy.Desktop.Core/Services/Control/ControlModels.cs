@@ -1,3 +1,4 @@
+using System.Globalization;
 using NonProxy.Desktop.Core.Platform;
 
 namespace NonProxy.Desktop.Core.Services.Control;
@@ -146,7 +147,25 @@ public sealed record OutboundListItem(
     string Kind,
     string Endpoint,
     string Health,
-    DateTimeOffset? LastCheckedAt);
+    TimeSpan? Latency,
+    DateTimeOffset? LastCheckedAt)
+{
+    public string LatencyLabel => Latency is { } value
+        ? $"{Math.Ceiling(value.TotalMilliseconds):0} ms"
+        : "—";
+
+    public string LastCheckedLabel => LastCheckedAt is { } value
+        ? value.ToLocalTime().ToString("MM-dd HH:mm:ss", CultureInfo.CurrentCulture)
+        : "尚未检查";
+}
+
+public sealed record OutboundTestResult(
+    string OutboundId,
+    bool Healthy,
+    string Health,
+    TimeSpan? Latency,
+    DateTimeOffset CheckedAt,
+    string Message);
 
 public enum OutboundProxyKind
 {

@@ -8,12 +8,13 @@ use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::control::v1::{
     ApplyPolicySnapshotRequest, ConfirmLearningCandidatesRequest, ImportConfigurationRequest,
     LearningObservationKind, LearningResourceType, LearningSessionKind,
-    ListLearningCandidatesRequest, OperationContext, RecordLearningObservationRequest,
-    StartLearningSessionRequest, StopLearningSessionRequest, UpsertPolicyRequest,
-    control_service_server::ControlService, start_learning_session_request,
+    ListLearningCandidatesRequest, ListOutboundsRequest, OperationContext,
+    RecordLearningObservationRequest, StartLearningSessionRequest, StopLearningSessionRequest,
+    TestOutboundRequest, UpsertPolicyRequest, control_service_server::ControlService,
+    start_learning_session_request,
 };
-use nonproxy_proto::events::v1::{LearningCandidateKind, event_envelope};
-use nonproxy_storage::PolicyDatabase;
+use nonproxy_proto::events::v1::{LearningCandidateKind, RuntimeState, event_envelope};
+use nonproxy_storage::{OutboundKind, OutboundReference, PolicyDatabase};
 use tonic::{Code, Request};
 
 use crate::control_rpc_service::ControlRpcService;
@@ -37,6 +38,81 @@ async fn mutation_requires_the_exact_session_capability() {
         panic!("错误令牌必须被拒绝");
     };
     assert_eq!(status.code(), Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn test_outbound_requires_the_exact_session_capability() {
+    let service = service([7; 32]);
+    let request = TestOutboundRequest {
+        context: Some(context([8; 32], "test-outbound")),
+        outbound_id: "primary".to_owned(),
+        timeout: Some(prost_types::Duration {
+            seconds: 2,
+            nanos: 0,
+        }),
+    };
+
+    let result = service.test_outbound(Request::new(request)).await;
+
+    assert!(matches!(
+        result,
+        Err(status) if status.code() == Code::PermissionDenied
+    ));
+}
+
+#[tokio::test]
+async fn list_outbounds_returns_fresh_probe_observation() {
+    let database = match PolicyDatabase::open_in_memory(1) {
+        Ok(value) => value,
+        Err(error) => panic!("出口健康列表测试数据库打开失败: {error}"),
+    };
+    let gateway = Gateway::new(database, CompileCapabilities::full());
+    let outbound_id = match OutboundId::new("primary") {
+        Ok(value) => value,
+        Err(error) => panic!("出口健康列表测试 ID 创建失败: {error}"),
+    };
+    let outbound = match OutboundReference::new(
+        outbound_id.clone(),
+        OutboundKind::HttpConnect,
+        Some("127.0.0.1"),
+        Some(8_080),
+        None,
+        1,
+    ) {
+        Ok(value) => value,
+        Err(error) => panic!("出口健康列表测试配置创建失败: {error}"),
+    };
+    if let Err(error) = gateway.save_outbounds(vec![(outbound, None)]).await {
+        panic!("出口健康列表测试配置保存失败: {error}");
+    }
+    let now = match crate::clock::unix_time_ms() {
+        Ok(value) => value,
+        Err(error) => panic!("出口健康列表测试时间读取失败: {error}"),
+    };
+    if let Err(error) =
+        gateway.report_outbound_health(outbound_id, 1, RuntimeState::Ready, Some(42), now)
+    {
+        panic!("出口健康列表测试状态写入失败: {error}");
+    }
+    let service = ControlRpcService::new(gateway, SessionCapability::from_token([7; 32]));
+
+    let response = service
+        .list_outbounds(Request::new(ListOutboundsRequest { page: None }))
+        .await;
+    let Ok(response) = response else {
+        panic!("出口健康列表 RPC 失败: {response:?}");
+    };
+    let outbound = match response.into_inner().outbounds.into_iter().next() {
+        Some(value) => value,
+        None => panic!("出口健康列表必须返回测试配置"),
+    };
+
+    assert_eq!(outbound.health, RuntimeState::Ready as i32);
+    assert!(outbound.last_checked_at.is_some());
+    assert!(matches!(
+        outbound.latency,
+        Some(value) if value.seconds == 0 && value.nanos == 42_000_000
+    ));
 }
 
 #[tokio::test]

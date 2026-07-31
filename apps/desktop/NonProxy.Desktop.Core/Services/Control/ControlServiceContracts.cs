@@ -26,6 +26,10 @@ public interface IOutboundService
 {
     Task<IReadOnlyList<OutboundListItem>> ListAsync(CancellationToken cancellationToken);
 
+    Task<OutboundTestResult> TestAsync(
+        string outboundId,
+        CancellationToken cancellationToken);
+
     Task<OutboundImportResult> ImportAsync(
         OutboundImportDraft draft,
         CancellationToken cancellationToken);

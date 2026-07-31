@@ -1225,7 +1225,24 @@ pub trait OutboundConnector: Send + Sync {
 
 导入采用补偿事务：先把新凭据写入 macOS Keychain、Windows Credential Manager 或对应平台安全存储，再在一个 `BEGIN IMMEDIATE` 事务中校验全部 revision 并保存全部出口；数据库失败时删除新凭据，数据库成功后再清理旧凭据。SQLite、审计日志、RPC 响应和出口列表只包含版本化凭据引用，不包含用户名或密码。配置缓冲区在客户端和服务端完成处理后归零。
 
-`SOCKS5` 声明 TCP、UDP、IPv4 和 IPv6 能力；`HTTP CONNECT` 只声明 TCP、IPv4 和 IPv6，并在导入结果中给出 TCP-only 提示。这里只表示协议能力，不表示健康检查已通过；在真实 connector 和探针完成前，出口健康状态保持 `stopped`。
+`SOCKS5` 声明 TCP、UDP、IPv4 和 IPv6 能力；`HTTP CONNECT` 只声明 TCP、IPv4 和 IPv6，并在导入结果中给出 TCP-only 提示。这里只表示协议能力，不表示健康检查已通过；从未探测或结果过期的出口使用 `RUNTIME_STATE_UNSPECIFIED`，桌面端显示“未验证”。
+
+### 15.3 用户触发的代理握手测试
+
+桌面端每个出口提供独立“测试”操作。RPC 使用会话能力鉴权，并固定发送 5 秒探测超时；网关只接受 1 到 30 秒的合法 protobuf duration。测试目标由服务端固定为 `example.com:443`，客户端不能传入用户正在访问的域名；除与代理协商所需的 CONNECT/SOCKS 握手外，不向目标发送应用层请求、Cookie 或用户数据。
+
+网关复用数据面的当前出口加载器和系统凭据引用，实际完成 HTTP CONNECT 或 SOCKS5 TCP 握手。成功结果记录完整握手耗时；失败只返回稳定错误码和去敏提示，不回传连接器内部错误、用户名、密码、凭据引用或原始配置。
+
+健康观察保存在进程内的有界注册表中，并同时绑定 `outbound_id` 与配置 revision。配置 revision 变化后旧结果立即失效；观察超过 60 秒后恢复为“未验证”。`OutboundSummary` 返回 `health`、`last_checked_at` 和 `latency`，macOS 与 Windows 共享桌面层使用同一映射。
+
+该测试只证明“所选代理能够对固定目标完成 TCP 代理握手”，不能证明以下事项：
+
+- 实际用户连接命中了哪条策略；
+- DIRECT 是否绕开第三方 VPN；
+- PROXY 与 DIRECT 的公网出口是否不同；
+- UDP、QUIC、DNS 或指定用户目标已经可用。
+
+这些结论必须由决策证据、接口路径和自有出口探针联合验证，不能由本健康状态替代。
 
 ## 16. 第三方客户端适配器
 

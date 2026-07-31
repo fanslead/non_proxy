@@ -239,6 +239,8 @@ message OutboundSummary {
   repeated CapabilityName capabilities = 6;
   string endpoint_host = 7;
   uint32 endpoint_port = 8;
+  google.protobuf.Timestamp last_checked_at = 9;
+  google.protobuf.Duration latency = 10;
 }
 
 // ListOutboundsRequest 请求出站列表。

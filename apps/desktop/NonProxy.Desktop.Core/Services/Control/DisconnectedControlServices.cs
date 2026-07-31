@@ -76,6 +76,17 @@ public sealed class DisconnectedOutboundService : IOutboundService
             "NP_CONTROL_UNAVAILABLE",
             "控制服务尚未连接，代理配置没有保存。");
     }
+
+    public Task<OutboundTestResult> TestAsync(
+        string outboundId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outboundId);
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new ControlServiceException(
+            "NP_CONTROL_UNAVAILABLE",
+            "控制服务尚未连接，无法测试代理握手。");
+    }
 }
 
 public sealed class DisconnectedLearningService : ILearningService

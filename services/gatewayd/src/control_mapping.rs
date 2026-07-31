@@ -13,7 +13,7 @@ use nonproxy_storage::{OutboundKind, OutboundReference, SnapshotArtifact, Snapsh
 
 use crate::{
     GatewayError, RuntimePolicyRecord, RuntimePolicyState, clock::timestamp_from_unix_ms,
-    proto_policy::policy_to_proto,
+    outbound_health::OutboundHealthObservation, proto_policy::policy_to_proto,
 };
 
 pub fn error_detail(error: &GatewayError) -> ErrorDetail {
@@ -88,7 +88,10 @@ pub fn capability_names(capabilities: &CompileCapabilities) -> Vec<i32> {
 }
 
 #[must_use]
-pub fn outbound_summary(value: &OutboundReference) -> OutboundSummary {
+pub fn outbound_summary(
+    value: &OutboundReference,
+    health: Option<&OutboundHealthObservation>,
+) -> OutboundSummary {
     let (kind, capabilities) = match value.kind() {
         OutboundKind::HttpConnect => (
             ProtoOutboundKind::HttpConnect,
@@ -114,11 +117,22 @@ pub fn outbound_summary(value: &OutboundReference) -> OutboundSummary {
         display_name: value.id().as_str().to_owned(),
         kind: kind as i32,
         enabled: value.enabled(),
-        health: RuntimeState::Stopped as i32,
+        health: health.map_or(RuntimeState::Unspecified, |value| value.state) as i32,
         capabilities,
         endpoint_host: value.endpoint_host().unwrap_or_default().to_owned(),
         endpoint_port: value.endpoint_port().map_or(0, u32::from),
+        last_checked_at: health
+            .and_then(|value| timestamp_from_unix_ms(value.observed_at_unix_ms).ok()),
+        latency: health
+            .and_then(|value| value.latency_ms)
+            .and_then(duration_from_millis),
     }
+}
+
+fn duration_from_millis(value: u64) -> Option<prost_types::Duration> {
+    let seconds = i64::try_from(value / 1_000).ok()?;
+    let nanos = i32::try_from((value % 1_000) * 1_000_000).ok()?;
+    Some(prost_types::Duration { seconds, nanos })
 }
 
 #[must_use]

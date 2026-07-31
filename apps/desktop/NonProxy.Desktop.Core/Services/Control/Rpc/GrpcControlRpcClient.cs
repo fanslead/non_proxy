@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
 using NonProxy.Common.V1;
@@ -13,6 +14,8 @@ public sealed class GrpcControlRpcClient : IControlRpcClient, IDisposable
 {
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan MutationTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan OutboundProbeTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan OutboundProbeRpcTimeout = TimeSpan.FromSeconds(10);
 
     private readonly Lazy<GrpcChannel> _channel;
     private readonly Lazy<ControlService.ControlServiceClient> _client;
@@ -180,6 +183,34 @@ public sealed class GrpcControlRpcClient : IControlRpcClient, IDisposable
         {
             CryptographicOperations.ZeroMemory(configuration);
         }
+    }
+
+    public async Task<TestOutboundResponse> TestOutboundAsync(
+        string outboundId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outboundId);
+        var context = await _contextProvider.CreateAsync(
+            "test-outbound",
+            cancellationToken);
+        return await ExecuteAsync(
+            () => Client.TestOutboundAsync(
+                CreateTestOutboundRequest(outboundId, context),
+                Options(OutboundProbeRpcTimeout, cancellationToken)).ResponseAsync);
+    }
+
+    internal static TestOutboundRequest CreateTestOutboundRequest(
+        string outboundId,
+        OperationContext context)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outboundId);
+        ArgumentNullException.ThrowIfNull(context);
+        return new TestOutboundRequest
+        {
+            Context = context,
+            OutboundId = outboundId,
+            Timeout = Duration.FromTimeSpan(OutboundProbeTimeout),
+        };
     }
 
     public async Task<StartLearningSessionResponse> StartLearningSessionAsync(

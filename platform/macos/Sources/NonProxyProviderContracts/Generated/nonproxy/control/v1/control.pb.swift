@@ -921,9 +921,30 @@ public nonisolated struct Nonproxy_Control_V1_OutboundSummary: Sendable {
 
   public var endpointPort: UInt32 = 0
 
+  public var lastCheckedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_lastCheckedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_lastCheckedAt = newValue}
+  }
+  /// Returns true if `lastCheckedAt` has been explicitly set.
+  public var hasLastCheckedAt: Bool {self._lastCheckedAt != nil}
+  /// Clears the value of `lastCheckedAt`. Subsequent reads from it will return its default value.
+  public mutating func clearLastCheckedAt() {self._lastCheckedAt = nil}
+
+  public var latency: SwiftProtobuf.Google_Protobuf_Duration {
+    get {_latency ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_latency = newValue}
+  }
+  /// Returns true if `latency` has been explicitly set.
+  public var hasLatency: Bool {self._latency != nil}
+  /// Clears the value of `latency`. Subsequent reads from it will return its default value.
+  public mutating func clearLatency() {self._latency = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _lastCheckedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _latency: SwiftProtobuf.Google_Protobuf_Duration? = nil
 }
 
 /// ListOutboundsRequest 请求出站列表。
@@ -2456,7 +2477,7 @@ nonisolated extension Nonproxy_Control_V1_RollbackPolicySnapshotResponse: SwiftP
 
 nonisolated extension Nonproxy_Control_V1_OutboundSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OutboundSummary"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{1}kind\0\u{1}enabled\0\u{1}health\0\u{1}capabilities\0\u{3}endpoint_host\0\u{3}endpoint_port\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{1}kind\0\u{1}enabled\0\u{1}health\0\u{1}capabilities\0\u{3}endpoint_host\0\u{3}endpoint_port\0\u{3}last_checked_at\0\u{1}latency\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2472,12 +2493,18 @@ nonisolated extension Nonproxy_Control_V1_OutboundSummary: SwiftProtobuf.Message
       case 6: try { try decoder.decodeRepeatedEnumField(value: &self.capabilities) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self.endpointHost) }()
       case 8: try { try decoder.decodeSingularUInt32Field(value: &self.endpointPort) }()
+      case 9: try { try decoder.decodeSingularMessageField(value: &self._lastCheckedAt) }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._latency) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.id.isEmpty {
       try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
     }
@@ -2502,6 +2529,12 @@ nonisolated extension Nonproxy_Control_V1_OutboundSummary: SwiftProtobuf.Message
     if self.endpointPort != 0 {
       try visitor.visitSingularUInt32Field(value: self.endpointPort, fieldNumber: 8)
     }
+    try { if let v = self._lastCheckedAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    } }()
+    try { if let v = self._latency {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2514,6 +2547,8 @@ nonisolated extension Nonproxy_Control_V1_OutboundSummary: SwiftProtobuf.Message
     if lhs.capabilities != rhs.capabilities {return false}
     if lhs.endpointHost != rhs.endpointHost {return false}
     if lhs.endpointPort != rhs.endpointPort {return false}
+    if lhs._lastCheckedAt != rhs._lastCheckedAt {return false}
+    if lhs._latency != rhs._latency {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

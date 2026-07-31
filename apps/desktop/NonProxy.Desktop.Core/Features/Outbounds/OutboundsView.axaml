@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:outbounds="using:NonProxy.Desktop.Core.Features.Outbounds"
              xmlns:control="using:NonProxy.Desktop.Core.Services.Control"
+             x:Name="Root"
              x:Class="NonProxy.Desktop.Core.Features.Outbounds.OutboundsView"
              x:DataType="outbounds:OutboundsViewModel">
     <ScrollViewer>
@@ -13,7 +14,7 @@
                     <TextBlock Theme="{StaticResource NpPageTitle}"
                                Text="网络出口" />
                     <TextBlock Theme="{StaticResource NpMutedText}"
-                               Text="查看直连、本机代理和可选上游出口的健康状态；凭据不会显示在这里。" />
+                               Text="检查代理握手是否可用；这不会把结果误报为公网出口或最终规则路径验证。" />
                 </StackPanel>
                 <Button Grid.Column="1"
                         Theme="{StaticResource NpSecondaryButton}"
@@ -104,7 +105,7 @@
 
             <Border Theme="{StaticResource NpCard}">
                 <StackPanel Spacing="14">
-                    <Grid ColumnDefinitions="2*,*,3*,*"
+                    <Grid ColumnDefinitions="2*,*,2.4*,1.4*,*,1.4*,Auto"
                           ColumnSpacing="16">
                         <TextBlock FontWeight="SemiBold"
                                    Text="名称" />
@@ -116,12 +117,19 @@
                                    Text="端点" />
                         <TextBlock Grid.Column="3"
                                    FontWeight="SemiBold"
-                                   Text="健康状态" />
+                                   Text="握手状态" />
+                        <TextBlock Grid.Column="4"
+                                   FontWeight="SemiBold"
+                                   Text="耗时" />
+                        <TextBlock Grid.Column="5"
+                                   FontWeight="SemiBold"
+                                   Text="检查时间" />
                     </Grid>
-                    <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl x:Name="OutboundItemsList"
+                                  ItemsSource="{Binding Items}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="control:OutboundListItem">
-                                <Grid ColumnDefinitions="2*,*,3*,*"
+                                <Grid ColumnDefinitions="2*,*,2.4*,1.4*,*,1.4*,Auto"
                                       ColumnSpacing="16"
                                       Margin="0,8">
                                     <TextBlock Text="{Binding Name}" />
@@ -132,12 +140,23 @@
                                                TextTrimming="CharacterEllipsis" />
                                     <TextBlock Grid.Column="3"
                                                Text="{Binding Health}" />
+                                    <TextBlock Grid.Column="4"
+                                               Text="{Binding LatencyLabel}" />
+                                    <TextBlock Grid.Column="5"
+                                               Text="{Binding LastCheckedLabel}" />
+                                    <Button Grid.Column="6"
+                                            VerticalAlignment="Center"
+                                            Theme="{StaticResource NpSecondaryButton}"
+                                            Command="{ReflectionBinding DataContext.TestCommand, ElementName=Root}"
+                                            CommandParameter="{Binding}"
+                                            Content="测试"
+                                            AutomationProperties.Name="测试代理握手" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <TextBlock Theme="{StaticResource NpMutedText}"
-                               Text="控制服务未连接时不会猜测或伪造出口状态。" />
+                               Text="测试仅验证代理 TCP 握手。控制服务未连接或结果过期时显示“未验证”。" />
                 </StackPanel>
             </Border>
         </StackPanel>

@@ -21,8 +21,10 @@ mod learning_rpc;
 #[cfg(any(test, windows))]
 mod local_dns_server;
 mod outbound_capabilities;
+mod outbound_health;
 mod outbound_import;
 mod outbound_import_service;
+mod outbound_probe;
 mod proto_policy;
 mod provider_health;
 mod provider_requirements;

@@ -40,6 +40,7 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
     {
         _outboundService = outboundService;
         ImportCommand = new AsyncRelayCommand(ImportAsync, CanImport);
+        TestCommand = new AsyncRelayCommand<OutboundListItem>(TestAsync);
     }
 
     public static IReadOnlyList<OutboundKindOption> KindOptions { get; } =
@@ -51,6 +52,8 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
     public ObservableCollection<OutboundListItem> Items { get; } = [];
 
     public IAsyncRelayCommand ImportCommand { get; }
+
+    public IAsyncRelayCommand<OutboundListItem> TestCommand { get; }
 
     partial void OnOutboundIdChanged(string value)
     {
@@ -131,6 +134,35 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
                     ? "代理配置已安全保存。"
                     : $"代理配置已保存；{string.Join("；", result.Warnings)}";
                 await LoadCoreAsync(token);
+            },
+            cancellationToken);
+    }
+
+    private Task TestAsync(
+        OutboundListItem? item,
+        CancellationToken cancellationToken)
+    {
+        if (item is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunOperationAsync(
+            async token =>
+            {
+                var result = await _outboundService.TestAsync(item.Id, token);
+                var index = Items.IndexOf(item);
+                if (index >= 0)
+                {
+                    Items[index] = item with
+                    {
+                        Health = result.Health,
+                        Latency = result.Latency,
+                        LastCheckedAt = result.CheckedAt,
+                    };
+                }
+
+                OperationMessage = result.Message;
             },
             cancellationToken);
     }

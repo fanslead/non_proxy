@@ -19,6 +19,7 @@ use crate::{
     clock::unix_time_ms,
     database_executor::DatabaseExecutor,
     event_hub::EventHub,
+    outbound_health::{OutboundHealthObservation, OutboundHealthRegistry},
     provider_health::ProviderHealthRegistry,
     provider_requirements,
     runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, build_runtime_catalog},
@@ -32,6 +33,7 @@ pub struct Gateway {
     capabilities: CompileCapabilities,
     pub(crate) mutation_gate: Arc<Mutex<()>>,
     events: EventHub,
+    outbound_health: OutboundHealthRegistry,
     provider_health: ProviderHealthRegistry,
 }
 
@@ -75,6 +77,7 @@ impl Gateway {
             capabilities,
             mutation_gate: Arc::new(Mutex::new(())),
             events: EventHub::new(),
+            outbound_health: OutboundHealthRegistry::new(),
             provider_health: ProviderHealthRegistry::new(),
         }
     }
@@ -251,6 +254,27 @@ impl Gateway {
                 Ok(())
             })
             .await
+    }
+
+    pub fn report_outbound_health(
+        &self,
+        outbound_id: OutboundId,
+        revision: u64,
+        state: nonproxy_proto::events::v1::RuntimeState,
+        latency_ms: Option<u64>,
+        now_unix_ms: u64,
+    ) -> Result<(), GatewayError> {
+        self.outbound_health
+            .update(outbound_id, revision, state, latency_ms, now_unix_ms)
+    }
+
+    pub(crate) fn outbound_health(
+        &self,
+        outbound: &OutboundReference,
+        now_unix_ms: u64,
+    ) -> Result<Option<OutboundHealthObservation>, GatewayError> {
+        self.outbound_health
+            .current(outbound.id(), outbound.revision(), now_unix_ms)
     }
 
     pub async fn next_provider_generation(&self, provider_id: String) -> Result<u64, GatewayError> {
