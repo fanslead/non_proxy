@@ -9,12 +9,23 @@ option csharp_namespace = "NonProxy.Adapter.V1";
 
 // AdapterService 隔离第三方客户端配置和重载操作。
 service AdapterService {
+  rpc RegisterInstallation(RegisterInstallationRequest) returns (RegisterInstallationResponse);
+  rpc ListInstallations(ListInstallationsRequest) returns (ListInstallationsResponse);
+  rpc RemoveInstallation(RemoveInstallationRequest) returns (RemoveInstallationResponse);
   rpc Detect(DetectRequest) returns (DetectResponse);
   rpc ReadCapabilities(ReadCapabilitiesRequest) returns (ReadCapabilitiesResponse);
   rpc PrepareChange(PrepareChangeRequest) returns (PrepareChangeResponse);
   rpc ApplyChange(ApplyChangeRequest) returns (ApplyChangeResponse);
   rpc VerifyChange(VerifyChangeRequest) returns (VerifyChangeResponse);
   rpc RollbackChange(RollbackChangeRequest) returns (RollbackChangeResponse);
+}
+
+// AdapterClient 表示由公开配置格式支持的第三方客户端。
+enum AdapterClient {
+  ADAPTER_CLIENT_UNSPECIFIED = 0;
+  ADAPTER_CLIENT_SURGE = 1;
+  ADAPTER_CLIENT_MIHOMO = 2;
+  ADAPTER_CLIENT_SING_BOX = 3;
 }
 
 // AdapterCapability 表示第三方客户端可以准确提供的能力。
@@ -26,6 +37,7 @@ enum AdapterCapability {
   ADAPTER_CAPABILITY_HOT_RELOAD = 4;
   ADAPTER_CAPABILITY_PATH_EVIDENCE = 5;
   ADAPTER_CAPABILITY_EXIT_PROBE = 6;
+  ADAPTER_CAPABILITY_CIDR_RULE = 7;
 }
 
 // AdapterState 表示第三方客户端当前状态。
@@ -39,9 +51,66 @@ enum AdapterState {
   ADAPTER_STATE_FAILED = 6;
 }
 
+// AdapterRequestContext 为每个本地请求携带幂等键和短期授权能力。
+message AdapterRequestContext {
+  string operation_id = 1;
+  bytes session_capability_token = 2;
+}
+
+// AdapterInstallation 是用户明确登记的第三方客户端安装项。
+message AdapterInstallation {
+  string adapter_id = 1;
+  AdapterClient client = 2;
+  string client_name = 3;
+  string client_version = 4;
+  string executable_path = 5;
+  string managed_rules_path = 6;
+  AdapterState state = 7;
+}
+
+// RegisterInstallationRequest 登记用户明确选择的客户端和托管 sidecar。
+message RegisterInstallationRequest {
+  AdapterRequestContext context = 1;
+  string adapter_id = 2;
+  AdapterClient client = 3;
+  string executable_path = 4;
+  string managed_rules_path = 5;
+}
+
+// RegisterInstallationResponse 返回只含本机配置元数据的安装项。
+message RegisterInstallationResponse {
+  AdapterInstallation installation = 1;
+  bool replayed = 2;
+  nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// ListInstallationsRequest 请求当前登记的有限安装项集合。
+message ListInstallationsRequest {
+  AdapterRequestContext context = 1;
+}
+
+// ListInstallationsResponse 返回稳定排序的安装项。
+message ListInstallationsResponse {
+  repeated AdapterInstallation installations = 1;
+  nonproxy.common.v1.ErrorDetail error = 2;
+}
+
+// RemoveInstallationRequest 移除登记但不删除第三方配置或恢复材料。
+message RemoveInstallationRequest {
+  AdapterRequestContext context = 1;
+  string adapter_id = 2;
+}
+
+// RemoveInstallationResponse 返回幂等移除结果。
+message RemoveInstallationResponse {
+  bool removed = 1;
+  nonproxy.common.v1.ErrorDetail error = 2;
+}
+
 // DetectRequest 请求只读检测指定适配器。
 message DetectRequest {
   string adapter_id = 1;
+  AdapterRequestContext context = 2;
 }
 
 // DetectResponse 返回不含凭据的客户端身份。
@@ -57,20 +126,24 @@ message DetectResponse {
 message ReadCapabilitiesRequest {
   string adapter_id = 1;
   string installation_id = 2;
+  AdapterRequestContext context = 3;
 }
 
 // ReadCapabilitiesResponse 返回版本限定的能力。
 message ReadCapabilitiesResponse {
   repeated AdapterCapability capabilities = 1;
+  nonproxy.common.v1.ErrorDetail error = 2;
 }
 
 // PrepareChangeRequest 请求生成并验证候选配置。
 message PrepareChangeRequest {
+  // operation_id 是 v1 预留字段；新客户端必须使用 context.operation_id。
   string operation_id = 1;
   string adapter_id = 2;
   string installation_id = 3;
   bytes normalized_policy = 4;
   bytes normalized_policy_hash = 5;
+  AdapterRequestContext context = 6;
 }
 
 // PrepareChangeResponse 返回候选配置和备份引用。
@@ -80,13 +153,16 @@ message PrepareChangeResponse {
   bytes candidate_hash = 3;
   google.protobuf.Timestamp expires_at = 4;
   nonproxy.common.v1.ErrorDetail error = 5;
+  uint32 rule_count = 6;
 }
 
 // ApplyChangeRequest 请求原子应用已经准备的变更。
 message ApplyChangeRequest {
+  // operation_id 是 v1 预留字段；新客户端必须使用 context.operation_id。
   string operation_id = 1;
   string change_id = 2;
   bytes expected_candidate_hash = 3;
+  AdapterRequestContext context = 4;
 }
 
 // ApplyChangeResponse 返回应用和重载结果。
@@ -94,12 +170,15 @@ message ApplyChangeResponse {
   bool applied = 1;
   bool reloaded = 2;
   nonproxy.common.v1.ErrorDetail error = 3;
+  bool replayed = 4;
 }
 
 // VerifyChangeRequest 请求真实路径验证。
 message VerifyChangeRequest {
+  // operation_id 是 v1 预留字段；新客户端必须使用 context.operation_id。
   string operation_id = 1;
   string change_id = 2;
+  AdapterRequestContext context = 3;
 }
 
 // VerifyChangeResponse 返回证据等级而不是配置成功猜测。
@@ -107,13 +186,17 @@ message VerifyChangeResponse {
   bool verified = 1;
   nonproxy.common.v1.EvidenceLevel evidence_level = 2;
   nonproxy.common.v1.ErrorDetail error = 3;
+  bool configuration_verified = 4;
+  bool path_verified = 5;
 }
 
 // RollbackChangeRequest 请求恢复指定备份。
 message RollbackChangeRequest {
+  // operation_id 是 v1 预留字段；新客户端必须使用 context.operation_id。
   string operation_id = 1;
   string change_id = 2;
   string backup_id = 3;
+  AdapterRequestContext context = 4;
 }
 
 // RollbackChangeResponse 返回恢复和重载结果。
@@ -121,4 +204,5 @@ message RollbackChangeResponse {
   bool restored = 1;
   bool reloaded = 2;
   nonproxy.common.v1.ErrorDetail error = 3;
+  bool replayed = 4;
 }

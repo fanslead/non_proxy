@@ -16,6 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let proto_directory = repository_root.join("proto");
     let control_proto = proto_directory.join("nonproxy/control/v1/control.proto");
     let provider_proto = proto_directory.join("nonproxy/provider/v1/provider.proto");
+    let adapter_proto = proto_directory.join("nonproxy/adapter/v1/adapter.proto");
     println!("cargo:rerun-if-changed={}", proto_directory.display());
 
     tonic_prost_build::configure()
@@ -23,7 +24,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build_server(true)
         .boxed(".nonproxy.events.v1.EventEnvelope.payload.decision_observed")
         .emit_rerun_if_changed(true)
-        .compile_protos(&[control_proto, provider_proto], &[proto_directory])?;
+        .compile_protos(
+            &[control_proto, provider_proto, adapter_proto],
+            &[proto_directory],
+        )?;
 
     Ok(())
 }

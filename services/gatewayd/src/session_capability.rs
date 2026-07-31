@@ -1,9 +1,8 @@
-use std::{
-    fs::{self, File, OpenOptions},
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
+#[cfg(test)]
+use nonproxy_local_auth::SESSION_TOKEN_LENGTH;
+use nonproxy_local_auth::{SessionCapability as LocalSessionCapability, validate_operation_id};
 use nonproxy_proto::control::v1::OperationContext;
 use tonic::Status;
 
@@ -11,13 +10,10 @@ use crate::GatewayError;
 
 pub const CONTROL_CAPABILITY_FILE_NAME: &str = "session.capability";
 pub const PROVIDER_CAPABILITY_FILE_NAME: &str = "provider.capability";
-const SESSION_TOKEN_LENGTH: usize = 32;
-const MAX_OPERATION_ID_LENGTH: usize = 128;
-const TEMPORARY_FILE_ATTEMPTS: usize = 4;
 
 #[derive(Clone)]
 pub struct SessionCapability {
-    token: [u8; SESSION_TOKEN_LENGTH],
+    inner: LocalSessionCapability,
 }
 
 impl SessionCapability {
@@ -30,22 +26,23 @@ impl SessionCapability {
     }
 
     fn create_named(state_directory: &Path, file_name: &str) -> Result<Self, GatewayError> {
-        let mut token = [0_u8; SESSION_TOKEN_LENGTH];
-        getrandom::fill(&mut token).map_err(|error| GatewayError::Random(error.to_string()))?;
-        let capability = Self { token };
-        capability.write_to(state_directory, file_name)?;
-        Ok(capability)
+        Ok(Self {
+            inner: LocalSessionCapability::create(state_directory, file_name)?,
+        })
     }
 
     #[cfg(test)]
     #[must_use]
     pub const fn from_token(token: [u8; SESSION_TOKEN_LENGTH]) -> Self {
-        Self { token }
+        Self {
+            inner: LocalSessionCapability::from_token(token),
+        }
     }
 
     pub fn validate(&self, context: Option<&OperationContext>) -> Result<(), Status> {
         let context = context.ok_or_else(|| Status::unauthenticated("缺少操作上下文"))?;
-        validate_operation_id(&context.operation_id)?;
+        validate_operation_id(&context.operation_id)
+            .map_err(|_| Status::invalid_argument("operation_id 无效"))?;
         self.validate_token(&context.session_capability_token)
     }
 
@@ -59,135 +56,13 @@ impl SessionCapability {
 
     #[must_use]
     pub(crate) fn matches_token(&self, token: &[u8]) -> bool {
-        constant_time_equal(&self.token, token)
+        self.inner.matches(token)
     }
 
     #[cfg(test)]
     #[must_use]
     pub fn token(&self) -> &[u8] {
-        &self.token
-    }
-
-    fn write_to(&self, state_directory: &Path, file_name: &str) -> Result<(), GatewayError> {
-        let path = state_directory.join(file_name);
-        reject_symlink(&path)?;
-        let (temporary_path, mut file) = create_temporary_file(state_directory, file_name)?;
-        let write_result = file
-            .write_all(&self.token)
-            .and_then(|()| file.sync_all())
-            .map_err(|source| GatewayError::Io {
-                operation: "写入会话能力令牌",
-                source,
-            });
-        drop(file);
-        if let Err(error) = write_result {
-            let _cleanup_result = fs::remove_file(&temporary_path);
-            return Err(error);
-        }
-        let replace_result = replace_capability_file(&temporary_path, &path);
-        if replace_result.is_err() {
-            let _cleanup_result = fs::remove_file(&temporary_path);
-        }
-        replace_result
-    }
-}
-
-fn create_temporary_file(
-    state_directory: &Path,
-    file_name: &str,
-) -> Result<(PathBuf, File), GatewayError> {
-    for _attempt in 0..TEMPORARY_FILE_ATTEMPTS {
-        let mut nonce = [0_u8; 8];
-        getrandom::fill(&mut nonce).map_err(|error| GatewayError::Random(error.to_string()))?;
-        let suffix = nonce
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect::<String>();
-        let path = state_directory.join(format!(".{file_name}.{suffix}.tmp"));
-        match open_private_file(&path) {
-            Ok(file) => return Ok((path, file)),
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(source) => {
-                return Err(GatewayError::Io {
-                    operation: "创建临时会话能力令牌",
-                    source,
-                });
-            }
-        }
-    }
-    Err(GatewayError::InvalidLocalPath(
-        "无法分配临时会话能力令牌路径",
-    ))
-}
-
-fn open_private_file(path: &Path) -> Result<File, std::io::Error> {
-    let mut options = OpenOptions::new();
-    options.create_new(true).write(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-
-        options.mode(0o600);
-    }
-    options.open(path)
-}
-
-#[cfg(unix)]
-fn replace_capability_file(source: &Path, target: &Path) -> Result<(), GatewayError> {
-    fs::rename(source, target).map_err(|source| GatewayError::Io {
-        operation: "原子替换会话能力令牌",
-        source,
-    })
-}
-
-#[cfg(not(unix))]
-fn replace_capability_file(source: &Path, target: &Path) -> Result<(), GatewayError> {
-    if target.exists() {
-        fs::remove_file(target).map_err(|source| GatewayError::Io {
-            operation: "移除旧会话能力令牌",
-            source,
-        })?;
-    }
-    fs::rename(source, target).map_err(|source| GatewayError::Io {
-        operation: "替换会话能力令牌",
-        source,
-    })
-}
-
-fn validate_operation_id(value: &str) -> Result<(), Status> {
-    if value.is_empty()
-        || value.len() > MAX_OPERATION_ID_LENGTH
-        || !value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'))
-    {
-        return Err(Status::invalid_argument("operation_id 无效"));
-    }
-    Ok(())
-}
-
-fn constant_time_equal(expected: &[u8; SESSION_TOKEN_LENGTH], actual: &[u8]) -> bool {
-    if actual.len() != SESSION_TOKEN_LENGTH {
-        return false;
-    }
-    let difference = expected
-        .iter()
-        .zip(actual)
-        .fold(0_u8, |value, (left, right)| value | (left ^ right));
-    difference == 0
-}
-
-fn reject_symlink(path: &Path) -> Result<(), GatewayError> {
-    match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.file_type().is_symlink() => {
-            Err(GatewayError::InvalidLocalPath("会话能力令牌不能是符号链接"))
-        }
-        Ok(_) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(source) => Err(GatewayError::Io {
-            operation: "检查会话能力令牌路径",
-            source,
-        }),
+        self.inner.token()
     }
 }
 
@@ -206,6 +81,7 @@ mod tests {
         let Ok(directory) = directory else {
             panic!("临时目录创建失败: {directory:?}");
         };
+        restrict_test_directory(directory.path());
 
         let capability = match SessionCapability::create_control(directory.path()) {
             Ok(capability) => capability,
@@ -227,6 +103,7 @@ mod tests {
         let Ok(directory) = directory else {
             panic!("临时目录创建失败: {directory:?}");
         };
+        restrict_test_directory(directory.path());
 
         let control = SessionCapability::create_control(directory.path());
         let provider = SessionCapability::create_provider(directory.path());
@@ -236,28 +113,6 @@ mod tests {
 
         assert_ne!(control.token(), provider.token());
         assert_private_permissions(directory.path().join(PROVIDER_CAPABILITY_FILE_NAME));
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn refuses_to_follow_existing_symbolic_link() {
-        use std::os::unix::fs::symlink;
-
-        let directory = tempfile::tempdir();
-        let target = tempfile::NamedTempFile::new();
-        let (Ok(directory), Ok(target)) = (directory, target) else {
-            panic!("符号链接测试夹具创建失败");
-        };
-        let link = directory.path().join(CONTROL_CAPABILITY_FILE_NAME);
-        if let Err(error) = symlink(target.path(), &link) {
-            panic!("测试符号链接创建失败: {error}");
-        }
-
-        let result = SessionCapability::create_control(directory.path());
-
-        assert!(result.is_err());
-        let target_bytes = fs::read(target.path());
-        assert!(matches!(target_bytes, Ok(bytes) if bytes.is_empty()));
     }
 
     #[cfg(unix)]
@@ -273,4 +128,15 @@ mod tests {
 
     #[cfg(not(unix))]
     fn assert_private_permissions(_path: PathBuf) {}
+
+    #[cfg(unix)]
+    fn restrict_test_directory(path: &std::path::Path) {
+        use std::os::unix::fs::PermissionsExt;
+
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+            .unwrap_or_else(|error| panic!("测试状态目录权限设置失败: {error}"));
+    }
+
+    #[cfg(not(unix))]
+    fn restrict_test_directory(_path: &std::path::Path) {}
 }

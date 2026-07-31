@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use nonproxy_adapter_api::AdapterClient;
+use nonproxy_adapter_api::{AdapterClient, AdapterVersion};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,7 +8,8 @@ use crate::{
     atomic_file::{read_optional_bounded, remove_private_file, write_private_new},
 };
 
-const MANIFEST_FORMAT_VERSION: u32 = 1;
+const MANIFEST_FORMAT_VERSION: u32 = 2;
+const LEGACY_MANIFEST_FORMAT_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -19,6 +20,8 @@ pub(crate) struct ChangeManifest {
     pub operation_id: String,
     pub adapter_id: String,
     pub client: AdapterClient,
+    #[serde(default)]
+    pub client_version: Option<AdapterVersion>,
     pub managed_rules_path: String,
     pub candidate_sha256: String,
     pub backup_sha256: Option<String>,
@@ -40,7 +43,10 @@ impl ChangeManifest {
         };
         let value: Self =
             serde_json::from_slice(&bytes).map_err(|_| AdapterTransactionError::StateCorrupt)?;
-        if value.format_version != MANIFEST_FORMAT_VERSION {
+        if !matches!(
+            value.format_version,
+            LEGACY_MANIFEST_FORMAT_VERSION | MANIFEST_FORMAT_VERSION
+        ) {
             return Err(AdapterTransactionError::StateCorrupt);
         }
         Ok(value)

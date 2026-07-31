@@ -1437,6 +1437,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "nonproxy-adapter-host"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.4.3",
+ "hyper-util",
+ "libc",
+ "nonproxy-adapter-api",
+ "nonproxy-adapter-mihomo",
+ "nonproxy-adapter-sing-box",
+ "nonproxy-adapter-surge",
+ "nonproxy-adapter-transaction",
+ "nonproxy-local-auth",
+ "nonproxy-proto",
+ "prost-types",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+ "tower",
+]
+
+[[package]]
 name = "nonproxy-adapter-mihomo"
 version = "0.1.0"
 dependencies = [
@@ -1532,6 +1558,7 @@ dependencies = [
  "nonproxy-exit-probe",
  "nonproxy-flow-protocol",
  "nonproxy-learning",
+ "nonproxy-local-auth",
  "nonproxy-model",
  "nonproxy-outbound",
  "nonproxy-policy",
@@ -1571,6 +1598,15 @@ name = "nonproxy-learning"
 version = "0.1.0"
 dependencies = [
  "nonproxy-model",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "nonproxy-local-auth"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.4.3",
+ "tempfile",
  "thiserror 2.0.19",
 ]
 

@@ -25,6 +25,49 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// AdapterClient 表示由公开配置格式支持的第三方客户端。
+public nonisolated enum Nonproxy_Adapter_V1_AdapterClient: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case surge // = 1
+  case mihomo // = 2
+  case singBox // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .surge
+    case 2: self = .mihomo
+    case 3: self = .singBox
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .surge: return 1
+    case .mihomo: return 2
+    case .singBox: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Nonproxy_Adapter_V1_AdapterClient] = [
+    .unspecified,
+    .surge,
+    .mihomo,
+    .singBox,
+  ]
+
+}
+
 /// AdapterCapability 表示第三方客户端可以准确提供的能力。
 public nonisolated enum Nonproxy_Adapter_V1_AdapterCapability: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
@@ -35,6 +78,7 @@ public nonisolated enum Nonproxy_Adapter_V1_AdapterCapability: SwiftProtobuf.Enu
   case hotReload // = 4
   case pathEvidence // = 5
   case exitProbe // = 6
+  case cidrRule // = 7
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -50,6 +94,7 @@ public nonisolated enum Nonproxy_Adapter_V1_AdapterCapability: SwiftProtobuf.Enu
     case 4: self = .hotReload
     case 5: self = .pathEvidence
     case 6: self = .exitProbe
+    case 7: self = .cidrRule
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -63,6 +108,7 @@ public nonisolated enum Nonproxy_Adapter_V1_AdapterCapability: SwiftProtobuf.Enu
     case .hotReload: return 4
     case .pathEvidence: return 5
     case .exitProbe: return 6
+    case .cidrRule: return 7
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -76,6 +122,7 @@ public nonisolated enum Nonproxy_Adapter_V1_AdapterCapability: SwiftProtobuf.Enu
     .hotReload,
     .pathEvidence,
     .exitProbe,
+    .cidrRule,
   ]
 
 }
@@ -135,6 +182,204 @@ public nonisolated enum Nonproxy_Adapter_V1_AdapterState: SwiftProtobuf.Enum, Sw
 
 }
 
+/// AdapterRequestContext 为每个本地请求携带幂等键和短期授权能力。
+public nonisolated struct Nonproxy_Adapter_V1_AdapterRequestContext: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var operationID: String = String()
+
+  public var sessionCapabilityToken: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// AdapterInstallation 是用户明确登记的第三方客户端安装项。
+public nonisolated struct Nonproxy_Adapter_V1_AdapterInstallation: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var adapterID: String = String()
+
+  public var client: Nonproxy_Adapter_V1_AdapterClient = .unspecified
+
+  public var clientName: String = String()
+
+  public var clientVersion: String = String()
+
+  public var executablePath: String = String()
+
+  public var managedRulesPath: String = String()
+
+  public var state: Nonproxy_Adapter_V1_AdapterState = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// RegisterInstallationRequest 登记用户明确选择的客户端和托管 sidecar。
+public nonisolated struct Nonproxy_Adapter_V1_RegisterInstallationRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Adapter_V1_AdapterRequestContext {
+    get {_context ?? Nonproxy_Adapter_V1_AdapterRequestContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var adapterID: String = String()
+
+  public var client: Nonproxy_Adapter_V1_AdapterClient = .unspecified
+
+  public var executablePath: String = String()
+
+  public var managedRulesPath: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Adapter_V1_AdapterRequestContext? = nil
+}
+
+/// RegisterInstallationResponse 返回只含本机配置元数据的安装项。
+public nonisolated struct Nonproxy_Adapter_V1_RegisterInstallationResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var installation: Nonproxy_Adapter_V1_AdapterInstallation {
+    get {_installation ?? Nonproxy_Adapter_V1_AdapterInstallation()}
+    set {_installation = newValue}
+  }
+  /// Returns true if `installation` has been explicitly set.
+  public var hasInstallation: Bool {self._installation != nil}
+  /// Clears the value of `installation`. Subsequent reads from it will return its default value.
+  public mutating func clearInstallation() {self._installation = nil}
+
+  public var replayed: Bool = false
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _installation: Nonproxy_Adapter_V1_AdapterInstallation? = nil
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+}
+
+/// ListInstallationsRequest 请求当前登记的有限安装项集合。
+public nonisolated struct Nonproxy_Adapter_V1_ListInstallationsRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Adapter_V1_AdapterRequestContext {
+    get {_context ?? Nonproxy_Adapter_V1_AdapterRequestContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Adapter_V1_AdapterRequestContext? = nil
+}
+
+/// ListInstallationsResponse 返回稳定排序的安装项。
+public nonisolated struct Nonproxy_Adapter_V1_ListInstallationsResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var installations: [Nonproxy_Adapter_V1_AdapterInstallation] = []
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+}
+
+/// RemoveInstallationRequest 移除登记但不删除第三方配置或恢复材料。
+public nonisolated struct Nonproxy_Adapter_V1_RemoveInstallationRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Adapter_V1_AdapterRequestContext {
+    get {_context ?? Nonproxy_Adapter_V1_AdapterRequestContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var adapterID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Adapter_V1_AdapterRequestContext? = nil
+}
+
+/// RemoveInstallationResponse 返回幂等移除结果。
+public nonisolated struct Nonproxy_Adapter_V1_RemoveInstallationResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var removed: Bool = false
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+}
+
 /// DetectRequest 请求只读检测指定适配器。
 public nonisolated struct Nonproxy_Adapter_V1_DetectRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -143,9 +388,20 @@ public nonisolated struct Nonproxy_Adapter_V1_DetectRequest: Sendable {
 
   public var adapterID: String = String()
 
+  public var context: Nonproxy_Adapter_V1_AdapterRequestContext {
+    get {_context ?? Nonproxy_Adapter_V1_AdapterRequestContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _context: Nonproxy_Adapter_V1_AdapterRequestContext? = nil
 }
 
 /// DetectResponse 返回不含凭据的客户端身份。
@@ -188,9 +444,20 @@ public nonisolated struct Nonproxy_Adapter_V1_ReadCapabilitiesRequest: Sendable 
 
   public var installationID: String = String()
 
+  public var context: Nonproxy_Adapter_V1_AdapterRequestContext {
+    get {_context ?? Nonproxy_Adapter_V1_AdapterRequestContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _context: Nonproxy_Adapter_V1_AdapterRequestContext? = nil
 }
 
 /// ReadCapabilitiesResponse 返回版本限定的能力。
@@ -201,9 +468,20 @@ public nonisolated struct Nonproxy_Adapter_V1_ReadCapabilitiesResponse: Sendable
 
   public var capabilities: [Nonproxy_Adapter_V1_AdapterCapability] = []
 
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
 }
 
 /// PrepareChangeRequest 请求生成并验证候选配置。
@@ -212,6 +490,7 @@ public nonisolated struct Nonproxy_Adapter_V1_PrepareChangeRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// operation_id 是 v1 预留字段；新客户端必须使用 context.operation_id。
   public var operationID: String = String()
 
   public var adapterID: String = String()
@@ -222,9 +501,20 @@ public nonisolated struct Nonproxy_Adapter_V1_PrepareChangeRequest: Sendable {
 
   public var normalizedPolicyHash: Data = Data()
 
+  public var context: Nonproxy_Adapter_V1_AdapterRequestContext {
+    get {_context ?? Nonproxy_Adapter_V1_AdapterRequestContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _context: Nonproxy_Adapter_V1_AdapterRequestContext? = nil
 }
 
 /// PrepareChangeResponse 返回候选配置和备份引用。
@@ -257,6 +547,8 @@ public nonisolated struct Nonproxy_Adapter_V1_PrepareChangeResponse: Sendable {
   /// Clears the value of `error`. Subsequent reads from it will return its default value.
   public mutating func clearError() {self._error = nil}
 
+  public var ruleCount: UInt32 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -271,15 +563,27 @@ public nonisolated struct Nonproxy_Adapter_V1_ApplyChangeRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// operation_id 是 v1 预留字段；新客户端必须使用 context.operation_id。
   public var operationID: String = String()
 
   public var changeID: String = String()
 
   public var expectedCandidateHash: Data = Data()
 
+  public var context: Nonproxy_Adapter_V1_AdapterRequestContext {
+    get {_context ?? Nonproxy_Adapter_V1_AdapterRequestContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _context: Nonproxy_Adapter_V1_AdapterRequestContext? = nil
 }
 
 /// ApplyChangeResponse 返回应用和重载结果。
@@ -301,6 +605,8 @@ public nonisolated struct Nonproxy_Adapter_V1_ApplyChangeResponse: Sendable {
   /// Clears the value of `error`. Subsequent reads from it will return its default value.
   public mutating func clearError() {self._error = nil}
 
+  public var replayed: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -314,13 +620,25 @@ public nonisolated struct Nonproxy_Adapter_V1_VerifyChangeRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// operation_id 是 v1 预留字段；新客户端必须使用 context.operation_id。
   public var operationID: String = String()
 
   public var changeID: String = String()
 
+  public var context: Nonproxy_Adapter_V1_AdapterRequestContext {
+    get {_context ?? Nonproxy_Adapter_V1_AdapterRequestContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _context: Nonproxy_Adapter_V1_AdapterRequestContext? = nil
 }
 
 /// VerifyChangeResponse 返回证据等级而不是配置成功猜测。
@@ -342,6 +660,10 @@ public nonisolated struct Nonproxy_Adapter_V1_VerifyChangeResponse: Sendable {
   /// Clears the value of `error`. Subsequent reads from it will return its default value.
   public mutating func clearError() {self._error = nil}
 
+  public var configurationVerified: Bool = false
+
+  public var pathVerified: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -355,15 +677,27 @@ public nonisolated struct Nonproxy_Adapter_V1_RollbackChangeRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// operation_id 是 v1 预留字段；新客户端必须使用 context.operation_id。
   public var operationID: String = String()
 
   public var changeID: String = String()
 
   public var backupID: String = String()
 
+  public var context: Nonproxy_Adapter_V1_AdapterRequestContext {
+    get {_context ?? Nonproxy_Adapter_V1_AdapterRequestContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _context: Nonproxy_Adapter_V1_AdapterRequestContext? = nil
 }
 
 /// RollbackChangeResponse 返回恢复和重载结果。
@@ -385,6 +719,8 @@ public nonisolated struct Nonproxy_Adapter_V1_RollbackChangeResponse: Sendable {
   /// Clears the value of `error`. Subsequent reads from it will return its default value.
   public mutating func clearError() {self._error = nil}
 
+  public var replayed: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -396,17 +732,56 @@ public nonisolated struct Nonproxy_Adapter_V1_RollbackChangeResponse: Sendable {
 
 fileprivate nonisolated let _protobuf_package = "nonproxy.adapter.v1"
 
+nonisolated extension Nonproxy_Adapter_V1_AdapterClient: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ADAPTER_CLIENT_UNSPECIFIED\0\u{1}ADAPTER_CLIENT_SURGE\0\u{1}ADAPTER_CLIENT_MIHOMO\0\u{1}ADAPTER_CLIENT_SING_BOX\0")
+}
+
 nonisolated extension Nonproxy_Adapter_V1_AdapterCapability: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ADAPTER_CAPABILITY_UNSPECIFIED\0\u{1}ADAPTER_CAPABILITY_APP_RULE\0\u{1}ADAPTER_CAPABILITY_DOMAIN_RULE\0\u{1}ADAPTER_CAPABILITY_DNS_SPLIT\0\u{1}ADAPTER_CAPABILITY_HOT_RELOAD\0\u{1}ADAPTER_CAPABILITY_PATH_EVIDENCE\0\u{1}ADAPTER_CAPABILITY_EXIT_PROBE\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ADAPTER_CAPABILITY_UNSPECIFIED\0\u{1}ADAPTER_CAPABILITY_APP_RULE\0\u{1}ADAPTER_CAPABILITY_DOMAIN_RULE\0\u{1}ADAPTER_CAPABILITY_DNS_SPLIT\0\u{1}ADAPTER_CAPABILITY_HOT_RELOAD\0\u{1}ADAPTER_CAPABILITY_PATH_EVIDENCE\0\u{1}ADAPTER_CAPABILITY_EXIT_PROBE\0\u{1}ADAPTER_CAPABILITY_CIDR_RULE\0")
 }
 
 nonisolated extension Nonproxy_Adapter_V1_AdapterState: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ADAPTER_STATE_UNSPECIFIED\0\u{1}ADAPTER_STATE_NOT_INSTALLED\0\u{1}ADAPTER_STATE_UNSUPPORTED\0\u{1}ADAPTER_STATE_AVAILABLE\0\u{1}ADAPTER_STATE_APPLYING\0\u{1}ADAPTER_STATE_READY\0\u{1}ADAPTER_STATE_FAILED\0")
 }
 
-nonisolated extension Nonproxy_Adapter_V1_DetectRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".DetectRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}adapter_id\0")
+nonisolated extension Nonproxy_Adapter_V1_AdapterRequestContext: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AdapterRequestContext"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}session_capability_token\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.operationID) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.sessionCapabilityToken) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.operationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.operationID, fieldNumber: 1)
+    }
+    if !self.sessionCapabilityToken.isEmpty {
+      try visitor.visitSingularBytesField(value: self.sessionCapabilityToken, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Adapter_V1_AdapterRequestContext, rhs: Nonproxy_Adapter_V1_AdapterRequestContext) -> Bool {
+    if lhs.operationID != rhs.operationID {return false}
+    if lhs.sessionCapabilityToken != rhs.sessionCapabilityToken {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Adapter_V1_AdapterInstallation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AdapterInstallation"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}adapter_id\0\u{1}client\0\u{3}client_name\0\u{3}client_version\0\u{3}executable_path\0\u{3}managed_rules_path\0\u{1}state\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -415,6 +790,12 @@ nonisolated extension Nonproxy_Adapter_V1_DetectRequest: SwiftProtobuf.Message, 
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.adapterID) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.client) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.clientName) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.clientVersion) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.executablePath) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.managedRulesPath) }()
+      case 7: try { try decoder.decodeSingularEnumField(value: &self.state) }()
       default: break
       }
     }
@@ -424,11 +805,323 @@ nonisolated extension Nonproxy_Adapter_V1_DetectRequest: SwiftProtobuf.Message, 
     if !self.adapterID.isEmpty {
       try visitor.visitSingularStringField(value: self.adapterID, fieldNumber: 1)
     }
+    if self.client != .unspecified {
+      try visitor.visitSingularEnumField(value: self.client, fieldNumber: 2)
+    }
+    if !self.clientName.isEmpty {
+      try visitor.visitSingularStringField(value: self.clientName, fieldNumber: 3)
+    }
+    if !self.clientVersion.isEmpty {
+      try visitor.visitSingularStringField(value: self.clientVersion, fieldNumber: 4)
+    }
+    if !self.executablePath.isEmpty {
+      try visitor.visitSingularStringField(value: self.executablePath, fieldNumber: 5)
+    }
+    if !self.managedRulesPath.isEmpty {
+      try visitor.visitSingularStringField(value: self.managedRulesPath, fieldNumber: 6)
+    }
+    if self.state != .unspecified {
+      try visitor.visitSingularEnumField(value: self.state, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Adapter_V1_AdapterInstallation, rhs: Nonproxy_Adapter_V1_AdapterInstallation) -> Bool {
+    if lhs.adapterID != rhs.adapterID {return false}
+    if lhs.client != rhs.client {return false}
+    if lhs.clientName != rhs.clientName {return false}
+    if lhs.clientVersion != rhs.clientVersion {return false}
+    if lhs.executablePath != rhs.executablePath {return false}
+    if lhs.managedRulesPath != rhs.managedRulesPath {return false}
+    if lhs.state != rhs.state {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Adapter_V1_RegisterInstallationRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RegisterInstallationRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}adapter_id\0\u{1}client\0\u{3}executable_path\0\u{3}managed_rules_path\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.adapterID) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.client) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.executablePath) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.managedRulesPath) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.adapterID.isEmpty {
+      try visitor.visitSingularStringField(value: self.adapterID, fieldNumber: 2)
+    }
+    if self.client != .unspecified {
+      try visitor.visitSingularEnumField(value: self.client, fieldNumber: 3)
+    }
+    if !self.executablePath.isEmpty {
+      try visitor.visitSingularStringField(value: self.executablePath, fieldNumber: 4)
+    }
+    if !self.managedRulesPath.isEmpty {
+      try visitor.visitSingularStringField(value: self.managedRulesPath, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Adapter_V1_RegisterInstallationRequest, rhs: Nonproxy_Adapter_V1_RegisterInstallationRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.adapterID != rhs.adapterID {return false}
+    if lhs.client != rhs.client {return false}
+    if lhs.executablePath != rhs.executablePath {return false}
+    if lhs.managedRulesPath != rhs.managedRulesPath {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Adapter_V1_RegisterInstallationResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RegisterInstallationResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}installation\0\u{1}replayed\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._installation) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.replayed) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._installation {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.replayed != false {
+      try visitor.visitSingularBoolField(value: self.replayed, fieldNumber: 2)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Adapter_V1_RegisterInstallationResponse, rhs: Nonproxy_Adapter_V1_RegisterInstallationResponse) -> Bool {
+    if lhs._installation != rhs._installation {return false}
+    if lhs.replayed != rhs.replayed {return false}
+    if lhs._error != rhs._error {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Adapter_V1_ListInstallationsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListInstallationsRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Adapter_V1_ListInstallationsRequest, rhs: Nonproxy_Adapter_V1_ListInstallationsRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Adapter_V1_ListInstallationsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListInstallationsResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}installations\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.installations) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.installations.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.installations, fieldNumber: 1)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Adapter_V1_ListInstallationsResponse, rhs: Nonproxy_Adapter_V1_ListInstallationsResponse) -> Bool {
+    if lhs.installations != rhs.installations {return false}
+    if lhs._error != rhs._error {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Adapter_V1_RemoveInstallationRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RemoveInstallationRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}adapter_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.adapterID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.adapterID.isEmpty {
+      try visitor.visitSingularStringField(value: self.adapterID, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Adapter_V1_RemoveInstallationRequest, rhs: Nonproxy_Adapter_V1_RemoveInstallationRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.adapterID != rhs.adapterID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Adapter_V1_RemoveInstallationResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RemoveInstallationResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}removed\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.removed) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.removed != false {
+      try visitor.visitSingularBoolField(value: self.removed, fieldNumber: 1)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Adapter_V1_RemoveInstallationResponse, rhs: Nonproxy_Adapter_V1_RemoveInstallationResponse) -> Bool {
+    if lhs.removed != rhs.removed {return false}
+    if lhs._error != rhs._error {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Adapter_V1_DetectRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DetectRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}adapter_id\0\u{1}context\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.adapterID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.adapterID.isEmpty {
+      try visitor.visitSingularStringField(value: self.adapterID, fieldNumber: 1)
+    }
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Nonproxy_Adapter_V1_DetectRequest, rhs: Nonproxy_Adapter_V1_DetectRequest) -> Bool {
     if lhs.adapterID != rhs.adapterID {return false}
+    if lhs._context != rhs._context {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -490,7 +1183,7 @@ nonisolated extension Nonproxy_Adapter_V1_DetectResponse: SwiftProtobuf.Message,
 
 nonisolated extension Nonproxy_Adapter_V1_ReadCapabilitiesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReadCapabilitiesRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}adapter_id\0\u{3}installation_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}adapter_id\0\u{3}installation_id\0\u{1}context\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -500,24 +1193,33 @@ nonisolated extension Nonproxy_Adapter_V1_ReadCapabilitiesRequest: SwiftProtobuf
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.adapterID) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.installationID) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._context) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.adapterID.isEmpty {
       try visitor.visitSingularStringField(value: self.adapterID, fieldNumber: 1)
     }
     if !self.installationID.isEmpty {
       try visitor.visitSingularStringField(value: self.installationID, fieldNumber: 2)
     }
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Nonproxy_Adapter_V1_ReadCapabilitiesRequest, rhs: Nonproxy_Adapter_V1_ReadCapabilitiesRequest) -> Bool {
     if lhs.adapterID != rhs.adapterID {return false}
     if lhs.installationID != rhs.installationID {return false}
+    if lhs._context != rhs._context {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -525,7 +1227,7 @@ nonisolated extension Nonproxy_Adapter_V1_ReadCapabilitiesRequest: SwiftProtobuf
 
 nonisolated extension Nonproxy_Adapter_V1_ReadCapabilitiesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReadCapabilitiesResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}capabilities\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}capabilities\0\u{1}error\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -534,20 +1236,29 @@ nonisolated extension Nonproxy_Adapter_V1_ReadCapabilitiesResponse: SwiftProtobu
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedEnumField(value: &self.capabilities) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._error) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.capabilities.isEmpty {
       try visitor.visitPackedEnumField(value: self.capabilities, fieldNumber: 1)
     }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Nonproxy_Adapter_V1_ReadCapabilitiesResponse, rhs: Nonproxy_Adapter_V1_ReadCapabilitiesResponse) -> Bool {
     if lhs.capabilities != rhs.capabilities {return false}
+    if lhs._error != rhs._error {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -555,7 +1266,7 @@ nonisolated extension Nonproxy_Adapter_V1_ReadCapabilitiesResponse: SwiftProtobu
 
 nonisolated extension Nonproxy_Adapter_V1_PrepareChangeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PrepareChangeRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}adapter_id\0\u{3}installation_id\0\u{3}normalized_policy\0\u{3}normalized_policy_hash\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}adapter_id\0\u{3}installation_id\0\u{3}normalized_policy\0\u{3}normalized_policy_hash\0\u{1}context\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -568,12 +1279,17 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeRequest: SwiftProtobuf.Me
       case 3: try { try decoder.decodeSingularStringField(value: &self.installationID) }()
       case 4: try { try decoder.decodeSingularBytesField(value: &self.normalizedPolicy) }()
       case 5: try { try decoder.decodeSingularBytesField(value: &self.normalizedPolicyHash) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._context) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.operationID.isEmpty {
       try visitor.visitSingularStringField(value: self.operationID, fieldNumber: 1)
     }
@@ -589,6 +1305,9 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeRequest: SwiftProtobuf.Me
     if !self.normalizedPolicyHash.isEmpty {
       try visitor.visitSingularBytesField(value: self.normalizedPolicyHash, fieldNumber: 5)
     }
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -598,6 +1317,7 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeRequest: SwiftProtobuf.Me
     if lhs.installationID != rhs.installationID {return false}
     if lhs.normalizedPolicy != rhs.normalizedPolicy {return false}
     if lhs.normalizedPolicyHash != rhs.normalizedPolicyHash {return false}
+    if lhs._context != rhs._context {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -605,7 +1325,7 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeRequest: SwiftProtobuf.Me
 
 nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PrepareChangeResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}change_id\0\u{3}backup_id\0\u{3}candidate_hash\0\u{3}expires_at\0\u{1}error\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}change_id\0\u{3}backup_id\0\u{3}candidate_hash\0\u{3}expires_at\0\u{1}error\0\u{3}rule_count\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -618,6 +1338,7 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
       case 3: try { try decoder.decodeSingularBytesField(value: &self.candidateHash) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._expiresAt) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      case 6: try { try decoder.decodeSingularUInt32Field(value: &self.ruleCount) }()
       default: break
       }
     }
@@ -643,6 +1364,9 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
     try { if let v = self._error {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
+    if self.ruleCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.ruleCount, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -652,6 +1376,7 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
     if lhs.candidateHash != rhs.candidateHash {return false}
     if lhs._expiresAt != rhs._expiresAt {return false}
     if lhs._error != rhs._error {return false}
+    if lhs.ruleCount != rhs.ruleCount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -659,7 +1384,7 @@ nonisolated extension Nonproxy_Adapter_V1_PrepareChangeResponse: SwiftProtobuf.M
 
 nonisolated extension Nonproxy_Adapter_V1_ApplyChangeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ApplyChangeRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}change_id\0\u{3}expected_candidate_hash\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}change_id\0\u{3}expected_candidate_hash\0\u{1}context\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -670,12 +1395,17 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeRequest: SwiftProtobuf.Mess
       case 1: try { try decoder.decodeSingularStringField(value: &self.operationID) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.changeID) }()
       case 3: try { try decoder.decodeSingularBytesField(value: &self.expectedCandidateHash) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._context) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.operationID.isEmpty {
       try visitor.visitSingularStringField(value: self.operationID, fieldNumber: 1)
     }
@@ -685,6 +1415,9 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeRequest: SwiftProtobuf.Mess
     if !self.expectedCandidateHash.isEmpty {
       try visitor.visitSingularBytesField(value: self.expectedCandidateHash, fieldNumber: 3)
     }
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -692,6 +1425,7 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeRequest: SwiftProtobuf.Mess
     if lhs.operationID != rhs.operationID {return false}
     if lhs.changeID != rhs.changeID {return false}
     if lhs.expectedCandidateHash != rhs.expectedCandidateHash {return false}
+    if lhs._context != rhs._context {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -699,7 +1433,7 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeRequest: SwiftProtobuf.Mess
 
 nonisolated extension Nonproxy_Adapter_V1_ApplyChangeResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ApplyChangeResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}applied\0\u{1}reloaded\0\u{1}error\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}applied\0\u{1}reloaded\0\u{1}error\0\u{1}replayed\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -710,6 +1444,7 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeResponse: SwiftProtobuf.Mes
       case 1: try { try decoder.decodeSingularBoolField(value: &self.applied) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.reloaded) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.replayed) }()
       default: break
       }
     }
@@ -729,6 +1464,9 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeResponse: SwiftProtobuf.Mes
     try { if let v = self._error {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    if self.replayed != false {
+      try visitor.visitSingularBoolField(value: self.replayed, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -736,6 +1474,7 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeResponse: SwiftProtobuf.Mes
     if lhs.applied != rhs.applied {return false}
     if lhs.reloaded != rhs.reloaded {return false}
     if lhs._error != rhs._error {return false}
+    if lhs.replayed != rhs.replayed {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -743,7 +1482,7 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeResponse: SwiftProtobuf.Mes
 
 nonisolated extension Nonproxy_Adapter_V1_VerifyChangeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".VerifyChangeRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}change_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}change_id\0\u{1}context\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -753,24 +1492,33 @@ nonisolated extension Nonproxy_Adapter_V1_VerifyChangeRequest: SwiftProtobuf.Mes
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.operationID) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.changeID) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._context) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.operationID.isEmpty {
       try visitor.visitSingularStringField(value: self.operationID, fieldNumber: 1)
     }
     if !self.changeID.isEmpty {
       try visitor.visitSingularStringField(value: self.changeID, fieldNumber: 2)
     }
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Nonproxy_Adapter_V1_VerifyChangeRequest, rhs: Nonproxy_Adapter_V1_VerifyChangeRequest) -> Bool {
     if lhs.operationID != rhs.operationID {return false}
     if lhs.changeID != rhs.changeID {return false}
+    if lhs._context != rhs._context {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -778,7 +1526,7 @@ nonisolated extension Nonproxy_Adapter_V1_VerifyChangeRequest: SwiftProtobuf.Mes
 
 nonisolated extension Nonproxy_Adapter_V1_VerifyChangeResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".VerifyChangeResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}verified\0\u{3}evidence_level\0\u{1}error\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}verified\0\u{3}evidence_level\0\u{1}error\0\u{3}configuration_verified\0\u{3}path_verified\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -789,6 +1537,8 @@ nonisolated extension Nonproxy_Adapter_V1_VerifyChangeResponse: SwiftProtobuf.Me
       case 1: try { try decoder.decodeSingularBoolField(value: &self.verified) }()
       case 2: try { try decoder.decodeSingularEnumField(value: &self.evidenceLevel) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.configurationVerified) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.pathVerified) }()
       default: break
       }
     }
@@ -808,6 +1558,12 @@ nonisolated extension Nonproxy_Adapter_V1_VerifyChangeResponse: SwiftProtobuf.Me
     try { if let v = self._error {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    if self.configurationVerified != false {
+      try visitor.visitSingularBoolField(value: self.configurationVerified, fieldNumber: 4)
+    }
+    if self.pathVerified != false {
+      try visitor.visitSingularBoolField(value: self.pathVerified, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -815,6 +1571,8 @@ nonisolated extension Nonproxy_Adapter_V1_VerifyChangeResponse: SwiftProtobuf.Me
     if lhs.verified != rhs.verified {return false}
     if lhs.evidenceLevel != rhs.evidenceLevel {return false}
     if lhs._error != rhs._error {return false}
+    if lhs.configurationVerified != rhs.configurationVerified {return false}
+    if lhs.pathVerified != rhs.pathVerified {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -822,7 +1580,7 @@ nonisolated extension Nonproxy_Adapter_V1_VerifyChangeResponse: SwiftProtobuf.Me
 
 nonisolated extension Nonproxy_Adapter_V1_RollbackChangeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RollbackChangeRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}change_id\0\u{3}backup_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{3}change_id\0\u{3}backup_id\0\u{1}context\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -833,12 +1591,17 @@ nonisolated extension Nonproxy_Adapter_V1_RollbackChangeRequest: SwiftProtobuf.M
       case 1: try { try decoder.decodeSingularStringField(value: &self.operationID) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.changeID) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.backupID) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._context) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.operationID.isEmpty {
       try visitor.visitSingularStringField(value: self.operationID, fieldNumber: 1)
     }
@@ -848,6 +1611,9 @@ nonisolated extension Nonproxy_Adapter_V1_RollbackChangeRequest: SwiftProtobuf.M
     if !self.backupID.isEmpty {
       try visitor.visitSingularStringField(value: self.backupID, fieldNumber: 3)
     }
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -855,6 +1621,7 @@ nonisolated extension Nonproxy_Adapter_V1_RollbackChangeRequest: SwiftProtobuf.M
     if lhs.operationID != rhs.operationID {return false}
     if lhs.changeID != rhs.changeID {return false}
     if lhs.backupID != rhs.backupID {return false}
+    if lhs._context != rhs._context {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -862,7 +1629,7 @@ nonisolated extension Nonproxy_Adapter_V1_RollbackChangeRequest: SwiftProtobuf.M
 
 nonisolated extension Nonproxy_Adapter_V1_RollbackChangeResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RollbackChangeResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}restored\0\u{1}reloaded\0\u{1}error\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}restored\0\u{1}reloaded\0\u{1}error\0\u{1}replayed\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -873,6 +1640,7 @@ nonisolated extension Nonproxy_Adapter_V1_RollbackChangeResponse: SwiftProtobuf.
       case 1: try { try decoder.decodeSingularBoolField(value: &self.restored) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.reloaded) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.replayed) }()
       default: break
       }
     }
@@ -892,6 +1660,9 @@ nonisolated extension Nonproxy_Adapter_V1_RollbackChangeResponse: SwiftProtobuf.
     try { if let v = self._error {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    if self.replayed != false {
+      try visitor.visitSingularBoolField(value: self.replayed, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -899,6 +1670,7 @@ nonisolated extension Nonproxy_Adapter_V1_RollbackChangeResponse: SwiftProtobuf.
     if lhs.restored != rhs.restored {return false}
     if lhs.reloaded != rhs.reloaded {return false}
     if lhs._error != rhs._error {return false}
+    if lhs.replayed != rhs.replayed {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

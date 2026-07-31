@@ -19,7 +19,8 @@ use crate::{
     recovery::recover_state,
     renderer_catalog,
     types::{
-        AdapterInstallation, ApplyOutcome, PreparedChange, RollbackOutcome, VerificationOutcome,
+        AdapterInstallation, ApplyOutcome, ChangeInstallation, PreparedChange, RollbackOutcome,
+        VerificationOutcome,
     },
 };
 
@@ -115,6 +116,7 @@ impl AdapterTransactionManager {
             operation_id: operation_id.to_owned(),
             adapter_id: installation.adapter_id.clone(),
             client: installation.client,
+            client_version: Some(installation.client_version),
             managed_rules_path: managed_rules_path.to_string_lossy().into_owned(),
             candidate_sha256: encode_hash(&candidate_hash),
             backup_sha256: backup_hash.as_ref().map(encode_hash),
@@ -199,6 +201,22 @@ impl AdapterTransactionManager {
                 .is_some_and(|bytes| sha256(bytes) == candidate_hash),
             path_verified: false,
             candidate_sha256: candidate_hash,
+        })
+    }
+
+    pub fn change_installation(
+        &self,
+        change_id: &str,
+    ) -> Result<ChangeInstallation, AdapterTransactionError> {
+        validate_identifier(change_id)?;
+        let manifest = self.load_manifest(change_id)?;
+        let client_version = manifest
+            .client_version
+            .ok_or(AdapterTransactionError::StateCorrupt)?;
+        Ok(ChangeInstallation {
+            adapter_id: manifest.adapter_id,
+            client: manifest.client,
+            client_version,
         })
     }
 
@@ -326,6 +344,7 @@ impl AdapterTransactionManager {
         let identical = manifest.operation_id == operation_id
             && manifest.adapter_id == installation.adapter_id
             && manifest.client == installation.client
+            && manifest.client_version == Some(installation.client_version)
             && Path::new(&manifest.managed_rules_path) == managed_rules_path
             && decode_hash(&manifest.candidate_sha256)? == *candidate_hash;
         if !identical {

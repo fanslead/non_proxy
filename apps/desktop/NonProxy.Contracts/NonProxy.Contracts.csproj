@@ -21,6 +21,8 @@
               GrpcServices="None" />
     <Protobuf Update="../../../proto/nonproxy/control/v1/control.proto"
               GrpcServices="Client" />
+    <Protobuf Update="../../../proto/nonproxy/adapter/v1/adapter.proto"
+              GrpcServices="Client" />
   </ItemGroup>
 
 </Project>

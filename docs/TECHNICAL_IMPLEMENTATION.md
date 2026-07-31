@@ -1469,6 +1469,15 @@ owner-only candidate、backup 和带 SHA-256 的持久 change manifest；应用�
 `O_NOFOLLOW`，规则文件前后都受 2 MiB 上限约束。当前只提供配置证据，完整事务边界见
 [ADR-0020](ADR/0020-use-recoverable-adapter-file-transactions.md)。
 
+独立 `nonproxy-adapter-host` 已把上述事务封装为经过会话能力认证的本地 RPC。安装项只
+接受用户明确选择的客户端可执行文件和 sidecar 路径，并以 owner-only 原子目录持久化；
+每次能力读取、准备和应用都重新检测 Surge、Mihomo 或 sing-box 版本。CLI 检测不经 shell、
+清空继承环境，并限制为三秒和 64 KiB 输出。宿主的私有 UDS、独立能力文件、版本降级和
+RPC 幂等边界见 [ADR-0021](ADR/0021-run-adapters-in-an-authenticated-host.md)。
+
+当前宿主返回的 `reloaded` 与 `path_verified` 均为 false，最高只有配置证据。主配置引用、
+客户端原生候选校验、公开重载以及实际路径验证未完成前，桌面端仍不得开放“已接管”。
+
 适配器接口：
 
 ```text

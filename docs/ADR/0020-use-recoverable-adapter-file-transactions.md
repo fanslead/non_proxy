@@ -22,9 +22,10 @@ NonProxy 专属 sidecar；如果直接覆盖文件，应用崩溃、重复 RPC�
    `fsync`；Unix 文件为 `0600`、目录为 `0700`。
 3. operation ID 与 adapter ID 生成稳定 change ID。完全相同的重放返回第一次的过期时间
    和哈希；同一 operation ID 携带不同候选、路径或备份时 fail-closed。
-4. change manifest 记录候选/备份 SHA-256、规范化托管路径、客户端类型和十分钟准备期限。
-   manifest 不记录规则正文。启动恢复扫描验证所有引用哈希，并清理没有 manifest 的崩溃
-   孤儿文件；引用文件损坏时拒绝启动事务内核。
+4. change manifest 记录候选/备份 SHA-256、规范化托管路径、客户端类型、精确版本和
+   十分钟准备期限。manifest 不记录规则正文。启动恢复扫描验证所有引用哈希，并清理没有
+   manifest 的崩溃孤儿文件；引用文件损坏时拒绝启动事务内核。旧 v1 清单仍可恢复和回滚，
+   但缺少版本绑定时 adapter-host 不允许继续应用。
 5. `apply` 只在当前 sidecar 仍等于 prepare 时的备份时执行同目录原子 rename。文件读取在
    Unix 使用 `O_NOFOLLOW`，大小前后均受 2 MiB 上限约束；符号链接、非普通文件和变化的
    外部内容均拒绝覆盖。应用后重新读取并核对候选 SHA-256。

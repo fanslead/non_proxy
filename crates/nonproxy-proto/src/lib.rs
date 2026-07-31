@@ -27,3 +27,9 @@ pub mod provider {
         tonic::include_proto!("nonproxy.provider.v1");
     }
 }
+
+pub mod adapter {
+    pub mod v1 {
+        tonic::include_proto!("nonproxy.adapter.v1");
+    }
+}

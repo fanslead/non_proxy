@@ -20,6 +20,45 @@ public enum Nonproxy_Adapter_V1_AdapterService: Sendable {
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.adapter.v1.AdapterService")
     /// Namespace for method metadata.
     public enum Method: Sendable {
+        /// Namespace for "RegisterInstallation" metadata.
+        public enum RegisterInstallation: Sendable {
+            /// Request type for "RegisterInstallation".
+            public typealias Input = Nonproxy_Adapter_V1_RegisterInstallationRequest
+            /// Response type for "RegisterInstallation".
+            public typealias Output = Nonproxy_Adapter_V1_RegisterInstallationResponse
+            /// Descriptor for "RegisterInstallation".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.adapter.v1.AdapterService"),
+                method: "RegisterInstallation",
+                type: .unary
+            )
+        }
+        /// Namespace for "ListInstallations" metadata.
+        public enum ListInstallations: Sendable {
+            /// Request type for "ListInstallations".
+            public typealias Input = Nonproxy_Adapter_V1_ListInstallationsRequest
+            /// Response type for "ListInstallations".
+            public typealias Output = Nonproxy_Adapter_V1_ListInstallationsResponse
+            /// Descriptor for "ListInstallations".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.adapter.v1.AdapterService"),
+                method: "ListInstallations",
+                type: .unary
+            )
+        }
+        /// Namespace for "RemoveInstallation" metadata.
+        public enum RemoveInstallation: Sendable {
+            /// Request type for "RemoveInstallation".
+            public typealias Input = Nonproxy_Adapter_V1_RemoveInstallationRequest
+            /// Response type for "RemoveInstallation".
+            public typealias Output = Nonproxy_Adapter_V1_RemoveInstallationResponse
+            /// Descriptor for "RemoveInstallation".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.adapter.v1.AdapterService"),
+                method: "RemoveInstallation",
+                type: .unary
+            )
+        }
         /// Namespace for "Detect" metadata.
         public enum Detect: Sendable {
             /// Request type for "Detect".
@@ -100,6 +139,9 @@ public enum Nonproxy_Adapter_V1_AdapterService: Sendable {
         }
         /// Descriptors for all methods in the "nonproxy.adapter.v1.AdapterService" service.
         public static let descriptors: [GRPCCore.MethodDescriptor] = [
+            RegisterInstallation.descriptor,
+            ListInstallations.descriptor,
+            RemoveInstallation.descriptor,
             Detect.descriptor,
             ReadCapabilities.descriptor,
             PrepareChange.descriptor,
@@ -129,6 +171,63 @@ extension Nonproxy_Adapter_V1_AdapterService {
     /// >
     /// > AdapterService 隔离第三方客户端配置和重载操作。
     public protocol ClientProtocol: Sendable {
+        /// Call the "RegisterInstallation" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Adapter_V1_RegisterInstallationRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Adapter_V1_RegisterInstallationRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Adapter_V1_RegisterInstallationResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func registerInstallation<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Adapter_V1_RegisterInstallationRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Adapter_V1_RegisterInstallationRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Adapter_V1_RegisterInstallationResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_RegisterInstallationResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "ListInstallations" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Adapter_V1_ListInstallationsRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Adapter_V1_ListInstallationsRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Adapter_V1_ListInstallationsResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func listInstallations<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Adapter_V1_ListInstallationsRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Adapter_V1_ListInstallationsRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Adapter_V1_ListInstallationsResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_ListInstallationsResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "RemoveInstallation" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Adapter_V1_RemoveInstallationRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Adapter_V1_RemoveInstallationRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Adapter_V1_RemoveInstallationResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func removeInstallation<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Adapter_V1_RemoveInstallationRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Adapter_V1_RemoveInstallationRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Adapter_V1_RemoveInstallationResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_RemoveInstallationResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
         /// Call the "Detect" method.
         ///
         /// - Parameters:
@@ -262,6 +361,96 @@ extension Nonproxy_Adapter_V1_AdapterService {
         ///   - client: A `GRPCCore.GRPCClient` providing a communication channel to the service.
         public init(wrapping client: GRPCCore.GRPCClient<Transport>) {
             self.client = client
+        }
+
+        /// Call the "RegisterInstallation" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Adapter_V1_RegisterInstallationRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Adapter_V1_RegisterInstallationRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Adapter_V1_RegisterInstallationResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func registerInstallation<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Adapter_V1_RegisterInstallationRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Adapter_V1_RegisterInstallationRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Adapter_V1_RegisterInstallationResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_RegisterInstallationResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Adapter_V1_AdapterService.Method.RegisterInstallation.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "ListInstallations" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Adapter_V1_ListInstallationsRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Adapter_V1_ListInstallationsRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Adapter_V1_ListInstallationsResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func listInstallations<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Adapter_V1_ListInstallationsRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Adapter_V1_ListInstallationsRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Adapter_V1_ListInstallationsResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_ListInstallationsResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Adapter_V1_AdapterService.Method.ListInstallations.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "RemoveInstallation" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Adapter_V1_RemoveInstallationRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Adapter_V1_RemoveInstallationRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Adapter_V1_RemoveInstallationResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func removeInstallation<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Adapter_V1_RemoveInstallationRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Adapter_V1_RemoveInstallationRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Adapter_V1_RemoveInstallationResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_RemoveInstallationResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Adapter_V1_AdapterService.Method.RemoveInstallation.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
         }
 
         /// Call the "Detect" method.
@@ -449,6 +638,81 @@ extension Nonproxy_Adapter_V1_AdapterService {
 // Helpers providing default arguments to 'ClientProtocol' methods.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 extension Nonproxy_Adapter_V1_AdapterService.ClientProtocol {
+    /// Call the "RegisterInstallation" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Adapter_V1_RegisterInstallationRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func registerInstallation<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Adapter_V1_RegisterInstallationRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_RegisterInstallationResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.registerInstallation(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Adapter_V1_RegisterInstallationRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Adapter_V1_RegisterInstallationResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListInstallations" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Adapter_V1_ListInstallationsRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listInstallations<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Adapter_V1_ListInstallationsRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_ListInstallationsResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.listInstallations(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Adapter_V1_ListInstallationsRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Adapter_V1_ListInstallationsResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "RemoveInstallation" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Adapter_V1_RemoveInstallationRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func removeInstallation<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Adapter_V1_RemoveInstallationRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_RemoveInstallationResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.removeInstallation(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Adapter_V1_RemoveInstallationRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Adapter_V1_RemoveInstallationResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "Detect" method.
     ///
     /// - Parameters:
@@ -603,6 +867,93 @@ extension Nonproxy_Adapter_V1_AdapterService.ClientProtocol {
 // Helpers providing sugared APIs for 'ClientProtocol' methods.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 extension Nonproxy_Adapter_V1_AdapterService.ClientProtocol {
+    /// Call the "RegisterInstallation" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func registerInstallation<Result>(
+        _ message: Nonproxy_Adapter_V1_RegisterInstallationRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_RegisterInstallationResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Adapter_V1_RegisterInstallationRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.registerInstallation(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListInstallations" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listInstallations<Result>(
+        _ message: Nonproxy_Adapter_V1_ListInstallationsRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_ListInstallationsResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Adapter_V1_ListInstallationsRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.listInstallations(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "RemoveInstallation" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func removeInstallation<Result>(
+        _ message: Nonproxy_Adapter_V1_RemoveInstallationRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Adapter_V1_RemoveInstallationResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Adapter_V1_RemoveInstallationRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.removeInstallation(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "Detect" method.
     ///
     /// - Parameters:

@@ -1,0 +1,33 @@
+[package]
+name = "nonproxy-adapter-host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+getrandom.workspace = true
+libc.workspace = true
+nonproxy-adapter-api = { path = "../../crates/nonproxy-adapter-api" }
+nonproxy-adapter-mihomo = { path = "../../adapters/mihomo" }
+nonproxy-adapter-sing-box = { path = "../../adapters/sing-box" }
+nonproxy-adapter-surge = { path = "../../adapters/surge" }
+nonproxy-adapter-transaction = { path = "../../crates/nonproxy-adapter-transaction" }
+nonproxy-local-auth = { path = "../../crates/nonproxy-local-auth" }
+nonproxy-proto = { path = "../../crates/nonproxy-proto" }
+prost-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
+
+[dev-dependencies]
+hyper-util.workspace = true
+tempfile.workspace = true
+tower.workspace = true
+
+[lints]
+workspace = true

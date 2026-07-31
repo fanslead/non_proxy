@@ -54,3 +54,10 @@ pub struct RollbackOutcome {
     pub restored: bool,
     pub replayed: bool,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ChangeInstallation {
+    pub adapter_id: String,
+    pub client: AdapterClient,
+    pub client_version: AdapterVersion,
+}

@@ -13,6 +13,7 @@ nonproxy-dns = { path = "../../crates/nonproxy-dns" }
 nonproxy-exit-probe = { path = "../../crates/nonproxy-exit-probe" }
 nonproxy-flow-protocol = { path = "../../crates/nonproxy-flow-protocol" }
 nonproxy-learning = { path = "../../crates/nonproxy-learning" }
+nonproxy-local-auth = { path = "../../crates/nonproxy-local-auth" }
 nonproxy-outbound = { path = "../../crates/nonproxy-outbound" }
 nonproxy-policy = { path = "../../crates/nonproxy-policy" }
 nonproxy-policy-compiler = { path = "../../crates/nonproxy-policy-compiler" }

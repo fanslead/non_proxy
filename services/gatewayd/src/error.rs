@@ -1,4 +1,5 @@
 use nonproxy_learning::LearningError;
+use nonproxy_local_auth::LocalAuthError;
 use nonproxy_model::ModelError;
 use nonproxy_policy_compiler::CompileError;
 use nonproxy_storage::StorageError;
@@ -44,6 +45,8 @@ pub enum GatewayError {
     },
     #[error("无法生成本机会话能力令牌: {0}")]
     Random(String),
+    #[error("本机会话认证失败: {0}")]
+    LocalAuth(#[from] LocalAuthError),
     #[error("后台运行身份无效: {0}")]
     RuntimeIdentity(String),
     #[error("RPC 服务失败: {0}")]
@@ -65,6 +68,8 @@ impl GatewayError {
                 "NP_REQUEST_INVALID"
             }
             Self::Learning(error) => error.code(),
+            Self::LocalAuth(LocalAuthError::Random(_)) => "NP_SESSION_TOKEN_FAILED",
+            Self::LocalAuth(_) => "NP_LOCAL_PATH_INVALID",
             Self::DefaultOutboundUnverified => "NP_DEFAULT_OUTBOUND_UNVERIFIED",
             Self::Storage(StorageError::PolicyRevisionConflict) => "NP_POLICY_REVISION_CONFLICT",
             Self::Storage(StorageError::OutboundRevisionConflict) => {

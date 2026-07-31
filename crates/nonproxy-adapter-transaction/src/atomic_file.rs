@@ -20,7 +20,7 @@ pub(crate) fn read_optional_bounded(
     let mut options = OpenOptions::new();
     options.read(true);
     #[cfg(unix)]
-    options.custom_flags(libc::O_NOFOLLOW);
+    options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
     let mut file = match options.open(path) {
         Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -29,7 +29,7 @@ pub(crate) fn read_optional_bounded(
     let metadata = file
         .metadata()
         .map_err(|_| AdapterTransactionError::FileTransaction)?;
-    if metadata.len() > MAXIMUM_MANAGED_RULE_BYTES {
+    if !metadata.is_file() || metadata.len() > MAXIMUM_MANAGED_RULE_BYTES {
         return Err(AdapterTransactionError::ManagedPathInvalid);
     }
     let capacity =
