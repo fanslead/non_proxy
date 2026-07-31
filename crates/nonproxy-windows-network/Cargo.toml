@@ -9,6 +9,8 @@ publish.workspace = true
 thiserror.workspace = true
 
 [target.'cfg(windows)'.dependencies]
+socket2.workspace = true
+tokio.workspace = true
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
   "Win32_NetworkManagement_Dns",

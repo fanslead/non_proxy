@@ -17,6 +17,8 @@ mod dns_policy;
 mod dns_service;
 mod error;
 mod event_hub;
+mod exit_probe;
+mod exit_probe_direct;
 #[cfg(any(unix, windows))]
 mod flow_server;
 mod gateway;

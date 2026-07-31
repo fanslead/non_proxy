@@ -23,6 +23,7 @@ service ControlService {
   rpc ListConnectionDecisions(ListConnectionDecisionsRequest) returns (ListConnectionDecisionsResponse);
   rpc ImportConfiguration(ImportConfigurationRequest) returns (ImportConfigurationResponse);
   rpc TestOutbound(TestOutboundRequest) returns (TestOutboundResponse);
+  rpc VerifyExit(VerifyExitRequest) returns (VerifyExitResponse);
   rpc SetDefaultRoute(SetDefaultRouteRequest) returns (SetDefaultRouteResponse);
   rpc StartLearningSession(StartLearningSessionRequest) returns (StartLearningSessionResponse);
   rpc RecordLearningObservation(RecordLearningObservationRequest) returns (RecordLearningObservationResponse);
@@ -65,6 +66,13 @@ enum DefaultRouteKind {
   DEFAULT_ROUTE_KIND_UNSPECIFIED = 0;
   DEFAULT_ROUTE_KIND_DIRECT = 1;
   DEFAULT_ROUTE_KIND_PROXY = 2;
+}
+
+// ExitProbeRouteKind 表示要由独立远端探针验证的本地出站路径。
+enum ExitProbeRouteKind {
+  EXIT_PROBE_ROUTE_KIND_UNSPECIFIED = 0;
+  EXIT_PROBE_ROUTE_KIND_DIRECT = 1;
+  EXIT_PROBE_ROUTE_KIND_PROXY = 2;
 }
 
 // LearningSessionKind 表示学习会话的上下文。
@@ -337,6 +345,26 @@ message TestOutboundResponse {
   bool healthy = 1;
   google.protobuf.Duration latency = 2;
   nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// VerifyExitRequest 只选择已知出站；探针地址和信任公钥由后台安装配置固定。
+message VerifyExitRequest {
+  OperationContext context = 1;
+  ExitProbeRouteKind route = 2;
+  string outbound_id = 3;
+  google.protobuf.Duration timeout = 4;
+}
+
+// VerifyExitResponse 返回由后台验证过的签名回执摘要，不包含用户访问目标。
+message VerifyExitResponse {
+  bool verified = 1;
+  string probe_id = 2;
+  string observed_ip = 3;
+  nonproxy.common.v1.IpFamily ip_family = 4;
+  google.protobuf.Timestamp observed_at = 5;
+  ExitProbeRouteKind route = 6;
+  string outbound_id = 7;
+  nonproxy.common.v1.ErrorDetail error = 8;
 }
 
 // SetDefaultRouteRequest 原子修改默认路由并生成新的待确认快照。

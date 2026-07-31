@@ -253,7 +253,11 @@ fn evidence_from_proto(
     let level = match common_proto::EvidenceLevel::try_from(value.level) {
         Ok(common_proto::EvidenceLevel::Decision) => EvidenceLevel::Decision,
         Ok(common_proto::EvidenceLevel::Path) => EvidenceLevel::Path,
-        Ok(common_proto::EvidenceLevel::Exit) => EvidenceLevel::Exit,
+        Ok(common_proto::EvidenceLevel::Exit) => {
+            return Err(GatewayError::InvalidRequest(
+                "Provider 不能直接声明出口探针证据",
+            ));
+        }
         _ => return Err(GatewayError::InvalidRequest("连接证据等级无效")),
     };
     DecisionEvidence::new(

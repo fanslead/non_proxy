@@ -56,11 +56,16 @@ async fn run_with_lifecycle(
     let control_capability = SessionCapability::create_control(config.state_directory())?;
     let provider_capability = SessionCapability::create_provider(config.state_directory())?;
     let credential_store: Arc<dyn CredentialStore> = Arc::new(OsCredentialStore);
+    let exit_probe_client = config
+        .exit_probe()
+        .map(crate::config::ExitProbeConfig::client)
+        .transpose()?;
     let control = ControlRpcService::with_credential_store(
         gateway.clone(),
         control_capability,
         Arc::clone(&credential_store),
-    );
+    )
+    .with_exit_probe_client(exit_probe_client);
     #[cfg(any(unix, windows))]
     {
         let provider = ProviderRpcService::with_credential_store(

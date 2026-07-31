@@ -8,6 +8,8 @@ mod dns;
 mod dns_probe;
 #[cfg(windows)]
 mod socket;
+#[cfg(windows)]
+mod tcp;
 
 pub use selection::{
     AddressFamily, DefaultRouteCandidate, InterfaceCandidate, Ipv4RoutePrefix, PhysicalInterfaces,
@@ -22,6 +24,8 @@ pub use dns::{DnsUpstream, PhysicalDnsCatalog, PhysicalDnsUpstreams};
 pub use dns_probe::verify_system_dns_probe;
 #[cfg(windows)]
 pub use socket::bind_unicast_interface;
+#[cfg(windows)]
+pub use tcp::{PhysicalTcpError, connect_physical_tcp};
 
 use thiserror::Error;
 

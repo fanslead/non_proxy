@@ -251,3 +251,54 @@
 - 当前 Release 使用临时签名，证明打包结构、固定 identifier 与无 TeamIdentifier
   的开发分支；正式 TeamIdentifier、System Extension 真机安装、外部 VPN 共存和
   真实物理网络防回环仍需正式签名设备验收。
+
+## 独立签名出口探针批次状态
+
+- [x] 签名回执、严格验签与 HTTPS 客户端
+- [x] 最小 TLS 探针服务与隐私边界
+- [x] 固定 endpoint/公钥安装配置
+- [x] DIRECT/PROXY 网关探针编排
+- [x] Provider EXIT 越级拒绝
+- [x] C#/Swift/Rust 控制契约生成
+- [ ] 出口回执持久化与查询
+- [ ] Desktop 触发、结果展示与无配置状态
+- [x] 真实 TLS 客户端集成测试
+- [x] Windows 物理 TCP 双架构条件编译
+- [ ] 探针服务部署清单
+- [ ] 全仓测试、lint、打包与提交前 review
+
+### 当前验证
+
+- `cargo test -p nonproxy-exit-probe -p nonproxy-probe-server -p
+  nonproxy-gatewayd --all-targets`：回执库 5/5、探针服务 2/2、gatewayd 99 个
+  库测试、11 个集成测试和 1 个 Provider RPC 测试通过。
+- `cargo test --workspace`、`cargo clippy --workspace --all-targets -- -D warnings`、
+  `cargo fmt --all -- --check`：全仓测试、lint 和格式门禁通过。
+- `dotnet test apps/desktop/NonProxy.Desktop.slnx -c Release --no-restore`：
+  85/85 通过。
+- `swift test --package-path platform/macos --disable-sandbox`：XCTest 98/98、
+  Swift Testing 28/28 通过。
+- `just contracts`、`just contracts-swift`、`just contracts-breaking`：C# 和
+  Swift 生成物一致，Buf 对 `HEAD` 无破坏性变更。
+- `cargo xwin check --workspace --all-targets --target x86_64-pc-windows-msvc`：
+  全 workspace 通过，并发现、修正 Windows 端 host 所有权类型错误。
+- `nonproxy-windows-network --all-targets` 在 x64/arm64 Windows target 均通过，
+  覆盖新增物理 TCP 绑定实现。arm64 全 workspace 因 `cargo-xwin` 向 ring 的 clang
+  命令传入 `/imsvc` 失败；这是宿主交叉工具链问题，没有计为全 workspace 通过。
+- `dotnet build apps/desktop/NonProxy.Desktop.slnx -c Release --no-restore
+  --no-incremental`：Universal System Extension、Safari Extension、Native
+  Messaging Host、gatewayd 和最终 App Bundle 均通过签名与结构校验，0 warning、
+  0 error。
+- `just control-e2e`、`just provider-e2e`：控制平面、NPF1 代理数据面和两个
+  Provider 的 ACK/active 链路通过。
+
+### 基础批次提交前复核
+
+- 真实 TLS fixture 同时穿过 rustls、HTTP/1、JSON、nonce 与 Ed25519 验签，不是
+  只调用签名函数的替身测试。
+- 复核并修正未配置探针却声明能力、永久配置错误被标为可重试、TLS 请求提前退出
+  后后台连接任务未取消、签名/TLS 私钥解析期间临时字节未清零四个问题。
+- 生产 Rust 新文件均低于 400 行，未新增 `unwrap`/`expect`；错误响应只返回稳定
+  代码和中文操作提示，不泄露 endpoint、代理凭据或底层网络错误。
+- 本基础提交仍不代表完整出口功能完成；持久化、桌面 UI、密钥轮换、部署清单与
+  真实公网双路径验收继续在后续批次完成。

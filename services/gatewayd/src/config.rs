@@ -6,12 +6,15 @@ use std::{
 use crate::GatewayError;
 #[cfg(windows)]
 use crate::WindowsTransportConfig;
+use nonproxy_exit_probe::{ExitProbeClient, ExitProbeEndpoint, ExitProbeVerifier};
 
 const STATE_DIRECTORY_ENVIRONMENT: &str = "NONPROXY_STATE_DIR";
 const SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_SOCKET_PATH";
 const FLOW_SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_FLOW_SOCKET_PATH";
 const BUNDLE_FINGERPRINT_ENVIRONMENT: &str = "NONPROXY_GATEWAY_BUNDLE_FINGERPRINT";
 const MACOS_TEAM_IDENTIFIER_ENVIRONMENT: &str = "NONPROXY_MAC_TEAM_IDENTIFIER";
+const EXIT_PROBE_ENDPOINT_ENVIRONMENT: &str = "NONPROXY_EXIT_PROBE_ENDPOINT";
+const EXIT_PROBE_PUBLIC_KEY_ENVIRONMENT: &str = "NONPROXY_EXIT_PROBE_PUBLIC_KEY";
 const DEVELOPMENT_FINGERPRINT: &str = "development";
 #[cfg(target_os = "macos")]
 const MACOS_APP_GROUP_STATE_PATH: &str =
@@ -25,8 +28,56 @@ pub struct GatewayConfig {
     flow_socket_path: PathBuf,
     bundle_fingerprint: String,
     macos_team_identifier: Option<String>,
+    exit_probe: Option<ExitProbeConfig>,
     #[cfg(windows)]
     windows_transport: WindowsTransportConfig,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExitProbeConfig {
+    endpoint: String,
+    public_key: String,
+}
+
+impl ExitProbeConfig {
+    fn from_environment() -> Result<Option<Self>, GatewayError> {
+        Self::from_values(
+            optional_environment(EXIT_PROBE_ENDPOINT_ENVIRONMENT)?,
+            optional_environment(EXIT_PROBE_PUBLIC_KEY_ENVIRONMENT)?,
+        )
+    }
+
+    fn from_values(
+        endpoint: Option<String>,
+        public_key: Option<String>,
+    ) -> Result<Option<Self>, GatewayError> {
+        match (endpoint, public_key) {
+            (None, None) => Ok(None),
+            (Some(endpoint), Some(public_key)) => {
+                ExitProbeEndpoint::parse(&endpoint)
+                    .and_then(|_| ExitProbeVerifier::from_public_key_base64(&public_key))
+                    .map_err(|_| {
+                        GatewayError::RuntimeIdentity("出口探针地址或 Ed25519 公钥无效".to_owned())
+                    })?;
+                Ok(Some(Self {
+                    endpoint,
+                    public_key,
+                }))
+            }
+            _ => Err(GatewayError::RuntimeIdentity(
+                "出口探针地址和公钥必须同时配置".to_owned(),
+            )),
+        }
+    }
+
+    pub(crate) fn client(&self) -> Result<ExitProbeClient, GatewayError> {
+        let endpoint = ExitProbeEndpoint::parse(&self.endpoint)
+            .map_err(|_| GatewayError::RuntimeIdentity("出口探针地址配置已损坏".to_owned()))?;
+        let verifier = ExitProbeVerifier::from_public_key_base64(&self.public_key)
+            .map_err(|_| GatewayError::RuntimeIdentity("出口探针公钥配置已损坏".to_owned()))?;
+        ExitProbeClient::new(endpoint, verifier)
+            .map_err(|_| GatewayError::RuntimeIdentity("出口探针 TLS 客户端初始化失败".to_owned()))
+    }
 }
 
 impl GatewayConfig {
@@ -53,12 +104,14 @@ impl GatewayConfig {
         let macos_team_identifier = optional_environment(MACOS_TEAM_IDENTIFIER_ENVIRONMENT)?
             .map(validate_team_identifier)
             .transpose()?;
+        let exit_probe = ExitProbeConfig::from_environment()?;
         Self::build(
             state_directory,
             socket_path,
             flow_socket_path,
             bundle_fingerprint,
             macos_team_identifier,
+            exit_probe,
         )
     }
 
@@ -83,6 +136,7 @@ impl GatewayConfig {
             flow_socket_path.into(),
             DEVELOPMENT_FINGERPRINT.to_owned(),
             None,
+            None,
         )
     }
 
@@ -92,6 +146,7 @@ impl GatewayConfig {
         flow_socket_path: PathBuf,
         bundle_fingerprint: String,
         macos_team_identifier: Option<String>,
+        exit_probe: Option<ExitProbeConfig>,
     ) -> Result<Self, GatewayError> {
         validate_absolute(&state_directory)?;
         validate_absolute(&socket_path)?;
@@ -111,6 +166,7 @@ impl GatewayConfig {
             flow_socket_path,
             bundle_fingerprint,
             macos_team_identifier,
+            exit_probe,
             #[cfg(windows)]
             windows_transport: WindowsTransportConfig::from_process()?,
         })
@@ -155,6 +211,11 @@ impl GatewayConfig {
     #[must_use]
     pub fn macos_team_identifier(&self) -> Option<&str> {
         self.macos_team_identifier.as_deref()
+    }
+
+    #[must_use]
+    pub(crate) const fn exit_probe(&self) -> Option<&ExitProbeConfig> {
+        self.exit_probe.as_ref()
     }
 
     #[must_use]
@@ -290,7 +351,9 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     use super::macos_state_directory;
-    use super::{GatewayConfig, validate_bundle_fingerprint, validate_team_identifier};
+    use super::{
+        ExitProbeConfig, GatewayConfig, validate_bundle_fingerprint, validate_team_identifier,
+    };
 
     #[test]
     fn rejects_socket_outside_state_directory() {
@@ -308,6 +371,29 @@ mod tests {
                 .is_err()
         );
         assert!(GatewayConfig::new_with_flow_socket(&state, &control, &control).is_err());
+    }
+
+    #[test]
+    fn exit_probe_configuration_requires_a_valid_complete_trust_pair() {
+        assert!(matches!(ExitProbeConfig::from_values(None, None), Ok(None)));
+        assert!(
+            ExitProbeConfig::from_values(Some("https://probe.example/v1/exit".to_owned()), None,)
+                .is_err()
+        );
+        assert!(
+            ExitProbeConfig::from_values(
+                Some("http://probe.example/v1/exit".to_owned()),
+                Some("invalid".to_owned()),
+            )
+            .is_err()
+        );
+        let signer = nonproxy_exit_probe::ExitProbeSigner::from_secret_bytes(&[7; 32])
+            .unwrap_or_else(|error| panic!("测试出口探针密钥创建失败: {error}"));
+        let configured = ExitProbeConfig::from_values(
+            Some("https://probe.example/v1/exit".to_owned()),
+            Some(signer.public_key_base64()),
+        );
+        assert!(matches!(configured, Ok(Some(_))));
     }
 
     #[test]

@@ -194,6 +194,45 @@ public nonisolated enum Nonproxy_Control_V1_DefaultRouteKind: SwiftProtobuf.Enum
 
 }
 
+/// ExitProbeRouteKind 表示要由独立远端探针验证的本地出站路径。
+public nonisolated enum Nonproxy_Control_V1_ExitProbeRouteKind: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case direct // = 1
+  case proxy // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .direct
+    case 2: self = .proxy
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .direct: return 1
+    case .proxy: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Nonproxy_Control_V1_ExitProbeRouteKind] = [
+    .unspecified,
+    .direct,
+    .proxy,
+  ]
+
+}
+
 /// LearningSessionKind 表示学习会话的上下文。
 public nonisolated enum Nonproxy_Control_V1_LearningSessionKind: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
@@ -1357,6 +1396,86 @@ public nonisolated struct Nonproxy_Control_V1_TestOutboundResponse: Sendable {
   fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
 }
 
+/// VerifyExitRequest 只选择已知出站；探针地址和信任公钥由后台安装配置固定。
+public nonisolated struct Nonproxy_Control_V1_VerifyExitRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var route: Nonproxy_Control_V1_ExitProbeRouteKind = .unspecified
+
+  public var outboundID: String = String()
+
+  public var timeout: SwiftProtobuf.Google_Protobuf_Duration {
+    get {_timeout ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_timeout = newValue}
+  }
+  /// Returns true if `timeout` has been explicitly set.
+  public var hasTimeout: Bool {self._timeout != nil}
+  /// Clears the value of `timeout`. Subsequent reads from it will return its default value.
+  public mutating func clearTimeout() {self._timeout = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+  fileprivate var _timeout: SwiftProtobuf.Google_Protobuf_Duration? = nil
+}
+
+/// VerifyExitResponse 返回由后台验证过的签名回执摘要，不包含用户访问目标。
+public nonisolated struct Nonproxy_Control_V1_VerifyExitResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var verified: Bool = false
+
+  public var probeID: String = String()
+
+  public var observedIp: String = String()
+
+  public var ipFamily: Nonproxy_Common_V1_IpFamily = .unspecified
+
+  public var observedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_observedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_observedAt = newValue}
+  }
+  /// Returns true if `observedAt` has been explicitly set.
+  public var hasObservedAt: Bool {self._observedAt != nil}
+  /// Clears the value of `observedAt`. Subsequent reads from it will return its default value.
+  public mutating func clearObservedAt() {self._observedAt = nil}
+
+  public var route: Nonproxy_Control_V1_ExitProbeRouteKind = .unspecified
+
+  public var outboundID: String = String()
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _observedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+}
+
 /// SetDefaultRouteRequest 原子修改默认路由并生成新的待确认快照。
 public nonisolated struct Nonproxy_Control_V1_SetDefaultRouteRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -2056,6 +2175,10 @@ nonisolated extension Nonproxy_Control_V1_OutboundKind: SwiftProtobuf._ProtoName
 
 nonisolated extension Nonproxy_Control_V1_DefaultRouteKind: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DEFAULT_ROUTE_KIND_UNSPECIFIED\0\u{1}DEFAULT_ROUTE_KIND_DIRECT\0\u{1}DEFAULT_ROUTE_KIND_PROXY\0")
+}
+
+nonisolated extension Nonproxy_Control_V1_ExitProbeRouteKind: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0EXIT_PROBE_ROUTE_KIND_UNSPECIFIED\0\u{1}EXIT_PROBE_ROUTE_KIND_DIRECT\0\u{1}EXIT_PROBE_ROUTE_KIND_PROXY\0")
 }
 
 nonisolated extension Nonproxy_Control_V1_LearningSessionKind: SwiftProtobuf._ProtoNameProviding {
@@ -3472,6 +3595,124 @@ nonisolated extension Nonproxy_Control_V1_TestOutboundResponse: SwiftProtobuf.Me
   public static func ==(lhs: Nonproxy_Control_V1_TestOutboundResponse, rhs: Nonproxy_Control_V1_TestOutboundResponse) -> Bool {
     if lhs.healthy != rhs.healthy {return false}
     if lhs._latency != rhs._latency {return false}
+    if lhs._error != rhs._error {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_VerifyExitRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VerifyExitRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{1}route\0\u{3}outbound_id\0\u{1}timeout\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.route) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.outboundID) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._timeout) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.route != .unspecified {
+      try visitor.visitSingularEnumField(value: self.route, fieldNumber: 2)
+    }
+    if !self.outboundID.isEmpty {
+      try visitor.visitSingularStringField(value: self.outboundID, fieldNumber: 3)
+    }
+    try { if let v = self._timeout {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_VerifyExitRequest, rhs: Nonproxy_Control_V1_VerifyExitRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.route != rhs.route {return false}
+    if lhs.outboundID != rhs.outboundID {return false}
+    if lhs._timeout != rhs._timeout {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_VerifyExitResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VerifyExitResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}verified\0\u{3}probe_id\0\u{3}observed_ip\0\u{3}ip_family\0\u{3}observed_at\0\u{1}route\0\u{3}outbound_id\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.verified) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.probeID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.observedIp) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.ipFamily) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._observedAt) }()
+      case 6: try { try decoder.decodeSingularEnumField(value: &self.route) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.outboundID) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.verified != false {
+      try visitor.visitSingularBoolField(value: self.verified, fieldNumber: 1)
+    }
+    if !self.probeID.isEmpty {
+      try visitor.visitSingularStringField(value: self.probeID, fieldNumber: 2)
+    }
+    if !self.observedIp.isEmpty {
+      try visitor.visitSingularStringField(value: self.observedIp, fieldNumber: 3)
+    }
+    if self.ipFamily != .unspecified {
+      try visitor.visitSingularEnumField(value: self.ipFamily, fieldNumber: 4)
+    }
+    try { if let v = self._observedAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    if self.route != .unspecified {
+      try visitor.visitSingularEnumField(value: self.route, fieldNumber: 6)
+    }
+    if !self.outboundID.isEmpty {
+      try visitor.visitSingularStringField(value: self.outboundID, fieldNumber: 7)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_VerifyExitResponse, rhs: Nonproxy_Control_V1_VerifyExitResponse) -> Bool {
+    if lhs.verified != rhs.verified {return false}
+    if lhs.probeID != rhs.probeID {return false}
+    if lhs.observedIp != rhs.observedIp {return false}
+    if lhs.ipFamily != rhs.ipFamily {return false}
+    if lhs._observedAt != rhs._observedAt {return false}
+    if lhs.route != rhs.route {return false}
+    if lhs.outboundID != rhs.outboundID {return false}
     if lhs._error != rhs._error {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

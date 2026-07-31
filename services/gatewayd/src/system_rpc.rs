@@ -1,6 +1,8 @@
 use nonproxy_proto::{
     common::v1::ComponentKind,
-    control::v1::{ComponentStatus, GetCapabilitiesResponse, GetSystemStatusResponse},
+    control::v1::{
+        CapabilityName, ComponentStatus, GetCapabilitiesResponse, GetSystemStatusResponse,
+    },
     events::v1::RuntimeState,
 };
 use tonic::Status;
@@ -58,7 +60,9 @@ pub async fn status(service: &ControlRpcService) -> Result<GetSystemStatusRespon
 
 #[must_use]
 pub fn capabilities(service: &ControlRpcService) -> GetCapabilitiesResponse {
-    GetCapabilitiesResponse {
-        capabilities: control_mapping::capability_names(service.gateway.capabilities()),
+    let mut capabilities = control_mapping::capability_names(service.gateway.capabilities());
+    if service.exit_probe_client.is_some() {
+        capabilities.push(CapabilityName::ExitProbe as i32);
     }
+    GetCapabilitiesResponse { capabilities }
 }

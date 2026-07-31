@@ -77,6 +77,26 @@ async fn rejects_events_far_in_the_future() {
 }
 
 #[tokio::test]
+async fn rejects_provider_claimed_exit_evidence() {
+    let gateway = staged_gateway().await;
+    let mut forged = direct_record("flow-forged-exit", 1_000);
+    forged.evidence = Some(DecisionEvidence {
+        level: EvidenceLevel::Exit as i32,
+        interface_name: "en0".to_owned(),
+        exit_probe_id: "provider-created-id".to_owned(),
+        ..Default::default()
+    });
+
+    let result = gateway
+        .ingest_decision_batch("transparent-proxy".to_owned(), 1, vec![forged])
+        .await;
+    let listed = gateway.list_connection_decisions(10, 0).await;
+
+    assert!(matches!(result, Err(GatewayError::InvalidRequest(_))));
+    assert!(matches!(listed, Ok((records, 0)) if records.is_empty()));
+}
+
+#[tokio::test]
 async fn conflicting_replay_rolls_back_the_whole_batch() {
     let gateway = staged_gateway().await;
     let original = direct_record("flow-stable", 1_000);

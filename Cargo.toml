@@ -13,7 +13,12 @@ rust-version = "1.97.1"
 publish = false
 
 [workspace.dependencies]
+bytes = "1.12.1"
 base64 = { version = "0.23.0", default-features = false, features = ["std"] }
+ed25519-dalek = "2.2.0"
+http = "1.5.0"
+http-body-util = "0.1.4"
+hyper = { version = "1.11.0", features = ["client", "http1", "server"] }
 idna = "1.1.0"
 getrandom = "0.4.3"
 hickory-proto = { version = "0.26.1", default-features = false, features = ["std"] }
@@ -23,7 +28,10 @@ prost = "0.14.4"
 prost-types = "0.14.4"
 proptest = "1.11.0"
 psl = "2.1.223"
+rcgen = "0.14.8"
 rusqlite = { version = "0.40.1", features = ["bundled"] }
+rustls = { version = "0.23.42", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pemfile = "2.2.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 sha2 = "0.11.0"
@@ -31,11 +39,14 @@ socket2 = { version = "0.6.5", features = ["all"] }
 tempfile = "3.27.0"
 thiserror = "2.0.19"
 tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["logging", "ring", "tls12"] }
 tokio-stream = { version = "0.1.18", features = ["net", "sync"] }
 tokio-socks = "0.5.3"
 tonic = { version = "0.14.6", features = ["transport"] }
 tonic-prost = "0.14.6"
 tower = { version = "0.5.3", features = ["util"] }
+url = "2.5.8"
+webpki-roots = "1.0.6"
 windows-sys = "0.61.2"
 windows-service = "0.8.1"
 zeroize = "1.9.0"

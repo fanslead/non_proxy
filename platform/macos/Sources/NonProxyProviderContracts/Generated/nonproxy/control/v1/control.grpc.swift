@@ -163,6 +163,19 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "VerifyExit" metadata.
+        public enum VerifyExit: Sendable {
+            /// Request type for "VerifyExit".
+            public typealias Input = Nonproxy_Control_V1_VerifyExitRequest
+            /// Response type for "VerifyExit".
+            public typealias Output = Nonproxy_Control_V1_VerifyExitResponse
+            /// Descriptor for "VerifyExit".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "VerifyExit",
+                type: .unary
+            )
+        }
         /// Namespace for "SetDefaultRoute" metadata.
         public enum SetDefaultRoute: Sendable {
             /// Request type for "SetDefaultRoute".
@@ -280,6 +293,7 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             ListConnectionDecisions.descriptor,
             ImportConfiguration.descriptor,
             TestOutbound.descriptor,
+            VerifyExit.descriptor,
             SetDefaultRoute.descriptor,
             StartLearningSession.descriptor,
             RecordLearningObservation.descriptor,
@@ -518,6 +532,25 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_TestOutboundResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_TestOutboundResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "VerifyExit" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_VerifyExitRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_VerifyExitRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_VerifyExitResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func verifyExit<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_VerifyExitRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_VerifyExitRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_VerifyExitResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_VerifyExitResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "SetDefaultRoute" method.
@@ -1016,6 +1049,36 @@ extension Nonproxy_Control_V1_ControlService {
             try await self.client.unary(
                 request: request,
                 descriptor: Nonproxy_Control_V1_ControlService.Method.TestOutbound.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "VerifyExit" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_VerifyExitRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_VerifyExitRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_VerifyExitResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func verifyExit<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_VerifyExitRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_VerifyExitRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_VerifyExitResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_VerifyExitResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.VerifyExit.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -1541,6 +1604,31 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
         )
     }
 
+    /// Call the "VerifyExit" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_VerifyExitRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func verifyExit<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_VerifyExitRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_VerifyExitResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.verifyExit(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_VerifyExitRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_VerifyExitResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "SetDefaultRoute" method.
     ///
     /// - Parameters:
@@ -2056,6 +2144,35 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.testOutbound(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "VerifyExit" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func verifyExit<Result>(
+        _ message: Nonproxy_Control_V1_VerifyExitRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_VerifyExitResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_VerifyExitRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.verifyExit(
             request: request,
             options: options,
             onResponse: handleResponse

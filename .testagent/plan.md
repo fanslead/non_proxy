@@ -169,3 +169,27 @@
    断言。
 5. 运行 Rust、Swift、.NET、Windows target、格式、lint、契约和 Release 门禁。
 6. 提交前逐文件 review，显式暂存并复查 staged diff。
+
+## 独立签名出口探针批次
+
+| 验收项 | 计划测试或检查 |
+| --- | --- |
+| nonce、IP、时间和 key id 被签名绑定 | receipt 正常、篡改、重放、过期和私网地址测试 |
+| endpoint 只能是固定 HTTPS 且无凭据/query | client endpoint 负向测试 |
+| gatewayd 配置必须成对提供 endpoint/公钥 | config 完整、缺项、协议和公钥负向测试 |
+| Provider 不能自行声明 EXIT | decision ingest 越级拒绝且不写库 |
+| Control RPC 必须有会话能力 | ControlService 鉴权测试 |
+| DIRECT/PROXY 参数不能混用 | exit probe route 负向测试 |
+| Windows DIRECT 绑定物理接口 | Windows x64/arm64 target check |
+| 服务不信任转发头且只签公网 peer | probe server handler 测试 |
+| C#/Swift/Rust 契约一致 | 生成检查和 Buf breaking check |
+| 真实 TLS 请求可验签 | 本地 TLS fixture 或部署前服务集成测试 |
+
+### 执行顺序
+
+1. 完成签名回执领域库和最小 HTTPS 探针服务。
+2. 扩展控制协议、安装配置、直连/代理连接器和网关验签编排。
+3. 禁止 Provider 越级声明 EXIT，并补齐鉴权和负向测试。
+4. 完成出口回执持久化、桌面端触发与证据展示。
+5. 增加部署清单、真实 TLS 集成测试和双平台条件编译检查。
+6. 执行全仓门禁、逐文件 review、显式暂存和 staged diff 复核。

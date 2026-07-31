@@ -10,6 +10,7 @@ getrandom.workspace = true
 keyring.workspace = true
 nonproxy-model = { path = "../../crates/nonproxy-model" }
 nonproxy-dns = { path = "../../crates/nonproxy-dns" }
+nonproxy-exit-probe = { path = "../../crates/nonproxy-exit-probe" }
 nonproxy-flow-protocol = { path = "../../crates/nonproxy-flow-protocol" }
 nonproxy-learning = { path = "../../crates/nonproxy-learning" }
 nonproxy-outbound = { path = "../../crates/nonproxy-outbound" }

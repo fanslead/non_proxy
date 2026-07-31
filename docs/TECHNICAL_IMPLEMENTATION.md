@@ -1309,7 +1309,50 @@ pub trait OutboundConnector: Send + Sync {
 
 这些结论必须由决策证据、接口路径和自有出口探针联合验证，不能由本健康状态替代。
 
-### 15.4 默认代理选择
+### 15.4 独立签名出口验证
+
+代理握手健康和平台 `PATH` 都不能证明公网看到的来源地址。`VerifyExit` 因此只允许
+选择 `DIRECT` 或一个已保存的 `PROXY` 出口；探针 URL 不出现在请求中，而是由
+gatewayd 安装环境固定配置：
+
+- `NONPROXY_EXIT_PROBE_ENDPOINT`：必须为不含账号、query 和 fragment 的 HTTPS
+  地址，根路径自动使用 `/v1/exit`；
+- `NONPROXY_EXIT_PROBE_PUBLIC_KEY`：32 字节 Ed25519 公钥的 base64url 编码；
+- 两项必须同时存在；缺一项或格式错误时 gatewayd 拒绝启动，均缺失时能力列表不
+  声明 `CAPABILITY_NAME_EXIT_PROBE`。
+
+gatewayd 为每次验证生成 32 字节随机 nonce，通过所选出站连接固定探针。macOS
+DIRECT 只有在带签名身份约束的 gatewayd SYSTEM 规则已经激活后才允许连接；
+Windows DIRECT 使用物理接口目录选择 IPv4/IPv6 默认接口，并在 socket 上设置
+`IP_UNICAST_IF`/`IPV6_UNICAST_IF`。PROXY 复用当前出口和系统凭据加载器，不能绕过
+防回环快照门。
+
+远端 `services/probe-server` 直接终止 TLS，并从 socket peer address 获取来源
+公网 IP；不得部署在会终止 TLS 的 L7 反向代理之后，也不读取
+`X-Forwarded-For`/`Forwarded`。请求只包含随机 nonce，绝不包含应用、用户访问
+域名、规则、URL 路径、Cookie 或代理凭据。服务只接受
+`GET /v1/exit?nonce=...`，以 Ed25519 签名绑定协议版本、nonce、规范化公网 IP、
+毫秒时间和 key id，并返回 `Cache-Control: no-store` 的小型 JSON。私网/保留地址、
+畸形 query、宽权限私钥文件和并发上限外连接都被拒绝。
+
+服务进程需要以下环境变量：
+
+- `NONPROXY_PROBE_TLS_CERT`：绝对路径 PEM 证书链；
+- `NONPROXY_PROBE_TLS_KEY`：绝对路径 PEM 私钥，Unix 下不得有 group/world 权限；
+- `NONPROXY_PROBE_SIGNING_KEY`：绝对路径 32 字节 Ed25519 secret，同样要求私有权限；
+- `NONPROXY_PROBE_BIND`：默认 `[::]:8443`；
+- `NONPROXY_PROBE_MAX_CONNECTIONS`：默认 1024，合法范围 1..=65536。
+
+gatewayd 只在 TLS 域名校验、固定公钥签名、nonce、公网地址和回执时间全部通过后
+返回 `verified=true`。回执有效期为 120 秒，允许最多 300 秒未来时钟偏差；本地
+`probe_id` 是规范化签名内容的 SHA-256 标识。Provider 上报的 `EXIT` 一律拒绝，
+不能用自造 `exit_probe_id` 越级；平台 Provider 仍只负责 `DECISION`/`PATH`。
+
+`EXIT` 只证明“本次固定探针连接经所选路径到达远端时，远端观察到该公网地址”，
+不证明其他协议、其他时间或用户目标必然使用同一出口。生产发布还必须完成公钥
+轮换、探针部署可用性、回执持久化、桌面展示以及真实 DIRECT/PROXY 对比验收。
+
+### 15.5 默认代理选择
 
 保存或测试一个代理不会自动改变默认路径。只有用户显式点击“设为默认”，且
 `SetDefaultRoute` 通过鉴权、revision、出口可用性和策略能力校验后，系统才生成

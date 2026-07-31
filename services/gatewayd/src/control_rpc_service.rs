@@ -3,6 +3,7 @@ use std::sync::Arc;
 #[cfg(test)]
 use crate::credential_store::OsCredentialStore;
 use crate::{Gateway, credential_store::CredentialStore, session_capability::SessionCapability};
+use nonproxy_exit_probe::ExitProbeClient;
 
 const MAX_RPC_MESSAGE_BYTES: usize = 4 * 1024 * 1024;
 
@@ -11,6 +12,7 @@ pub struct ControlRpcService {
     pub(crate) gateway: Gateway,
     pub(crate) session: SessionCapability,
     pub(crate) credential_store: Arc<dyn CredentialStore>,
+    pub(crate) exit_probe_client: Option<ExitProbeClient>,
 }
 
 impl ControlRpcService {
@@ -21,6 +23,7 @@ impl ControlRpcService {
             gateway,
             session,
             credential_store: Arc::new(OsCredentialStore),
+            exit_probe_client: None,
         }
     }
 
@@ -33,7 +36,14 @@ impl ControlRpcService {
             gateway,
             session,
             credential_store,
+            exit_probe_client: None,
         }
+    }
+
+    #[must_use]
+    pub(crate) fn with_exit_probe_client(mut self, client: Option<ExitProbeClient>) -> Self {
+        self.exit_probe_client = client;
+        self
     }
 
     #[must_use]

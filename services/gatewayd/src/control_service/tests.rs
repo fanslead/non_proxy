@@ -6,12 +6,13 @@ use nonproxy_model::{
 };
 use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::control::v1::{
-    ApplyPolicySnapshotRequest, ConfirmLearningCandidatesRequest, DefaultRouteKind,
-    GetSystemStatusRequest, ImportConfigurationRequest, LearningObservationKind,
-    LearningResourceType, LearningSessionKind, ListLearningCandidatesRequest, ListOutboundsRequest,
-    OperationContext, RecordLearningObservationRequest, SetDefaultRouteRequest,
-    StartLearningSessionRequest, StopLearningSessionRequest, TestOutboundRequest,
-    UpsertPolicyRequest, control_service_server::ControlService, set_default_route_request,
+    ApplyPolicySnapshotRequest, CapabilityName, ConfirmLearningCandidatesRequest, DefaultRouteKind,
+    ExitProbeRouteKind, GetCapabilitiesRequest, GetSystemStatusRequest, ImportConfigurationRequest,
+    LearningObservationKind, LearningResourceType, LearningSessionKind,
+    ListLearningCandidatesRequest, ListOutboundsRequest, OperationContext,
+    RecordLearningObservationRequest, SetDefaultRouteRequest, StartLearningSessionRequest,
+    StopLearningSessionRequest, TestOutboundRequest, UpsertPolicyRequest, VerifyExitRequest,
+    control_service_server::ControlService, set_default_route_request,
     start_learning_session_request,
 };
 use nonproxy_proto::events::v1::{LearningCandidateKind, RuntimeState, event_envelope};
@@ -83,6 +84,63 @@ async fn test_outbound_requires_the_exact_session_capability() {
         result,
         Err(status) if status.code() == Code::PermissionDenied
     ));
+}
+
+#[tokio::test]
+async fn verify_exit_requires_the_exact_session_capability() {
+    let service = service([7; 32]);
+    let request = VerifyExitRequest {
+        context: Some(context([8; 32], "verify-exit")),
+        route: ExitProbeRouteKind::Direct as i32,
+        outbound_id: String::new(),
+        timeout: Some(prost_types::Duration {
+            seconds: 2,
+            nanos: 0,
+        }),
+    };
+
+    let result = service.verify_exit(Request::new(request)).await;
+
+    assert!(matches!(
+        result,
+        Err(status) if status.code() == Code::PermissionDenied
+    ));
+}
+
+#[tokio::test]
+async fn exit_probe_capability_is_only_advertised_when_trust_is_configured() {
+    let without_probe = service([7; 32]);
+    let without = without_probe
+        .get_capabilities(Request::new(GetCapabilitiesRequest {}))
+        .await
+        .unwrap_or_else(|error| panic!("未配置能力读取失败: {error}"))
+        .into_inner();
+    assert!(
+        !without
+            .capabilities
+            .contains(&(CapabilityName::ExitProbe as i32))
+    );
+
+    let signer = nonproxy_exit_probe::ExitProbeSigner::from_secret_bytes(&[7; 32])
+        .unwrap_or_else(|error| panic!("测试探针签名器创建失败: {error}"));
+    let verifier =
+        nonproxy_exit_probe::ExitProbeVerifier::from_public_key_base64(&signer.public_key_base64())
+            .unwrap_or_else(|error| panic!("测试探针验证器创建失败: {error}"));
+    let endpoint = nonproxy_exit_probe::ExitProbeEndpoint::parse("https://probe.example/v1/exit")
+        .unwrap_or_else(|error| panic!("测试探针地址无效: {error}"));
+    let client = nonproxy_exit_probe::ExitProbeClient::new(endpoint, verifier)
+        .unwrap_or_else(|error| panic!("测试探针客户端创建失败: {error}"));
+    let with_probe = service([7; 32]).with_exit_probe_client(Some(client));
+    let with = with_probe
+        .get_capabilities(Request::new(GetCapabilitiesRequest {}))
+        .await
+        .unwrap_or_else(|error| panic!("已配置能力读取失败: {error}"))
+        .into_inner();
+
+    assert!(
+        with.capabilities
+            .contains(&(CapabilityName::ExitProbe as i32))
+    );
 }
 
 #[tokio::test]

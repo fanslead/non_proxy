@@ -21,7 +21,7 @@ use crate::{
         mutation_error, publish_snapshot_event, request_status,
     },
     control_rpc_service::ControlRpcService,
-    decision_rpc, learning_rpc, outbound_import_service, outbound_probe,
+    decision_rpc, exit_probe, learning_rpc, outbound_import_service, outbound_probe,
     proto_policy::{policy_from_proto, policy_to_proto},
     routing_rpc, system_rpc,
 };
@@ -272,6 +272,22 @@ impl ControlService for ControlRpcService {
             outbound_probe::run(
                 &self.gateway,
                 Arc::clone(&self.credential_store),
+                request.into_inner(),
+            )
+            .await,
+        ))
+    }
+
+    async fn verify_exit(
+        &self,
+        request: Request<control_proto::VerifyExitRequest>,
+    ) -> Result<Response<control_proto::VerifyExitResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            exit_probe::run(
+                &self.gateway,
+                Arc::clone(&self.credential_store),
+                self.exit_probe_client.clone(),
                 request.into_inner(),
             )
             .await,
