@@ -6,4 +6,5 @@
 应用路径转换为转义后的 `process_path_regex` 前缀；输出不包含 route action，避免猜测
 用户 direct outbound 的 tag。当前模块不会启动 GPLv3 的 sing-box，也不会修改用户
 配置；`adapter-host` 使用用户已经安装的公开 CLI 执行 `sing-box rule-set compile`，并
-要求成功生成非空、有界的二进制规则集后才允许准备变更。
+要求成功生成非空、有界的二进制规则集后才允许准备变更。主配置 JSONC 的无损候选接入
+和 direct tag 歧义处理由 `nonproxy-adapter-integration` 负责。
