@@ -39,12 +39,22 @@ impl MockMihomoController {
         let thread = thread::spawn(move || {
             while !worker_stopping.load(Ordering::Acquire) {
                 match listener.accept() {
-                    Ok((stream, _peer)) => handle(
-                        stream,
-                        worker_wrong_rules.load(Ordering::Acquire),
-                        worker_reload_fails.load(Ordering::Acquire),
-                    ),
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    Ok((stream, _peer)) => {
+                        stream.set_nonblocking(false).unwrap_or_else(|error| {
+                            panic!("Mihomo 模拟控制器连接阻塞模式设置失败: {error}")
+                        });
+                        handle(
+                            stream,
+                            worker_wrong_rules.load(Ordering::Acquire),
+                            worker_reload_fails.load(Ordering::Acquire),
+                        );
+                    }
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::WouldBlock | std::io::ErrorKind::Interrupted
+                        ) =>
+                    {
                         thread::sleep(Duration::from_millis(2));
                     }
                     Err(_) => break,

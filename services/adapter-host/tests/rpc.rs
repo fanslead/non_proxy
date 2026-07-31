@@ -309,7 +309,14 @@ async fn failed_reload_replay_preserves_the_previously_applied_candidate() {
         .await
         .unwrap_or_else(|error| panic!("重载重放测试首次应用失败: {error}"))
         .into_inner();
-    assert!(first.applied);
+    assert!(
+        first.applied,
+        "首次应用未成功：{:?}",
+        first
+            .error
+            .as_ref()
+            .map(|error| (&error.code, &error.message))
+    );
     assert!(first.reloaded);
     fixture.controller.set_reload_failure(true);
 
@@ -325,7 +332,14 @@ async fn failed_reload_replay_preserves_the_previously_applied_candidate() {
         .unwrap_or_else(|error| panic!("重载失败重放 RPC 失败: {error}"))
         .into_inner();
 
-    assert!(replay.applied);
+    assert!(
+        replay.applied,
+        "重放应用未保持已应用状态：{:?}",
+        replay
+            .error
+            .as_ref()
+            .map(|error| (&error.code, &error.message))
+    );
     assert!(!replay.reloaded);
     assert!(replay.replayed);
     assert!(!replay.rolled_back);
