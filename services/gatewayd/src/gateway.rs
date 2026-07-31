@@ -28,6 +28,7 @@ use crate::{
     provider_health::ProviderHealthRegistry,
     provider_requirements,
     routing_gateway::decision_for_route,
+    runtime_events::{RuntimeEventPublisher, SystemRuntimeSnapshot},
     runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, build_runtime_catalog},
     snapshot_builder::{SnapshotBuildIdentity, build_snapshot},
     snapshot_payload,
@@ -44,6 +45,7 @@ pub struct Gateway {
     events: EventHub,
     outbound_health: OutboundHealthRegistry,
     provider_health: ProviderHealthRegistry,
+    runtime_events: RuntimeEventPublisher,
     pub(crate) decision_snapshots: DecisionSnapshotCache,
     decision_telemetry: DecisionTelemetryRegistry,
     system_snapshot_ready: Arc<AtomicBool>,
@@ -104,6 +106,7 @@ impl Gateway {
             events: EventHub::new(),
             outbound_health: OutboundHealthRegistry::new(),
             provider_health: ProviderHealthRegistry::new(),
+            runtime_events: RuntimeEventPublisher::default(),
             decision_snapshots: DecisionSnapshotCache::default(),
             decision_telemetry: DecisionTelemetryRegistry::default(),
             system_snapshot_ready: Arc::new(AtomicBool::new(true)),
@@ -150,6 +153,10 @@ impl Gateway {
     }
 
     pub async fn status(&self) -> Result<GatewayStatus, GatewayError> {
+        self.status_at(unix_time_ms()?).await
+    }
+
+    async fn status_at(&self, now_unix_ms: u64) -> Result<GatewayStatus, GatewayError> {
         let dropped_decision_events = self.decision_telemetry.dropped_events();
         let mut status = self
             .database
@@ -173,10 +180,50 @@ impl Gateway {
                 && self.provider_health.all_ready(
                     provider_requirements::required_provider_ids(),
                     active.artifact().snapshot_version(),
-                    unix_time_ms()?,
+                    now_unix_ms,
                 )?;
         }
         Ok(status)
+    }
+
+    pub(crate) async fn runtime_status_at(
+        &self,
+        now_unix_ms: u64,
+    ) -> Result<
+        (
+            GatewayStatus,
+            SystemRuntimeSnapshot,
+            Vec<crate::provider_health::ComponentHealthSnapshot>,
+        ),
+        GatewayError,
+    > {
+        let status = self.status_at(now_unix_ms).await?;
+        let active_snapshot_version = status
+            .active
+            .as_ref()
+            .map_or(0, |record| record.artifact().snapshot_version());
+        let state = match (
+            status.active.is_some(),
+            status.pending.is_some(),
+            status.data_plane_ready,
+        ) {
+            (_, _, true) => nonproxy_proto::events::v1::RuntimeState::Ready,
+            (false, false, false) => nonproxy_proto::events::v1::RuntimeState::Stopped,
+            (false, true, false) => nonproxy_proto::events::v1::RuntimeState::Starting,
+            (true, _, false) => nonproxy_proto::events::v1::RuntimeState::Degraded,
+        };
+        let system =
+            SystemRuntimeSnapshot::new(state, active_snapshot_version, status.data_plane_ready);
+        let components = self.provider_health.component_snapshots(
+            provider_requirements::required_provider_ids(),
+            active_snapshot_version,
+            now_unix_ms,
+        )?;
+        Ok((status, system, components))
+    }
+
+    pub(crate) async fn publish_runtime_events(&self) -> Result<(), GatewayError> {
+        self.runtime_events.publish(self, unix_time_ms()?).await
     }
 
     pub async fn list_policies(&self) -> Result<Vec<Policy>, GatewayError> {
@@ -405,6 +452,25 @@ impl Gateway {
             generation,
             state,
             active_snapshot_version,
+            now_unix_ms,
+        )
+    }
+
+    pub fn report_provider_health_with_error(
+        &self,
+        provider_id: &str,
+        generation: u64,
+        state: nonproxy_proto::events::v1::RuntimeState,
+        active_snapshot_version: u64,
+        error: Option<crate::provider_health::ProviderHealthError>,
+        now_unix_ms: u64,
+    ) -> Result<(), GatewayError> {
+        self.provider_health.update_with_error(
+            provider_id,
+            generation,
+            state,
+            active_snapshot_version,
+            error,
             now_unix_ms,
         )
     }

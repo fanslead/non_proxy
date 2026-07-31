@@ -90,7 +90,7 @@ async fn run_with_lifecycle(
         }
         #[cfg(unix)]
         {
-            serve_platform(config, control, provider, flow, shutdown, ready).await
+            serve_platform(config, gateway, control, provider, flow, shutdown, ready).await
         }
     }
     #[cfg(not(any(unix, windows)))]
@@ -116,13 +116,14 @@ struct WindowsPlatformDependencies {
 #[cfg(unix)]
 async fn serve_platform(
     config: GatewayConfig,
+    gateway: Gateway,
     control: ControlRpcService,
     provider: ProviderRpcService,
     flow: FlowConnectionHandler,
     shutdown: impl Future<Output = ()> + Send + 'static,
     ready: Option<tokio::sync::oneshot::Sender<()>>,
 ) -> Result<(), GatewayError> {
-    serve_unix_with_shutdown(config, control, provider, flow, shutdown, ready).await
+    serve_unix_with_shutdown(config, gateway, control, provider, flow, shutdown, ready).await
 }
 
 #[cfg(windows)]
@@ -141,6 +142,7 @@ async fn serve_platform(
 #[cfg(unix)]
 async fn serve_unix_with_shutdown(
     config: GatewayConfig,
+    gateway: Gateway,
     control: ControlRpcService,
     provider: ProviderRpcService,
     flow: FlowConnectionHandler,
@@ -175,7 +177,10 @@ async fn serve_unix_with_shutdown(
         .concurrency_limit_per_connection(64)
         .add_service(control_rpc)
         .add_service(provider_rpc)
-        .serve_with_incoming_shutdown(incoming, wait_for_shutdown(shutdown_receiver));
+        .serve_with_incoming_shutdown(
+            incoming,
+            monitor_runtime_events_until_shutdown(shutdown_receiver, gateway),
+        );
     tokio::pin!(flow_server);
     tokio::pin!(control_server);
     tokio::pin!(shutdown);
@@ -200,13 +205,27 @@ async fn serve_unix_with_shutdown(
 }
 
 #[cfg(any(unix, windows))]
-async fn wait_for_shutdown(mut receiver: tokio::sync::watch::Receiver<bool>) {
-    if *receiver.borrow() {
-        return;
-    }
-    while receiver.changed().await.is_ok() {
-        if *receiver.borrow() {
-            return;
+async fn monitor_runtime_events_until_shutdown(
+    mut receiver: tokio::sync::watch::Receiver<bool>,
+    gateway: Gateway,
+) {
+    use std::time::Duration;
+
+    use tokio::time::{MissedTickBehavior, interval};
+
+    let mut ticker = interval(Duration::from_secs(5));
+    ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    loop {
+        tokio::select! {
+            changed = receiver.changed() => {
+                if changed.is_err() || *receiver.borrow() {
+                    return;
+                }
+            }
+            _ = ticker.tick() => {
+                // RPC 状态仍是权威来源；瞬时读取或广播失败留给下一次巡检重试。
+                let _ = gateway.publish_runtime_events().await;
+            }
         }
     }
 }
@@ -315,11 +334,13 @@ mod tests {
             provider_capability.clone(),
             std::sync::Arc::clone(&credential_store),
         );
-        let flow = FlowConnectionHandler::new(gateway, provider_capability, credential_store);
+        let flow =
+            FlowConnectionHandler::new(gateway.clone(), provider_capability, credential_store);
         let (shutdown_sender, shutdown_receiver) = oneshot::channel();
         let (ready_sender, ready_receiver) = oneshot::channel();
         let server = tokio::spawn(serve_unix_with_shutdown(
             config,
+            gateway,
             control,
             provider,
             flow,

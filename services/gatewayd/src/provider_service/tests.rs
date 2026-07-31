@@ -1,22 +1,28 @@
 use std::sync::Arc;
 
 use nonproxy_policy_compiler::CompileCapabilities;
+#[cfg(not(target_os = "windows"))]
+use nonproxy_proto::events::v1::event_envelope;
 use nonproxy_proto::{
     common::v1::{
-        AppIdentity, ComponentKind, ComponentVersion, Destination, EvidenceLevel, FailureMode,
-        IpFamily, Platform, RouteAction, TransportProtocol,
+        AppIdentity, ComponentKind, ComponentVersion, Destination, ErrorDetail, EvidenceLevel,
+        FailureMode, IpFamily, Platform, RouteAction, TransportProtocol,
     },
+    events::v1::RuntimeState,
     policy::v1::{Decision, DecisionSpec},
     provider::v1::{
         ConnectionContext, DecisionEvidence, DecisionRecord, ProviderKind, ProviderRequestContext,
-        RegisterProviderRequest, ReportDecisionBatchRequest,
+        RegisterProviderRequest, ReportDecisionBatchRequest, ReportHealthRequest,
         provider_service_server::ProviderService,
     },
 };
 use nonproxy_storage::PolicyDatabase;
 use tonic::Request;
 
-use super::{ProviderRpcService, REQUIRED_CAPABILITIES, validate_batch_id, validate_registration};
+use super::{
+    ProviderRpcService, REQUIRED_CAPABILITIES, provider_health_error, validate_batch_id,
+    validate_registration,
+};
 use crate::{
     Gateway, credential_store::tests_support::MemoryCredentialStore,
     provider_session::PROVIDER_SESSION_LIFETIME_MS, session_capability::SessionCapability,
@@ -58,6 +64,92 @@ fn report_batch_id_is_bounded_and_path_safe() {
     assert!(validate_batch_id("").is_err());
     assert!(validate_batch_id(&"a".repeat(129)).is_err());
     assert!(validate_batch_id("../batch").is_err());
+}
+
+#[test]
+fn health_error_accepts_only_anomalous_stable_codes() {
+    let detail = ErrorDetail {
+        code: "NP_PROVIDER_TEST_FAILURE".to_owned(),
+        message: "不会进入运行状态".to_owned(),
+        retryable: true,
+        metadata: [("raw".to_owned(), "discarded".to_owned())]
+            .into_iter()
+            .collect(),
+    };
+
+    assert!(provider_health_error(RuntimeState::Failed, Some(&detail)).is_ok());
+    assert!(provider_health_error(RuntimeState::Ready, Some(&detail)).is_err());
+    assert!(
+        provider_health_error(
+            RuntimeState::Failed,
+            Some(&ErrorDetail {
+                code: "provider failed".to_owned(),
+                ..Default::default()
+            })
+        )
+        .is_err()
+    );
+}
+
+#[tokio::test]
+#[cfg(not(target_os = "windows"))]
+async fn repeated_ready_heartbeats_publish_only_one_semantic_change() {
+    let database = PolicyDatabase::open_in_memory(1)
+        .unwrap_or_else(|error| panic!("Provider 健康事件数据库打开失败: {error}"));
+    let gateway = Gateway::new(database, CompileCapabilities::full());
+    let service = ProviderRpcService::with_credential_store(
+        gateway.clone(),
+        SessionCapability::from_token([2; 32]),
+        Arc::new(MemoryCredentialStore::default()),
+    );
+    let registered = service
+        .register_provider(Request::new(registration(
+            ComponentKind::TransparentProxy,
+            0,
+            0,
+        )))
+        .await
+        .unwrap_or_else(|error| panic!("Provider 健康事件注册失败: {error}"))
+        .into_inner();
+
+    for request_sequence in [1, 2] {
+        let response = service
+            .report_health(Request::new(ReportHealthRequest {
+                context: Some(ProviderRequestContext {
+                    provider_instance_id: "transparent-1".to_owned(),
+                    session_token: registered.session_token.clone(),
+                    request_sequence,
+                }),
+                state: RuntimeState::Ready as i32,
+                active_snapshot_version: 0,
+                active_flow_count: 0,
+                queued_bytes: 0,
+                error: None,
+            }))
+            .await;
+        assert!(response.is_ok());
+    }
+
+    let events = gateway.events().subscribe(0);
+    let Ok((events, _receiver)) = events else {
+        panic!("Provider 健康事件订阅失败: {events:?}");
+    };
+    let transparent_events = events
+        .iter()
+        .filter(|event| {
+            event.component == ComponentKind::TransparentProxy as i32
+                && matches!(
+                    event.payload.as_ref(),
+                    Some(event_envelope::Payload::ComponentHealthChanged(_))
+                )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(transparent_events.len(), 2);
+    assert!(matches!(
+        transparent_events[1].payload.as_ref(),
+        Some(event_envelope::Payload::ComponentHealthChanged(value))
+            if value.state == RuntimeState::Ready as i32
+    ));
 }
 
 #[tokio::test]

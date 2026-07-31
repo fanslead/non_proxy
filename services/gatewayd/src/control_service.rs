@@ -178,6 +178,7 @@ impl ControlService for ControlRpcService {
                 )
                 .map_err(internal_status)?;
                 publish_snapshot_event(&self.gateway, metadata.clone())?;
+                let _ = self.gateway.publish_runtime_events().await;
                 PolicyMutationResult {
                     policy: None,
                     snapshot: Some(metadata),
@@ -213,6 +214,7 @@ impl ControlService for ControlRpcService {
                 )
                 .map_err(internal_status)?;
                 publish_snapshot_event(&self.gateway, metadata.clone())?;
+                let _ = self.gateway.publish_runtime_events().await;
                 PolicyMutationResult {
                     policy: None,
                     snapshot: Some(metadata),

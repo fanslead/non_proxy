@@ -116,6 +116,7 @@ pub async fn confirm(
             .map_err(crate::control_rpc_helpers::internal_status)?;
             if confirmed.snapshot_staged() {
                 crate::control_rpc_helpers::publish_snapshot_event(gateway, metadata.clone())?;
+                let _ = gateway.publish_runtime_events().await;
             }
             Ok(control_proto::ConfirmLearningCandidatesResponse {
                 policies: confirmed

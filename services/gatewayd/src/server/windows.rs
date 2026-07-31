@@ -7,7 +7,9 @@ use nonproxy_proto::{
 use tokio::sync::{oneshot, watch};
 use tonic::transport::Server;
 
-use super::{WindowsPlatformDependencies, combine_server_results, wait_for_shutdown};
+use super::{
+    WindowsPlatformDependencies, combine_server_results, monitor_runtime_events_until_shutdown,
+};
 use crate::{
     GatewayConfig, GatewayError,
     control_rpc_service::ControlRpcService,
@@ -42,6 +44,7 @@ pub(super) async fn serve(
         shutdown_receiver.clone(),
         "创建 Windows 数据命名管道",
     )?;
+    let runtime_gateway = platform.gateway.clone();
     let capture = crate::windows_capture::WindowsCapture::start(
         platform.gateway,
         platform.credential_store,
@@ -64,7 +67,10 @@ pub(super) async fn serve(
         .concurrency_limit_per_connection(64)
         .add_service(control_rpc)
         .add_service(provider_rpc)
-        .serve_with_incoming_shutdown(incoming, wait_for_shutdown(shutdown_receiver));
+        .serve_with_incoming_shutdown(
+            incoming,
+            monitor_runtime_events_until_shutdown(shutdown_receiver, runtime_gateway),
+        );
     tokio::pin!(flow_server);
     tokio::pin!(control_server);
     tokio::pin!(capture_server);

@@ -35,6 +35,7 @@ pub async fn set_default_route(
             )
             .map_err(internal_status)?;
             publish_snapshot_event(&service.gateway, metadata.clone())?;
+            let _ = service.gateway.publish_runtime_events().await;
             SetDefaultRouteResponse {
                 routing_revision: update.settings().revision(),
                 snapshot: Some(metadata),

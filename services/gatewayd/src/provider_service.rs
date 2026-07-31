@@ -1,7 +1,7 @@
 use std::{collections::HashSet, sync::Arc};
 
 use nonproxy_proto::{
-    common::v1::{ComponentKind, ComponentVersion},
+    common::v1::{ComponentKind, ComponentVersion, ErrorDetail},
     events::v1::RuntimeState,
     policy::v1::{CompiledPolicySnapshot, PolicySnapshotMetadata, SnapshotState},
     provider::v1::{
@@ -27,7 +27,9 @@ use crate::{
         DnsResolutionService, error_response as dns_error_response, response as dns_response,
     },
     proto_policy::decision_to_proto,
-    provider_decision_rpc, provider_requirements,
+    provider_decision_rpc,
+    provider_health::ProviderHealthError,
+    provider_requirements,
     provider_session::{ProviderSessionRegistry, validate_registration_input},
     session_capability::SessionCapability,
     snapshot_payload::SNAPSHOT_PAYLOAD_FORMAT,
@@ -106,6 +108,8 @@ impl ProviderService for ProviderRpcService {
             });
         let expires_at =
             timestamp_from_unix_ms(session.expires_at_unix_ms()).map_err(internal_status)?;
+        // 健康登记已经生效；事件只是失效信号，发布失败由周期巡检重试，不撤销会话。
+        let _ = self.gateway.publish_runtime_events().await;
         Ok(Response::new(RegisterProviderResponse {
             accepted: true,
             negotiated_protocol_minor: PROTOCOL_MINOR,
@@ -187,6 +191,7 @@ impl ProviderService for ProviderRpcService {
             .map_err(internal_status)?;
         let metadata = metadata_for_record(&record)?;
         publish_snapshot_event(&self.gateway, metadata.clone())?;
+        let _ = self.gateway.publish_runtime_events().await;
         Ok(Response::new(AcknowledgeSnapshotResponse {
             snapshot: Some(metadata),
         }))
@@ -237,16 +242,20 @@ impl ProviderService for ProviderRpcService {
         if state == RuntimeState::Unspecified {
             return Err(Status::invalid_argument("Provider 运行状态未指定"));
         }
+        let health_error = provider_health_error(state, request.error.as_ref())?;
         let now = unix_time_ms().map_err(internal_status)?;
         self.gateway
-            .report_provider_health(
+            .report_provider_health_with_error(
                 session.provider_id(),
                 session.generation(),
                 state,
                 request.active_snapshot_version,
+                health_error,
                 now,
             )
             .map_err(internal_status)?;
+        // 心跳权威状态不能因瞬时事件广播或状态读取失败而被客户端误判为未接收。
+        let _ = self.gateway.publish_runtime_events().await;
         Ok(Response::new(ReportHealthResponse {
             next_interval: Some(Duration {
                 seconds: 5,
@@ -296,6 +305,23 @@ impl ProviderService for ProviderRpcService {
         self.authenticate(request.get_ref().context.as_ref())?;
         Ok(Response::new(CloseProxyFlowResponse { closed: false }))
     }
+}
+
+fn provider_health_error(
+    state: RuntimeState,
+    error: Option<&ErrorDetail>,
+) -> Result<Option<ProviderHealthError>, Status> {
+    let Some(error) = error else {
+        return Ok(None);
+    };
+    if matches!(state, RuntimeState::Ready | RuntimeState::Starting) || error.code.is_empty() {
+        return Err(Status::invalid_argument(
+            "Ready/Starting 心跳不能携带错误，异常心跳必须提供稳定错误码",
+        ));
+    }
+    ProviderHealthError::new(error.code.clone(), error.retryable)
+        .map(Some)
+        .map_err(|error| Status::invalid_argument(error.to_string()))
 }
 
 fn validate_batch_id(value: &str) -> Result<(), Status> {

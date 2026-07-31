@@ -5,6 +5,8 @@ use nonproxy_model::{
     PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction,
 };
 use nonproxy_policy_compiler::CompileCapabilities;
+#[cfg(not(target_os = "windows"))]
+use nonproxy_proto::common::v1::ComponentKind;
 use nonproxy_proto::control::v1::{
     ApplyPolicySnapshotRequest, CapabilityName, ConfirmLearningCandidatesRequest, DefaultRouteKind,
     DeleteNetworkProfileRequest, DiagnosticRedactionLevel, ExitProbeRouteKind,
@@ -27,6 +29,34 @@ use crate::{
     Gateway, credential_store::tests_support::MemoryCredentialStore, proto_policy::policy_to_proto,
     session_capability::SessionCapability,
 };
+
+#[tokio::test]
+#[cfg(not(target_os = "windows"))]
+async fn system_status_exposes_stopped_system_and_each_required_provider() {
+    let service = service([7; 32]);
+
+    let response = service
+        .get_system_status(Request::new(GetSystemStatusRequest {}))
+        .await
+        .unwrap_or_else(|error| panic!("系统状态读取失败: {error}"))
+        .into_inner();
+
+    assert_eq!(response.state, RuntimeState::Stopped as i32);
+    assert!(!response.data_plane_enabled);
+    assert!(matches!(
+        response.components.as_slice(),
+        [gateway, transparent, dns]
+            if gateway.component == ComponentKind::Gateway as i32
+                && gateway.state == RuntimeState::Ready as i32
+                && transparent.component == ComponentKind::TransparentProxy as i32
+                && transparent.state == RuntimeState::Starting as i32
+                && transparent.error.as_ref().is_some_and(|error| {
+                    error.code == "NP_PROVIDER_NOT_REGISTERED"
+                })
+                && dns.component == ComponentKind::DnsProxy as i32
+                && dns.state == RuntimeState::Starting as i32
+    ));
+}
 
 #[tokio::test]
 async fn mutation_requires_the_exact_session_capability() {

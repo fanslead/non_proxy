@@ -52,6 +52,7 @@ mod provider_service;
 mod provider_session;
 mod routing_gateway;
 mod routing_rpc;
+mod runtime_events;
 mod runtime_identity;
 mod runtime_policy;
 mod server;

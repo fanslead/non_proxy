@@ -1676,9 +1676,12 @@ macOS 原生桥 ABI 约束：
 - ViewModel 不把 transient UI state 写回权威策略库。策略编辑使用 draft，服务器确认
   active snapshot 后再显示“已应用”。
 
-当前服务端实际发布快照状态、权威入库的连接决策和学习候选事件；决策幂等重放不重复
-广播，学习候选由持有标签页 capability 的浏览器扩展负责。桌面已为系统状态和组件健康
-类型建立失效映射，但在相应服务端生产者接通前，不宣称这些页面已实时推送。完整理由见
+当前服务端实际发布快照状态、权威入库的连接决策、学习候选、系统聚合状态和组件健康
+事件；决策幂等重放不重复广播，Provider 的重复 Ready 心跳也按语义去重。控制服务器
+每 5 秒评估 15 秒心跳期限，所有 Provider 同时退出时仍能产生降级信号。`GetSystemStatus`
+和事件生产者读取同一健康注册表；Windows Service 取 WFP 与 DNS 子组件中的最差状态，
+避免部分 Ready 掩盖缺失或异常。Provider 自由文本与 metadata 不进入运行事件，只保留
+受限的 `NP_` 稳定码。学习候选仍由持有标签页 capability 的浏览器扩展负责。完整理由见
 [ADR-0018](ADR/0018-use-control-events-as-invalidation-signals.md)。
 
 “网络环境”页的一键直连按以下顺序编排：
@@ -2062,6 +2065,9 @@ Provider 不逐条同步写日志：
 - Control 与 Provider 使用不同的 `0600` 引导能力文件，不能互相代用。
 - Provider 注册使用一次性 32 字节启动 nonce，成功后换取 15 分钟短会话；每个请求携带严格递增序号以拒绝重放。
 - Provider generation 跨 `gatewayd` 重启持久化，旧代 ACK 和健康状态不能覆盖新会话。
+- Provider 心跳只接受枚举状态；异常详情仅接受最多 128 字节、由大写字母/数字/下划线
+  组成且以 `NP_` 开头的稳定码。服务端不保留心跳的自由文本或 metadata，并以 15 秒
+  为过期边界、5 秒为巡检周期。
 - 引导能力不能替代发行包中的 UDS 对端代码签名校验；最终 System Extension 验收必须同时证明签名身份。
 
 ### 21.3 更新

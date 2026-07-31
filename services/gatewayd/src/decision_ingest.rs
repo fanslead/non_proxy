@@ -6,7 +6,7 @@ use nonproxy_model::{
 use nonproxy_policy::{CompiledPolicySnapshot, PolicyEngine};
 use nonproxy_policy_compiler::PolicyCompiler;
 use nonproxy_proto::{
-    common::v1::{self as common_proto, ComponentKind, Severity},
+    common::v1::{self as common_proto, Severity},
     events::v1::{DecisionObserved, EventEnvelope, event_envelope},
     policy::v1::Decision as ProtoDecision,
     provider::v1::DecisionRecord as ProtoDecisionRecord,
@@ -138,7 +138,7 @@ fn publish_decision_event(
     let evidence = input.evidence();
     let error_code = input.error_code().unwrap_or_default();
     gateway.events().publish(EventEnvelope {
-        component: component_for_provider(input.provider_id()) as i32,
+        component: crate::provider_health::component_for_provider(input.provider_id()) as i32,
         severity: if error_code.is_empty() {
             Severity::Info
         } else {
@@ -210,15 +210,6 @@ const fn evidence_level_to_proto(value: EvidenceLevel) -> common_proto::Evidence
         EvidenceLevel::Decision => common_proto::EvidenceLevel::Decision,
         EvidenceLevel::Path => common_proto::EvidenceLevel::Path,
         EvidenceLevel::Exit => common_proto::EvidenceLevel::Exit,
-    }
-}
-
-fn component_for_provider(value: &str) -> ComponentKind {
-    match value {
-        "transparent-proxy" => ComponentKind::TransparentProxy,
-        "dns-proxy" => ComponentKind::DnsProxy,
-        "windows-wfp" | "windows-dns" => ComponentKind::WindowsService,
-        _ => ComponentKind::Gateway,
     }
 }
 
