@@ -29,8 +29,10 @@
 6. `verify` 对集成变更要求 sidecar 和主配置都等于各自候选才返回
    `configuration_verified=true`；真实流量路径仍未验证，`path_verified` 保持 false。
 7. `adapter-host` 已登记主配置并调用双文件 API，完整接线见
-   [ADR-0025](0025-bind-integrated-configurations-to-adapter-rpc.md)。宿主尚未重载客户端或生成
-   路径证据，因此桌面端仍不能把该能力显示为已接管。
+   [ADR-0025](0025-bind-integrated-configurations-to-adapter-rpc.md)。宿主在外部控制预检前调用
+   只读 `preflight_apply_integrated`，应用后重载客户端，失败时恢复双文件并重载备份；完整
+   编排见 [ADR-0026](0026-reload-adapter-clients-with-public-controls.md)。路径证据仍未生成，
+   因此桌面端仍不能把该能力显示为已接管。
 
 ## 结果
 
@@ -38,5 +40,5 @@
 - 检测到的外部修改会阻断自动应用或回滚；NonProxy 只恢复能由备份/候选哈希证明归属的内容。
 - 主配置及其中可能存在的凭据会短期保存在本机私有事务目录中，以换取可恢复性；安全清理只
   能在确认两项目标均已恢复备份后执行。
-- 宿主必须验证完整主配置候选，再使用公开客户端重载接口，并分别记录配置、重载和路径三类
-  证据；当前只完成前一项。
+- 宿主验证完整主配置候选后使用公开客户端重载接口，并分别记录配置、重载和路径三类证据；
+  当前已完成配置和重载，路径证据仍是独立后续门禁。

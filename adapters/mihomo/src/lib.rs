@@ -22,6 +22,7 @@ impl AdapterRenderer for MihomoRenderer {
             AdapterCapability::ApplicationRule,
             AdapterCapability::DomainRule,
             AdapterCapability::CidrRule,
+            AdapterCapability::HotReload,
         ]
     }
 

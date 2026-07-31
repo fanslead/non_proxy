@@ -11,5 +11,11 @@ macOS 包把它作为独立签名二进制和 LaunchAgent plist 嵌入，并用�
 包级冒烟覆盖启动、权限和优雅退出，真实系统审批仍由系统生命周期门禁验收。
 
 prepare 不通过 RPC 返回主配置正文；apply 使用受哈希保护的协调事务同时写入 sidecar 与
-主配置，并在检测到外部修改时失败关闭。当前服务尚未执行客户端公开重载或真实路径验证，
-因此 `reloaded` 与 `path_verified` 仍为 false，桌面端不得显示“已接管”。
+主配置，并在检测到外部修改时失败关闭。写入前还会分别预检事务和客户端控制面：Surge 使用
+所选 Bundle 内的 CLI，Mihomo 只使用配置中唯一的 loopback REST controller，sing-box 只向
+精确绑定该配置的同用户唯一进程发送 SIGHUP。写入后必须确认客户端已经载入；失败会自动恢复
+两个文件并重新载入备份，恢复状态由 RPC 独立返回。
+
+`reloaded=true` 只证明客户端级重载门禁通过。真实规则命中和出口路径验证尚未实现，
+`path_verified` 仍为 false，桌面端不得仅凭配置或重载成功显示“已接管”或“已经直连”。
+安全边界见 [ADR-0026](../../docs/ADR/0026-reload-adapter-clients-with-public-controls.md)。

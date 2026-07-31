@@ -23,6 +23,7 @@ impl AdapterRenderer for SurgeRenderer {
         if version >= APP_BUNDLE_RULE_VERSION {
             capabilities.push(AdapterCapability::ApplicationRule);
         }
+        capabilities.push(AdapterCapability::HotReload);
         capabilities
     }
 

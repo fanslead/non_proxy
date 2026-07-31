@@ -27,8 +27,10 @@ sidecar，RPC 也只传递 sidecar 哈希；即使内核能够生成主配置候
 5. manifest v4 在 v3 双文件信息上增加“请求直连出口”，同时继续读取 v3。apply 前重新检测
    客户端版本，并要求目录中的客户端类型、两个路径和请求出口与 manifest 完全一致，防止
    删除并同 ID 重登记后把旧候选应用到旧安装项。
-6. apply 调用双文件事务；verify 只有两个候选哈希同时命中才提供配置证据。重载和路径证据
-   尚未实现，因此 `reloaded=false`、`path_verified=false`，顶层 `verified=false`。
+6. apply 调用双文件事务；verify 只有两个候选哈希同时命中才提供配置证据。公开重载与失败
+   自动恢复已在 [ADR-0026](0026-reload-adapter-clients-with-public-controls.md) 接入，成功 apply
+   可返回 `reloaded=true`；路径证据尚未实现，因此 `path_verified=false`、顶层
+   `verified=false`。
 
 ## 结果
 
@@ -38,5 +40,5 @@ sidecar，RPC 也只传递 sidecar 哈希；即使内核能够生成主配置候
   stdout/stderr 或应用日志传播。
 - 隔离工作区只物化本次主配置和 sidecar，不复制配置目录的其他文件。依赖额外相对本地文件
   的配置会在原生校验阶段失败关闭；后续若支持依赖物化，必须新增有界复制与防链接逃逸设计。
-- 配置成功仍不代表客户端已加载，更不代表真实流量直连；下一阶段必须实现公开重载与独立
-  路径证据。
+- 配置成功仍不单独代表客户端已加载；apply 必须再通过公开重载门禁。即使重载成功也不代表
+  真实流量直连，下一阶段必须实现独立路径证据。

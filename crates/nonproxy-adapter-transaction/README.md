@@ -4,11 +4,15 @@
 单个 NonProxy 专属规则 sidecar；`preview_integrated`、`prepare_integrated` 和
 `apply_integrated` 把 sidecar 与用户明确选择的第三方客户端主配置纳入同一恢复单元。
 
-调用方必须先独占 adapter-host 运行时实例，再依次调用 `prepare`、`apply`、`verify` 和
-`rollback`。双文件应用先写 sidecar 再写主配置，回滚反向执行；启动时只自动恢复能由候选
-和备份哈希证明的半完成状态，检测到外部修改时绝不自动覆盖。主配置备份和候选仅保存在 owner-only
-状态目录，原子替换保留原权限位。
+调用方必须先独占 adapter-host 运行时实例，再依次调用 `prepare`、`preflight_apply`、
+`apply`、`verify` 和 `rollback`。只读 preflight 在客户端控制预检前证明候选、有效期与当前
+目标仍可应用，不创建或改写目标。双文件应用先写 sidecar 再写主配置，回滚反向执行；启动时
+只自动恢复能由候选和备份哈希证明的半完成状态，检测到外部修改时绝不自动覆盖。主配置备份
+和候选仅保存在 owner-only 状态目录，原子替换保留原权限位。
 
 `verify` 对集成变更要求两个目标都匹配候选哈希，`path_verified` 仍固定为 `false`。客户端
-原生校验必须发生在 `prepare_integrated` 前；重载和真实路径验证属于服务层后续门禁。完整
-理由见 [ADR-0024](../../docs/ADR/0024-coordinate-sidecar-and-main-configuration-transactions.md)。
+原生校验必须发生在 `prepare_integrated` 前；客户端重载和真实路径验证属于服务层门禁。
+完整事务理由见
+[ADR-0024](../../docs/ADR/0024-coordinate-sidecar-and-main-configuration-transactions.md)，
+重载恢复编排见
+[ADR-0026](../../docs/ADR/0026-reload-adapter-clients-with-public-controls.md)。

@@ -625,7 +625,14 @@ public nonisolated struct Nonproxy_Adapter_V1_ApplyChangeResponse: Sendable {
   /// Clears the value of `error`. Subsequent reads from it will return its default value.
   public mutating func clearError() {self._error = nil}
 
+  /// replayed 表示候选在本次调用前已经应用；重载失败时不会自动撤销既有候选。
   public var replayed: Bool = false
+
+  /// rolled_back 表示候选重载失败后，两个文件已经自动恢复。
+  public var rolledBack: Bool = false
+
+  /// rollback_reloaded 表示恢复后的旧配置也已重新载入客户端。
+  public var rollbackReloaded: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1498,7 +1505,7 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeRequest: SwiftProtobuf.Mess
 
 nonisolated extension Nonproxy_Adapter_V1_ApplyChangeResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ApplyChangeResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}applied\0\u{1}reloaded\0\u{1}error\0\u{1}replayed\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}applied\0\u{1}reloaded\0\u{1}error\0\u{1}replayed\0\u{3}rolled_back\0\u{3}rollback_reloaded\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1510,6 +1517,8 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeResponse: SwiftProtobuf.Mes
       case 2: try { try decoder.decodeSingularBoolField(value: &self.reloaded) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._error) }()
       case 4: try { try decoder.decodeSingularBoolField(value: &self.replayed) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.rolledBack) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.rollbackReloaded) }()
       default: break
       }
     }
@@ -1532,6 +1541,12 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeResponse: SwiftProtobuf.Mes
     if self.replayed != false {
       try visitor.visitSingularBoolField(value: self.replayed, fieldNumber: 4)
     }
+    if self.rolledBack != false {
+      try visitor.visitSingularBoolField(value: self.rolledBack, fieldNumber: 5)
+    }
+    if self.rollbackReloaded != false {
+      try visitor.visitSingularBoolField(value: self.rollbackReloaded, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1540,6 +1555,8 @@ nonisolated extension Nonproxy_Adapter_V1_ApplyChangeResponse: SwiftProtobuf.Mes
     if lhs.reloaded != rhs.reloaded {return false}
     if lhs._error != rhs._error {return false}
     if lhs.replayed != rhs.replayed {return false}
+    if lhs.rolledBack != rhs.rolledBack {return false}
+    if lhs.rollbackReloaded != rhs.rollbackReloaded {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

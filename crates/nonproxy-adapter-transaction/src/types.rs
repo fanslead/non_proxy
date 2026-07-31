@@ -145,11 +145,14 @@ pub struct RollbackOutcome {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ChangeInstallation {
+    pub backup_id: String,
     pub adapter_id: String,
     pub client: AdapterClient,
     pub client_version: AdapterVersion,
     pub managed_rules_path: PathBuf,
     pub main_configuration_path: Option<PathBuf>,
+    pub configuration_backup_sha256: Option<[u8; 32]>,
+    pub configuration_candidate_sha256: Option<[u8; 32]>,
     pub direct_target: Option<String>,
     pub requested_direct_target: Option<String>,
 }

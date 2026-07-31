@@ -24,6 +24,7 @@ impl AdapterRenderer for SingBoxRenderer {
             AdapterCapability::ApplicationRule,
             AdapterCapability::DomainRule,
             AdapterCapability::CidrRule,
+            AdapterCapability::HotReload,
         ]
     }
 

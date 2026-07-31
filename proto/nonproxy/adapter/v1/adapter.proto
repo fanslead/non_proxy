@@ -181,7 +181,12 @@ message ApplyChangeResponse {
   bool applied = 1;
   bool reloaded = 2;
   nonproxy.common.v1.ErrorDetail error = 3;
+  // replayed 表示候选在本次调用前已经应用；重载失败时不会自动撤销既有候选。
   bool replayed = 4;
+  // rolled_back 表示候选重载失败后，两个文件已经自动恢复。
+  bool rolled_back = 5;
+  // rollback_reloaded 表示恢复后的旧配置也已重新载入客户端。
+  bool rollback_reloaded = 6;
 }
 
 // VerifyChangeRequest 请求真实路径验证。

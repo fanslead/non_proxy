@@ -9,6 +9,7 @@ use tokio::{
 };
 
 const MAXIMUM_OUTPUT_BYTES: u64 = 64 * 1024;
+const MAXIMUM_ALLOWED_OUTPUT_BYTES: u64 = 2 * 1024 * 1024;
 
 #[derive(Debug, Error)]
 pub(crate) enum ProcessExecutionError {
@@ -33,6 +34,16 @@ pub(crate) struct ProcessRequest {
 }
 
 pub(crate) async fn run(request: ProcessRequest) -> Result<Vec<u8>, ProcessExecutionError> {
+    run_bounded(request, MAXIMUM_OUTPUT_BYTES).await
+}
+
+pub(crate) async fn run_bounded(
+    request: ProcessRequest,
+    maximum_output_bytes: u64,
+) -> Result<Vec<u8>, ProcessExecutionError> {
+    if maximum_output_bytes == 0 || maximum_output_bytes > MAXIMUM_ALLOWED_OUTPUT_BYTES {
+        return Err(ProcessExecutionError::OutputTooLarge);
+    }
     let deadline = Instant::now() + request.timeout;
     let mut command = Command::new(&request.executable);
     command
@@ -52,8 +63,8 @@ pub(crate) async fn run(request: ProcessRequest) -> Result<Vec<u8>, ProcessExecu
     let mut child = command.spawn().map_err(ProcessExecutionError::Io)?;
     let stdout = child.stdout.take().ok_or(ProcessExecutionError::Failed)?;
     let stderr = child.stderr.take().ok_or(ProcessExecutionError::Failed)?;
-    let mut stdout_task = tokio::spawn(read_bounded(stdout));
-    let mut stderr_task = tokio::spawn(read_bounded(stderr));
+    let mut stdout_task = tokio::spawn(read_bounded(stdout, maximum_output_bytes));
+    let mut stderr_task = tokio::spawn(read_bounded(stderr, maximum_output_bytes));
     let status = match timeout_at(deadline, child.wait()).await {
         Ok(Ok(status)) => status,
         Ok(Err(source)) => {
@@ -101,7 +112,7 @@ pub(crate) async fn run(request: ProcessRequest) -> Result<Vec<u8>, ProcessExecu
         .len()
         .checked_add(stderr.len())
         .ok_or(ProcessExecutionError::OutputTooLarge)?;
-    if u64::try_from(combined_length).map_or(true, |length| length > MAXIMUM_OUTPUT_BYTES) {
+    if u64::try_from(combined_length).map_or(true, |length| length > maximum_output_bytes) {
         return Err(ProcessExecutionError::OutputTooLarge);
     }
     let mut output = stdout;
@@ -114,14 +125,15 @@ pub(crate) async fn run(request: ProcessRequest) -> Result<Vec<u8>, ProcessExecu
 
 async fn read_bounded(
     reader: impl AsyncRead + Unpin,
+    maximum_output_bytes: u64,
 ) -> Result<(Vec<u8>, bool), ProcessExecutionError> {
     let mut output = Vec::new();
     reader
-        .take(MAXIMUM_OUTPUT_BYTES + 1)
+        .take(maximum_output_bytes + 1)
         .read_to_end(&mut output)
         .await
         .map_err(ProcessExecutionError::Io)?;
-    let overflow = u64::try_from(output.len()).map_or(true, |length| length > MAXIMUM_OUTPUT_BYTES);
+    let overflow = u64::try_from(output.len()).map_or(true, |length| length > maximum_output_bytes);
     Ok((output, overflow))
 }
 

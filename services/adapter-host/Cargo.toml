@@ -6,9 +6,15 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+bytes.workspace = true
 getrandom.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
 libc.workspace = true
 nonproxy-adapter-api = { path = "../../crates/nonproxy-adapter-api" }
+nonproxy-adapter-integration = { path = "../../crates/nonproxy-adapter-integration" }
 nonproxy-adapter-mihomo = { path = "../../adapters/mihomo" }
 nonproxy-adapter-sing-box = { path = "../../adapters/sing-box" }
 nonproxy-adapter-surge = { path = "../../adapters/surge" }
@@ -18,15 +24,17 @@ nonproxy-proto = { path = "../../crates/nonproxy-proto" }
 prost-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml_ng.workspace = true
 sha2.workspace = true
+sysinfo.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tonic.workspace = true
+zeroize.workspace = true
 
 [dev-dependencies]
-hyper-util.workspace = true
 tower.workspace = true
 
 [lints]

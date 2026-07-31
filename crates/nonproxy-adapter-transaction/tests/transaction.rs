@@ -4,6 +4,7 @@ use nonproxy_adapter_api::{AdapterClient, AdapterVersion};
 use nonproxy_adapter_transaction::{
     AdapterInstallation, AdapterTransactionError, AdapterTransactionManager, IntegratedPreparation,
 };
+use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
 const NOW: u64 = 10_000;
@@ -383,6 +384,20 @@ fn integrated_change_applies_verifies_and_rolls_back_both_files() {
     let original_configuration = fs::read(&fixture.configuration_path)
         .unwrap_or_else(|error| panic!("主配置读取失败: {error}"));
     let prepared = fixture.prepare(NOW);
+    let installation = fixture
+        .manager
+        .change_installation(&prepared.change_id)
+        .unwrap_or_else(|error| panic!("双文件安装快照读取失败: {error}"));
+
+    assert_eq!(installation.backup_id, prepared.backup_id);
+    assert_eq!(
+        installation.configuration_backup_sha256,
+        Some(Sha256::digest(&original_configuration).into())
+    );
+    assert_eq!(
+        installation.configuration_candidate_sha256,
+        prepared.configuration_candidate_sha256
+    );
 
     let applied = fixture
         .manager
@@ -420,6 +435,49 @@ fn integrated_change_applies_verifies_and_rolls_back_both_files() {
         fs::read(&fixture.configuration_path)
             .unwrap_or_else(|error| panic!("回滚主配置读取失败: {error}")),
         original_configuration
+    );
+}
+
+#[test]
+fn integrated_public_preflight_is_read_only_and_rejects_external_edits() {
+    let fixture = IntegratedFixture::new("integrated-public-preflight");
+    let original_configuration = fs::read(&fixture.configuration_path)
+        .unwrap_or_else(|error| panic!("预检主配置读取失败: {error}"));
+    let prepared = fixture.prepare(NOW);
+
+    fixture
+        .manager
+        .preflight_apply_integrated(
+            &prepared.change_id,
+            &prepared.candidate_sha256,
+            &prepared_configuration_hash(&prepared),
+            NOW + 1,
+        )
+        .unwrap_or_else(|error| panic!("双文件公开预检失败: {error}"));
+    assert!(!fixture.managed_path.exists());
+    assert_eq!(
+        fs::read(&fixture.configuration_path)
+            .unwrap_or_else(|error| panic!("预检后主配置读取失败: {error}")),
+        original_configuration
+    );
+
+    fs::write(&fixture.configuration_path, b"external")
+        .unwrap_or_else(|error| panic!("预检外部配置写入失败: {error}"));
+    let rejected = fixture.manager.preflight_apply_integrated(
+        &prepared.change_id,
+        &prepared.candidate_sha256,
+        &prepared_configuration_hash(&prepared),
+        NOW + 2,
+    );
+    assert!(matches!(
+        rejected,
+        Err(AdapterTransactionError::ManagedFileChanged)
+    ));
+    assert!(!fixture.managed_path.exists());
+    assert_eq!(
+        fs::read(&fixture.configuration_path)
+            .unwrap_or_else(|error| panic!("预检拒绝后主配置读取失败: {error}")),
+        b"external"
     );
 }
 

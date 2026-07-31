@@ -44,6 +44,14 @@ pub enum AdapterHostError {
     ClientVersionChanged,
     #[error("适配器安装路径或接入参数在变更期间已经变化")]
     InstallationChanged,
+    #[error("适配器客户端没有可安全使用的公开控制入口")]
+    ClientControlUnavailable,
+    #[error("适配器客户端重载失败")]
+    ClientReloadFailed,
+    #[error("适配器客户端未确认受管配置已经载入")]
+    ClientReloadUnconfirmed,
+    #[error("适配器重载失败后的自动恢复未完整完成")]
+    ClientRecoveryFailed,
     #[error("适配器目录状态已损坏")]
     CatalogCorrupt,
     #[error("适配器策略哈希不匹配")]
@@ -79,6 +87,10 @@ impl AdapterHostError {
             Self::ClientUnsupported => "NP_ADAPTER_CLIENT_UNSUPPORTED",
             Self::ClientVersionChanged => "NP_ADAPTER_CLIENT_VERSION_CHANGED",
             Self::InstallationChanged => "NP_ADAPTER_INSTALLATION_CHANGED",
+            Self::ClientControlUnavailable => "NP_ADAPTER_CLIENT_CONTROL_UNAVAILABLE",
+            Self::ClientReloadFailed => "NP_ADAPTER_CLIENT_RELOAD_FAILED",
+            Self::ClientReloadUnconfirmed => "NP_ADAPTER_CLIENT_RELOAD_UNCONFIRMED",
+            Self::ClientRecoveryFailed => "NP_ADAPTER_CLIENT_RECOVERY_FAILED",
             Self::CatalogCorrupt => "NP_ADAPTER_CATALOG_CORRUPT",
             Self::PolicyHashMismatch => "NP_ADAPTER_POLICY_HASH_MISMATCH",
             Self::Authentication(error) => error.code(),
@@ -103,6 +115,10 @@ impl AdapterHostError {
             | Self::CandidateValidationUnavailable
             | Self::CandidateValidationIo(_)
             | Self::CandidateValidationTask(_)
+            | Self::ClientControlUnavailable
+            | Self::ClientReloadFailed
+            | Self::ClientReloadUnconfirmed
+            | Self::ClientRecoveryFailed
             | Self::Transport(_) => RetryableKind::Yes,
             Self::Transaction(AdapterTransactionError::FileTransaction) => RetryableKind::Yes,
             _ => RetryableKind::No,

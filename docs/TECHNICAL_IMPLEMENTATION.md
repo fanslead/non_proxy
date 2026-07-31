@@ -1458,7 +1458,8 @@ HTTP CONNECT 只具备 TCP 能力，在完整网关捕获 TCP/UDP 的配置下�
 `adapters/surge` 生成不含策略名的外部 Ruleset，并只在 Surge Mac 6.0+ 为应用生成
 App Bundle 前缀规则；`adapters/mihomo` 生成 classical provider YAML；
 `adapters/sing-box` 生成 source rule-set version 3，且不猜测用户 direct outbound tag。
-三者目前只生成候选，不触碰真实配置，也不声称热重载或路径证据。完整格式与许可证
+三个 renderer 只生成候选，不触碰真实配置；客户端重载由隔离宿主负责，renderer 不声明
+路径证据。完整格式与许可证
 边界见 [ADR-0019](ADR/0019-generate-versioned-client-rule-sets.md)。
 
 候选到托管 sidecar 的文件事务由 `nonproxy-adapter-transaction` 统一实现。准备阶段保存
@@ -1500,8 +1501,21 @@ rule-set 和首条 direct route rule，保留注释、缩进与尾逗号。sidec
 apply 前再次校验客户端版本和目录绑定，再调用双文件事务。旧目录可读但必须重新登记主配置。
 完整接线见 [ADR-0025](ADR/0025-bind-integrated-configurations-to-adapter-rpc.md)。
 
-当前宿主返回的 `reloaded` 与 `path_verified` 均为 false，最高只有配置证据。公开重载以及
-实际路径验证未完成前，桌面端仍不得开放“已接管”。
+apply 在写文件前先执行不产生目标写入的事务预检，再构造并预检客户端控制计划。Surge 只
+使用所选 Bundle 内的 `surge-cli`，以完整活动 profile 哈希绑定备份和候选；Mihomo 只允许
+配置中唯一的 loopback TCP controller，先以只读版本请求预检鉴权通道，再在调用前后验证
+磁盘候选哈希，以显式绝对配置路径重载，并确认受管 provider 是已加载首条规则；sing-box
+只向同用户、精确可执行文件、唯一 `-c/--config` 绑定的唯一进程发送 SIGHUP，并在信号前后
+验证磁盘候选哈希，再确认同一进程身份存活。CLI 与 HTTP 控制受五秒超时和 2 MiB 输出/响应
+上限约束，进程确认同样是有界轮询；Mihomo secret 不进入目录、RPC 或日志。
+
+重载或确认失败时，宿主立即通过同一 manifest 恢复主配置与 sidecar，再重载备份；RPC 分别
+返回文件是否恢复和旧配置是否重新载入。对已应用候选的幂等 apply 重放不会因本次重载暂时
+失败而撤销既有状态，而是保留 `applied=true` 并要求重试或显式回滚。客户端/版本因此暴露
+`HOT_RELOAD` 能力，但本次安装
+仍必须通过运行态门禁。`reloaded=true` 只是客户端级证据；实际规则命中、DNS 与公网出口路径
+尚未验证，`path_verified=false`，桌面端仍不得开放“已接管”。完整边界见
+[ADR-0026](ADR/0026-reload-adapter-clients-with-public-controls.md)。
 
 适配器接口：
 

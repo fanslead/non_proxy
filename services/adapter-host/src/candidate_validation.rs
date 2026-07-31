@@ -15,8 +15,8 @@ use tempfile::TempDir;
 
 use crate::{
     AdapterHostError,
+    client_paths::surge_cli,
     detection::DetectedClient,
-    path_validation::canonical_executable,
     process_runner::{ProcessExecutionError, ProcessRequest, run},
 };
 
@@ -207,15 +207,6 @@ fn create_private_directories(root: &Path, target: &Path) -> Result<(), AdapterH
             .map_err(AdapterHostError::CandidateValidationIo)?;
     }
     Ok(())
-}
-
-fn surge_cli(executable: &Path) -> Result<PathBuf, AdapterHostError> {
-    let contents = executable
-        .parent()
-        .and_then(Path::parent)
-        .filter(|path| path.file_name().and_then(|value| value.to_str()) == Some("Contents"))
-        .ok_or(AdapterHostError::InstallationInvalid)?;
-    canonical_executable(&contents.join("Applications/surge-cli"))
 }
 
 fn write_private(path: &Path, bytes: &[u8]) -> Result<(), AdapterHostError> {

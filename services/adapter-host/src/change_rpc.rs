@@ -1,12 +1,11 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use nonproxy_adapter_transaction::{
-    AdapterInstallation as TransactionInstallation, ChangeInstallation, IntegratedPreparation,
+    AdapterInstallation as TransactionInstallation, IntegratedPreparation,
 };
 use nonproxy_proto::{
     adapter::v1::{
-        ApplyChangeRequest, ApplyChangeResponse, PrepareChangeRequest, PrepareChangeResponse,
-        RollbackChangeRequest, RollbackChangeResponse, VerifyChangeRequest, VerifyChangeResponse,
+        PrepareChangeRequest, PrepareChangeResponse, VerifyChangeRequest, VerifyChangeResponse,
     },
     common::v1::EvidenceLevel,
 };
@@ -60,59 +59,6 @@ impl AdapterRpcService {
         }))
     }
 
-    pub(crate) async fn apply_change_rpc(
-        &self,
-        request: ApplyChangeRequest,
-    ) -> Result<Response<ApplyChangeResponse>, Status> {
-        self.authenticate(request.context.as_ref(), Some(&request.operation_id))?;
-        let _mutation = self.mutation_gate.lock().await;
-        let expected = match self.validate_prepared_client(&request.change_id).await {
-            Ok(value) => value,
-            Err(error) => {
-                return Ok(Response::new(ApplyChangeResponse {
-                    applied: false,
-                    reloaded: false,
-                    error: Some(error_detail(&error)),
-                    replayed: false,
-                }));
-            }
-        };
-        let transactions = self.transactions.clone();
-        let change_id = request.change_id;
-        let expected_hash = request.expected_candidate_hash;
-        let expected_configuration_hash = request.expected_configuration_candidate_hash;
-        let integrated = expected.main_configuration_path.is_some();
-        let now = now_unix_millis().map_err(|_| Status::internal("系统时间无效"))?;
-        let applied = tokio::task::spawn_blocking(move || {
-            if integrated {
-                transactions.apply_integrated(
-                    &change_id,
-                    &expected_hash,
-                    &expected_configuration_hash,
-                    now,
-                )
-            } else {
-                transactions.apply(&change_id, &expected_hash, now)
-            }
-        })
-        .await
-        .map_err(|_| Status::internal("适配器事务任务失败"))?;
-        Ok(Response::new(match applied {
-            Ok(value) => ApplyChangeResponse {
-                applied: value.applied,
-                reloaded: false,
-                error: None,
-                replayed: value.replayed,
-            },
-            Err(error) => ApplyChangeResponse {
-                applied: false,
-                reloaded: false,
-                error: Some(error_detail(&error.into())),
-                replayed: false,
-            },
-        }))
-    }
-
     pub(crate) async fn verify_change_rpc(
         &self,
         request: VerifyChangeRequest,
@@ -142,35 +88,6 @@ impl AdapterRpcService {
                 error: Some(error_detail(&error.into())),
                 configuration_verified: false,
                 path_verified: false,
-            },
-        }))
-    }
-
-    pub(crate) async fn rollback_change_rpc(
-        &self,
-        request: RollbackChangeRequest,
-    ) -> Result<Response<RollbackChangeResponse>, Status> {
-        self.authenticate(request.context.as_ref(), Some(&request.operation_id))?;
-        let _mutation = self.mutation_gate.lock().await;
-        let transactions = self.transactions.clone();
-        let change_id = request.change_id;
-        let backup_id = request.backup_id;
-        let rolled_back =
-            tokio::task::spawn_blocking(move || transactions.rollback(&change_id, &backup_id))
-                .await
-                .map_err(|_| Status::internal("适配器事务任务失败"))?;
-        Ok(Response::new(match rolled_back {
-            Ok(value) => RollbackChangeResponse {
-                restored: value.restored,
-                reloaded: false,
-                error: None,
-                replayed: value.replayed,
-            },
-            Err(error) => RollbackChangeResponse {
-                restored: false,
-                reloaded: false,
-                error: Some(error_detail(&error.into())),
-                replayed: false,
             },
         }))
     }
@@ -263,34 +180,9 @@ impl AdapterRpcService {
         }
         Ok(prepared)
     }
-
-    async fn validate_prepared_client(
-        &self,
-        change_id: &str,
-    ) -> Result<ChangeInstallation, AdapterHostError> {
-        let transactions = self.transactions.clone();
-        let change_id = change_id.to_owned();
-        let expected =
-            tokio::task::spawn_blocking(move || transactions.change_installation(&change_id))
-                .await
-                .map_err(AdapterHostError::Task)??;
-        let registered = self.catalog.get(&expected.adapter_id)?;
-        if registered.client != expected.client
-            || registered.managed_rules_path != expected.managed_rules_path
-            || registered.main_configuration_path != expected.main_configuration_path
-            || registered.direct_target != expected.requested_direct_target
-        {
-            return Err(AdapterHostError::InstallationChanged);
-        }
-        let detected = detect(registered.client, &registered.executable_path).await?;
-        if detected.version != expected.client_version || !detected.supported() {
-            return Err(AdapterHostError::ClientVersionChanged);
-        }
-        Ok(expected)
-    }
 }
 
-fn now_unix_millis() -> Result<u64, AdapterHostError> {
+pub(crate) fn now_unix_millis() -> Result<u64, AdapterHostError> {
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|_| AdapterHostError::Configuration)?

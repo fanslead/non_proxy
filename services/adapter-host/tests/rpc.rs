@@ -1,5 +1,7 @@
 #![cfg(unix)]
 
+mod support;
+
 use std::{fs, path::Path, time::Duration};
 
 use hyper_util::rt::TokioIo;
@@ -20,6 +22,8 @@ use tempfile::TempDir;
 use tokio::net::UnixStream;
 use tonic::{Code, Request, transport::Endpoint};
 use tower::service_fn;
+
+use support::MockMihomoController;
 
 const TOKEN: [u8; 32] = [7; 32];
 
@@ -66,6 +70,7 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
             AdapterCapability::AppRule as i32,
             AdapterCapability::DomainRule as i32,
             AdapterCapability::CidrRule as i32,
+            AdapterCapability::HotReload as i32,
         ]
     );
 
@@ -103,7 +108,7 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
     assert_eq!(
         fs::read_to_string(&fixture.configuration_path)
             .unwrap_or_else(|error| panic!("拒绝后主配置读取失败: {error}")),
-        Fixture::initial_configuration()
+        fixture.initial_configuration()
     );
 
     let wrong_configuration_hash = service
@@ -129,7 +134,7 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
     assert_eq!(
         fs::read_to_string(&fixture.configuration_path)
             .unwrap_or_else(|error| panic!("错误哈希后主配置读取失败: {error}")),
-        Fixture::initial_configuration()
+        fixture.initial_configuration()
     );
 
     let applied = service
@@ -144,12 +149,30 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
         .unwrap_or_else(|error| panic!("变更应用 RPC 失败: {error}"))
         .into_inner();
     assert!(applied.applied);
-    assert!(!applied.reloaded);
+    assert!(applied.reloaded);
+    assert!(!applied.rolled_back);
+    assert!(!applied.rollback_reloaded);
     assert!(
         fs::read_to_string(&fixture.configuration_path)
             .unwrap_or_else(|error| panic!("已应用主配置读取失败: {error}"))
             .contains("RULE-SET,nonproxy-mihomo-primary,DIRECT")
     );
+
+    let apply_replay = service
+        .apply_change(Request::new(ApplyChangeRequest {
+            operation_id: String::new(),
+            change_id: prepared.change_id.clone(),
+            expected_candidate_hash: prepared.candidate_hash.clone(),
+            context: Some(context("apply-replay", TOKEN)),
+            expected_configuration_candidate_hash: prepared.configuration_candidate_hash.clone(),
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("变更应用重放 RPC 失败: {error}"))
+        .into_inner();
+    assert!(apply_replay.applied);
+    assert!(apply_replay.reloaded);
+    assert!(apply_replay.replayed);
+    assert!(!apply_replay.rolled_back);
 
     let verified = service
         .verify_change(Request::new(VerifyChangeRequest {
@@ -176,12 +199,12 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
         .unwrap_or_else(|error| panic!("变更回滚 RPC 失败: {error}"))
         .into_inner();
     assert!(rolled_back.restored);
-    assert!(!rolled_back.reloaded);
+    assert!(rolled_back.reloaded);
     assert!(!fixture.managed_path.exists());
     assert_eq!(
         fs::read_to_string(&fixture.configuration_path)
             .unwrap_or_else(|error| panic!("已回滚主配置读取失败: {error}")),
-        Fixture::initial_configuration()
+        fixture.initial_configuration()
     );
 
     drop(service);
@@ -194,6 +217,129 @@ async fn authenticated_rpc_keeps_configuration_and_path_evidence_distinct() {
         .unwrap_or_else(|error| panic!("重启后目录读取失败: {error}"))
         .into_inner();
     assert_eq!(listed.installations.len(), 1);
+}
+
+#[tokio::test]
+async fn unconfirmed_reload_restores_both_files_and_reloads_the_backup() {
+    let fixture = Fixture::new();
+    let service = fixture.service();
+    let registered = service
+        .register_installation(Request::new(
+            fixture.registration("register-reload-recovery"),
+        ))
+        .await
+        .unwrap_or_else(|error| panic!("重载恢复测试安装项登记失败: {error}"))
+        .into_inner();
+    assert!(registered.error.is_none());
+    let policy = fixture.policy();
+    let prepared = service
+        .prepare_change(Request::new(PrepareChangeRequest {
+            operation_id: String::new(),
+            adapter_id: "mihomo-primary".to_owned(),
+            installation_id: "mihomo-primary".to_owned(),
+            normalized_policy_hash: Sha256::digest(policy).to_vec(),
+            normalized_policy: policy.to_vec(),
+            context: Some(context("prepare-reload-recovery", TOKEN)),
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("重载恢复测试准备失败: {error}"))
+        .into_inner();
+    assert!(prepared.error.is_none());
+    fixture.controller.set_wrong_rules(true);
+
+    let applied = service
+        .apply_change(Request::new(ApplyChangeRequest {
+            operation_id: String::new(),
+            change_id: prepared.change_id,
+            expected_candidate_hash: prepared.candidate_hash,
+            context: Some(context("apply-reload-recovery", TOKEN)),
+            expected_configuration_candidate_hash: prepared.configuration_candidate_hash,
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("重载恢复测试应用失败: {error}"))
+        .into_inner();
+
+    assert!(!applied.applied);
+    assert!(!applied.reloaded);
+    assert!(applied.rolled_back);
+    assert!(applied.rollback_reloaded);
+    assert_eq!(
+        applied.error.as_ref().map(|error| error.code.as_str()),
+        Some("NP_ADAPTER_CLIENT_RELOAD_UNCONFIRMED")
+    );
+    assert!(!fixture.managed_path.exists());
+    assert_eq!(
+        fs::read_to_string(&fixture.configuration_path)
+            .unwrap_or_else(|error| panic!("重载恢复后主配置读取失败: {error}")),
+        fixture.initial_configuration()
+    );
+}
+
+#[tokio::test]
+async fn failed_reload_replay_preserves_the_previously_applied_candidate() {
+    let fixture = Fixture::new();
+    let service = fixture.service();
+    let registered = service
+        .register_installation(Request::new(fixture.registration("register-reload-replay")))
+        .await
+        .unwrap_or_else(|error| panic!("重载重放测试安装项登记失败: {error}"))
+        .into_inner();
+    assert!(registered.error.is_none());
+    let policy = fixture.policy();
+    let prepared = service
+        .prepare_change(Request::new(PrepareChangeRequest {
+            operation_id: String::new(),
+            adapter_id: "mihomo-primary".to_owned(),
+            installation_id: "mihomo-primary".to_owned(),
+            normalized_policy_hash: Sha256::digest(policy).to_vec(),
+            normalized_policy: policy.to_vec(),
+            context: Some(context("prepare-reload-replay", TOKEN)),
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("重载重放测试准备失败: {error}"))
+        .into_inner();
+    let first = service
+        .apply_change(Request::new(ApplyChangeRequest {
+            operation_id: String::new(),
+            change_id: prepared.change_id.clone(),
+            expected_candidate_hash: prepared.candidate_hash.clone(),
+            context: Some(context("apply-before-reload-replay", TOKEN)),
+            expected_configuration_candidate_hash: prepared.configuration_candidate_hash.clone(),
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("重载重放测试首次应用失败: {error}"))
+        .into_inner();
+    assert!(first.applied);
+    assert!(first.reloaded);
+    fixture.controller.set_reload_failure(true);
+
+    let replay = service
+        .apply_change(Request::new(ApplyChangeRequest {
+            operation_id: String::new(),
+            change_id: prepared.change_id,
+            expected_candidate_hash: prepared.candidate_hash,
+            context: Some(context("apply-failed-reload-replay", TOKEN)),
+            expected_configuration_candidate_hash: prepared.configuration_candidate_hash,
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("重载失败重放 RPC 失败: {error}"))
+        .into_inner();
+
+    assert!(replay.applied);
+    assert!(!replay.reloaded);
+    assert!(replay.replayed);
+    assert!(!replay.rolled_back);
+    assert!(!replay.rollback_reloaded);
+    assert_eq!(
+        replay.error.as_ref().map(|error| error.code.as_str()),
+        Some("NP_ADAPTER_CLIENT_RELOAD_FAILED")
+    );
+    assert!(fixture.managed_path.is_file());
+    assert!(
+        fs::read_to_string(&fixture.configuration_path)
+            .unwrap_or_else(|error| panic!("重载失败重放后主配置读取失败: {error}"))
+            .contains("RULE-SET,nonproxy-mihomo-primary,DIRECT")
+    );
 }
 
 #[tokio::test]
@@ -357,7 +503,7 @@ async fn installation_re_registration_invalidates_a_prepared_change() {
     assert_eq!(
         fs::read_to_string(&fixture.configuration_path)
             .unwrap_or_else(|error| panic!("绑定测试主配置读取失败: {error}")),
-        Fixture::initial_configuration()
+        fixture.initial_configuration()
     );
 }
 
@@ -458,10 +604,12 @@ async fn private_uds_serves_authenticated_adapter_contract_and_cleans_up() {
 
 struct Fixture {
     _root: TempDir,
+    controller: MockMihomoController,
     state: std::path::PathBuf,
     executable: std::path::PathBuf,
     managed_path: std::path::PathBuf,
     configuration_path: std::path::PathBuf,
+    initial_configuration: String,
 }
 
 impl Fixture {
@@ -469,6 +617,7 @@ impl Fixture {
         use std::os::unix::fs::PermissionsExt;
 
         let root = tempfile::tempdir().unwrap_or_else(|error| panic!("临时目录创建失败: {error}"));
+        let controller = MockMihomoController::start();
         let state = root.path().join("state");
         let managed = root.path().join("managed");
         fs::create_dir(&state).unwrap_or_else(|error| panic!("状态目录创建失败: {error}"));
@@ -481,12 +630,18 @@ impl Fixture {
         fs::set_permissions(&executable, fs::Permissions::from_mode(0o700))
             .unwrap_or_else(|error| panic!("Mihomo fixture 权限设置失败: {error}"));
         let configuration_path = managed.join("config.yaml");
-        fs::write(&configuration_path, Self::initial_configuration())
+        let initial_configuration = format!(
+            "external-controller: {}\nsecret: nonproxy-test-secret\nmode: rule\nproxies: []\nproxy-groups: []\nrules:\n  - MATCH,DIRECT\n",
+            controller.address()
+        );
+        fs::write(&configuration_path, &initial_configuration)
             .unwrap_or_else(|error| panic!("Mihomo 主配置写入失败: {error}"));
         Self {
             managed_path: managed.join("nonproxy.yaml"),
             configuration_path,
+            controller,
             _root: root,
+            initial_configuration,
             state,
             executable,
         }
@@ -513,8 +668,8 @@ impl Fixture {
         }
     }
 
-    fn initial_configuration() -> &'static str {
-        "mode: rule\nproxies: []\nproxy-groups: []\nrules:\n  - MATCH,DIRECT\n"
+    fn initial_configuration(&self) -> &str {
+        &self.initial_configuration
     }
 
     fn policy(&self) -> &'static [u8] {
