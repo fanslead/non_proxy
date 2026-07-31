@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 private let maximumApplicationCandidates = 2_048
 private let maximumApplicationResults = 512
 private let maximumApplicationDisplayNameBytes = 200
+private let maximumApplicationBundlePathBytes = 4_096
 
 @MainActor
 struct ApplicationCatalogController {
@@ -125,6 +126,9 @@ struct ApplicationCatalogController {
         guard let stableIdentity = normalizedIdentity(signature.identifier) else {
             return nil
         }
+        guard let bundlePath = normalizedBundlePath(url) else {
+            return nil
+        }
         let displayName =
             [
                 bundle.object(
@@ -141,6 +145,7 @@ struct ApplicationCatalogController {
             stableIdentity: stableIdentity,
             signerIdentity: normalizedIdentity(signature.teamIdentifier),
             bundleIdentifier: bundleIdentifier,
+            bundlePath: bundlePath,
             isRunning: isRunning
         )
     }
@@ -221,5 +226,22 @@ struct ApplicationCatalogController {
 
     nonisolated private static func normalizedPath(_ url: URL) -> String {
         url.standardizedFileURL.resolvingSymlinksInPath().path
+    }
+
+    nonisolated private static func normalizedBundlePath(
+        _ url: URL
+    ) -> String? {
+        let path = normalizedPath(url)
+        guard path.hasPrefix("/"),
+            path.utf8.count <= maximumApplicationBundlePathBytes,
+            (path as NSString).pathExtension.caseInsensitiveCompare("app")
+                == .orderedSame,
+            path.unicodeScalars.allSatisfy({
+                !CharacterSet.controlCharacters.contains($0)
+            })
+        else {
+            return nil
+        }
+        return path
     }
 }

@@ -44,6 +44,7 @@ struct BridgeModelsTests {
             stableIdentity: "com.example.office",
             signerIdentity: "TEAM123",
             bundleIdentifier: "com.example.office",
+            bundlePath: "/Applications/企业办公.app",
             isRunning: true
         )
         let payload = ApplicationCatalogPayload.result(
@@ -58,6 +59,7 @@ struct BridgeModelsTests {
 
         #expect(decoded == payload)
         #expect(decoded.applications.first?.stableIdentity == "com.example.office")
+        #expect(decoded.applications.first?.bundlePath == "/Applications/企业办公.app")
         #expect(String(decoding: data, as: UTF8.self).contains("企业办公"))
     }
 

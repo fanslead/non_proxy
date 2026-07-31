@@ -79,8 +79,10 @@ internal sealed class MacApplicationCatalog(
     private static ApplicationCatalogEntry? Map(
         MacApplicationDescriptor application)
     {
+        var bundlePath = NormalizeBundlePath(application.BundlePath);
         if (string.IsNullOrWhiteSpace(application.DisplayName)
-            || string.IsNullOrWhiteSpace(application.StableIdentity))
+            || string.IsNullOrWhiteSpace(application.StableIdentity)
+            || bundlePath is null)
         {
             return null;
         }
@@ -90,7 +92,40 @@ internal sealed class MacApplicationCatalog(
             application.StableIdentity.Trim(),
             NormalizeOptional(application.SignerIdentity),
             NormalizeOptional(application.BundleIdentifier),
-            application.IsRunning);
+            application.IsRunning,
+            bundlePath);
+    }
+
+    private static string? NormalizeBundlePath(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Any(char.IsControl))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (!Path.IsPathFullyQualified(value)
+                || !string.Equals(
+                    Path.GetExtension(value),
+                    ".app",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var normalized = Path.GetFullPath(value);
+            return string.Equals(normalized, value, StringComparison.Ordinal)
+                ? normalized
+                : null;
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+                or NotSupportedException
+                or PathTooLongException)
+        {
+            return null;
+        }
     }
 
     private static string? NormalizeOptional(string? value)

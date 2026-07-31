@@ -3,7 +3,7 @@ import NonProxyMacNetworkIdentity
 import SystemExtensions
 
 enum BridgeConstants {
-    static let abiVersion: UInt32 = 8
+    static let abiVersion: UInt32 = 9
     static let transparentBundleIdentifier =
         "com.nonproxy.desktop.transparent-proxy"
     static let dnsBundleIdentifier = "com.nonproxy.desktop.dns-proxy"
@@ -91,6 +91,7 @@ struct ApplicationDescriptor: Codable, Equatable, Sendable {
     let stableIdentity: String
     let signerIdentity: String?
     let bundleIdentifier: String?
+    let bundlePath: String
     let isRunning: Bool
 }
 

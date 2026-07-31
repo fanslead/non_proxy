@@ -24,6 +24,7 @@ internal sealed record MacApplicationDescriptor(
     [property: JsonPropertyName("stableIdentity")] string StableIdentity,
     [property: JsonPropertyName("signerIdentity")] string? SignerIdentity,
     [property: JsonPropertyName("bundleIdentifier")] string? BundleIdentifier,
+    [property: JsonPropertyName("bundlePath")] string? BundlePath,
     [property: JsonPropertyName("isRunning")] bool IsRunning);
 
 internal sealed record MacApplicationCatalogPayload(
