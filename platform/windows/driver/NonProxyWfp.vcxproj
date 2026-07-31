@@ -42,6 +42,11 @@
     <DriverSign>
       <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
     </DriverSign>
+    <Inf2Cat>
+      <RunInf2Cat>true</RunInf2Cat>
+      <UseLocalTime>false</UseLocalTime>
+      <Verbose>true</Verbose>
+    </Inf2Cat>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="callout.c" />

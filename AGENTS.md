@@ -191,6 +191,16 @@ Safari Web Extension 必须作为真实 `.appex` 嵌入 containing app；`Conten
 - 重定向连接必须正确处理 WFP redirect records/context，避免递归。
 - Driver 变更必须运行 WDK 构建、签名检查和 Driver Verifier 相关测试。
 - 不使用普通单元测试替代真实 Windows 网络栈验收。
+- Primitive Driver 必须保留架构修饰的 `DefaultInstall`、DIRID 13 和 BFE
+  依赖；不得用伪造 Hardware ID 把软件组件包装成 PnP 设备。
+- 生产 Driver 必须通过 Microsoft Hardware Dev Center 签名和 `/kp` 校验；
+  测试证书、Test Signing 或关闭 Secure Boot 只能作为明确标记的开发证据。
+- 发布包信任根必须来自包外固定发布者；不得让包内 manifest 自行决定可信证书。
+- 安装、修复、卸载和 Driver Verifier 必须保留双重显式系统变更开关，不自动
+  重启，不默认删除 `%ProgramData%\NonProxy`。
+- Windows 系统生命周期与真实 VPN 验收必须按
+  `docs/WINDOWS_SYSTEM_ACCEPTANCE.md` 使用新的空证据目录；构建、Service
+  Running、策略命中和单一公网 IP 都不能单独声明“已确认直连”。
 
 ## 10. Protobuf 与生成代码
 

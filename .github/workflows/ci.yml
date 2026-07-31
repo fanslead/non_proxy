@@ -12,6 +12,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  windows-tooling:
+    name: Windows 发布工具语法
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 固定为 v6.0.2
+
+      - name: 解析 PowerShell 文件
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem scripts/windows -Include *.ps1,*.psm1 -Recurse |
+            Sort-Object FullName |
+            ForEach-Object {
+              $tokens = $null
+              $errors = $null
+              [void][System.Management.Automation.Language.Parser]::ParseFile(
+                $_.FullName,
+                [ref]$tokens,
+                [ref]$errors)
+              foreach ($error in $errors) {
+                Write-Error "$($_.FullName): $($error.Message)" -ErrorAction Continue
+                $failed = $true
+              }
+            }
+          if ($failed) {
+            throw "Windows PowerShell 工具存在语法错误。"
+          }
+
+      - name: 检查 Primitive Driver INF 发行约束
+        shell: pwsh
+        run: |
+          $inf = Get-Content platform/windows/driver/NonProxyWfp.inx -Raw
+          @(
+            "[DefaultInstall.NTamd64]",
+            "[DefaultInstall.NTarm64]",
+            "DefaultDestDir = 13",
+            "ServiceBinary = %13%\NonProxyWfp.sys",
+            "Dependencies = BFE",
+            "PnpLockdown = 1"
+          ) | ForEach-Object {
+            if (-not $inf.Contains($_)) {
+              throw "INF 缺少发行约束：$_"
+            }
+          }
+
   verify:
     name: 验证单体仓库
     runs-on: macos-26

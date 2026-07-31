@@ -8,8 +8,8 @@ CatalogFile = NonProxyWfp.cat
 PnpLockdown = 1
 
 [DestinationDirs]
-DefaultDestDir = 12
-DriverCopyFiles = 12
+DefaultDestDir = 13
+DriverCopyFiles = 13
 
 [DefaultInstall.NTamd64]
 CopyFiles = DriverCopyFiles
@@ -32,8 +32,8 @@ Description = %ServiceDescription%
 ServiceType = 1
 StartType = 3
 ErrorControl = 1
-ServiceBinary = %12%\NonProxyWfp.sys
-LoadOrderGroup = PNP_TDI
+ServiceBinary = %13%\NonProxyWfp.sys
+Dependencies = BFE
 
 [SourceDisksFiles]
 NonProxyWfp.sys = 1

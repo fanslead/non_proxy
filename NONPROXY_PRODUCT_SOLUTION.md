@@ -570,7 +570,14 @@ Avalonia 官方当前把 macOS 26 和 Windows 11 24H2 列为 Tier 1；首发最�
   包含规则编译、域名解析、代理协议或数据库。
 - Service 统一执行 App/网站策略；DIRECT TCP/UDP/DNS 绑定可信物理接口，
   PROXY 保留系统 VPN 路径或使用配置的 SOCKS5 出口。
-- 安装、驱动签名、开机启动和升级通过 Windows 平台桥接服务提供给 Avalonia UI。
+- Primitive Driver 使用架构修饰的 `DefaultInstall` 与 Driver Store；生产
+  Catalog 必须取得 Microsoft Hardware Dev Center 签名。
+- 发布目录由固定企业发布者、签名信任文件和完整 SHA-256 清单共同校验，复制
+  到 `Program Files` 后再次校验再激活。
+- 安装、修复、升级回滚和卸载使用同一受控入口；系统变更必须经过管理员权限与
+  双重显式确认，工具不自动重启，卸载默认保留用户规则。
+- Avalonia UI 只有在固定发布者的签名 bootstrap 和真实 Windows
+  SCM/UAC/Driver 验收完成后，才提供系统组件安装入口。
 
 ### 10.4 浏览器扩展
 

@@ -8,13 +8,19 @@ NonProxy 是一个本地优先的跨平台智能分流网关。用户选择应�
 
 Windows 已接入 SCM Service、受限命名管道、共享 UI、最小 WFP ALE Connect Redirect Driver、动态 BFE session、版本化 IOCTL/context ABI、redirect records 和用户态 TCP DIRECT/PROXY/BLOCK。DIRECT TCP/DNS 会实时选择可信物理接口并设置 `IP_UNICAST_IF`/`IPV6_UNICAST_IF`；没有物理路径时明确失败。域名身份运行时会在确认 `198.18.0.0/15` 无路由冲突后分配可恢复的 IPv4/安装级 ULA 合成地址，由 WFP TCP 代理反查域名并重新物理解域或保留给远端代理。
 
-Windows DNS 不修改网卡设置：动态 WFP filter 先只把远端 TCP/UDP 53 重定向到随机 loopback listener，系统 resolver 探针通过且活动策略就绪后才启用普通 TCP；探针失效则退回 DNS-only。远端 53 之外的 UDP/QUIC 使用同一最小 Driver 的 ALE flow 身份关联、DATAGRAM_DATA 有界搬运和入站重注入，Service 继续执行 App/域名策略、物理 DIRECT 或 SOCKS5 UDP。当前 Rust 单测和 x64 Windows 交叉门禁已覆盖用户态与 ABI；WDK 构建、安装升级、生产驱动签名、Driver Verifier 与真实 VPN 路径尚未验收，未验收能力不会被表述为可用。
+Windows DNS 不修改网卡设置：动态 WFP filter 先只把远端 TCP/UDP 53 重定向到随机 loopback listener，系统 resolver 探针通过且活动策略就绪后才启用普通 TCP；探针失效则退回 DNS-only。远端 53 之外的 UDP/QUIC 使用同一最小 Driver 的 ALE flow 身份关联、DATAGRAM_DATA 有界搬运和入站重注入，Service 继续执行 App/域名策略、物理 DIRECT 或 SOCKS5 UDP。
+
+Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名清单绑定、复制后复验、版本化 Service/Driver 安装、失败回滚、默认保留数据的卸载、Driver Verifier 安全门与生命周期证据清单。当前 Rust 单测和 Windows 交叉门禁覆盖用户态与 ABI；WDK 实机结果、Hardware Dev Center 生产签名、SCM/UAC、Driver Verifier 与真实 VPN 路径尚未验收，因此 Windows UI 仍不会把系统组件表述为可用。
 
 运行概览会按“后台服务 → 透明代理 → DNS 分流 → 网络接管”显示真实分段状态。等待授权时可通过原生桥直接打开 macOS“登录项与扩展”，允许后重新检查；部分安装可执行修复，卸载需要二次确认。诊断页复用同一组分段证据并显示稳定错误码。
 
 正式签名 macOS 包的只读查询、安装、升级、卸载和完整生命周期验收使用 [macOS 系统组件验收手册](docs/MACOS_SYSTEM_ACCEPTANCE.md)。验收命令拒绝临时签名、非 `/Applications` 包和未经显式确认的系统变更，并输出带 SHA-256 清单的独立证据目录。
 
 Safari 扩展的正式登记、启用、普通/无痕窗口与多标签页验收使用 [Safari Web Extension 正式验收](docs/SAFARI_EXTENSION_ACCEPTANCE.md)。
+
+Windows 的构建签名、安装/修复/升级/卸载、Driver Verifier 和真实 VPN
+TCP/DNS/UDP/QUIC 验收使用
+[Windows 系统组件与真实网络路径验收](docs/WINDOWS_SYSTEM_ACCEPTANCE.md)。
 
 ## 架构
 
@@ -38,6 +44,7 @@ Safari 扩展的正式登记、启用、普通/无痕窗口与多标签页验收
 - [Windows 选择性合成 DNS ADR](docs/ADR/0006-use-selective-synthetic-dns-on-windows.md)
 - [Windows WFP 明文 DNS 截获 ADR](docs/ADR/0007-intercept-windows-dns-with-wfp.md)
 - [Windows UDP/QUIC 数据报搬运 ADR](docs/ADR/0008-divert-windows-udp-datagrams.md)
+- [Windows 系统组件发行 ADR](docs/ADR/0009-distribute-windows-system-components.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链

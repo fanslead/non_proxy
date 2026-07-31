@@ -1,3 +1,5 @@
+#requires -Version 7.4
+
 [CmdletBinding()]
 param(
     [ValidateSet("x64", "ARM64")]
@@ -44,9 +46,12 @@ $driver = Get-ChildItem -Path $output -Filter "NonProxyWfp.sys" -Recurse |
     Select-Object -First 1
 $inf = Get-ChildItem -Path $output -Filter "NonProxyWfp.inf" -Recurse |
     Select-Object -First 1
-if (-not $driver -or -not $inf) {
-    throw "WDK 构建未生成完整的 SYS/INF 产物。"
+$catalog = Get-ChildItem -Path $output -Filter "NonProxyWfp.cat" -Recurse |
+    Select-Object -First 1
+if (-not $driver -or -not $inf -or -not $catalog) {
+    throw "WDK 构建未生成完整的 SYS/INF/CAT 产物。"
 }
 
 Write-Host "WFP Driver 构建完成：$($driver.FullName)"
 Write-Host "WFP INF 构建完成：$($inf.FullName)"
+Write-Host "WFP Catalog 构建完成：$($catalog.FullName)"

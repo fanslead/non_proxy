@@ -1819,11 +1819,23 @@ Provider 不逐条同步写日志：
   records/约 16 MiB 内核队列、32 MiB Service 会话 payload 预算、DIRECT 物理
   UDP、SOCKS5 UDP、空数据报和原始反向元组注入。端口 53 继续走独立 DNS 路径。
 
-尚未完成的 Windows 系统能力是安装器/升级回滚、生产驱动签名、Driver
-Verifier 与真实 VPN 共存路径验收。明文 DNS、UDP/QUIC 源码和交叉构建不能
-证明真实系统 resolver、connected UDP/`sendto`、反向元组、QUIC 或第三方
-VPN filter 顺序正确；Windows UI 在安装与系统验收完成前继续将系统组件标记
-为不可用。
+Windows 发行源码已经提供：
+
+- Windows 10 1903+ Primitive Driver 的架构修饰 `DefaultInstall`、DIRID 13、
+  BFE 依赖和 `DiInstallDriverW`/`DiUninstallDriverW` 生命周期；
+- 外部固定发布者指纹、已签名信任文件绑定的 SHA-256 清单、清单外文件/
+  重解析点/架构/最低系统版本拒绝，以及 INF/SYS `/kp /c` Catalog 成员校验；
+- 复制到 `%ProgramFiles%` 后复验、每次安装新版本目录、SCM Service 环境与
+  ACL、旧 Driver/Service 回切、默认保留数据的卸载和不自动重启语义；
+- Driver Verifier 的测试机专用显式开关，以及安装/修复/卸载前后状态、
+  Service、Driver、网卡、路由和 SHA-256 证据目录。
+
+尚未完成的是 Hardware Dev Center 生产签名、真实 WDK/SCM/UAC 运行、
+Driver Verifier 和真实 VPN 共存路径验收。明文 DNS、UDP/QUIC 源码、发行工具
+和交叉构建不能证明真实系统 resolver、connected UDP/`sendto`、反向元组、
+QUIC 或第三方 VPN filter 顺序正确；Windows UI 在签名 bootstrap 与系统验收
+完成前继续将系统组件标记为不可用。执行门禁见
+[Windows 系统组件与真实网络路径验收](WINDOWS_SYSTEM_ACCEPTANCE.md)。
 
 ### 22.1 用户态优先
 
@@ -1837,7 +1849,7 @@ Windows POC 已确认：
   DATAGRAM_DATA 搬运和 transport receive injection。
 - 可靠网站规则需要 Windows DNS 归属和可恢复的选择性合成地址关联，不能只依赖短期真实 IP 或 TLS SNI。
 
-因此采用 [ADR-0004：最小 WFP Connect Redirect Callout](ADR/0004-use-minimal-wfp-connect-redirect-callout.md)、[ADR-0006：选择性合成 DNS](ADR/0006-use-selective-synthetic-dns-on-windows.md)、[ADR-0007：WFP 明文 DNS 截获](ADR/0007-intercept-windows-dns-with-wfp.md) 与 [ADR-0008：UDP/QUIC 数据报搬运](ADR/0008-divert-windows-udp-datagrams.md)。复杂策略、出口协议、DNS 报文、存储与遥测继续严格留在用户态。
+因此采用 [ADR-0004：最小 WFP Connect Redirect Callout](ADR/0004-use-minimal-wfp-connect-redirect-callout.md)、[ADR-0006：选择性合成 DNS](ADR/0006-use-selective-synthetic-dns-on-windows.md)、[ADR-0007：WFP 明文 DNS 截获](ADR/0007-intercept-windows-dns-with-wfp.md)、[ADR-0008：UDP/QUIC 数据报搬运](ADR/0008-divert-windows-udp-datagrams.md) 与 [ADR-0009：Windows 系统组件发行](ADR/0009-distribute-windows-system-components.md)。复杂策略、出口协议、DNS 报文、存储与遥测继续严格留在用户态。
 
 ### 22.2 WFP 层
 
@@ -1953,7 +1965,9 @@ TCP 与明文 DNS 使用：
 
 ### 23.5 Windows 系统测试
 
+- 发布者固定、签名清单和 Catalog 成员校验。
 - WFP filter 安装/卸载。
+- Service/Driver 安装、同版本修复、跨版本升级和失败回滚。
 - App ID。
 - redirect record。
 - TCP/UDP。
@@ -1962,6 +1976,11 @@ TCP 与明文 DNS 使用：
 - Driver Verifier。
 - Windows Update 后兼容。
 - MSIX/驱动签名。
+- Wintun/WireGuard、OpenVPN/TAP 与封闭商业 VPN 的 filter 顺序。
+
+系统测试按 `W0`～`W4` 分级，并将安装前后状态、WFP/ETW、路径、出口与
+SHA-256 清单保存到新的证据目录；规范见
+`docs/WINDOWS_SYSTEM_ACCEPTANCE.md`。
 
 ### 23.6 性能与长期测试
 
@@ -2034,10 +2053,12 @@ macOS：
 Windows：
 
 - Release build。
-- Driver signing。
-- MSIX/installer signing。
+- Hardware Dev Center Attestation/HLK Driver signing。
+- 固定发布者、签名 trust manifest 和 MSIX/installer signing。
+- 复制后复验与 x64/ARM64 架构拒绝。
 - Windows 10/11 VM 安装测试。
 - 升级/回滚/卸载验证。
+- Driver Verifier 与真实 VPN W4 路径验收。
 
 ## 25. 性能预算
 
