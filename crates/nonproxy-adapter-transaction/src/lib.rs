@@ -3,6 +3,7 @@ mod digest;
 mod error;
 mod host;
 mod identifier;
+mod integrated;
 mod manifest;
 mod path_guard;
 mod recovery;
@@ -12,6 +13,6 @@ mod types;
 pub use error::AdapterTransactionError;
 pub use host::AdapterTransactionManager;
 pub use types::{
-    AdapterInstallation, ApplyOutcome, ChangeInstallation, PreparedChange, RollbackOutcome,
-    VerificationOutcome,
+    AdapterInstallation, ApplyOutcome, ChangeInstallation, IntegratedCandidate, PreparedChange,
+    RollbackOutcome, VerificationOutcome,
 };

@@ -1,14 +1,18 @@
 use std::{collections::BTreeSet, fs, path::Path};
 
 use crate::{
-    AdapterTransactionError,
+    AdapterTransactionError, AdapterTransactionManager,
     atomic_file::{read_optional_bounded, remove_private_file, sha256},
     digest::decode_hash,
     identifier::validate_identifier,
+    integrated::recover_partial_integrated,
     manifest::ChangeManifest,
 };
 
-pub(crate) fn recover_state(state_directory: &Path) -> Result<(), AdapterTransactionError> {
+pub(crate) fn recover_state(
+    manager: &AdapterTransactionManager,
+) -> Result<(), AdapterTransactionError> {
+    let state_directory = &manager.state_directory;
     let mut candidates = BTreeSet::new();
     let mut backups = BTreeSet::new();
     for entry in fs::read_dir(state_directory.join("changes"))
@@ -51,6 +55,30 @@ pub(crate) fn recover_state(state_directory: &Path) -> Result<(), AdapterTransac
             }
             (false, None) => {}
             _ => return Err(AdapterTransactionError::StateCorrupt),
+        }
+        if let Some(configuration) = manifest.configuration.as_ref() {
+            if manifest.format_version != ChangeManifest::format_version() {
+                return Err(AdapterTransactionError::StateCorrupt);
+            }
+            let configuration_candidate_hash = decode_hash(&configuration.candidate_sha256)?;
+            let candidate_name = format!("{}.config", manifest.change_id);
+            let candidate =
+                read_optional_bounded(&state_directory.join("candidates").join(&candidate_name))?
+                    .ok_or(AdapterTransactionError::StateCorrupt)?;
+            if sha256(&candidate) != configuration_candidate_hash
+                || !candidates.insert(candidate_name)
+            {
+                return Err(AdapterTransactionError::StateCorrupt);
+            }
+            let configuration_backup_hash = decode_hash(&configuration.backup_sha256)?;
+            let backup_name = format!("{}.config", manifest.backup_id);
+            let backup =
+                read_optional_bounded(&state_directory.join("backups").join(&backup_name))?
+                    .ok_or(AdapterTransactionError::StateCorrupt)?;
+            if sha256(&backup) != configuration_backup_hash || !backups.insert(backup_name) {
+                return Err(AdapterTransactionError::StateCorrupt);
+            }
+            recover_partial_integrated(manager, &manifest)?;
         }
     }
     remove_orphans(state_directory, "candidates", &candidates)?;

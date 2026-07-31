@@ -1489,8 +1489,14 @@ prepare 在持久化 change 前先进行确定性预渲染，并在 `0700` 隔�
 rule-set 和首条 direct route rule，保留注释、缩进与尾逗号。sidecar 必须位于主配置目录
 内并使用受限相对路径；同名冲突、非标准容器和多 direct outbound 歧义均失败关闭。候选
 幂等性、格式保留和注入边界见
-[ADR-0023](ADR/0023-patch-adapter-main-configurations-losslessly.md)。该内核尚未获得直接写入
-用户主配置的权限，必须先进入可恢复的双文件事务。
+[ADR-0023](ADR/0023-patch-adapter-main-configurations-losslessly.md)。
+
+`nonproxy-adapter-transaction` 的 v3 manifest 已把 sidecar 与主配置纳入同一恢复单元：准备
+阶段持久化两个候选、两个 prepare 备份和独立哈希；apply 同时预检两个目标后先写 sidecar、
+再写主配置，rollback 反向执行。重启只自动恢复可由候选/备份哈希证明的半完成状态，遇到
+第三方内容时保留现场且不覆盖；主配置替换保留原权限位。完整状态机见
+[ADR-0024](ADR/0024-coordinate-sidecar-and-main-configuration-transactions.md)。该 API 目前尚未
+接入 `adapter-host` 的安装目录与 RPC，因此还不会修改真实主配置。
 
 当前宿主返回的 `reloaded` 与 `path_verified` 均为 false，最高只有配置证据。主配置引用、
 公开重载以及实际路径验证未完成前，桌面端仍不得开放“已接管”。

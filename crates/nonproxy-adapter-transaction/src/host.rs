@@ -24,12 +24,12 @@ use crate::{
     },
 };
 
-const CHANGE_LIFETIME_MS: u64 = 10 * 60 * 1_000;
-const MAXIMUM_ACTIVE_CHANGES: usize = 128;
+pub(crate) const CHANGE_LIFETIME_MS: u64 = 10 * 60 * 1_000;
+pub(crate) const MAXIMUM_ACTIVE_CHANGES: usize = 128;
 
 pub struct AdapterTransactionManager {
-    state_directory: PathBuf,
-    mutation_gate: Mutex<()>,
+    pub(crate) state_directory: PathBuf,
+    pub(crate) mutation_gate: Mutex<()>,
 }
 
 impl AdapterTransactionManager {
@@ -43,7 +43,7 @@ impl AdapterTransactionManager {
             state_directory,
             mutation_gate: Mutex::new(()),
         };
-        recover_state(&manager.state_directory)?;
+        recover_state(&manager)?;
         Ok(manager)
     }
 
@@ -122,6 +122,7 @@ impl AdapterTransactionManager {
             prepared_at_unix_ms: now_unix_ms,
             expires_at_unix_ms,
             rule_count: rendered.rule_count(),
+            configuration: None,
         };
         if let Err(error) = manifest.write_new(&manifest_path) {
             let _candidate_cleanup = fs::remove_file(&candidate_path);
@@ -136,6 +137,9 @@ impl AdapterTransactionManager {
             candidate_sha256: candidate_hash,
             expires_at_unix_ms,
             rule_count: rendered.rule_count(),
+            configuration_candidate_sha256: None,
+            managed_rules_reference: None,
+            direct_target: None,
         })
     }
 
@@ -161,6 +165,9 @@ impl AdapterTransactionManager {
             .map_err(|_| AdapterTransactionError::ChangeConflict)?;
         validate_identifier(change_id)?;
         let manifest = self.load_manifest(change_id)?;
+        if manifest.configuration.is_some() {
+            return Err(AdapterTransactionError::ChangeConflict);
+        }
         if now_unix_ms > manifest.expires_at_unix_ms {
             return Err(AdapterTransactionError::ChangeExpired);
         }
@@ -179,6 +186,7 @@ impl AdapterTransactionManager {
                 applied: true,
                 replayed: true,
                 candidate_sha256: candidate_hash,
+                configuration_candidate_sha256: None,
             });
         }
         if !matches_backup(&manifest, current.as_deref())? {
@@ -194,12 +202,16 @@ impl AdapterTransactionManager {
             applied: true,
             replayed: false,
             candidate_sha256: candidate_hash,
+            configuration_candidate_sha256: None,
         })
     }
 
     pub fn verify(&self, change_id: &str) -> Result<VerificationOutcome, AdapterTransactionError> {
         validate_identifier(change_id)?;
         let manifest = self.load_manifest(change_id)?;
+        if manifest.configuration.is_some() {
+            return crate::integrated::verify_integrated_manifest(&manifest);
+        }
         let candidate_hash = decode_hash(&manifest.candidate_sha256)?;
         let target_path = validate_installation_path(Path::new(&manifest.managed_rules_path))?;
         let current = read_optional_bounded(&target_path)?;
@@ -209,6 +221,7 @@ impl AdapterTransactionManager {
                 .is_some_and(|bytes| sha256(bytes) == candidate_hash),
             path_verified: false,
             candidate_sha256: candidate_hash,
+            configuration_candidate_sha256: None,
         })
     }
 
@@ -242,6 +255,9 @@ impl AdapterTransactionManager {
         let manifest = self.load_manifest(change_id)?;
         if manifest.backup_id != backup_id {
             return Err(AdapterTransactionError::ChangeConflict);
+        }
+        if manifest.configuration.is_some() {
+            return crate::integrated::rollback_integrated_locked(self, &manifest);
         }
         let candidate_hash = decode_hash(&manifest.candidate_sha256)?;
         let target_path = validate_installation_path(Path::new(&manifest.managed_rules_path))?;
@@ -289,20 +305,33 @@ impl AdapterTransactionManager {
             .map_err(|_| AdapterTransactionError::ChangeConflict)?;
         validate_identifier(change_id)?;
         let manifest = self.load_manifest(change_id)?;
-        let target_path = validate_installation_path(Path::new(&manifest.managed_rules_path))?;
-        let current = read_optional_bounded(&target_path)?;
-        if !matches_backup(&manifest, current.as_deref())? {
-            return Err(AdapterTransactionError::ChangeConflict);
+        if manifest.configuration.is_some() {
+            if !crate::integrated::integrated_targets_are_backups(&manifest)? {
+                return Err(AdapterTransactionError::ChangeConflict);
+            }
+        } else {
+            let target_path = validate_installation_path(Path::new(&manifest.managed_rules_path))?;
+            let current = read_optional_bounded(&target_path)?;
+            if !matches_backup(&manifest, current.as_deref())? {
+                return Err(AdapterTransactionError::ChangeConflict);
+            }
         }
         remove_manifest(&self.manifest_path(change_id))?;
         remove_private_file(&self.candidate_path(change_id))?;
+        if manifest.configuration.is_some() {
+            remove_private_file(&self.configuration_candidate_path(change_id))?;
+            remove_private_file(&self.configuration_backup_path(&manifest.backup_id))?;
+        }
         if manifest.backup_existed {
             remove_private_file(&self.backup_path(&manifest.backup_id))?;
         }
         Ok(())
     }
 
-    fn remove_expired_locked(&self, now_unix_ms: u64) -> Result<(), AdapterTransactionError> {
+    pub(crate) fn remove_expired_locked(
+        &self,
+        now_unix_ms: u64,
+    ) -> Result<(), AdapterTransactionError> {
         for entry in fs::read_dir(self.state_directory.join("changes"))
             .map_err(|_| AdapterTransactionError::FileTransaction)?
         {
@@ -315,12 +344,22 @@ impl AdapterTransactionManager {
             if now_unix_ms <= manifest.expires_at_unix_ms {
                 continue;
             }
-            let current = read_optional_bounded(Path::new(&manifest.managed_rules_path))?;
-            if !matches_backup(&manifest, current.as_deref())? {
-                continue;
+            if manifest.configuration.is_some() {
+                if !crate::integrated::integrated_targets_are_backups(&manifest)? {
+                    continue;
+                }
+            } else {
+                let current = read_optional_bounded(Path::new(&manifest.managed_rules_path))?;
+                if !matches_backup(&manifest, current.as_deref())? {
+                    continue;
+                }
             }
             remove_manifest(&path)?;
             remove_private_file(&self.candidate_path(&manifest.change_id))?;
+            if manifest.configuration.is_some() {
+                remove_private_file(&self.configuration_candidate_path(&manifest.change_id))?;
+                remove_private_file(&self.configuration_backup_path(&manifest.backup_id))?;
+            }
             if manifest.backup_existed {
                 remove_private_file(&self.backup_path(&manifest.backup_id))?;
             }
@@ -328,7 +367,7 @@ impl AdapterTransactionManager {
         Ok(())
     }
 
-    fn read_candidate(
+    pub(crate) fn read_candidate(
         &self,
         change_id: &str,
         expected_hash: &[u8; 32],
@@ -376,10 +415,16 @@ impl AdapterTransactionManager {
             candidate_sha256: *candidate_hash,
             expires_at_unix_ms: manifest.expires_at_unix_ms,
             rule_count: manifest.rule_count,
+            configuration_candidate_sha256: None,
+            managed_rules_reference: None,
+            direct_target: None,
         })
     }
 
-    fn load_manifest(&self, change_id: &str) -> Result<ChangeManifest, AdapterTransactionError> {
+    pub(crate) fn load_manifest(
+        &self,
+        change_id: &str,
+    ) -> Result<ChangeManifest, AdapterTransactionError> {
         let manifest = ChangeManifest::read(&self.manifest_path(change_id))?;
         if manifest.change_id != change_id {
             return Err(AdapterTransactionError::StateCorrupt);
@@ -387,7 +432,7 @@ impl AdapterTransactionManager {
         Ok(manifest)
     }
 
-    fn manifest_count(&self) -> Result<usize, AdapterTransactionError> {
+    pub(crate) fn manifest_count(&self) -> Result<usize, AdapterTransactionError> {
         let mut count = 0_usize;
         for entry in fs::read_dir(self.state_directory.join("changes"))
             .map_err(|_| AdapterTransactionError::FileTransaction)?
@@ -402,33 +447,45 @@ impl AdapterTransactionManager {
         Ok(count)
     }
 
-    fn candidate_path(&self, change_id: &str) -> PathBuf {
+    pub(crate) fn candidate_path(&self, change_id: &str) -> PathBuf {
         self.state_directory
             .join("candidates")
             .join(format!("{change_id}.rules"))
     }
 
-    fn backup_path(&self, backup_id: &str) -> PathBuf {
+    pub(crate) fn configuration_candidate_path(&self, change_id: &str) -> PathBuf {
+        self.state_directory
+            .join("candidates")
+            .join(format!("{change_id}.config"))
+    }
+
+    pub(crate) fn backup_path(&self, backup_id: &str) -> PathBuf {
         self.state_directory
             .join("backups")
             .join(format!("{backup_id}.rules"))
     }
 
-    fn manifest_path(&self, change_id: &str) -> PathBuf {
+    pub(crate) fn configuration_backup_path(&self, backup_id: &str) -> PathBuf {
+        self.state_directory
+            .join("backups")
+            .join(format!("{backup_id}.config"))
+    }
+
+    pub(crate) fn manifest_path(&self, change_id: &str) -> PathBuf {
         self.state_directory
             .join("changes")
             .join(format!("{change_id}.json"))
     }
 }
 
-fn validate_installation(
+pub(crate) fn validate_installation(
     installation: &AdapterInstallation,
 ) -> Result<(), AdapterTransactionError> {
     validate_identifier(&installation.adapter_id)
         .map_err(|_| AdapterTransactionError::InstallationInvalid)
 }
 
-fn matches_backup(
+pub(crate) fn matches_backup(
     manifest: &ChangeManifest,
     current: Option<&[u8]>,
 ) -> Result<bool, AdapterTransactionError> {

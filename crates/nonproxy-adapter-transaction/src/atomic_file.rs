@@ -86,7 +86,42 @@ pub(crate) fn replace_atomically(
         .and_then(|value| value.to_str())
         .ok_or(AdapterTransactionError::ManagedPathInvalid)?;
     let temporary = parent.join(format!(".{file_name}.nonproxy-{change_id}.tmp"));
+    remove_managed_file(&temporary)?;
     write_private_new(&temporary, bytes)?;
+    if let Err(_error) = fs::rename(&temporary, path) {
+        let _cleanup = fs::remove_file(&temporary);
+        return Err(AdapterTransactionError::FileTransaction);
+    }
+    sync_directory(parent)
+}
+
+pub(crate) fn replace_atomically_preserving_permissions(
+    path: &Path,
+    bytes: &[u8],
+    change_id: &str,
+) -> Result<(), AdapterTransactionError> {
+    validate_managed_file(path)?;
+    let permissions = fs::metadata(path)
+        .map_err(|_| AdapterTransactionError::ManagedPathInvalid)?
+        .permissions();
+    let parent = path
+        .parent()
+        .ok_or(AdapterTransactionError::ManagedPathInvalid)?;
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or(AdapterTransactionError::ManagedPathInvalid)?;
+    let temporary = parent.join(format!(".{file_name}.nonproxy-{change_id}.config.tmp"));
+    remove_managed_file(&temporary)?;
+    write_private_new(&temporary, bytes)?;
+    let result = fs::set_permissions(&temporary, permissions)
+        .and_then(|()| File::open(&temporary))
+        .and_then(|file| file.sync_all())
+        .map_err(|_| AdapterTransactionError::FileTransaction);
+    if let Err(error) = result {
+        let _cleanup = fs::remove_file(&temporary);
+        return Err(error);
+    }
     if let Err(_error) = fs::rename(&temporary, path) {
         let _cleanup = fs::remove_file(&temporary);
         return Err(AdapterTransactionError::FileTransaction);

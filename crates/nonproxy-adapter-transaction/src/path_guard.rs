@@ -36,12 +36,27 @@ pub(crate) fn prepare_private_state_directory(path: &Path) -> Result<(), Adapter
 pub(crate) fn validate_installation_path(
     path: &Path,
 ) -> Result<std::path::PathBuf, AdapterTransactionError> {
+    validate_target_path(path, true)
+}
+
+pub(crate) fn validate_main_configuration_path(
+    path: &Path,
+) -> Result<std::path::PathBuf, AdapterTransactionError> {
+    validate_target_path(path, false)
+}
+
+fn validate_target_path(
+    path: &Path,
+    reject_rule_delimiter: bool,
+) -> Result<std::path::PathBuf, AdapterTransactionError> {
+    let path_text = path
+        .to_str()
+        .ok_or(AdapterTransactionError::ManagedPathInvalid)?;
     if !path.is_absolute()
         || path.file_name().is_none()
-        || path
-            .to_string_lossy()
+        || path_text
             .chars()
-            .any(|character| character.is_control() || character == ',')
+            .any(|character| character.is_control() || (reject_rule_delimiter && character == ','))
     {
         return Err(AdapterTransactionError::ManagedPathInvalid);
     }

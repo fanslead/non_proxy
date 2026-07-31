@@ -1511,6 +1511,7 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "nonproxy-adapter-api",
+ "nonproxy-adapter-integration",
  "nonproxy-adapter-mihomo",
  "nonproxy-adapter-sing-box",
  "nonproxy-adapter-surge",
