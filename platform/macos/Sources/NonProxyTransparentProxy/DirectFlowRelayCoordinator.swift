@@ -21,7 +21,9 @@ final class DirectFlowRelayCoordinator: Sendable {
 
     func startTCP(
         flow: NEAppProxyTCPFlow,
-        endpoint: NWEndpoint
+        endpoint: NWEndpoint,
+        onEstablished: @escaping @Sendable (String) -> Void,
+        onSetupFailed: @escaping @Sendable (String) -> Void
     ) -> DirectRelayStartResult {
         guard let interface = interfaces.preferredInterface() else {
             return .physicalInterfaceUnavailable
@@ -30,6 +32,7 @@ final class DirectFlowRelayCoordinator: Sendable {
             endpoint: endpoint,
             interface: interface
         )
+        let interfaceName = interface.name
         let queue = DispatchQueue(
             label: "com.nonproxy.transparent.tcp.\(UUID().uuidString)"
         )
@@ -39,6 +42,10 @@ final class DirectFlowRelayCoordinator: Sendable {
             connection: connection,
             budget: registry,
             queue: queue,
+            onEstablished: {
+                onEstablished(interfaceName)
+            },
+            onSetupFailed: onSetupFailed,
             onFinish: { relay in
                 registry.remove(relay)
             }
@@ -50,10 +57,15 @@ final class DirectFlowRelayCoordinator: Sendable {
         return .accepted
     }
 
-    func startUDP(flow: NEAppProxyUDPFlow) -> DirectRelayStartResult {
+    func startUDP(
+        flow: NEAppProxyUDPFlow,
+        onEstablished: @escaping @Sendable (String) -> Void,
+        onSetupFailed: @escaping @Sendable (String) -> Void
+    ) -> DirectRelayStartResult {
         guard let interface = interfaces.preferredInterface() else {
             return .physicalInterfaceUnavailable
         }
+        let interfaceName = interface.name
         let queue = DispatchQueue(
             label: "com.nonproxy.transparent.udp.\(UUID().uuidString)"
         )
@@ -63,6 +75,10 @@ final class DirectFlowRelayCoordinator: Sendable {
             interface: interface,
             budget: registry,
             queue: queue,
+            onEstablished: {
+                onEstablished(interfaceName)
+            },
+            onSetupFailed: onSetupFailed,
             onFinish: { relay in
                 registry.remove(relay)
             }

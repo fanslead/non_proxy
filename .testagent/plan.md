@@ -115,3 +115,27 @@
 3. 完成 Control RPC、契约生成和桌面映射/UI。
 4. 完成 macOS/Windows 生产者与批处理边界。
 5. 执行跨语言 E2E、全仓测试、打包和提交前 review。
+
+## macOS/Windows 真实路径生产器批次
+
+| 验收项 | 计划测试或检查 |
+| --- | --- |
+| fail-open 只能匹配显式 OPEN 代理策略 | storage migration/repository、Swift observation、Rust observation 负向测试 |
+| macOS 代理预建立失败可安全把未打开 flow 交给 DIRECT | `ProxySetupRecoveryPlannerTests`、`RelaySetupObserverTests`、Transparent 全量测试 |
+| macOS DNS 只在非缓存真实解析后声明 PATH | `DNSQueryCoordinatorTests` 的 direct/proxy/fail-open/cache 分支 |
+| Windows TCP/UDP/DNS 在实际就绪点生成路径 | Windows x64/arm64 全 workspace target check 与 arm64 clippy |
+| 证据失败不影响转发 | Windows report helper 改为无返回 best-effort，交叉编译验证全部调用点 |
+| 上报队列有界、重试不换批次 | `ProviderDecisionReporterTests` |
+| 响应丢失后的批次重放不重复统计 | gateway telemetry 与 Provider RPC 重放测试 |
+| Provider 并发请求允许窗口内乱序 | `accepts_bounded_out_of_order_sequences_but_rejects_old_or_duplicate_values` |
+| 丢失计数进入系统诊断且不夸大网络状态 | `GatewayDiagnosticsServiceTests` |
+| 契约、生成物和跨语言实现一致 | C#/Swift generation check 与 Buf breaking check |
+
+### 执行顺序
+
+1. 扩展 V9 fail-open 证据约束并完成三层负向验证。
+2. 实现 macOS Transparent/DNS 与 Windows TCP/UDP/DNS 的真实路径生产点。
+3. 增加有界 reporter、批次幂等、滑动防重放窗口和丢失诊断。
+4. 运行 Rust/Swift/.NET 定向与全量测试。
+5. 运行 Windows x64/arm64 target check、格式、lint、契约和 Release Bundle 门禁。
+6. 逐文件 review、显式暂存、复查 staged diff 后提交本批。

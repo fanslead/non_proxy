@@ -16,19 +16,30 @@ use crate::GatewayError;
 
 use super::direct_dns::WindowsDirectDomainResolver;
 
+pub struct DirectUdpPath {
+    socket: UdpSocket,
+    interface_index: u32,
+}
+
+impl DirectUdpPath {
+    pub fn into_parts(self) -> (UdpSocket, u32) {
+        (self.socket, self.interface_index)
+    }
+}
+
 pub async fn connect_direct_udp(
     target: &FlowEndpoint,
     preferred_family: IpAddr,
     resolver: &WindowsDirectDomainResolver,
     snapshot_version: u64,
     physical_interfaces: Arc<PhysicalInterfaceCatalog>,
-) -> Result<UdpSocket, GatewayError> {
+) -> Result<DirectUdpPath, GatewayError> {
     let mut addresses = resolve(target, resolver, snapshot_version).await?;
     addresses.sort_by_key(|address| address.is_ipv4() != preferred_family.is_ipv4());
     let mut last_error = None;
     for address in addresses {
         match connect_address(address, &physical_interfaces).await {
-            Ok(socket) => return Ok(socket),
+            Ok(path) => return Ok(path),
             Err(error) => last_error = Some(error),
         }
     }
@@ -54,7 +65,7 @@ async fn resolve(
 async fn connect_address(
     address: SocketAddr,
     catalog: &PhysicalInterfaceCatalog,
-) -> io::Result<UdpSocket> {
+) -> io::Result<DirectUdpPath> {
     let socket = Socket::new(
         Domain::for_address(address),
         Type::DGRAM,
@@ -88,7 +99,10 @@ async fn connect_address(
     if let Some(error) = socket.take_error()? {
         return Err(error);
     }
-    Ok(socket)
+    Ok(DirectUdpPath {
+        socket,
+        interface_index: interface_index.get(),
+    })
 }
 
 const fn unspecified(address: IpAddr) -> SocketAddr {

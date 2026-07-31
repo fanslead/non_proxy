@@ -6,15 +6,18 @@ public struct MacProviderRuntimeComponents: Sendable {
     public let runtime: ProviderPolicyRuntime
     public let lifecycle: ProviderLifecycleCoordinator
     public let control: ProviderControlClient
+    public let decisions: ProviderDecisionReporter
 
     public init(
         runtime: ProviderPolicyRuntime,
         lifecycle: ProviderLifecycleCoordinator,
-        control: ProviderControlClient
+        control: ProviderControlClient,
+        decisions: ProviderDecisionReporter
     ) {
         self.runtime = runtime
         self.lifecycle = lifecycle
         self.control = control
+        self.decisions = decisions
     }
 }
 
@@ -53,6 +56,7 @@ public enum MacProviderBootstrap {
             cache: cache
         )
         let runtime = ProviderPolicyRuntime()
+        let decisions = ProviderDecisionReporter(control: control)
         let lifecycle = ProviderLifecycleCoordinator(
             control: control,
             session: session,
@@ -63,7 +67,8 @@ public enum MacProviderBootstrap {
         return MacProviderRuntimeComponents(
             runtime: runtime,
             lifecycle: lifecycle,
-            control: control
+            control: control,
+            decisions: decisions
         )
     }
 

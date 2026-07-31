@@ -23,6 +23,8 @@ const SYNTHETIC_DNS_BINDINGS: &str =
 const ROUTING_SETTINGS: &str = include_str!("../../../migrations/V0007__routing_settings.sql");
 const CONNECTION_DECISION_EVIDENCE: &str =
     include_str!("../../../migrations/V0008__connection_decision_evidence.sql");
+const FAIL_OPEN_PATH_EVIDENCE: &str =
+    include_str!("../../../migrations/V0009__fail_open_path_evidence.sql");
 
 struct Migration {
     version: i64,
@@ -70,6 +72,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 8,
         name: "connection_decision_evidence",
         sql: CONNECTION_DECISION_EVIDENCE,
+    },
+    Migration {
+        version: 9,
+        name: "fail_open_path_evidence",
+        sql: FAIL_OPEN_PATH_EVIDENCE,
     },
 ];
 

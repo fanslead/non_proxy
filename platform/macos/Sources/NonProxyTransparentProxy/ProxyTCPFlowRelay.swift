@@ -13,6 +13,7 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
     private let endpoint: NPF1Endpoint
     private let budget: FlowRelayRegistry
     private let queue: DispatchQueue
+    private let setupObserver: RelaySetupObserver
     private let onFinish: @Sendable (ProxyTCPFlowRelay) -> Void
     private var channel: ProxyFlowChannel?
     private var pendingAppData: Data?
@@ -36,6 +37,8 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
         endpoint: NPF1Endpoint,
         budget: FlowRelayRegistry,
         queue: DispatchQueue,
+        onEstablished: @escaping @Sendable () -> Void,
+        onSetupFailed: @escaping @Sendable (String) -> Void,
         onFinish: @escaping @Sendable (ProxyTCPFlowRelay) -> Void
     ) {
         self.flow = flow
@@ -45,6 +48,9 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
         self.endpoint = endpoint
         self.budget = budget
         self.queue = queue
+        setupObserver = RelaySetupObserver(
+            onEstablished: onEstablished, onFailed: onSetupFailed
+        )
         self.onFinish = onFinish
     }
 
@@ -67,17 +73,16 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
                 )
             } catch {
                 self.finish(code: "NP_PROXY_CHANNEL_CONFIGURATION_INVALID")
+                self.setupObserver.failed(code: "NP_PROXY_CHANNEL_CONFIGURATION_INVALID")
                 return
             }
-            self.openFlow()
             self.channel?.start()
-            self.queue.asyncAfter(
-                deadline: .now() + Self.openTimeout
-            ) { [weak self] in
-                guard let self, self.isOpening, !self.isFinished else {
+            self.queue.asyncAfter(deadline: .now() + Self.openTimeout) { [weak self] in
+                guard let self, !self.isChannelReady, !self.isFinished else {
                     return
                 }
                 self.finish(code: "NP_PROXY_TCP_OPEN_TIMEOUT")
+                self.setupObserver.failed(code: "NP_PROXY_TCP_OPEN_TIMEOUT")
             }
         }
     }
@@ -87,7 +92,6 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
             self?.finish(code: "NP_PROXY_RELAY_CANCELLED")
         }
     }
-
     private func openFlow() {
         guard !isOpening, !isOpened else {
             return
@@ -123,13 +127,19 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
         switch event {
         case .ready:
             isChannelReady = true
+            setupObserver.established()
+            openFlow()
             startPumpsIfReady()
         case .creditAvailable:
             sendPendingAppData()
         case .frame(let frame):
             handleFrame(frame)
         case .failed(let code):
+            let reportSetupFailure = !isChannelReady
             finish(code: code)
+            if reportSetupFailure {
+                setupObserver.failed(code: code)
+            }
         }
     }
 
@@ -234,10 +244,7 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
     private func handleFrame(_ frame: NPF1Frame) {
         switch frame.type {
         case .data:
-            enqueueInbound(
-                frame.payload,
-                acknowledgedBytes: frame.payload.count
-            )
+            enqueueInbound(frame.payload, acknowledgedBytes: frame.payload.count)
         case .halfClose:
             remoteReadFinished = true
             finishRemoteReadIfPossible()
@@ -262,12 +269,9 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
             finish(code: "NP_PROXY_TCP_RESPONSE_LIMIT")
             return
         }
-        inboundWrites.append(
-            ProxyTCPInboundWrite(
-                data: data,
-                acknowledgedBytes: acknowledgedBytes
-            )
-        )
+        inboundWrites.append(ProxyTCPInboundWrite(
+            data: data, acknowledgedBytes: acknowledgedBytes
+        ))
         writeNextInbound()
     }
 
@@ -291,9 +295,7 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
                 if let written {
                     self.budget.release(bytes: written.data.count)
                     if error == nil {
-                        self.channel?.acknowledgeReceived(
-                            bytes: written.acknowledgedBytes
-                        )
+                        self.channel?.acknowledgeReceived(bytes: written.acknowledgedBytes)
                     }
                 }
                 if error != nil {
@@ -365,9 +367,7 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
             budget.release(bytes: pendingAppData.count)
             self.pendingAppData = nil
         }
-        budget.release(
-            bytes: inboundWrites.reduce(0) { $0 + $1.data.count }
-        )
+        budget.release(bytes: inboundWrites.reduce(0) { $0 + $1.data.count })
         inboundWrites.removeAll(keepingCapacity: false)
         isWritingInbound = false
         channel?.cancel()
@@ -376,7 +376,11 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
             closeFlow(error: error)
             notifyFinish()
         } else if !isOpening {
-            openFlow()
+            if isChannelReady {
+                openFlow()
+            } else {
+                notifyFinish()
+            }
         }
     }
 

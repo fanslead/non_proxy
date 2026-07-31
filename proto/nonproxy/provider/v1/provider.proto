@@ -109,6 +109,9 @@ message DecisionEvidence {
   string interface_name = 2;
   string outbound_id = 3;
   string exit_probe_id = 4;
+  // fail_open_direct 表示策略要求 PROXY，但代理建立失败后按显式 fail-open
+  // 规则改由 interface_name 指向的物理接口建立了直连路径。
+  bool fail_open_direct = 5;
 }
 
 // DecisionRecord 描述 Provider 的单次判定结果。
@@ -125,6 +128,8 @@ message ReportDecisionBatchRequest {
   ProviderRequestContext context = 1;
   repeated DecisionRecord decisions = 2;
   uint64 dropped_debug_events = 3;
+  // batch_id 在同一批次重试时保持不变，用于幂等统计队列丢失事件。
+  string batch_id = 4;
 }
 
 // ReportDecisionBatchResponse 返回服务端已接收数量。

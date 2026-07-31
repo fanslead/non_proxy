@@ -144,6 +144,7 @@ message GetSystemStatusResponse {
   DefaultRouteKind default_route = 8;
   string default_outbound_id = 9;
   uint64 routing_revision = 10;
+  uint64 dropped_decision_events = 11;
 }
 
 // ComponentStatus 描述单个进程或 Provider 的状态。
@@ -293,6 +294,7 @@ message ConnectionDecisionSummary {
   uint64 snapshot_version = 21;
   string provider_id = 22;
   uint64 provider_generation = 23;
+  bool fail_open_direct = 24;
 }
 
 // ListConnectionDecisionsRequest 查询最新的有界连接活动。

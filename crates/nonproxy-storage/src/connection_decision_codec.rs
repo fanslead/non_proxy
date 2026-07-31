@@ -22,6 +22,7 @@ pub(crate) struct PersistedDecision {
     pub(crate) interface_name: Option<String>,
     pub(crate) outbound_id: Option<String>,
     pub(crate) exit_probe_id: Option<String>,
+    pub(crate) fail_open_direct: bool,
     pub(crate) decision_latency_micros: Option<u64>,
     pub(crate) error_code: Option<String>,
     pub(crate) provider_id: String,
@@ -65,6 +66,7 @@ pub(crate) fn persisted(
             .outbound_id()
             .map(|value| value.as_str().to_owned()),
         exit_probe_id: input.evidence.exit_probe_id().map(str::to_owned),
+        fail_open_direct: input.evidence.fail_open_direct(),
         decision_latency_micros: input.decision_latency_micros,
         error_code: input.error_code.clone(),
         provider_id: input.provider_id.clone(),
@@ -84,8 +86,8 @@ pub(crate) fn read_persisted(
                     transport, destination_port, matched_policy_id,
                     matched_rule_id, decision_action, failure_mode, reason_code,
                     evidence_level, interface_name, outbound_id, exit_probe_id,
-                    decision_latency_us, error_code, provider_id,
-                    provider_generation, flow_id
+                    fail_open_direct, decision_latency_us, error_code,
+                    provider_id, provider_generation, flow_id
              FROM connection_decision WHERE event_id = ?1",
             [event_id],
             decode_persisted,
@@ -128,19 +130,20 @@ fn decode_persisted_at(
         interface_name: row.get(start + 14)?,
         outbound_id: row.get(start + 15)?,
         exit_probe_id: row.get(start + 16)?,
+        fail_open_direct: decode_bool(row, start + 17, "connection_decision.fail_open_direct")?,
         decision_latency_micros: decode_optional_u64(
             row,
-            start + 17,
+            start + 18,
             "connection_decision.decision_latency_us",
         )?,
-        error_code: row.get(start + 18)?,
-        provider_id: row.get(start + 19)?,
+        error_code: row.get(start + 19)?,
+        provider_id: row.get(start + 20)?,
         provider_generation: decode_u64(
             row,
-            start + 20,
+            start + 21,
             "connection_decision.provider_generation",
         )?,
-        flow_id: row.get(start + 21)?,
+        flow_id: row.get(start + 22)?,
     })
 }
 
@@ -230,6 +233,18 @@ fn decode_optional_u64(
 
 fn decode_u16(row: &rusqlite::Row<'_>, index: usize, field: &'static str) -> rusqlite::Result<u16> {
     u16::try_from(row.get::<_, i64>(index)?).map_err(|_| corrupt_sql(field))
+}
+
+fn decode_bool(
+    row: &rusqlite::Row<'_>,
+    index: usize,
+    field: &'static str,
+) -> rusqlite::Result<bool> {
+    match row.get::<_, i64>(index)? {
+        0 => Ok(false),
+        1 => Ok(true),
+        _ => Err(corrupt_sql(field)),
+    }
 }
 
 fn corrupt_sql(field: &'static str) -> rusqlite::Error {

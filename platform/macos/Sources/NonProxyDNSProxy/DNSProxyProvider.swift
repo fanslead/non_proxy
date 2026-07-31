@@ -69,7 +69,8 @@ public final class DNSProxyProvider:
                         runtime: created.runtime,
                         resolver: created.control,
                         catalogs: catalogs,
-                        networkProfile: monitor
+                        networkProfile: monitor,
+                        decisions: created.decisions
                     )
                 )
                 self.relays.beginAccepting()
@@ -82,6 +83,7 @@ public final class DNSProxyProvider:
                 self.relays.stopAcceptingAndCancelAll()
                 networkProfile?.stop()
                 components?.lifecycle.stop()
+                components?.decisions.stop()
                 components?.control.shutdown()
                 self.providerState.failStart(runID: runID)
                 completion.complete(with: error)
@@ -98,6 +100,7 @@ public final class DNSProxyProvider:
         relays.stopAcceptingAndCancelAll()
         runtime?.networkProfile.stop()
         runtime?.provider.lifecycle.stop()
+        runtime?.provider.decisions.stop()
         runtime?.provider.control.shutdown()
         completionHandler()
     }

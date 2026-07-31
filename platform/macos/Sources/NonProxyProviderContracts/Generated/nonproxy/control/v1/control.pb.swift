@@ -543,6 +543,8 @@ public nonisolated struct Nonproxy_Control_V1_GetSystemStatusResponse: Sendable 
 
   public var routingRevision: UInt64 = 0
 
+  public var droppedDecisionEvents: UInt64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1169,6 +1171,11 @@ public nonisolated struct Nonproxy_Control_V1_ConnectionDecisionSummary: @unchec
   public var providerGeneration: UInt64 {
     get {_storage._providerGeneration}
     set {_uniqueStorage()._providerGeneration = newValue}
+  }
+
+  public var failOpenDirect: Bool {
+    get {_storage._failOpenDirect}
+    set {_uniqueStorage()._failOpenDirect = newValue}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -2131,7 +2138,7 @@ nonisolated extension Nonproxy_Control_V1_GetSystemStatusRequest: SwiftProtobuf.
 
 nonisolated extension Nonproxy_Control_V1_GetSystemStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetSystemStatusResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}state\0\u{3}active_snapshot_version\0\u{3}data_plane_enabled\0\u{1}components\0\u{3}latest_event_sequence\0\u{1}error\0\u{3}pending_snapshot_version\0\u{3}default_route\0\u{3}default_outbound_id\0\u{3}routing_revision\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}state\0\u{3}active_snapshot_version\0\u{3}data_plane_enabled\0\u{1}components\0\u{3}latest_event_sequence\0\u{1}error\0\u{3}pending_snapshot_version\0\u{3}default_route\0\u{3}default_outbound_id\0\u{3}routing_revision\0\u{3}dropped_decision_events\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2149,6 +2156,7 @@ nonisolated extension Nonproxy_Control_V1_GetSystemStatusResponse: SwiftProtobuf
       case 8: try { try decoder.decodeSingularEnumField(value: &self.defaultRoute) }()
       case 9: try { try decoder.decodeSingularStringField(value: &self.defaultOutboundID) }()
       case 10: try { try decoder.decodeSingularUInt64Field(value: &self.routingRevision) }()
+      case 11: try { try decoder.decodeSingularUInt64Field(value: &self.droppedDecisionEvents) }()
       default: break
       }
     }
@@ -2189,6 +2197,9 @@ nonisolated extension Nonproxy_Control_V1_GetSystemStatusResponse: SwiftProtobuf
     if self.routingRevision != 0 {
       try visitor.visitSingularUInt64Field(value: self.routingRevision, fieldNumber: 10)
     }
+    if self.droppedDecisionEvents != 0 {
+      try visitor.visitSingularUInt64Field(value: self.droppedDecisionEvents, fieldNumber: 11)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2203,6 +2214,7 @@ nonisolated extension Nonproxy_Control_V1_GetSystemStatusResponse: SwiftProtobuf
     if lhs.defaultRoute != rhs.defaultRoute {return false}
     if lhs.defaultOutboundID != rhs.defaultOutboundID {return false}
     if lhs.routingRevision != rhs.routingRevision {return false}
+    if lhs.droppedDecisionEvents != rhs.droppedDecisionEvents {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2973,7 +2985,7 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundsResponse: SwiftProtobuf.M
 
 nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ConnectionDecisionSummary"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sequence\0\u{3}event_id\0\u{3}observed_at\0\u{3}app_platform\0\u{3}app_stable_id\0\u{3}app_display_name\0\u{1}destination\0\u{3}destination_port\0\u{1}transport\0\u{1}action\0\u{3}failure_mode\0\u{3}matched_policy_id\0\u{3}matched_rule_id\0\u{3}reason_code\0\u{3}evidence_level\0\u{3}interface_name\0\u{3}outbound_id\0\u{3}exit_probe_id\0\u{3}decision_latency\0\u{3}error_code\0\u{3}snapshot_version\0\u{3}provider_id\0\u{3}provider_generation\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sequence\0\u{3}event_id\0\u{3}observed_at\0\u{3}app_platform\0\u{3}app_stable_id\0\u{3}app_display_name\0\u{1}destination\0\u{3}destination_port\0\u{1}transport\0\u{1}action\0\u{3}failure_mode\0\u{3}matched_policy_id\0\u{3}matched_rule_id\0\u{3}reason_code\0\u{3}evidence_level\0\u{3}interface_name\0\u{3}outbound_id\0\u{3}exit_probe_id\0\u{3}decision_latency\0\u{3}error_code\0\u{3}snapshot_version\0\u{3}provider_id\0\u{3}provider_generation\0\u{3}fail_open_direct\0")
 
   fileprivate class _StorageClass {
     var _sequence: UInt64 = 0
@@ -2999,6 +3011,7 @@ nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtob
     var _snapshotVersion: UInt64 = 0
     var _providerID: String = String()
     var _providerGeneration: UInt64 = 0
+    var _failOpenDirect: Bool = false
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -3032,6 +3045,7 @@ nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtob
       _snapshotVersion = source._snapshotVersion
       _providerID = source._providerID
       _providerGeneration = source._providerGeneration
+      _failOpenDirect = source._failOpenDirect
     }
   }
 
@@ -3073,6 +3087,7 @@ nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtob
         case 21: try { try decoder.decodeSingularUInt64Field(value: &_storage._snapshotVersion) }()
         case 22: try { try decoder.decodeSingularStringField(value: &_storage._providerID) }()
         case 23: try { try decoder.decodeSingularUInt64Field(value: &_storage._providerGeneration) }()
+        case 24: try { try decoder.decodeSingularBoolField(value: &_storage._failOpenDirect) }()
         default: break
         }
       }
@@ -3154,6 +3169,9 @@ nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtob
       if _storage._providerGeneration != 0 {
         try visitor.visitSingularUInt64Field(value: _storage._providerGeneration, fieldNumber: 23)
       }
+      if _storage._failOpenDirect != false {
+        try visitor.visitSingularBoolField(value: _storage._failOpenDirect, fieldNumber: 24)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -3186,6 +3204,7 @@ nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtob
         if _storage._snapshotVersion != rhs_storage._snapshotVersion {return false}
         if _storage._providerID != rhs_storage._providerID {return false}
         if _storage._providerGeneration != rhs_storage._providerGeneration {return false}
+        if _storage._failOpenDirect != rhs_storage._failOpenDirect {return false}
         return true
       }
       if !storagesAreEqual {return false}

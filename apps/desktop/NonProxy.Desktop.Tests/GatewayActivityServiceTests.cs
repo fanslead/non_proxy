@@ -98,6 +98,34 @@ public sealed class GatewayActivityServiceTests
         Assert.Equal("NP_CONTROL_CONTRACT_INVALID", error.Code);
     }
 
+    [Fact]
+    public async Task FailOpenProxyShowsTheObservedDirectFallback()
+    {
+        var service = new GatewayActivityService(ClientWith(
+            new ConnectionDecisionSummary
+            {
+                Sequence = 9,
+                ObservedAt = Timestamp.FromDateTimeOffset(DateTimeOffset.UnixEpoch),
+                AppStableId = "app",
+                Destination = "example.com",
+                DestinationPort = 443,
+                Action = RouteAction.Proxy,
+                FailureMode = FailureMode.Open,
+                EvidenceLevel = EvidenceLevel.Path,
+                InterfaceName = "ifindex:12",
+                FailOpenDirect = true,
+                ErrorCode = "NP_PROXY_FAIL_OPEN_DIRECT",
+            }));
+
+        var item = Assert.Single(await service.GetRecentAsync(
+            10,
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal("代理失败→直连 · 路径已确认", item.ResultLabel);
+        Assert.Equal("物理接口 ifindex:12（fail-open 回退）", item.Path);
+        Assert.Equal("NP_PROXY_FAIL_OPEN_DIRECT", item.Error);
+    }
+
     private static StubControlRpcClient ClientWith(
         params ConnectionDecisionSummary[] decisions)
     {

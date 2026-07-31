@@ -57,8 +57,9 @@ impl<'connection> ConnectionDecisionRepository<'connection> {
                     destination_redacted, transport, destination_port,
                     matched_policy_id, matched_rule_id, decision_action,
                     failure_mode, reason_code, evidence_level, interface_name,
-                    outbound_id, exit_probe_id, decision_latency_us, error_code,
-                    provider_id, provider_generation, flow_id
+                    outbound_id, exit_probe_id, fail_open_direct,
+                    decision_latency_us, error_code, provider_id,
+                    provider_generation, flow_id
              FROM connection_decision
              ORDER BY occurred_at_unix_ms DESC, rowid DESC
              LIMIT ?1 OFFSET ?2",
@@ -100,10 +101,11 @@ fn save_or_validate_replay(
              decision_action, reason_code, provider_id, provider_generation,
              flow_id, app_display_name, app_platform, matched_rule_id,
              failure_mode, evidence_level, interface_name, outbound_id,
-             exit_probe_id, decision_latency_us, error_code
+             exit_probe_id, fail_open_direct, decision_latency_us, error_code
          ) VALUES (
              ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-             ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23
+             ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23,
+             ?24
          )",
         params![
             event_id,
@@ -127,6 +129,7 @@ fn save_or_validate_replay(
             persisted.interface_name,
             persisted.outbound_id,
             persisted.exit_probe_id,
+            i64::from(persisted.fail_open_direct),
             persisted
                 .decision_latency_micros
                 .map(to_sqlite_u64)

@@ -13,6 +13,7 @@ final class DirectUDPAssociation: @unchecked Sendable {
     private let endpoint: NWEndpoint
     private let connection: NWConnection
     private let queue: DispatchQueue
+    private let onReady: @Sendable () -> Void
     private let onReceive: @Sendable (Data, NWEndpoint) -> Void
     private let onFailure: @Sendable () -> Void
     private var pending: [PendingDatagram] = []
@@ -24,6 +25,7 @@ final class DirectUDPAssociation: @unchecked Sendable {
         endpoint: NWEndpoint,
         interface: NWInterface,
         queue: DispatchQueue,
+        onReady: @escaping @Sendable () -> Void,
         onReceive: @escaping @Sendable (Data, NWEndpoint) -> Void,
         onFailure: @escaping @Sendable () -> Void
     ) {
@@ -33,6 +35,7 @@ final class DirectUDPAssociation: @unchecked Sendable {
             interface: interface
         )
         self.queue = queue
+        self.onReady = onReady
         self.onReceive = onReceive
         self.onFailure = onFailure
     }
@@ -75,6 +78,7 @@ final class DirectUDPAssociation: @unchecked Sendable {
         switch state {
         case .ready:
             isReady = true
+            onReady()
             sendNextIfPossible()
             receiveNext()
         case .failed, .cancelled:

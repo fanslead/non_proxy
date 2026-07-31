@@ -204,15 +204,22 @@ impl ProviderService for ProviderRpcService {
         if request.decisions.len() > MAX_DECISIONS_PER_BATCH {
             return Err(Status::resource_exhausted("单批决策记录最多 1000 条"));
         }
+        validate_batch_id(&request.batch_id)?;
+        let batch_id = request.batch_id;
+        let dropped_debug_events = request.dropped_debug_events;
+        let provider_id = session.provider_id().to_owned();
+        let provider_generation = session.generation();
         let accepted_count = self
             .gateway
-            .ingest_decision_batch(
-                session.provider_id().to_owned(),
-                session.generation(),
-                request.decisions,
-            )
+            .ingest_decision_batch(provider_id.clone(), provider_generation, request.decisions)
             .await
             .map_err(provider_decision_rpc::status)?;
+        self.gateway.record_provider_dropped_decisions(
+            &provider_id,
+            provider_generation,
+            &batch_id,
+            dropped_debug_events,
+        );
         Ok(Response::new(ReportDecisionBatchResponse {
             accepted_count,
             error: None,
@@ -289,6 +296,18 @@ impl ProviderService for ProviderRpcService {
         self.authenticate(request.get_ref().context.as_ref())?;
         Ok(Response::new(CloseProxyFlowResponse { closed: false }))
     }
+}
+
+fn validate_batch_id(value: &str) -> Result<(), Status> {
+    if value.is_empty()
+        || value.len() > 128
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+    {
+        return Err(Status::invalid_argument("batch_id 无效"));
+    }
+    Ok(())
 }
 
 impl ProviderRpcService {

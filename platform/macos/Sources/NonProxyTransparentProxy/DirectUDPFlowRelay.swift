@@ -11,6 +11,8 @@ final class DirectUDPFlowRelay: FlowRelay, @unchecked Sendable {
     private let interface: NWInterface
     private let budget: FlowRelayRegistry
     private let queue: DispatchQueue
+    private let onEstablished: @Sendable () -> Void
+    private let onSetupFailed: @Sendable (String) -> Void
     private let onFinish: @Sendable (DirectUDPFlowRelay) -> Void
     private var associations: [NWEndpoint: DirectUDPAssociation] = [:]
     private var responses: [(Data, NWEndpoint)] = []
@@ -22,18 +24,23 @@ final class DirectUDPFlowRelay: FlowRelay, @unchecked Sendable {
     private var isFinished = false
     private var finishCode: String?
     private var didNotifyFinish = false
+    private var didReportSetupOutcome = false
 
     init(
         flow: NEAppProxyUDPFlow,
         interface: NWInterface,
         budget: FlowRelayRegistry,
         queue: DispatchQueue,
+        onEstablished: @escaping @Sendable () -> Void,
+        onSetupFailed: @escaping @Sendable (String) -> Void,
         onFinish: @escaping @Sendable (DirectUDPFlowRelay) -> Void
     ) {
         self.flow = flow
         self.interface = interface
         self.budget = budget
         self.queue = queue
+        self.onEstablished = onEstablished
+        self.onSetupFailed = onSetupFailed
         self.onFinish = onFinish
     }
 
@@ -50,6 +57,7 @@ final class DirectUDPFlowRelay: FlowRelay, @unchecked Sendable {
                 self.queue.async { [self] in
                     self.isOpening = false
                     if error != nil {
+                        self.reportSetupFailure("NP_DIRECT_UDP_APP_OPEN_FAILED")
                         self.isFinished = true
                         self.notifyFinish()
                     } else if self.isFinished {
@@ -150,6 +158,9 @@ final class DirectUDPFlowRelay: FlowRelay, @unchecked Sendable {
             endpoint: endpoint,
             interface: interface,
             queue: queue,
+            onReady: { [weak self] in
+                self?.reportEstablished()
+            },
             onReceive: { [weak self] data, endpoint in
                 self?.enqueueResponse(data, endpoint: endpoint)
             },
@@ -205,6 +216,7 @@ final class DirectUDPFlowRelay: FlowRelay, @unchecked Sendable {
         guard !isFinished else {
             return
         }
+        reportSetupFailure(code)
         isFinished = true
         finishCode = code
         associations.values.forEach { $0.cancel() }
@@ -232,5 +244,21 @@ final class DirectUDPFlowRelay: FlowRelay, @unchecked Sendable {
         }
         didNotifyFinish = true
         onFinish(self)
+    }
+
+    private func reportEstablished() {
+        guard !didReportSetupOutcome else {
+            return
+        }
+        didReportSetupOutcome = true
+        onEstablished()
+    }
+
+    private func reportSetupFailure(_ code: String) {
+        guard !didReportSetupOutcome else {
+            return
+        }
+        didReportSetupOutcome = true
+        onSetupFailed(code)
     }
 }

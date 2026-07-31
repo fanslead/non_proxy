@@ -33,7 +33,9 @@ final class ProxyFlowRelayCoordinator: Sendable {
     func startTCP(
         flow: NEAppProxyTCPFlow,
         destination: PolicyDestination,
-        outboundID: String
+        outboundID: String,
+        onEstablished: @escaping @Sendable () -> Void,
+        onSetupFailed: @escaping @Sendable (String) -> Void
     ) -> ProxyRelayStartResult {
         let endpoint: NPF1Endpoint
         do {
@@ -55,6 +57,8 @@ final class ProxyFlowRelayCoordinator: Sendable {
             endpoint: endpoint,
             budget: registry,
             queue: queue,
+            onEstablished: onEstablished,
+            onSetupFailed: onSetupFailed,
             onFinish: { relay in
                 registry.remove(relay)
             }
@@ -69,7 +73,9 @@ final class ProxyFlowRelayCoordinator: Sendable {
     func startUDP(
         flow: NEAppProxyUDPFlow,
         destination: PolicyDestination,
-        outboundID: String
+        outboundID: String,
+        onEstablished: @escaping @Sendable () -> Void,
+        onSetupFailed: @escaping @Sendable (String) -> Void
     ) -> ProxyRelayStartResult {
         let endpoint: NPF1Endpoint
         do {
@@ -91,6 +97,8 @@ final class ProxyFlowRelayCoordinator: Sendable {
             initialEndpoint: endpoint,
             budget: registry,
             queue: queue,
+            onEstablished: onEstablished,
+            onSetupFailed: onSetupFailed,
             onFinish: { relay in
                 registry.remove(relay)
             }

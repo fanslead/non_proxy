@@ -15,6 +15,7 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
     private let initialEndpoint: NPF1Endpoint
     private let budget: FlowRelayRegistry
     private let queue: DispatchQueue
+    private let setupObserver: RelaySetupObserver
     private let onFinish: @Sendable (ProxyUDPFlowRelay) -> Void
     private var channel: ProxyFlowChannel?
     private var outgoing: [ProxyUDPOutgoingDatagram] = []
@@ -40,6 +41,8 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
         initialEndpoint: NPF1Endpoint,
         budget: FlowRelayRegistry,
         queue: DispatchQueue,
+        onEstablished: @escaping @Sendable () -> Void,
+        onSetupFailed: @escaping @Sendable (String) -> Void,
         onFinish: @escaping @Sendable (ProxyUDPFlowRelay) -> Void
     ) {
         self.flow = flow
@@ -49,6 +52,9 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
         self.initialEndpoint = initialEndpoint
         self.budget = budget
         self.queue = queue
+        setupObserver = RelaySetupObserver(
+            onEstablished: onEstablished, onFailed: onSetupFailed
+        )
         self.onFinish = onFinish
     }
 
@@ -71,17 +77,16 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
                 )
             } catch {
                 self.finish(code: "NP_PROXY_CHANNEL_CONFIGURATION_INVALID")
+                self.setupObserver.failed(code: "NP_PROXY_CHANNEL_CONFIGURATION_INVALID")
                 return
             }
-            self.openFlow()
             self.channel?.start()
-            self.queue.asyncAfter(
-                deadline: .now() + Self.openTimeout
-            ) { [weak self] in
-                guard let self, self.isOpening, !self.isFinished else {
+            self.queue.asyncAfter(deadline: .now() + Self.openTimeout) { [weak self] in
+                guard let self, !self.isChannelReady, !self.isFinished else {
                     return
                 }
                 self.finish(code: "NP_PROXY_UDP_OPEN_TIMEOUT")
+                self.setupObserver.failed(code: "NP_PROXY_UDP_OPEN_TIMEOUT")
             }
         }
     }
@@ -91,7 +96,6 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
             self?.finish(code: "NP_PROXY_RELAY_CANCELLED")
         }
     }
-
     private func openFlow() {
         guard !isOpening, !isOpened else {
             return
@@ -127,13 +131,19 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
         switch event {
         case .ready:
             isChannelReady = true
+            setupObserver.established()
+            openFlow()
             startReadingIfReady()
         case .creditAvailable:
             sendNextOutgoing()
         case .frame(let frame):
             handleFrame(frame)
         case .failed(let code):
+            let reportSetupFailure = !isChannelReady
             finish(code: code)
+            if reportSetupFailure {
+                setupObserver.failed(code: code)
+            }
         }
     }
 
@@ -184,8 +194,7 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
         endpoint: NWEndpoint
     ) throws {
         let payload = try NPF1PayloadCodec.encodeDatagram(
-            endpoint: ProxyFlowEndpointCodec.encode(endpoint: endpoint),
-            content: data
+            endpoint: ProxyFlowEndpointCodec.encode(endpoint: endpoint), content: data
         )
         guard outgoingBytes <= Self.maximumQueuedBytes - payload.count,
               budget.reserve(bytes: payload.count)
@@ -245,9 +254,7 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
         switch frame.type {
         case .datagram:
             do {
-                let decoded = try NPF1PayloadCodec.decodeDatagram(
-                    frame.payload
-                )
+                let decoded = try NPF1PayloadCodec.decodeDatagram(frame.payload)
                 try enqueueIncoming(
                     data: decoded.content,
                     endpoint: ProxyFlowEndpointCodec.decode(decoded.endpoint),
@@ -276,13 +283,9 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
         else {
             throw NPF1ProtocolError.payloadTooLarge
         }
-        incoming.append(
-            ProxyUDPIncomingDatagram(
-                data: data,
-                endpoint: endpoint,
-                acknowledgedBytes: acknowledgedBytes
-            )
-        )
+        incoming.append(ProxyUDPIncomingDatagram(
+            data: data, endpoint: endpoint, acknowledgedBytes: acknowledgedBytes
+        ))
         incomingBytes += data.count
         writeNextIncoming()
     }
@@ -308,15 +311,10 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
                     : self.incoming.removeFirst()
                 self.isWriting = false
                 if let written {
-                    self.incomingBytes = max(
-                        0,
-                        self.incomingBytes - written.data.count
-                    )
+                    self.incomingBytes = max(0, self.incomingBytes - written.data.count)
                     self.budget.release(bytes: written.data.count)
                     if error == nil {
-                        self.channel?.acknowledgeReceived(
-                            bytes: written.acknowledgedBytes
-                        )
+                        self.channel?.acknowledgeReceived(bytes: written.acknowledgedBytes)
                     }
                 }
                 if error != nil {
@@ -378,7 +376,11 @@ final class ProxyUDPFlowRelay: FlowRelay, @unchecked Sendable {
             closeFlow(error: error)
             notifyFinish()
         } else if !isOpening {
-            openFlow()
+            if isChannelReady {
+                openFlow()
+            } else {
+                notifyFinish()
+            }
         }
     }
 

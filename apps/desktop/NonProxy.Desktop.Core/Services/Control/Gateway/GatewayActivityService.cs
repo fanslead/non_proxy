@@ -29,7 +29,7 @@ public sealed class GatewayActivityService : IActivityService
     private static ActivityItem Map(ConnectionDecisionSummary value)
     {
         ValidateEvidence(value);
-        var action = ActionLabel(value.Action);
+        var action = ActionLabel(value);
         var evidence = EvidenceLabel(value.EvidenceLevel);
         var occurredAt = value.ObservedAt?.ToDateTimeOffset()
             ?? throw new ControlServiceException(
@@ -55,9 +55,13 @@ public sealed class GatewayActivityService : IActivityService
             : value.AppDisplayName;
     }
 
-    private static string ActionLabel(RouteAction action)
+    private static string ActionLabel(ConnectionDecisionSummary value)
     {
-        return action switch
+        if (value.FailOpenDirect)
+        {
+            return "代理失败→直连";
+        }
+        return value.Action switch
         {
             RouteAction.Direct => "直连",
             RouteAction.Proxy => "代理",
@@ -106,9 +110,13 @@ public sealed class GatewayActivityService : IActivityService
             return "尚未确认实际数据路径";
         }
 
-        var path = value.Action == RouteAction.Direct
+        var path = value.Action == RouteAction.Direct || value.FailOpenDirect
             ? $"物理接口 {value.InterfaceName}"
             : $"代理出口 {value.OutboundId}";
+        if (value.FailOpenDirect)
+        {
+            path = $"{path}（fail-open 回退）";
+        }
         return value.EvidenceLevel == EvidenceLevel.Exit
             ? $"{path}，出口探针 {value.ExitProbeId}"
             : path;
@@ -119,22 +127,32 @@ public sealed class GatewayActivityService : IActivityService
         var hasInterface = !string.IsNullOrWhiteSpace(value.InterfaceName);
         var hasOutbound = !string.IsNullOrWhiteSpace(value.OutboundId);
         var hasProbe = !string.IsNullOrWhiteSpace(value.ExitProbeId);
-        var pathMatches = value.Action switch
+        var pathMatches = !value.FailOpenDirect && value.Action switch
         {
             RouteAction.Direct => hasInterface && !hasOutbound,
             RouteAction.Proxy => !hasInterface && hasOutbound,
             RouteAction.Block => false,
             _ => false,
         };
+        var fallbackMatches = value.FailOpenDirect
+            && value.Action == RouteAction.Proxy
+            && value.FailureMode == FailureMode.Open
+            && hasInterface
+            && !hasOutbound
+            && !string.IsNullOrEmpty(value.ErrorCode);
         var valid = value.EvidenceLevel switch
         {
-            EvidenceLevel.Decision => !hasInterface && !hasOutbound && !hasProbe,
-            EvidenceLevel.Path => pathMatches && !hasProbe,
-            EvidenceLevel.Exit => pathMatches && hasProbe,
+            EvidenceLevel.Decision => !value.FailOpenDirect
+                && !hasInterface
+                && !hasOutbound
+                && !hasProbe,
+            EvidenceLevel.Path => (pathMatches || fallbackMatches) && !hasProbe,
+            EvidenceLevel.Exit => (pathMatches || fallbackMatches) && hasProbe,
             _ => false,
         };
         if (!valid || (!string.IsNullOrEmpty(value.ErrorCode)
-            && value.EvidenceLevel != EvidenceLevel.Decision))
+            && value.EvidenceLevel != EvidenceLevel.Decision
+            && !value.FailOpenDirect))
         {
             throw InvalidEvidenceContract("活动记录的路径证据与路由动作不一致。");
         }

@@ -40,6 +40,7 @@ pub struct DecisionEvidence {
     interface_name: Option<String>,
     outbound_id: Option<OutboundId>,
     exit_probe_id: Option<String>,
+    fail_open_direct: bool,
 }
 
 impl DecisionEvidence {
@@ -48,6 +49,7 @@ impl DecisionEvidence {
         interface_name: Option<String>,
         outbound_id: Option<OutboundId>,
         exit_probe_id: Option<String>,
+        fail_open_direct: bool,
     ) -> Result<Self, StorageError> {
         validate_optional_evidence_field(interface_name.as_deref())?;
         validate_optional_evidence_field(exit_probe_id.as_deref())?;
@@ -65,6 +67,7 @@ impl DecisionEvidence {
             interface_name,
             outbound_id,
             exit_probe_id,
+            fail_open_direct,
         })
     }
 
@@ -86,6 +89,11 @@ impl DecisionEvidence {
     #[must_use]
     pub fn exit_probe_id(&self) -> Option<&str> {
         self.exit_probe_id.as_deref()
+    }
+
+    #[must_use]
+    pub const fn fail_open_direct(&self) -> bool {
+        self.fail_open_direct
     }
 }
 
@@ -246,6 +254,11 @@ impl ConnectionDecisionRecord {
     }
 
     #[must_use]
+    pub const fn fail_open_direct(&self) -> bool {
+        self.persisted.fail_open_direct
+    }
+
+    #[must_use]
     pub fn error_code(&self) -> Option<&str> {
         self.persisted.error_code.as_deref()
     }
@@ -276,8 +289,24 @@ fn validate_evidence_for_decision(
     decision: &Decision,
     error_code: Option<&str>,
 ) -> Result<(), StorageError> {
-    if error_code.is_some() && evidence.level() != EvidenceLevel::Decision {
+    if error_code.is_some()
+        && evidence.level() != EvidenceLevel::Decision
+        && !evidence.fail_open_direct()
+    {
         return Err(StorageError::DecisionEvidenceInvalid);
+    }
+    if evidence.fail_open_direct() {
+        return match (decision.result().action(), decision.result().failure_mode()) {
+            (RouteAction::Proxy, nonproxy_model::FailureMode::Open)
+                if matches!(evidence.level(), EvidenceLevel::Path | EvidenceLevel::Exit)
+                    && evidence.interface_name().is_some()
+                    && evidence.outbound_id().is_none()
+                    && error_code.is_some() =>
+            {
+                Ok(())
+            }
+            _ => Err(StorageError::DecisionEvidenceInvalid),
+        };
     }
     match (decision.result().action(), evidence.level()) {
         (_, EvidenceLevel::Decision) => Ok(()),

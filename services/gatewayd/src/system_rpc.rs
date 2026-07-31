@@ -52,6 +52,7 @@ pub async fn status(service: &ControlRpcService) -> Result<GetSystemStatusRespon
         default_route,
         default_outbound_id,
         routing_revision: status.routing.revision(),
+        dropped_decision_events: status.dropped_decision_events,
     })
 }
 

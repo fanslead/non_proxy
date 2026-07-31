@@ -10,6 +10,8 @@ final class DirectTCPFlowRelay: FlowRelay, @unchecked Sendable {
     private let connection: NWConnection
     private let budget: FlowRelayRegistry
     private let queue: DispatchQueue
+    private let onEstablished: @Sendable () -> Void
+    private let onSetupFailed: @Sendable (String) -> Void
     private let onFinish: @Sendable (DirectTCPFlowRelay) -> Void
     private var connectionReady = false
     private var isOpening = false
@@ -19,6 +21,7 @@ final class DirectTCPFlowRelay: FlowRelay, @unchecked Sendable {
     private var isFinished = false
     private var finishError: Error?
     private var didNotifyFinish = false
+    private var didReportSetupOutcome = false
     private var appWriteBytes = 0
     private var remoteWriteBytes = 0
 
@@ -27,12 +30,16 @@ final class DirectTCPFlowRelay: FlowRelay, @unchecked Sendable {
         connection: NWConnection,
         budget: FlowRelayRegistry,
         queue: DispatchQueue,
+        onEstablished: @escaping @Sendable () -> Void,
+        onSetupFailed: @escaping @Sendable (String) -> Void,
         onFinish: @escaping @Sendable (DirectTCPFlowRelay) -> Void
     ) {
         self.flow = flow
         self.connection = connection
         self.budget = budget
         self.queue = queue
+        self.onEstablished = onEstablished
+        self.onSetupFailed = onSetupFailed
         self.onFinish = onFinish
     }
 
@@ -55,6 +62,7 @@ final class DirectTCPFlowRelay: FlowRelay, @unchecked Sendable {
                 else {
                     return
                 }
+                self.reportSetupFailure("NP_DIRECT_CONNECT_TIMEOUT")
                 self.finish(
                     error: FlowRelayError.make(
                         .timedOut,
@@ -67,6 +75,7 @@ final class DirectTCPFlowRelay: FlowRelay, @unchecked Sendable {
 
     func cancel() {
         queue.async { [weak self] in
+            self?.reportSetupFailure("NP_DIRECT_RELAY_CANCELLED")
             self?.finish(
                 error: FlowRelayError.make(
                     .aborted,
@@ -83,8 +92,10 @@ final class DirectTCPFlowRelay: FlowRelay, @unchecked Sendable {
         switch state {
         case .ready:
             connectionReady = true
+            reportEstablished()
             startPumpsIfReady()
         case .failed:
+            reportSetupFailure("NP_DIRECT_CONNECT_FAILED")
             finish(
                 error: FlowRelayError.make(
                     .hostUnreachable,
@@ -92,6 +103,7 @@ final class DirectTCPFlowRelay: FlowRelay, @unchecked Sendable {
                 )
             )
         case .cancelled:
+            reportSetupFailure("NP_DIRECT_CONNECT_CANCELLED")
             finish(error: nil)
         default:
             break
@@ -110,6 +122,7 @@ final class DirectTCPFlowRelay: FlowRelay, @unchecked Sendable {
             self.queue.async { [self] in
                 self.isOpening = false
                 guard error == nil else {
+                    self.reportSetupFailure("NP_DIRECT_APP_OPEN_FAILED")
                     self.isFinished = true
                     self.connection.cancel()
                     self.notifyFinish()
@@ -336,6 +349,22 @@ final class DirectTCPFlowRelay: FlowRelay, @unchecked Sendable {
         }
         didNotifyFinish = true
         onFinish(self)
+    }
+
+    private func reportEstablished() {
+        guard !didReportSetupOutcome else {
+            return
+        }
+        didReportSetupOutcome = true
+        onEstablished()
+    }
+
+    private func reportSetupFailure(_ code: String) {
+        guard !didReportSetupOutcome else {
+            return
+        }
+        didReportSetupOutcome = true
+        onSetupFailed(code)
     }
 
     private func releaseAppWriteBudget(expected: Int) {

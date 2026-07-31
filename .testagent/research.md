@@ -156,3 +156,33 @@
 3. 增加只读 `ListConnectionDecisions` 控制 RPC，接入桌面活动页和首页计数。
 4. macOS Transparent/DNS Provider 与 Windows 数据面在实际路径建立后批量上报。
 5. 出口探针只在独立探针观察到公网结果时提升到 `EXIT`，本批不得伪造。
+
+## macOS/Windows 真实路径生产器批次
+
+### 证据边界
+
+- `DECISION` 只证明策略判定；`PATH` 只能在代理通道、物理 TCP 连接或绑定物理
+  接口的 UDP/DNS 路径实际就绪后产生；DNS 缓存命中不得冒充新的网络路径。
+- `PROXY + failure_mode=OPEN` 失败后实际建立 DIRECT 时，必须保留原始代理决策，
+  同时显式记录 `fail_open_direct`、物理接口和稳定错误码，不能改写成普通 DIRECT。
+- `EXIT` 仍要求独立、受控的公网出口探针；本批没有新增虚构的出口证据。
+- 证据链是 best-effort 旁路：编码失败、队列饱和或 reporter 不可用只增加丢失
+  诊断，不能改变 TCP/UDP/DNS 的转发结果。
+
+### 提交前审查发现
+
+- Provider 并发的 DNS、心跳和决策 RPC 可能乱序到达；严格单调的服务端序号检查会
+  误杀合法请求，因此改为 4096 条有界滑动窗口，仍拒绝重复和过旧序号。
+- 决策批次在“服务端已写入、响应丢失”后重试时，记录本身幂等但丢失计数原先会
+  重复累加；新增稳定 `batch_id` 和有界批次历史后，统计也保持幂等。
+- fail-open 后的 DIRECT DNS 若命中缓存，没有发生新网络路径；记录为带失败原因的
+  `DECISION`，而不是 `PATH`。
+- Windows 事件 ID 不需要密码学随机性；改为 Provider 代次内无失败的单调 ID，
+  避免系统随机源异常反向阻断数据面。
+
+### 平台验收边界
+
+- macOS Swift 测试和 Universal Release Bundle 构建可以证明源码、双架构产物与
+  Bundle 结构；未在本批执行已签名 System Extension 的真实安装和外部 VPN 共存流量。
+- Windows x64/arm64 使用本机 SQLite link metadata 完成 `cargo check`/clippy，
+  只证明 Windows 条件编译与类型，不证明链接后的 Service、WFP Driver 或真实网络栈。

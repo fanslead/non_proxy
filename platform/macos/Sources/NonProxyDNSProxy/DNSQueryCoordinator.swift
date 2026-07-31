@@ -24,18 +24,21 @@ public final class DNSQueryCoordinator: Sendable {
     private let catalogs: DNSResolverCatalogStore
     private let networkProfile: DNSNetworkProfileMonitor
     private let capacity: DNSQueryCapacity
+    private let decisions: any ProviderDecisionSubmitting
 
     public init(
         runtime: ProviderPolicyRuntime,
         resolver: any ProviderDNSResolving,
         catalogs: DNSResolverCatalogStore,
         networkProfile: DNSNetworkProfileMonitor,
+        decisions: any ProviderDecisionSubmitting,
         capacity: DNSQueryCapacity = DNSQueryCapacity()
     ) {
         self.runtime = runtime
         self.resolver = resolver
         self.catalogs = catalogs
         self.networkProfile = networkProfile
+        self.decisions = decisions
         self.capacity = capacity
     }
 
@@ -56,6 +59,7 @@ public final class DNSQueryCoordinator: Sendable {
     private func resolveWithCapacity(
         _ context: DNSFlowQueryContext
     ) async throws -> Data {
+        let observedAt = Date()
         let question = try DNSMessageParser.parseQuery(context.message)
         let baseProfileID = networkProfile.profileID()
         let policyContext = PolicyConnectionContext(
@@ -69,9 +73,19 @@ public final class DNSQueryCoordinator: Sendable {
             ),
             networkProfileID: nil
         )
+        let decisionStarted = DispatchTime.now().uptimeNanoseconds
         let decision = try runtime.decide(context: policyContext)
+        let decisionFinished = DispatchTime.now().uptimeNanoseconds
+        let observation = ProviderDecisionObservation(
+            flowID: UUID().uuidString.lowercased(),
+            context: policyContext,
+            decision: decision,
+            observedAt: observedAt,
+            decisionLatencyNanoseconds: decisionFinished - decisionStarted
+        )
         let plan = DNSRoutePlanner.plan(decision: decision)
         if plan == .refuse {
+            report(observation, path: .decision)
             return DNSResponseBuilder.refused(
                 query: context.message,
                 question: question
@@ -79,6 +93,11 @@ public final class DNSQueryCoordinator: Sendable {
         }
         let upstreams = catalogs.upstreams(for: question.name)
         guard !upstreams.isEmpty else {
+            report(
+                observation,
+                path: .decision,
+                errorCode: "NP_DNS_UPSTREAM_UNAVAILABLE"
+            )
             throw DNSProxyError.resolverUnavailable(
                 "当前网络没有可用的明文系统 DNS 上游"
             )
@@ -99,22 +118,147 @@ public final class DNSQueryCoordinator: Sendable {
         case .direct:
             let interfaceIndex = networkProfile.preferredInterfaceIndex
             guard interfaceIndex > 0 else {
+                report(
+                    observation,
+                    path: .decision,
+                    errorCode: "NP_DNS_DIRECT_INTERFACE_UNAVAILABLE"
+                )
                 throw DNSProxyError.resolverUnavailable(
                     "DIRECT DNS 没有可绑定的物理网卡"
                 )
             }
             request.requestedRoute = .direct
             request.directInterfaceIndex = interfaceIndex
+            return try await resolveDirect(
+                request,
+                question: question,
+                observation: observation
+            )
         case .proxy(let outboundID):
             request.requestedRoute = .proxy
             request.requestedOutboundID = outboundID
+            return try await resolveProxy(
+                request,
+                question: question,
+                observation: observation
+            )
         case .refuse:
             throw DNSProxyError.providerUnavailable("DNS 路由计划无效")
         }
+    }
 
-        let response = try await resolver.resolveDNS(request)
-        try validate(response, request: request, question: question)
-        return response.dnsMessage
+    private func resolveDirect(
+        _ request: Nonproxy_Provider_V1_ResolveDnsRequest,
+        question: DNSQuestion,
+        observation: ProviderDecisionObservation
+    ) async throws -> Data {
+        do {
+            let response = try await resolver.resolveDNS(request)
+            try validate(response, request: request, question: question)
+            if response.cacheHit {
+                report(observation, path: .decision)
+            } else {
+                report(
+                    observation,
+                    path: .direct(
+                        interfaceName: "ifindex:\(request.directInterfaceIndex)",
+                        failOpen: false
+                    )
+                )
+            }
+            return response.dnsMessage
+        } catch {
+            report(
+                observation,
+                path: .decision,
+                errorCode: "NP_DNS_DIRECT_RESOLVE_FAILED"
+            )
+            throw error
+        }
+    }
+
+    private func resolveProxy(
+        _ request: Nonproxy_Provider_V1_ResolveDnsRequest,
+        question: DNSQuestion,
+        observation: ProviderDecisionObservation
+    ) async throws -> Data {
+        do {
+            let response = try await resolver.resolveDNS(request)
+            try validate(response, request: request, question: question)
+            if response.cacheHit {
+                report(observation, path: .decision)
+            } else {
+                report(
+                    observation,
+                    path: .proxy(outboundID: request.requestedOutboundID)
+                )
+            }
+            return response.dnsMessage
+        } catch {
+            guard observation.decision.result.failureMode == .open else {
+                report(
+                    observation,
+                    path: .decision,
+                    errorCode: "NP_DNS_PROXY_RESOLVE_FAILED"
+                )
+                throw error
+            }
+            return try await resolveProxyFallback(
+                request,
+                question: question,
+                observation: observation
+            )
+        }
+    }
+
+    private func resolveProxyFallback(
+        _ original: Nonproxy_Provider_V1_ResolveDnsRequest,
+        question: DNSQuestion,
+        observation: ProviderDecisionObservation
+    ) async throws -> Data {
+        let interfaceIndex = networkProfile.preferredInterfaceIndex
+        guard interfaceIndex > 0 else {
+            report(
+                observation,
+                path: .decision,
+                errorCode: "NP_DNS_PROXY_FAIL_OPEN_FAILED"
+            )
+            throw DNSProxyError.resolverUnavailable(
+                "代理 DNS 失败且没有可用的物理网卡"
+            )
+        }
+        var request = original
+        request.requestedRoute = .direct
+        request.requestedOutboundID = ""
+        request.directInterfaceIndex = interfaceIndex
+        do {
+            let response = try await resolver.resolveDNS(request)
+            try validate(response, request: request, question: question)
+            if response.cacheHit {
+                report(
+                    observation,
+                    path: .decision,
+                    errorCode: "NP_DNS_PROXY_FAIL_OPEN_CACHE_HIT"
+                )
+            } else {
+                report(
+                    observation,
+                    path: .direct(
+                        interfaceName: "ifindex:\(interfaceIndex)",
+                        failOpen: true
+                    ),
+                    errorCode: "NP_DNS_PROXY_FAIL_OPEN_DIRECT"
+                )
+            }
+            return response.dnsMessage
+        } catch {
+            report(
+                observation,
+                path: .decision,
+                errorCode: "NP_DNS_PROXY_FAIL_OPEN_FAILED"
+            )
+            throw error
+        }
     }
 
     private func validate(
@@ -150,5 +294,20 @@ public final class DNSQueryCoordinator: Sendable {
         value.parentStableID = identity.parentStableID ?? ""
         value.helperGroupID = identity.helperGroupID ?? ""
         return value
+    }
+
+    private func report(
+        _ observation: ProviderDecisionObservation,
+        path: ProviderObservedPath,
+        errorCode: String? = nil
+    ) {
+        guard let record = try? observation.record(
+            path: path,
+            errorCode: errorCode
+        ) else {
+            decisions.recordUnreportable()
+            return
+        }
+        decisions.submit(record)
     }
 }

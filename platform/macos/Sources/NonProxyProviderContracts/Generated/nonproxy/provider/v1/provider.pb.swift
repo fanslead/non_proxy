@@ -390,6 +390,10 @@ public nonisolated struct Nonproxy_Provider_V1_DecisionEvidence: Sendable {
 
   public var exitProbeID: String = String()
 
+  /// fail_open_direct 表示策略要求 PROXY，但代理建立失败后按显式 fail-open
+  /// 规则改由 interface_name 指向的物理接口建立了直连路径。
+  public var failOpenDirect: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -471,6 +475,9 @@ public nonisolated struct Nonproxy_Provider_V1_ReportDecisionBatchRequest: Senda
   public var decisions: [Nonproxy_Provider_V1_DecisionRecord] = []
 
   public var droppedDebugEvents: UInt64 = 0
+
+  /// batch_id 在同一批次重试时保持不变，用于幂等统计队列丢失事件。
+  public var batchID: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1315,7 +1322,7 @@ nonisolated extension Nonproxy_Provider_V1_ConnectionContext: SwiftProtobuf.Mess
 
 nonisolated extension Nonproxy_Provider_V1_DecisionEvidence: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DecisionEvidence"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}level\0\u{3}interface_name\0\u{3}outbound_id\0\u{3}exit_probe_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}level\0\u{3}interface_name\0\u{3}outbound_id\0\u{3}exit_probe_id\0\u{3}fail_open_direct\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1327,6 +1334,7 @@ nonisolated extension Nonproxy_Provider_V1_DecisionEvidence: SwiftProtobuf.Messa
       case 2: try { try decoder.decodeSingularStringField(value: &self.interfaceName) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.outboundID) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.exitProbeID) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.failOpenDirect) }()
       default: break
       }
     }
@@ -1345,6 +1353,9 @@ nonisolated extension Nonproxy_Provider_V1_DecisionEvidence: SwiftProtobuf.Messa
     if !self.exitProbeID.isEmpty {
       try visitor.visitSingularStringField(value: self.exitProbeID, fieldNumber: 4)
     }
+    if self.failOpenDirect != false {
+      try visitor.visitSingularBoolField(value: self.failOpenDirect, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1353,6 +1364,7 @@ nonisolated extension Nonproxy_Provider_V1_DecisionEvidence: SwiftProtobuf.Messa
     if lhs.interfaceName != rhs.interfaceName {return false}
     if lhs.outboundID != rhs.outboundID {return false}
     if lhs.exitProbeID != rhs.exitProbeID {return false}
+    if lhs.failOpenDirect != rhs.failOpenDirect {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1458,7 +1470,7 @@ nonisolated extension Nonproxy_Provider_V1_DecisionRecord: SwiftProtobuf.Message
 
 nonisolated extension Nonproxy_Provider_V1_ReportDecisionBatchRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReportDecisionBatchRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{1}decisions\0\u{3}dropped_debug_events\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{1}decisions\0\u{3}dropped_debug_events\0\u{3}batch_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1469,6 +1481,7 @@ nonisolated extension Nonproxy_Provider_V1_ReportDecisionBatchRequest: SwiftProt
       case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
       case 2: try { try decoder.decodeRepeatedMessageField(value: &self.decisions) }()
       case 3: try { try decoder.decodeSingularUInt64Field(value: &self.droppedDebugEvents) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.batchID) }()
       default: break
       }
     }
@@ -1488,6 +1501,9 @@ nonisolated extension Nonproxy_Provider_V1_ReportDecisionBatchRequest: SwiftProt
     if self.droppedDebugEvents != 0 {
       try visitor.visitSingularUInt64Field(value: self.droppedDebugEvents, fieldNumber: 3)
     }
+    if !self.batchID.isEmpty {
+      try visitor.visitSingularStringField(value: self.batchID, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1495,6 +1511,7 @@ nonisolated extension Nonproxy_Provider_V1_ReportDecisionBatchRequest: SwiftProt
     if lhs._context != rhs._context {return false}
     if lhs.decisions != rhs.decisions {return false}
     if lhs.droppedDebugEvents != rhs.droppedDebugEvents {return false}
+    if lhs.batchID != rhs.batchID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

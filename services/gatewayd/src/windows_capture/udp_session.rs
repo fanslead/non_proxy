@@ -1,4 +1,7 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_model::{ConnectionContext, Destination, FailureMode, RouteAction, Transport};
@@ -13,7 +16,12 @@ use tokio::{
 };
 
 use crate::{
-    Gateway, GatewayError, credential_store::CredentialStore,
+    Gateway, GatewayError,
+    clock::unix_time_ms,
+    credential_store::CredentialStore,
+    decision_event::{
+        DecisionEventReporter, DecisionObservation, ObservedPath, elapsed_micros, new_flow_id,
+    },
     flow_server::outbound_factory::load_connector_with_dialer,
 };
 
@@ -46,6 +54,7 @@ pub struct UdpSessionDependencies {
     pub physical_interfaces: Arc<PhysicalInterfaceCatalog>,
     pub direct_domain_resolver: WindowsDirectDomainResolver,
     pub injector: UdpInjector,
+    pub decisions: DecisionEventReporter,
 }
 
 pub async fn run_udp_session(
@@ -65,20 +74,62 @@ pub async fn run_udp_session(
         .current()
         .await
         .ok_or_else(|| GatewayError::WindowsDataPlane("没有可用的活动策略快照".to_owned()))?;
+    let observed_at_unix_ms = unix_time_ms()?;
+    let decision_started = Instant::now();
     let decision = PolicyEngine::decide(&snapshot, &context);
+    let decision_latency_micros = elapsed_micros(decision_started);
+    let observation = DecisionObservation::new(
+        "windows-wfp",
+        dependencies.policies.provider_generation(),
+        new_flow_id("udp"),
+        observed_at_unix_ms,
+        context,
+        decision.clone(),
+        decision_latency_micros,
+    );
     let snapshot_version = snapshot.metadata().snapshot_version();
 
     match decision.result().action() {
-        RouteAction::Block => Ok(()),
+        RouteAction::Block => {
+            report(
+                &dependencies.decisions,
+                &observation,
+                ObservedPath::Decision,
+                None,
+            );
+            Ok(())
+        }
         RouteAction::Direct => {
-            let socket = connect_direct_udp(
+            let connected = connect_direct_udp(
                 &target,
                 exposed_remote.ip(),
                 &dependencies.direct_domain_resolver,
                 snapshot_version,
                 Arc::clone(&dependencies.physical_interfaces),
             )
-            .await?;
+            .await;
+            let path = match connected {
+                Ok(value) => value,
+                Err(error) => {
+                    report(
+                        &dependencies.decisions,
+                        &observation,
+                        ObservedPath::Decision,
+                        Some("NP_WINDOWS_DIRECT_CONNECT_FAILED"),
+                    );
+                    return Err(error);
+                }
+            };
+            let (socket, interface_index) = path.into_parts();
+            report(
+                &dependencies.decisions,
+                &observation,
+                ObservedPath::Direct {
+                    interface_index,
+                    fail_open: false,
+                },
+                None,
+            );
             relay_direct(
                 socket,
                 first_payload,
@@ -107,6 +158,14 @@ pub async fn run_udp_session(
             .await;
             match opened {
                 Ok(association) => {
+                    report(
+                        &dependencies.decisions,
+                        &observation,
+                        ObservedPath::Proxy {
+                            outbound_id: outbound_id.clone(),
+                        },
+                        None,
+                    );
                     relay_proxy(
                         association,
                         &target,
@@ -118,14 +177,36 @@ pub async fn run_udp_session(
                     .await
                 }
                 Err(_) if decision.result().failure_mode() == FailureMode::Open => {
-                    let socket = connect_direct_udp(
+                    let connected = connect_direct_udp(
                         &target,
                         exposed_remote.ip(),
                         &dependencies.direct_domain_resolver,
                         snapshot_version,
                         dependencies.physical_interfaces,
                     )
-                    .await?;
+                    .await;
+                    let path = match connected {
+                        Ok(value) => value,
+                        Err(error) => {
+                            report(
+                                &dependencies.decisions,
+                                &observation,
+                                ObservedPath::Decision,
+                                Some("NP_WINDOWS_PROXY_FAIL_OPEN_FAILED"),
+                            );
+                            return Err(error);
+                        }
+                    };
+                    let (socket, interface_index) = path.into_parts();
+                    report(
+                        &dependencies.decisions,
+                        &observation,
+                        ObservedPath::Direct {
+                            interface_index,
+                            fail_open: true,
+                        },
+                        Some("NP_WINDOWS_PROXY_FAIL_OPEN_DIRECT"),
+                    );
                     relay_direct(
                         socket,
                         first_payload,
@@ -135,9 +216,31 @@ pub async fn run_udp_session(
                     )
                     .await
                 }
-                Err(error) => Err(error),
+                Err(error) => {
+                    report(
+                        &dependencies.decisions,
+                        &observation,
+                        ObservedPath::Decision,
+                        Some("NP_WINDOWS_PROXY_CONNECT_FAILED"),
+                    );
+                    Err(error)
+                }
             }
         }
+    }
+}
+
+fn report(
+    reporter: &DecisionEventReporter,
+    observation: &DecisionObservation,
+    path: ObservedPath,
+    error_code: Option<&str>,
+) {
+    match observation.record(path, error_code) {
+        Ok(decision) => {
+            let _accepted = reporter.submit(decision);
+        }
+        Err(_) => reporter.record_unreportable(),
     }
 }
 

@@ -1,7 +1,9 @@
 mod activation;
 mod dialer;
 mod direct_dns;
+mod dns_decision;
 mod dns_proxy;
+mod dns_runtime;
 mod identity;
 mod policy_cache;
 mod tcp_proxy;
@@ -19,7 +21,12 @@ use nonproxy_windows_network::PhysicalInterfaceCatalog;
 use nonproxy_windows_wfp::{DynamicWfpSession, WfpConfig, WfpDriver};
 use tokio::{net::TcpListener, sync::watch};
 
-use crate::{Gateway, GatewayError, clock::unix_time_ms, credential_store::CredentialStore};
+use crate::{
+    Gateway, GatewayError,
+    clock::unix_time_ms,
+    credential_store::CredentialStore,
+    decision_event::{DecisionEventWorker, decision_event_channel},
+};
 
 use activation::{WfpActivation, WfpRedirectPorts};
 use dns_proxy::WindowsDnsProxy;
@@ -37,6 +44,7 @@ pub struct WindowsCapture {
     ipv4: TcpListener,
     ipv6: TcpListener,
     policies: WindowsPolicyCache,
+    decisions: DecisionEventWorker,
     shutdown: watch::Receiver<bool>,
 }
 
@@ -61,11 +69,13 @@ impl WindowsCapture {
         let ipv4_port = local_port(&ipv4, "读取 Windows IPv4 重定向端口")?;
         let ipv6_port = local_port(&ipv6, "读取 Windows IPv6 重定向端口")?;
         let policies = WindowsPolicyCache::load(gateway.clone(), "windows-wfp", true).await?;
+        let (decisions, decision_worker) = decision_event_channel(gateway.clone());
         let physical_interfaces = Arc::new(PhysicalInterfaceCatalog::new());
         let (dns, dns_ready, direct_domain_resolver) = WindowsDnsProxy::start(
             gateway.clone(),
             Arc::clone(&credential_store),
             Arc::clone(&physical_interfaces),
+            decisions.clone(),
         )
         .await?;
         let (ipv4_dns_port, ipv6_dns_port) = dns.redirect_ports();
@@ -94,6 +104,7 @@ impl WindowsCapture {
             physical_interfaces: Arc::clone(&physical_interfaces),
             direct_domain_resolver: direct_domain_resolver.clone(),
             injector,
+            decisions: decisions.clone(),
         });
         let proxy = WindowsTcpProxy::new(
             gateway,
@@ -101,6 +112,7 @@ impl WindowsCapture {
             policies.clone(),
             physical_interfaces,
             direct_domain_resolver,
+            decisions,
         );
         let activation = WfpActivation::new(
             driver,
@@ -124,6 +136,7 @@ impl WindowsCapture {
             ipv4,
             ipv6,
             policies,
+            decisions: decision_worker,
             shutdown,
         })
     }
@@ -138,6 +151,7 @@ impl WindowsCapture {
             ipv4,
             ipv6,
             policies,
+            decisions,
             mut shutdown,
         } = self;
         let (worker_stop_sender, worker_stop_receiver) = watch::channel(false);
@@ -146,9 +160,17 @@ impl WindowsCapture {
         let policy_server = policies.refresh_until_shutdown(worker_stop_receiver.clone());
         let dns_server = dns.serve(worker_stop_receiver.clone());
         let udp_server = udp.serve(worker_stop_receiver.clone());
+        let decision_server = decisions.serve(worker_stop_receiver.clone());
         let activation_server = activation.serve(activation_stop_receiver);
         let worker_server = async {
-            tokio::try_join!(proxy_server, policy_server, dns_server, udp_server).map(|_| ())
+            tokio::try_join!(
+                proxy_server,
+                policy_server,
+                dns_server,
+                udp_server,
+                decision_server
+            )
+            .map(|_| ())
         };
         tokio::pin!(worker_server);
         tokio::pin!(activation_server);

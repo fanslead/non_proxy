@@ -1,5 +1,7 @@
 use nonproxy_dns::{ParsedDnsQuery, SyntheticAddressFamily};
-use nonproxy_model::{AppIdentity, DecisionSpec, Destination, DomainName, Platform, Transport};
+use nonproxy_model::{
+    AppIdentity, ConnectionContext, Decision, Destination, DomainName, Platform, Transport,
+};
 use nonproxy_policy::{CompiledPolicySnapshot, PolicyEngine};
 
 const DNS_PORT: u16 = 53;
@@ -15,7 +17,13 @@ pub(crate) enum DnsQueryPlan {
         family: SyntheticAddressFamily,
     },
     NoData,
-    Route(DecisionSpec),
+    Route(Box<DnsRouteDecision>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct DnsRouteDecision {
+    pub context: Option<ConnectionContext>,
+    pub decision: Decision,
 }
 
 pub(crate) fn plan_query(
@@ -23,7 +31,7 @@ pub(crate) fn plan_query(
     query: &ParsedDnsQuery,
 ) -> DnsQueryPlan {
     let Ok(domain) = DomainName::normalize(query.question().qname().as_ascii()) else {
-        return DnsQueryPlan::Route(snapshot.default_decision().clone());
+        return default_route(snapshot);
     };
     if snapshot.requires_domain_identity(&domain) {
         match query.question().qtype() {
@@ -45,13 +53,25 @@ pub(crate) fn plan_query(
     }
     let destination = Destination::new(Some(domain.as_ascii()), None, DNS_PORT, Transport::Udp);
     let Ok(destination) = destination else {
-        return DnsQueryPlan::Route(snapshot.default_decision().clone());
+        return default_route(snapshot);
     };
-    let context = nonproxy_model::ConnectionContext::new(
-        AppIdentity::unknown(Platform::Windows),
-        destination,
-    );
-    DnsQueryPlan::Route(PolicyEngine::decide(snapshot, &context).result().clone())
+    let context = ConnectionContext::new(AppIdentity::unknown(Platform::Windows), destination);
+    let decision = PolicyEngine::decide(snapshot, &context);
+    DnsQueryPlan::Route(Box::new(DnsRouteDecision {
+        context: Some(context),
+        decision,
+    }))
+}
+
+fn default_route(snapshot: &CompiledPolicySnapshot) -> DnsQueryPlan {
+    DnsQueryPlan::Route(Box::new(DnsRouteDecision {
+        context: None,
+        decision: Decision::defaulted(
+            snapshot.default_decision().clone(),
+            snapshot.metadata().snapshot_version(),
+            "NP_POLICY_DEFAULT",
+        ),
+    }))
 }
 
 #[cfg(test)]
@@ -141,12 +161,12 @@ mod tests {
             plan_query(&snapshot, &query("api.direct.example.", RecordType::HTTPS)?),
             DnsQueryPlan::NoData
         );
-        let DnsQueryPlan::Route(decision) =
+        let DnsQueryPlan::Route(route) =
             plan_query(&snapshot, &query("other.example.", RecordType::A)?)
         else {
             return Err("未命中域名应使用默认路由".into());
         };
-        assert_eq!(decision.action(), RouteAction::Proxy);
+        assert_eq!(route.decision.result().action(), RouteAction::Proxy);
         Ok(())
     }
 }

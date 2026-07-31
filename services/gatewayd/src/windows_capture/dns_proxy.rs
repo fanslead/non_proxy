@@ -1,7 +1,7 @@
 use std::{
-    net::{Ipv4Addr, Ipv6Addr},
+    net::Ipv4Addr,
     sync::Arc,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use nonproxy_dns::{
@@ -21,13 +21,17 @@ use tokio::{
 
 use crate::{
     Gateway, GatewayError,
+    clock::unix_time_ms,
     credential_store::CredentialStore,
+    decision_event::{DecisionEventReporter, elapsed_micros},
     dns_policy::{DnsQueryPlan, plan_query},
-    dns_service::{DnsResolutionService, DnsServiceError, WireDnsRequest},
+    dns_service::{DnsResolutionResult, DnsResolutionService, DnsServiceError, WireDnsRequest},
     local_dns_server::{LocalDnsQueryProcessor, LocalDnsServer, ProcessingFuture},
 };
 
-use super::direct_dns::{WindowsDirectDomainResolver, resolve_direct_wire};
+use super::direct_dns::{DirectDnsResolution, WindowsDirectDomainResolver, resolve_direct_path};
+use super::dns_decision::WindowsDnsObservation;
+use super::dns_runtime::{DnsFirstCompletion, random_probe_domain, random_ula_prefix};
 use super::policy_cache::WindowsPolicyCache;
 
 const PROBE_ADDRESS: Ipv4Addr = Ipv4Addr::new(198, 18, 0, 1);
@@ -48,6 +52,7 @@ struct WindowsDnsProcessor {
     upstreams: Arc<PhysicalDnsCatalog>,
     address_space: SyntheticAddressSpace,
     probe_domain: String,
+    decisions: DecisionEventReporter,
 }
 
 impl WindowsDnsProxy {
@@ -55,6 +60,7 @@ impl WindowsDnsProxy {
         gateway: Gateway,
         credential_store: Arc<dyn CredentialStore>,
         physical_interfaces: Arc<PhysicalInterfaceCatalog>,
+        decisions: DecisionEventReporter,
     ) -> Result<(Self, watch::Receiver<bool>, WindowsDirectDomainResolver), GatewayError> {
         ensure_synthetic_ipv4_pool_available()
             .map_err(|error| GatewayError::WindowsDataPlane(error.to_string()))?;
@@ -77,6 +83,7 @@ impl WindowsDnsProxy {
             upstreams: Arc::clone(&upstreams),
             address_space,
             probe_domain,
+            decisions,
         });
         let direct_resolver =
             WindowsDirectDomainResolver::new(resolution, upstreams, address_space);
@@ -127,15 +134,15 @@ impl WindowsDnsProxy {
         let first = tokio::select! {
             changed = shutdown.changed() => {
                 let _changed = changed;
-                FirstCompletion::Shutdown
+                DnsFirstCompletion::Shutdown
             }
-            result = &mut server_worker => FirstCompletion::Server(result),
-            result = &mut policy_worker => FirstCompletion::Policy(result),
-            result = &mut readiness_worker => FirstCompletion::Readiness(result),
+            result = &mut server_worker => DnsFirstCompletion::Server(result),
+            result = &mut policy_worker => DnsFirstCompletion::Policy(result),
+            result = &mut readiness_worker => DnsFirstCompletion::Readiness(result),
         };
         let _stop_result = worker_stop_sender.send(true);
         match first {
-            FirstCompletion::Shutdown => {
+            DnsFirstCompletion::Shutdown => {
                 let (server_result, policy_result, readiness_result) = tokio::join!(
                     &mut server_worker,
                     &mut policy_worker,
@@ -145,21 +152,21 @@ impl WindowsDnsProxy {
                 policy_result?;
                 readiness_result
             }
-            FirstCompletion::Server(result) => {
+            DnsFirstCompletion::Server(result) => {
                 let (policy_result, readiness_result) =
                     tokio::join!(&mut policy_worker, &mut readiness_worker);
                 result?;
                 policy_result?;
                 readiness_result
             }
-            FirstCompletion::Policy(result) => {
+            DnsFirstCompletion::Policy(result) => {
                 let (server_result, readiness_result) =
                     tokio::join!(&mut server_worker, &mut readiness_worker);
                 result?;
                 server_result?;
                 readiness_result
             }
-            FirstCompletion::Readiness(result) => {
+            DnsFirstCompletion::Readiness(result) => {
                 let (server_result, policy_result) =
                     tokio::join!(&mut server_worker, &mut policy_worker);
                 result?;
@@ -185,9 +192,16 @@ impl WindowsDnsProcessor {
                 .map_err(DnsServiceError::InvalidQuery);
         }
         let Some(snapshot) = self.policies.current().await else {
-            return self.resolve_direct(&query, &wire_query, 0).await;
+            return self
+                .resolve_direct(&query, &wire_query, 0)
+                .await
+                .map(|result| result.dns_message);
         };
-        match plan_query(&snapshot, &query) {
+        let observed_at_unix_ms = unix_time_ms()?;
+        let decision_started = Instant::now();
+        let plan = plan_query(&snapshot, &query);
+        let decision_latency_micros = elapsed_micros(decision_started);
+        match plan {
             DnsQueryPlan::Synthetic { domain, family } => {
                 let binding = self
                     .gateway
@@ -199,30 +213,88 @@ impl WindowsDnsProcessor {
             DnsQueryPlan::NoData => {
                 synthetic_nodata_response(&wire_query).map_err(DnsServiceError::InvalidQuery)
             }
-            DnsQueryPlan::Route(decision) => match decision.action() {
-                RouteAction::Block => {
-                    refused_response(&wire_query).map_err(DnsServiceError::InvalidQuery)
-                }
-                RouteAction::Direct => {
-                    self.resolve_direct(&query, &wire_query, snapshot.metadata().snapshot_version())
-                        .await
-                }
-                RouteAction::Proxy => {
-                    let proxy = self
-                        .resolve_proxy(&query, &wire_query, &snapshot, &decision)
-                        .await;
-                    if proxy.is_err() && decision.failure_mode() == FailureMode::Open {
-                        self.resolve_direct(
-                            &query,
-                            &wire_query,
-                            snapshot.metadata().snapshot_version(),
-                        )
-                        .await
-                    } else {
-                        proxy
+            DnsQueryPlan::Route(route) => {
+                let route = *route;
+                let decision = route.decision;
+                let observation = WindowsDnsObservation::new(
+                    self.decisions.clone(),
+                    self.policies.provider_generation(),
+                    route.context,
+                    decision.clone(),
+                    observed_at_unix_ms,
+                    decision_latency_micros,
+                );
+                match decision.result().action() {
+                    RouteAction::Block => {
+                        observation.decision();
+                        refused_response(&wire_query).map_err(DnsServiceError::InvalidQuery)
+                    }
+                    RouteAction::Direct => {
+                        let resolved = self
+                            .resolve_direct(
+                                &query,
+                                &wire_query,
+                                snapshot.metadata().snapshot_version(),
+                            )
+                            .await;
+                        match resolved {
+                            Ok(result) => {
+                                observation.direct(result.interface_index, result.cache_hit, false);
+                                Ok(result.dns_message)
+                            }
+                            Err(error) => {
+                                observation.failed("NP_WINDOWS_DNS_DIRECT_FAILED");
+                                Err(error)
+                            }
+                        }
+                    }
+                    RouteAction::Proxy => {
+                        let proxy = self
+                            .resolve_proxy(&query, &wire_query, &snapshot, &decision)
+                            .await;
+                        match proxy {
+                            Ok(result) => {
+                                let outbound_id = decision
+                                    .result()
+                                    .outbound_id()
+                                    .ok_or(DnsServiceError::InvalidRequest("代理 DNS 缺少出口"))?
+                                    .clone();
+                                observation.proxy(outbound_id, result.cache_hit);
+                                Ok(result.dns_message)
+                            }
+                            Err(_proxy_error)
+                                if decision.result().failure_mode() == FailureMode::Open =>
+                            {
+                                let direct = self
+                                    .resolve_direct(
+                                        &query,
+                                        &wire_query,
+                                        snapshot.metadata().snapshot_version(),
+                                    )
+                                    .await;
+                                match direct {
+                                    Ok(result) => {
+                                        observation.direct(
+                                            result.interface_index,
+                                            result.cache_hit,
+                                            true,
+                                        );
+                                        Ok(result.dns_message)
+                                    }
+                                    Err(error) => {
+                                        observation.failed("NP_WINDOWS_DNS_PROXY_FAIL_OPEN_FAILED");
+                                        Err(error)
+                                    }
+                                }
+                            }
+                            Err(error) => {
+                                observation.failed("NP_WINDOWS_DNS_PROXY_FAILED");
+                                Err(error)
+                            }
+                        }
                     }
                 }
-            },
+            }
         }
     }
 
@@ -231,8 +303,8 @@ impl WindowsDnsProcessor {
         query: &ParsedDnsQuery,
         wire_query: &[u8],
         snapshot_version: u64,
-    ) -> Result<Vec<u8>, DnsServiceError> {
-        resolve_direct_wire(
+    ) -> Result<DirectDnsResolution, DnsServiceError> {
+        resolve_direct_path(
             self.resolution.as_ref(),
             self.upstreams.as_ref(),
             query,
@@ -247,14 +319,15 @@ impl WindowsDnsProcessor {
         query: &ParsedDnsQuery,
         wire_query: &[u8],
         snapshot: &nonproxy_policy::CompiledPolicySnapshot,
-        decision: &nonproxy_model::DecisionSpec,
-    ) -> Result<Vec<u8>, DnsServiceError> {
+        decision: &nonproxy_model::Decision,
+    ) -> Result<DnsResolutionResult, DnsServiceError> {
         let upstreams = self
             .upstreams
             .current()
             .map_err(|error| GatewayError::WindowsDataPlane(error.to_string()))?
             .all_endpoints();
         let outbound = decision
+            .result()
             .outbound_id()
             .ok_or(DnsServiceError::InvalidRequest("代理 DNS 缺少出口"))?
             .clone();
@@ -269,7 +342,6 @@ impl WindowsDnsProcessor {
                 network_profile: None,
             })
             .await
-            .map(|result| result.dns_message)
     }
 }
 
@@ -319,28 +391,4 @@ async fn readiness_loop(
             }
         }
     }
-}
-
-fn random_ula_prefix() -> Result<Ipv6Addr, GatewayError> {
-    let mut octets = [0_u8; 16];
-    getrandom::fill(&mut octets[..8]).map_err(|error| GatewayError::Random(error.to_string()))?;
-    octets[0] = 0xfd;
-    Ok(Ipv6Addr::from(octets))
-}
-
-fn random_probe_domain() -> Result<String, GatewayError> {
-    let mut nonce = [0_u8; 16];
-    getrandom::fill(&mut nonce).map_err(|error| GatewayError::Random(error.to_string()))?;
-    let encoded = nonce
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect::<String>();
-    Ok(format!("{encoded}.probe.nonproxy.invalid"))
-}
-
-enum FirstCompletion {
-    Shutdown,
-    Server(Result<(), GatewayError>),
-    Policy(Result<(), GatewayError>),
-    Readiness(Result<(), GatewayError>),
 }

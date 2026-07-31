@@ -31,6 +31,8 @@ public sealed class GatewayDiagnosticsService : IDiagnosticsService
                 + SnapshotDetail(
                     status.ActiveSnapshotVersion,
                     status.PendingSnapshotVersion)));
+            checks.Add(DecisionTelemetryCheck(
+                status.DroppedDecisionEvents));
         }
         catch (ControlServiceException exception)
         {
@@ -55,6 +57,22 @@ public sealed class GatewayDiagnosticsService : IDiagnosticsService
             (0, > 0) => $"待确认快照 v{pending}",
             _ => "尚无快照",
         };
+    }
+
+    private static DiagnosticCheck DecisionTelemetryCheck(ulong dropped)
+    {
+        return dropped == 0
+            ? new DiagnosticCheck(
+                "decision-evidence",
+                "连接路径证据",
+                "正常",
+                "本次后台服务运行期间未检测到决策事件丢失。")
+            : new DiagnosticCheck(
+                "decision-evidence",
+                "连接路径证据",
+                "需关注",
+                $"本次后台服务运行期间有 {dropped} 条决策事件因报告队列不可用而丢失；"
+                + "网络转发不受影响，但活动记录并不完整。");
     }
 
 }

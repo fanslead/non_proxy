@@ -13,6 +13,7 @@ const STARTUP_NONCE_LENGTH: usize = 32;
 const MAX_INSTANCE_ID_LENGTH: usize = 128;
 const MAX_ACTIVE_SESSIONS: usize = 64;
 const NONCE_HISTORY_CAPACITY: usize = 1_024;
+const REQUEST_SEQUENCE_WINDOW: u64 = 4_096;
 pub const PROVIDER_SESSION_LIFETIME_MS: u64 = 15 * 60 * 1_000;
 
 #[derive(Clone)]
@@ -37,7 +38,8 @@ struct ProviderSession {
     generation: u64,
     token: [u8; SESSION_TOKEN_LENGTH],
     expires_at_unix_ms: u64,
-    last_sequence: u64,
+    highest_sequence: u64,
+    recent_sequences: HashSet<u64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -99,7 +101,8 @@ impl ProviderSessionRegistry {
                 generation,
                 token,
                 expires_at_unix_ms,
-                last_sequence: 0,
+                highest_sequence: 0,
+                recent_sequences: HashSet::new(),
             },
         );
         Ok(RegisteredProviderSession {
@@ -130,10 +133,9 @@ impl ProviderSessionRegistry {
         if !constant_time_equal(&session.token, &context.session_token) {
             return Err(Status::permission_denied("Provider 会话令牌无效"));
         }
-        if context.request_sequence == 0 || context.request_sequence <= session.last_sequence {
+        if !accept_request_sequence(session, context.request_sequence) {
             return Err(Status::permission_denied("Provider 请求序列重放"));
         }
-        session.last_sequence = context.request_sequence;
         Ok(ProviderSessionHandle {
             provider_id: session.provider_id.clone(),
             generation: session.generation,
@@ -204,6 +206,23 @@ fn remember_nonce(state: &mut ProviderSessionState, nonce: [u8; STARTUP_NONCE_LE
     state.nonce_order.push_back(nonce);
 }
 
+fn accept_request_sequence(session: &mut ProviderSession, sequence: u64) -> bool {
+    if sequence == 0
+        || session.highest_sequence.saturating_sub(sequence) >= REQUEST_SEQUENCE_WINDOW
+        || !session.recent_sequences.insert(sequence)
+    {
+        return false;
+    }
+    if sequence > session.highest_sequence {
+        session.highest_sequence = sequence;
+        let highest_sequence = session.highest_sequence;
+        session
+            .recent_sequences
+            .retain(|value| highest_sequence.saturating_sub(*value) < REQUEST_SEQUENCE_WINDOW);
+    }
+    true
+}
+
 fn constant_time_equal(expected: &[u8; SESSION_TOKEN_LENGTH], actual: &[u8]) -> bool {
     if actual.len() != SESSION_TOKEN_LENGTH {
         return false;
@@ -219,7 +238,7 @@ fn constant_time_equal(expected: &[u8; SESSION_TOKEN_LENGTH], actual: &[u8]) -> 
 mod tests {
     use nonproxy_proto::provider::v1::ProviderRequestContext;
 
-    use super::{MAX_ACTIVE_SESSIONS, ProviderSessionRegistry};
+    use super::{MAX_ACTIVE_SESSIONS, ProviderSessionRegistry, REQUEST_SEQUENCE_WINDOW};
 
     #[test]
     fn rejects_replayed_sequence_and_startup_nonce() {
@@ -253,6 +272,37 @@ mod tests {
                 )
                 .is_err()
         );
+    }
+
+    #[test]
+    fn accepts_bounded_out_of_order_sequences_but_rejects_old_or_duplicate_values() {
+        let registry = ProviderSessionRegistry::new();
+        let registered = registry.register(
+            "dns-1".to_owned(),
+            "dns-proxy".to_owned(),
+            2,
+            &[7; 32],
+            1_000,
+        );
+        let Ok(registered) = registered else {
+            panic!("Provider 乱序测试会话注册失败: {registered:?}");
+        };
+        let context = |request_sequence| ProviderRequestContext {
+            provider_instance_id: "dns-1".to_owned(),
+            session_token: registered.token().to_vec(),
+            request_sequence,
+        };
+
+        assert!(registry.validate(Some(&context(3)), 1_100).is_ok());
+        assert!(registry.validate(Some(&context(1)), 1_100).is_ok());
+        assert!(registry.validate(Some(&context(2)), 1_100).is_ok());
+        assert!(registry.validate(Some(&context(2)), 1_100).is_err());
+        assert!(
+            registry
+                .validate(Some(&context(REQUEST_SEQUENCE_WINDOW + 3)), 1_100)
+                .is_ok()
+        );
+        assert!(registry.validate(Some(&context(3)), 1_100).is_err());
     }
 
     #[test]

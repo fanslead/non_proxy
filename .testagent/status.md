@@ -130,3 +130,63 @@
 - Gateway 不信任 Provider 上报结果，而是校验会话平台、快照状态/哈希并用权威编译快照重算；伪造动作、规则、理由或版本都会被拒绝。
 - SQLite trigger、Rust 领域模型和 C# 映射三层均拒绝 `DECISION` 携带路径、失败记录冒充 `PATH`、直连缺接口、代理缺出口及无探针的 `EXIT`。
 - 本批只打通可信入库、查询和显示链路。macOS/Windows 平台尚未在真实连接建立后生产 `PATH` 事件，因此当前不会虚构路径或公网出口证据；平台生产器属于下一独立批次。
+
+## macOS/Windows 真实路径生产器批次状态
+
+- [x] V9 fail-open 证据模型、数据库约束与桌面诊断
+- [x] macOS Transparent Proxy 实际 PATH 生产与安全 fail-open 接管
+- [x] macOS DNS 非缓存实际 PATH 与缓存 DECISION 语义
+- [x] Windows TCP/UDP/DNS 实际 PATH 生产与 best-effort 上报
+- [x] Provider 有界队列、稳定批次重试与丢失计数幂等
+- [x] Provider 并发请求滑动防重放窗口
+- [x] Rust、Swift、.NET、Windows target、契约和 lint 门禁
+- [x] Universal Release Bundle 与三条跨语言 E2E
+- [x] 提交前逐文件、规模、禁止用法和 staged diff 复核
+
+### 干净验证
+
+- `cargo test --workspace`：全仓通过；其中 gatewayd 85 个库测试、11 个
+  gateway 集成测试和 1 个 Provider RPC 测试通过。
+- `swift test --package-path platform/macos --disable-sandbox`：XCTest 98/98、
+  Swift Testing 28/28 通过。
+- `dotnet test apps/desktop/NonProxy.Desktop.slnx --configuration Release
+  --no-restore`：85/85 通过。
+- `cargo clippy --workspace --all-targets -- -D warnings` 与
+  `just format-check`：通过。
+- Windows `x86_64-pc-windows-msvc`、`aarch64-pc-windows-msvc` 全 workspace
+  target check 通过，arm64 gatewayd lib clippy 通过；检查使用宿主 SQLite
+  metadata，仅证明条件编译与类型，不代表 Windows 链接或运行。
+- `just contracts`、`just contracts-swift`、`just contracts-breaking`：C#/Swift
+  生成物一致，Buf 对 `HEAD` 无破坏性变更。
+- `dotnet build apps/desktop/NonProxy.Desktop.slnx -c Release --no-restore
+  --no-incremental`：两个 Universal System Extension、Safari Extension、
+  Native Messaging Host、gatewayd 和最终 App Bundle 均通过签名与结构校验，
+  0 warning、0 error。
+- `just control-e2e`、`just native-messaging-e2e`、`just provider-e2e`：控制平面、
+  浏览器桥接、NPF1 代理数据面和两个 Provider 的 ACK/active 链路全部通过。
+
+### 提交前审查修正
+
+- 修正响应丢失后重试同一批次会重复累计 dropped event：稳定复用 `batch_id`，
+  gatewayd 使用 4096 条有界历史去重。
+- 修正 Windows 证据编码或队列失败可能经 `?` 反向中止转发：全部改为无返回值的
+  best-effort 旁路并累计丢失诊断。
+- 修正 DNS、心跳与决策 RPC 并发乱序会被误判重放：Provider 会话使用 4096 条
+  有界滑动序号窗口，允许窗口内未见乱序，仍拒绝重复和过旧请求。
+- 修正 fail-open DNS 缓存命中会隐藏原始代理失败或冒充新 PATH：改为携带稳定
+  失败码的 `DECISION`。
+- 修正 macOS 只有异步代理建链失败进入 fail-open、同步 endpoint 编码/relay 容量
+  失败却直接拒绝：同步和异步的路径建立前失败统一交给同一恢复规划器。
+- 复核代理预建立失败的回收顺序：先同步注销旧 relay，再把尚未打开的 NE flow
+  交给 DIRECT；失败回调只执行一次。
+
+### 证据边界与后续缺口
+
+- 本批只生产 `DECISION` 和实际建立后的 `PATH`；`EXIT` 仍必须由独立公网探针
+  观察后产生，当前没有伪造出口证据。
+- macOS 通过双架构构建和 Bundle 签名校验，但尚未完成有正式 entitlement 的
+  System Extension 真机安装、重启恢复及与第三方 VPN 共存流量验收。
+- Windows 仅完成 x64/arm64 交叉类型检查，尚未在 Windows 真机验证 Service、
+  WFP Driver、DNS 重定向和真实网络路径。
+- Provider 被系统强制终止时，内存中的 best-effort 队列仍可能丢失；系统状态会
+  显示已知 dropped event，但无法声称覆盖强杀前尚未计数的内存事件。

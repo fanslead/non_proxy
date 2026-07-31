@@ -15,6 +15,7 @@ public enum ProviderPolicyEngine {
                 return PolicyDecision(
                     result: selected.decision,
                     matchedPolicyID: selected.id,
+                    matchedRuleID: selected.id,
                     snapshotVersion: snapshot.version,
                     reasonCode: tier.reasonCode
                 )

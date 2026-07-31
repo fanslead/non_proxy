@@ -4,6 +4,7 @@ import NonProxyProviderCore
 import Synchronization
 
 struct TransparentProviderRuntime: Sendable {
+    let runID: UUID
     let provider: MacProviderRuntimeComponents
     let interfaces: PhysicalInterfaceCatalog
     let directRelays: DirectFlowRelayCoordinator

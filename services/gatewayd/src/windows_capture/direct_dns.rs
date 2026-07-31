@@ -23,6 +23,12 @@ pub struct WindowsDirectDomainResolver {
     address_space: SyntheticAddressSpace,
 }
 
+pub struct DirectDnsResolution {
+    pub dns_message: Vec<u8>,
+    pub interface_index: u32,
+    pub cache_hit: bool,
+}
+
 impl WindowsDirectDomainResolver {
     pub const fn new(
         resolution: Arc<DnsResolutionService>,
@@ -133,6 +139,24 @@ pub async fn resolve_direct_wire(
     wire_query: &[u8],
     snapshot_version: u64,
 ) -> Result<Vec<u8>, DnsServiceError> {
+    resolve_direct_path(
+        resolution,
+        upstream_catalog,
+        query,
+        wire_query,
+        snapshot_version,
+    )
+    .await
+    .map(|result| result.dns_message)
+}
+
+pub async fn resolve_direct_path(
+    resolution: &DnsResolutionService,
+    upstream_catalog: &PhysicalDnsCatalog,
+    query: &ParsedDnsQuery,
+    wire_query: &[u8],
+    snapshot_version: u64,
+) -> Result<DirectDnsResolution, DnsServiceError> {
     let upstreams = upstream_catalog
         .current()
         .map_err(|error| GatewayError::WindowsDataPlane(error.to_string()))?;
@@ -145,7 +169,7 @@ pub async fn resolve_direct_wire(
         .iter()
         .map(|value| value.endpoint())
         .collect::<Vec<_>>();
-    resolution
+    let result = resolution
         .resolve_wire(WireDnsRequest {
             query,
             wire_query,
@@ -155,6 +179,10 @@ pub async fn resolve_direct_wire(
             direct_interface_index: Some(interface_index),
             network_profile: None,
         })
-        .await
-        .map(|result| result.dns_message)
+        .await?;
+    Ok(DirectDnsResolution {
+        dns_message: result.dns_message,
+        interface_index: interface_index.get(),
+        cache_hit: result.cache_hit,
+    })
 }

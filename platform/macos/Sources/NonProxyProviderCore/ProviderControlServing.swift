@@ -17,3 +17,20 @@ public protocol ProviderDNSResolving: Sendable {
         _ request: Nonproxy_Provider_V1_ResolveDnsRequest
     ) async throws -> Nonproxy_Provider_V1_ResolveDnsResponse
 }
+
+public protocol ProviderDecisionReporting: Sendable {
+    func reportDecisionBatch(
+        _ decisions: [Nonproxy_Provider_V1_DecisionRecord],
+        batchID: String,
+        droppedEvents: UInt64
+    ) async throws
+}
+
+public protocol ProviderDecisionSubmitting: Sendable {
+    @discardableResult
+    func submit(
+        _ decision: Nonproxy_Provider_V1_DecisionRecord
+    ) -> Bool
+
+    func recordUnreportable()
+}

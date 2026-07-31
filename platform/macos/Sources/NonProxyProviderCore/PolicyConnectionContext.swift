@@ -63,17 +63,20 @@ public struct PolicyConnectionContext: Sendable {
 public struct PolicyDecision: Sendable {
     public let result: Nonproxy_Policy_V1_DecisionSpec
     public let matchedPolicyID: String?
+    public let matchedRuleID: String?
     public let snapshotVersion: UInt64
     public let reasonCode: String
 
     public init(
         result: Nonproxy_Policy_V1_DecisionSpec,
         matchedPolicyID: String?,
+        matchedRuleID: String? = nil,
         snapshotVersion: UInt64,
         reasonCode: String
     ) {
         self.result = result
         self.matchedPolicyID = matchedPolicyID
+        self.matchedRuleID = matchedRuleID
         self.snapshotVersion = snapshotVersion
         self.reasonCode = reasonCode
     }

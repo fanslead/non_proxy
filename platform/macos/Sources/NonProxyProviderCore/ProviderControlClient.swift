@@ -21,6 +21,7 @@ public struct ProviderSynchronizationResult: Sendable {
 public struct ProviderControlClient:
     ProviderControlServing,
     ProviderDNSResolving,
+    ProviderDecisionReporting,
     Sendable
 {
     private let configuration: ProviderConfiguration
@@ -84,6 +85,41 @@ public struct ProviderControlClient:
             )
         }
         return response
+    }
+
+    public func reportDecisionBatch(
+        _ decisions: [Nonproxy_Provider_V1_DecisionRecord],
+        batchID: String,
+        droppedEvents: UInt64
+    ) async throws {
+        guard !decisions.isEmpty, decisions.count <= 1_000 else {
+            throw ProviderError.control("决策批次必须包含 1 到 1000 条记录")
+        }
+        guard isStableBatchID(batchID) else {
+            throw ProviderError.control("决策批次标识无效")
+        }
+        var request = Nonproxy_Provider_V1_ReportDecisionBatchRequest()
+        request.context = try await session.requestContext()
+        request.decisions = decisions
+        request.droppedDebugEvents = droppedEvents
+        request.batchID = batchID
+        let authenticatedRequest = request
+        let response = try await connection.perform { client in
+            try await client.reportDecisionBatch(
+                request: ClientRequest(message: authenticatedRequest),
+                options: Self.decisionCallOptions
+            )
+        }
+        if response.hasError {
+            throw ProviderError.control(
+                response.error.message.isEmpty
+                    ? "gatewayd 拒绝连接决策批次"
+                    : response.error.message
+            )
+        }
+        guard response.acceptedCount == UInt32(decisions.count) else {
+            throw ProviderError.control("gatewayd 未完整接收连接决策批次")
+        }
     }
 
     public func shutdown() {
@@ -165,7 +201,11 @@ public struct ProviderControlClient:
         request.providerInstanceID = session.instanceID
         request.kind = configuration.kind
         request.version = configuration.componentVersion
-        request.capabilities = ["snapshot-v1", "heartbeat-v1"]
+        request.capabilities = [
+            "snapshot-v1",
+            "heartbeat-v1",
+            "decision-report-v1",
+        ]
         if configuration.kind == .dnsProxy {
             request.capabilities.append("dns-resolve-v1")
         }
@@ -257,10 +297,48 @@ public struct ProviderControlClient:
         return options
     }
 
+    private static var decisionCallOptions: CallOptions {
+        var options = CallOptions.defaults
+        options.timeout = .seconds(10)
+        options.waitForReady = true
+        options.maxRequestMessageBytes = 4 * 1_024 * 1_024
+        options.maxResponseMessageBytes = 128 * 1_024
+        return options
+    }
+
     private func secureRandomBytes(count: Int) -> Data {
         var generator = SystemRandomNumberGenerator()
         return Data((0 ..< count).map { _ in
             UInt8.random(in: UInt8.min ... UInt8.max, using: &generator)
         })
+    }
+}
+
+private func isStableBatchID(_ value: String) -> Bool {
+    !value.isEmpty
+        && value.count <= 128
+        && value.utf8.allSatisfy {
+            $0.isUppercaseASCII
+                || $0.isLowercaseASCII
+                || $0.isDigitASCII
+                || matchesBatchIDPunctuation($0)
+        }
+}
+
+private func matchesBatchIDPunctuation(_ value: UInt8) -> Bool {
+    value == 45 || value == 46 || value == 95
+}
+
+private extension UInt8 {
+    var isUppercaseASCII: Bool {
+        (65 ... 90).contains(self)
+    }
+
+    var isLowercaseASCII: Bool {
+        (97 ... 122).contains(self)
+    }
+
+    var isDigitASCII: Bool {
+        (48 ... 57).contains(self)
     }
 }

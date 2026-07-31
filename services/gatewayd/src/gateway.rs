@@ -19,6 +19,7 @@ use crate::{
     clock::unix_time_ms,
     database_executor::DatabaseExecutor,
     decision_snapshot_cache::DecisionSnapshotCache,
+    decision_telemetry::DecisionTelemetryRegistry,
     event_hub::EventHub,
     outbound_health::{OutboundHealthObservation, OutboundHealthRegistry},
     provider_health::ProviderHealthRegistry,
@@ -38,6 +39,7 @@ pub struct Gateway {
     outbound_health: OutboundHealthRegistry,
     provider_health: ProviderHealthRegistry,
     pub(crate) decision_snapshots: DecisionSnapshotCache,
+    decision_telemetry: DecisionTelemetryRegistry,
 }
 
 #[derive(Clone, Debug)]
@@ -59,6 +61,7 @@ pub struct GatewayStatus {
     pub policy_count: usize,
     pub data_plane_ready: bool,
     pub routing: RoutingSettings,
+    pub dropped_decision_events: u64,
 }
 
 impl Gateway {
@@ -84,6 +87,7 @@ impl Gateway {
             outbound_health: OutboundHealthRegistry::new(),
             provider_health: ProviderHealthRegistry::new(),
             decision_snapshots: DecisionSnapshotCache::default(),
+            decision_telemetry: DecisionTelemetryRegistry::default(),
         }
     }
 
@@ -97,10 +101,31 @@ impl Gateway {
         &self.events
     }
 
+    #[cfg(any(test, windows))]
+    pub(crate) fn record_dropped_decisions(&self, count: u64) {
+        self.decision_telemetry.record_dropped(count);
+    }
+
+    pub(crate) fn record_provider_dropped_decisions(
+        &self,
+        provider_id: &str,
+        provider_generation: u64,
+        batch_id: &str,
+        count: u64,
+    ) {
+        self.decision_telemetry.record_provider_dropped(
+            provider_id,
+            provider_generation,
+            batch_id,
+            count,
+        );
+    }
+
     pub async fn status(&self) -> Result<GatewayStatus, GatewayError> {
+        let dropped_decision_events = self.decision_telemetry.dropped_events();
         let mut status = self
             .database
-            .run(|database| {
+            .run(move |database| {
                 let active = database.snapshots().active()?;
                 let pending = database.snapshots().pending()?;
                 let policy_count = database.policies().list()?.len();
@@ -111,6 +136,7 @@ impl Gateway {
                     policy_count,
                     data_plane_ready: false,
                     routing,
+                    dropped_decision_events,
                 })
             })
             .await?;

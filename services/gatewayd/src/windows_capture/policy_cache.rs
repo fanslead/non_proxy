@@ -56,6 +56,11 @@ impl WindowsPolicyCache {
         self.current.read().await.clone()
     }
 
+    #[must_use]
+    pub const fn provider_generation(&self) -> u64 {
+        self.provider_generation
+    }
+
     pub async fn refresh_until_shutdown(
         self,
         mut shutdown: watch::Receiver<bool>,

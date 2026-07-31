@@ -96,7 +96,13 @@ fn evidence_cannot_overclaim_the_selected_route() {
     let decision = Decision::defaulted(proxy_decision(proxy_id.clone()), 1, "NP_POLICY_DEFAULT");
     let app = app();
     let destination = destination(Some("api.example.com"));
-    let evidence = DecisionEvidence::new(EvidenceLevel::Path, Some("en0".to_owned()), None, None);
+    let evidence = DecisionEvidence::new(
+        EvidenceLevel::Path,
+        Some("en0".to_owned()),
+        None,
+        None,
+        false,
+    );
     let (Ok(app), Ok(destination), Ok(evidence)) = (app, destination, evidence) else {
         panic!("证据负向测试夹具创建失败");
     };
@@ -116,8 +122,111 @@ fn evidence_cannot_overclaim_the_selected_route() {
 
     assert!(matches!(result, Err(StorageError::DecisionEvidenceInvalid)));
     assert!(
-        DecisionEvidence::new(EvidenceLevel::Exit, Some("en0".to_owned()), None, None,).is_err()
+        DecisionEvidence::new(
+            EvidenceLevel::Exit,
+            Some("en0".to_owned()),
+            None,
+            None,
+            false,
+        )
+        .is_err()
     );
+}
+
+#[test]
+fn fail_open_proxy_can_record_the_real_direct_interface() {
+    let evidence = DecisionEvidence::new(
+        EvidenceLevel::Path,
+        Some("ifindex:12".to_owned()),
+        None,
+        None,
+        true,
+    );
+    let decision = DecisionSpec::new(RouteAction::Proxy, Some(outbound_id()), FailureMode::Open);
+    let (Ok(evidence), Ok(decision), Ok(app), Ok(destination)) =
+        (evidence, decision, app(), destination(None))
+    else {
+        panic!("fail-open 证据测试夹具创建失败");
+    };
+    let input = ConnectionDecisionInput::new(
+        "windows-wfp",
+        3,
+        "fallback-flow",
+        1_300,
+        app,
+        destination,
+        Decision::defaulted(decision, 1, "NP_POLICY_DEFAULT"),
+        evidence,
+        Some(900),
+        Some("NP_PROXY_FAIL_OPEN_DIRECT".to_owned()),
+    );
+    let Ok(input) = input else {
+        panic!("合法 fail-open 决策输入被拒绝: {input:?}");
+    };
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("fail-open 测试数据库打开失败: {database:?}");
+    };
+
+    assert!(matches!(
+        database.connection_decisions().save_batch(&[input]),
+        Ok(1)
+    ));
+    assert!(matches!(
+        database.connection_decisions().list_recent(10, 0),
+        Ok((records, 1))
+            if records[0].fail_open_direct()
+                && records[0].interface_name() == Some("ifindex:12")
+                && records[0].error_code() == Some("NP_PROXY_FAIL_OPEN_DIRECT")
+    ));
+}
+
+#[test]
+fn fail_open_evidence_requires_open_policy_and_a_reason() {
+    let evidence = || {
+        DecisionEvidence::new(
+            EvidenceLevel::Path,
+            Some("ifindex:12".to_owned()),
+            None,
+            None,
+            true,
+        )
+    };
+    let closed = ConnectionDecisionInput::new(
+        "windows-wfp",
+        3,
+        "closed-flow",
+        1_300,
+        app().unwrap_or_else(|error| panic!("应用夹具失败: {error}")),
+        destination(None).unwrap_or_else(|error| panic!("目标夹具失败: {error}")),
+        Decision::defaulted(proxy_decision(outbound_id()), 1, "NP_POLICY_DEFAULT"),
+        evidence().unwrap_or_else(|error| panic!("证据夹具失败: {error}")),
+        None,
+        Some("NP_PROXY_FAIL_OPEN_DIRECT".to_owned()),
+    );
+    let open_without_reason = ConnectionDecisionInput::new(
+        "windows-wfp",
+        3,
+        "missing-reason-flow",
+        1_300,
+        app().unwrap_or_else(|error| panic!("应用夹具失败: {error}")),
+        destination(None).unwrap_or_else(|error| panic!("目标夹具失败: {error}")),
+        Decision::defaulted(
+            DecisionSpec::new(RouteAction::Proxy, Some(outbound_id()), FailureMode::Open)
+                .unwrap_or_else(|error| panic!("决策夹具失败: {error}")),
+            1,
+            "NP_POLICY_DEFAULT",
+        ),
+        evidence().unwrap_or_else(|error| panic!("证据夹具失败: {error}")),
+        None,
+        None,
+    );
+
+    assert!(matches!(closed, Err(StorageError::DecisionEvidenceInvalid)));
+    assert!(matches!(
+        open_without_reason,
+        Err(StorageError::DecisionEvidenceInvalid)
+    ));
 }
 
 fn direct_input(
@@ -132,6 +241,7 @@ fn direct_input(
         Some(interface_name.to_owned()),
         None,
         None,
+        false,
     )?;
     ConnectionDecisionInput::new(
         "transparent-proxy",
@@ -160,6 +270,7 @@ fn proxy_input(
         None,
         Some(outbound_id.clone()),
         (level == EvidenceLevel::Exit).then(|| "probe-1".to_owned()),
+        false,
     )?;
     ConnectionDecisionInput::new(
         "transparent-proxy",

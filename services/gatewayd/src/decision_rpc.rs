@@ -108,6 +108,7 @@ fn to_proto(record: &ConnectionDecisionRecord) -> Result<ConnectionDecisionSumma
         snapshot_version: record.snapshot_version(),
         provider_id: record.provider_id().to_owned(),
         provider_generation: record.provider_generation(),
+        fail_open_direct: record.fail_open_direct(),
     })
 }
 

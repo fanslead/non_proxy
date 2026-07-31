@@ -6,9 +6,12 @@ mod control_rpc_service;
 mod control_service;
 mod credential_store;
 mod database_executor;
+#[cfg(any(test, windows))]
+mod decision_event;
 mod decision_ingest;
 mod decision_rpc;
 mod decision_snapshot_cache;
+mod decision_telemetry;
 #[cfg(any(test, windows))]
 mod dns_policy;
 mod dns_service;

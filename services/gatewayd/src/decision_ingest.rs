@@ -23,6 +23,18 @@ const MAX_PATH_FIELD_LENGTH: usize = 128;
 const MAX_DECISION_LATENCY_MICROS: u64 = 60_000_000;
 const MAX_FUTURE_CLOCK_SKEW_MS: u64 = 5 * 60 * 1_000;
 impl Gateway {
+    pub(crate) async fn store_connection_decisions(
+        &self,
+        inputs: Vec<ConnectionDecisionInput>,
+    ) -> Result<(), GatewayError> {
+        self.database
+            .run(move |database| {
+                database.connection_decisions().save_batch(&inputs)?;
+                Ok(())
+            })
+            .await
+    }
+
     pub(crate) async fn ingest_decision_batch(
         &self,
         provider_id: String,
@@ -61,10 +73,8 @@ impl Gateway {
                 )
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let accepted = self
-            .database
-            .run(move |database| Ok(database.connection_decisions().save_batch(&inputs)?))
-            .await?;
+        let accepted = inputs.len();
+        self.store_connection_decisions(inputs).await?;
         u32::try_from(accepted)
             .map_err(|_| GatewayError::InvalidContract("决策接收数量超出协议范围"))
     }
@@ -253,6 +263,7 @@ fn evidence_from_proto(
             .map(OutboundId::new)
             .transpose()?,
         optional_owned(value.exit_probe_id),
+        value.fail_open_direct,
     )
     .map_err(GatewayError::from)
 }

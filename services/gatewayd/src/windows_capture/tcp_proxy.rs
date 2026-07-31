@@ -1,4 +1,7 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_model::{ConnectionContext, Destination, FailureMode, RouteAction, Transport};
@@ -15,12 +18,17 @@ use tokio::{
 };
 
 use crate::{
-    Gateway, GatewayError, credential_store::CredentialStore,
+    Gateway, GatewayError,
+    clock::unix_time_ms,
+    credential_store::CredentialStore,
+    decision_event::{
+        DecisionEventReporter, DecisionObservation, ObservedPath, elapsed_micros, new_flow_id,
+    },
     flow_server::outbound_factory::load_connector_with_dialer,
 };
 
 use super::{
-    dialer::RedirectTcpDialer,
+    dialer::{DirectPathObserver, RedirectTcpDialer},
     direct_dns::WindowsDirectDomainResolver,
     identity::{app_identity, original_remote},
     policy_cache::WindowsPolicyCache,
@@ -36,6 +44,7 @@ pub struct WindowsTcpProxy {
     physical_interfaces: Arc<PhysicalInterfaceCatalog>,
     direct_domain_resolver: WindowsDirectDomainResolver,
     capacity: Arc<Semaphore>,
+    decisions: DecisionEventReporter,
 }
 
 impl WindowsTcpProxy {
@@ -45,6 +54,7 @@ impl WindowsTcpProxy {
         policies: WindowsPolicyCache,
         physical_interfaces: Arc<PhysicalInterfaceCatalog>,
         direct_domain_resolver: WindowsDirectDomainResolver,
+        decisions: DecisionEventReporter,
     ) -> Self {
         Self {
             gateway,
@@ -53,6 +63,7 @@ impl WindowsTcpProxy {
             physical_interfaces,
             direct_domain_resolver,
             capacity: Arc::new(Semaphore::new(MAXIMUM_ACTIVE_CONNECTIONS)),
+            decisions,
         }
     }
 
@@ -104,6 +115,7 @@ impl WindowsTcpProxy {
         let policies = self.policies.clone();
         let physical_interfaces = Arc::clone(&self.physical_interfaces);
         let direct_domain_resolver = self.direct_domain_resolver.clone();
+        let decisions = self.decisions.clone();
         tasks.spawn(async move {
             let _permit = permit;
             let _result = handle_connection(
@@ -113,6 +125,7 @@ impl WindowsTcpProxy {
                 policies,
                 physical_interfaces,
                 direct_domain_resolver,
+                decisions,
             )
             .await;
         });
@@ -126,6 +139,7 @@ async fn handle_connection(
     policies: WindowsPolicyCache,
     physical_interfaces: Arc<PhysicalInterfaceCatalog>,
     direct_domain_resolver: WindowsDirectDomainResolver,
+    decisions: DecisionEventReporter,
 ) -> Result<(), GatewayError> {
     let metadata =
         query_redirect_metadata(std::os::windows::io::AsRawSocket::as_raw_socket(&inbound))
@@ -158,22 +172,49 @@ async fn handle_connection(
         .current()
         .await
         .ok_or_else(|| GatewayError::WindowsDataPlane("没有可用的活动策略快照".to_owned()))?;
+    let observed_at_unix_ms = unix_time_ms()?;
+    let decision_started = Instant::now();
     let decision = PolicyEngine::decide(&snapshot, &context);
+    let decision_latency_micros = elapsed_micros(decision_started);
+    let observation = DecisionObservation::new(
+        "windows-wfp",
+        policies.provider_generation(),
+        new_flow_id("tcp"),
+        observed_at_unix_ms,
+        context,
+        decision.clone(),
+        decision_latency_micros,
+    );
     let proxy_dialer: Arc<dyn TcpDialer> = Arc::new(RedirectTcpDialer::new(metadata.records()));
-    let direct_dialer: Arc<dyn TcpDialer> = Arc::new(RedirectTcpDialer::direct(
-        metadata.records(),
-        physical_interfaces,
-    ));
+    let (direct_dialer, direct_path) =
+        RedirectTcpDialer::direct(metadata.records(), physical_interfaces);
+    let direct_dialer: Arc<dyn TcpDialer> = Arc::new(direct_dialer);
     match decision.result().action() {
-        RouteAction::Block => Ok(()),
+        RouteAction::Block => {
+            report(&decisions, &observation, ObservedPath::Decision, None);
+            Ok(())
+        }
         RouteAction::Direct => {
-            let mut outbound = connect_direct(
+            let connected = connect_direct(
                 Arc::clone(&direct_dialer),
                 &target,
                 &direct_domain_resolver,
                 snapshot.metadata().snapshot_version(),
             )
-            .await?;
+            .await;
+            let mut outbound = match connected {
+                Ok(value) => value,
+                Err(error) => {
+                    report(
+                        &decisions,
+                        &observation,
+                        ObservedPath::Decision,
+                        Some("NP_WINDOWS_DIRECT_CONNECT_FAILED"),
+                    );
+                    return Err(error);
+                }
+            };
+            report_direct(&decisions, &observation, &direct_path, false);
             relay(&mut inbound, &mut outbound).await
         }
         RouteAction::Proxy => {
@@ -197,20 +238,91 @@ async fn handle_connection(
             }
             .await;
             match proxied {
-                Ok(mut outbound) => relay(&mut inbound, &mut outbound).await,
+                Ok(mut outbound) => {
+                    report(
+                        &decisions,
+                        &observation,
+                        ObservedPath::Proxy {
+                            outbound_id: outbound_id.clone(),
+                        },
+                        None,
+                    );
+                    relay(&mut inbound, &mut outbound).await
+                }
                 Err(_) if decision.result().failure_mode() == FailureMode::Open => {
-                    let mut outbound = connect_direct(
+                    let connected = connect_direct(
                         direct_dialer,
                         &target,
                         &direct_domain_resolver,
                         snapshot.metadata().snapshot_version(),
                     )
-                    .await?;
+                    .await;
+                    let mut outbound = match connected {
+                        Ok(value) => value,
+                        Err(error) => {
+                            report(
+                                &decisions,
+                                &observation,
+                                ObservedPath::Decision,
+                                Some("NP_WINDOWS_PROXY_FAIL_OPEN_FAILED"),
+                            );
+                            return Err(error);
+                        }
+                    };
+                    report_direct(&decisions, &observation, &direct_path, true);
                     relay(&mut inbound, &mut outbound).await
                 }
-                Err(error) => Err(error),
+                Err(error) => {
+                    report(
+                        &decisions,
+                        &observation,
+                        ObservedPath::Decision,
+                        Some("NP_WINDOWS_PROXY_CONNECT_FAILED"),
+                    );
+                    Err(error)
+                }
             }
         }
+    }
+}
+
+fn report_direct(
+    reporter: &DecisionEventReporter,
+    observation: &DecisionObservation,
+    path: &DirectPathObserver,
+    fail_open: bool,
+) {
+    let Some(interface_index) = path.interface_index() else {
+        report(
+            reporter,
+            observation,
+            ObservedPath::Decision,
+            Some("NP_WINDOWS_DIRECT_INTERFACE_UNKNOWN"),
+        );
+        return;
+    };
+    report(
+        reporter,
+        observation,
+        ObservedPath::Direct {
+            interface_index,
+            fail_open,
+        },
+        fail_open.then_some("NP_WINDOWS_PROXY_FAIL_OPEN_DIRECT"),
+    );
+}
+
+fn report(
+    reporter: &DecisionEventReporter,
+    observation: &DecisionObservation,
+    path: ObservedPath,
+    error_code: Option<&str>,
+) {
+    match observation.record(path, error_code) {
+        Ok(decision) => {
+            let _accepted = reporter.submit(decision);
+        }
+        Err(_) => reporter.record_unreportable(),
     }
 }
 

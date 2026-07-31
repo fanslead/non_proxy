@@ -16,7 +16,7 @@ use nonproxy_proto::{
 use nonproxy_storage::PolicyDatabase;
 use tonic::Request;
 
-use super::{ProviderRpcService, REQUIRED_CAPABILITIES, validate_registration};
+use super::{ProviderRpcService, REQUIRED_CAPABILITIES, validate_batch_id, validate_registration};
 use crate::{
     Gateway, credential_store::tests_support::MemoryCredentialStore,
     provider_session::PROVIDER_SESSION_LIFETIME_MS, session_capability::SessionCapability,
@@ -51,6 +51,15 @@ fn registration_rejects_missing_or_duplicate_capabilities() {
     assert!(validate_registration(&request).is_err());
 }
 
+#[test]
+fn report_batch_id_is_bounded_and_path_safe() {
+    assert!(validate_batch_id("batch_1.retry-2").is_ok());
+    assert!(validate_batch_id(&"a".repeat(128)).is_ok());
+    assert!(validate_batch_id("").is_err());
+    assert!(validate_batch_id(&"a".repeat(129)).is_err());
+    assert!(validate_batch_id("../batch").is_err());
+}
+
 #[tokio::test]
 async fn authenticated_report_is_persisted_and_replay_is_idempotent() {
     let database = match PolicyDatabase::open_in_memory(1) {
@@ -77,20 +86,25 @@ async fn authenticated_report_is_persisted_and_replay_is_idempotent() {
         panic!("Provider 决策测试注册失败: {registered:?}");
     };
     let registered = registered.into_inner();
+    let mut first_request = report_request(registered.session_token.clone(), 1);
+    first_request.dropped_debug_events = 9;
+    first_request.batch_id = "retry-batch".to_owned();
     let first = service
-        .report_decision_batch(Request::new(report_request(
-            registered.session_token.clone(),
-            1,
-        )))
+        .report_decision_batch(Request::new(first_request))
         .await;
+    let mut replay_request = report_request(registered.session_token, 2);
+    replay_request.dropped_debug_events = 9;
+    replay_request.batch_id = "retry-batch".to_owned();
     let replay = service
-        .report_decision_batch(Request::new(report_request(registered.session_token, 2)))
+        .report_decision_batch(Request::new(replay_request))
         .await;
     let listed = gateway.list_connection_decisions(10, 0).await;
+    let status = gateway.status().await;
 
     assert!(matches!(first, Ok(response) if response.get_ref().accepted_count == 1));
     assert!(matches!(replay, Ok(response) if response.get_ref().accepted_count == 1));
     assert!(matches!(listed, Ok((records, 1)) if records.len() == 1));
+    assert!(matches!(status, Ok(value) if value.dropped_decision_events == 9));
 }
 
 fn registration(
@@ -168,5 +182,6 @@ fn report_request(session_token: Vec<u8>, request_sequence: u64) -> ReportDecisi
             error: None,
         }],
         dropped_debug_events: 0,
+        batch_id: format!("batch-{request_sequence}"),
     }
 }
