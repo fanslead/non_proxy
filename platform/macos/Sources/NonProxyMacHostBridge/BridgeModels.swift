@@ -2,7 +2,7 @@ import Foundation
 import SystemExtensions
 
 enum BridgeConstants {
-    static let abiVersion: UInt32 = 5
+    static let abiVersion: UInt32 = 6
     static let transparentBundleIdentifier =
         "com.nonproxy.desktop.transparent-proxy"
     static let dnsBundleIdentifier = "com.nonproxy.desktop.dns-proxy"
@@ -71,6 +71,44 @@ struct ApplicationSelectionPayload: Codable, Equatable, Sendable {
             message: bridgeError.message,
             errorCode: bridgeError.code,
             application: nil
+        )
+    }
+}
+
+struct SystemProxyDescriptor: Codable, Equatable, Sendable {
+    let suggestedID: String
+    let displayName: String
+    let kind: String
+    let host: String
+    let port: UInt16
+}
+
+struct SystemProxyDiscoveryPayload: Codable, Equatable, Sendable {
+    let success: Bool
+    let message: String
+    let errorCode: String?
+    let proxies: [SystemProxyDescriptor]
+
+    static func result(
+        proxies: [SystemProxyDescriptor]
+    ) -> SystemProxyDiscoveryPayload {
+        SystemProxyDiscoveryPayload(
+            success: true,
+            message: proxies.isEmpty
+                ? "系统当前没有启用可导入的 SOCKS 或 HTTP 代理。"
+                : "已从系统设置发现 \(proxies.count) 个代理；格式检查不代表握手可用，请核对后再保存和测试。",
+            errorCode: nil,
+            proxies: proxies
+        )
+    }
+
+    static func failure(error: Error) -> SystemProxyDiscoveryPayload {
+        let bridgeError = BridgeError.from(error)
+        return SystemProxyDiscoveryPayload(
+            success: false,
+            message: bridgeError.message,
+            errorCode: bridgeError.code,
+            proxies: []
         )
     }
 }

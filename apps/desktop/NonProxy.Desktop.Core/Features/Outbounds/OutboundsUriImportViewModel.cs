@@ -29,6 +29,7 @@ public sealed partial class OutboundsViewModel
         _previewedUriImportText = null;
         UriImportPreview.Clear();
         UriImportMessage = null;
+        LocalProxyDiscoveryMessage = null;
         OnPropertyChanged(nameof(HasUriImportPreview));
         PreviewUriImportCommand.NotifyCanExecuteChanged();
         SaveUriImportCommand.NotifyCanExecuteChanged();

@@ -46,11 +46,15 @@ internal static class MacHostDiagnostics
                 .ProbeAsync(CancellationToken.None);
             var applications = await new MacNativeBridgeClient()
                 .ListApplicationsAsync(CancellationToken.None);
+            var proxies = await new MacNativeBridgeClient()
+                .DiscoverSystemProxiesAsync(CancellationToken.None);
             var smoke = new MacBridgeSmokePayload(
                 result.AbiVersion,
                 result.Message,
                 applications.Success && applications.Applications.Count > 0,
-                applications.Applications.Count);
+                applications.Applications.Count,
+                proxies.Success,
+                proxies.Proxies.Count);
             Console.WriteLine(JsonSerializer.Serialize(
                 smoke,
                 MacNativeJsonContext.Default.MacBridgeSmokePayload));
@@ -58,6 +62,7 @@ internal static class MacHostDiagnostics
                 && result.Message.Contains("原生桥接", StringComparison.Ordinal)
                 && applications.Success
                 && applications.Applications.Count > 0
+                && proxies.Success
                     ? 0
                     : 1;
         }

@@ -7,7 +7,7 @@ namespace NonProxy.Desktop.Mac;
 
 internal sealed class MacNativeBridgeClient
 {
-    internal const uint SupportedAbiVersion = 5;
+    internal const uint SupportedAbiVersion = 6;
     private const int StartAccepted = 0;
     private long _nextOperationId;
     private int _abiValidated;
@@ -62,6 +62,19 @@ internal sealed class MacNativeBridgeClient
         return Deserialize(
             json,
             MacNativeJsonContext.Default.MacApplicationSelectionPayload);
+    }
+
+    internal async Task<MacSystemProxyDiscoveryPayload> DiscoverSystemProxiesAsync(
+        CancellationToken cancellationToken)
+    {
+        var json = await InvokeAsync(
+            NativeOperation.DiscoverSystemProxies,
+            approvalRequired: null,
+            operationCompleted: null,
+            cancellationToken);
+        return Deserialize(
+            json,
+            MacNativeJsonContext.Default.MacSystemProxyDiscoveryPayload);
     }
 
     internal async Task<MacBridgeEventPayload> InstallAndEnableAsync(
@@ -165,6 +178,11 @@ internal sealed class MacNativeBridgeClient
                         handle),
                 NativeOperation.ChooseApplication =>
                     MacNativeBridgeMethods.ChooseApplication(
+                        operationId,
+                        callback,
+                        handle),
+                NativeOperation.DiscoverSystemProxies =>
+                    MacNativeBridgeMethods.DiscoverSystemProxies(
                         operationId,
                         callback,
                         handle),
@@ -304,6 +322,7 @@ internal sealed class MacNativeBridgeClient
         Query,
         ListApplications,
         ChooseApplication,
+        DiscoverSystemProxies,
         InstallAndEnable,
         DisableAndUninstall,
     }

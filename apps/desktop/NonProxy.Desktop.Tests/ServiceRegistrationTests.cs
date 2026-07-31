@@ -37,6 +37,22 @@ public sealed class ServiceRegistrationTests
         Assert.Equal("运行概览", shell.CurrentPage.Title);
     }
 
+    [Fact]
+    public async Task PlatformWithoutDiscoveryReportsTheBoundaryExplicitly()
+    {
+        using var services = TestPlatformServices.Create(
+            PlatformKind.Windows,
+            "Windows");
+        var discovery = services.GetRequiredService<ILocalProxyDiscovery>();
+
+        var result = await discovery.DiscoverAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.IsAvailable);
+        Assert.Empty(result.Candidates);
+        Assert.Contains("尚未接入", result.Message, StringComparison.Ordinal);
+    }
+
     private sealed class StubPlatformInformation : IPlatformInformation
     {
         public PlatformKind Platform => PlatformKind.Unknown;

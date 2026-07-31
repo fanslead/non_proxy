@@ -3,6 +3,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NonProxy.Desktop.Core.Features.Common;
+using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Control;
 
 namespace NonProxy.Desktop.Core.Features.Outbounds;
@@ -10,6 +11,7 @@ namespace NonProxy.Desktop.Core.Features.Outbounds;
 public sealed partial class OutboundsViewModel : LoadableViewModel
 {
     private readonly IOutboundService _outboundService;
+    private readonly ILocalProxyDiscovery _localProxyDiscovery;
     private ulong _routingRevision;
 
     [ObservableProperty]
@@ -47,10 +49,14 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
 
     private bool _usesDirectByDefault = true;
 
-    public OutboundsViewModel(IOutboundService outboundService)
+    public OutboundsViewModel(
+        IOutboundService outboundService,
+        ILocalProxyDiscovery localProxyDiscovery)
         : base("网络出口")
     {
         _outboundService = outboundService;
+        _localProxyDiscovery = localProxyDiscovery;
+        InitializeLocalProxyDiscoveryCommand();
         InitializeUriImportCommands();
         ImportCommand = new AsyncRelayCommand(ImportAsync, CanImport);
         TestCommand = new AsyncRelayCommand<OutboundListItem>(TestAsync);

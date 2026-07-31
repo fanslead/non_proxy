@@ -29,11 +29,27 @@
                 <StackPanel Spacing="14">
                     <StackPanel Spacing="4">
                         <TextBlock Theme="{StaticResource NpSectionTitle}"
-                                   Text="粘贴代理链接（推荐）" />
+                                   Text="自动发现或粘贴代理链接（推荐）" />
                         <TextBlock Theme="{StaticResource NpMutedText}"
                                    Text="每行粘贴一个 socks5://、socks5h:// 或 http:// 链接。先检查识别结果，再明确保存；预览和列表始终隐藏账号与密码。"
                                    TextWrapping="Wrap" />
                     </StackPanel>
+                    <Grid ColumnDefinitions="Auto,*"
+                          ColumnSpacing="10">
+                        <Button x:Name="DiscoverLocalProxyButton"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding DiscoverLocalProxiesCommand}"
+                                Content="自动发现当前系统代理"
+                                AutomationProperties.Name="自动发现当前系统 SOCKS 或 HTTP 代理" />
+                        <TextBlock Grid.Column="1"
+                                   VerticalAlignment="Center"
+                                   Theme="{StaticResource NpMutedText}"
+                                   Text="只读取公开的代理类型、地址和端口；如需账号密码，请改用代理链接或手动填写。"
+                                   TextWrapping="Wrap" />
+                    </Grid>
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="{Binding LocalProxyDiscoveryMessage}"
+                               TextWrapping="Wrap" />
                     <TextBox x:Name="ProxyUriImportText"
                              Theme="{StaticResource NpTextBox}"
                              AcceptsReturn="True"

@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using NonProxy.Desktop.Core.Features.Outbounds;
+using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Control;
 
 namespace NonProxy.Desktop.Tests;
@@ -255,6 +256,115 @@ public sealed class OutboundsViewModelTests
     }
 
     [Fact]
+    public async Task DiscoveryBuildsASecretFreeUriListAndPreviewsItWithoutSaving()
+    {
+        var outboundService = new RecordingOutboundService();
+        var discovery = new RecordingLocalProxyDiscovery(
+            new LocalProxyDiscoverySnapshot(
+                [
+                    new LocalProxyCandidate(
+                        "system-socks5",
+                        "系统 SOCKS5 代理",
+                        LocalProxyProtocol.Socks5,
+                        "127.0.0.1",
+                        7891),
+                    new LocalProxyCandidate(
+                        "system-http",
+                        "系统 HTTP 代理",
+                        LocalProxyProtocol.HttpConnect,
+                        "2001:db8::1",
+                        8080),
+                ],
+                true,
+                "已发现 2 个代理。"));
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+            {
+                collection.AddSingleton<IOutboundService>(outboundService);
+                collection.AddSingleton<ILocalProxyDiscovery>(discovery);
+            });
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+
+        await viewModel.DiscoverLocalProxiesCommand.ExecuteAsync(null);
+
+        Assert.Contains(
+            "socks5://127.0.0.1:7891#system-socks5",
+            viewModel.UriImportText,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "http://[2001:db8::1]:8080#system-http",
+            viewModel.UriImportText,
+            StringComparison.Ordinal);
+        Assert.Equal(viewModel.UriImportText, outboundService.LastPreviewedUriList);
+        Assert.Null(outboundService.LastImportedUriList);
+        Assert.True(viewModel.SaveUriImportCommand.CanExecute(null));
+        Assert.Equal("已发现 2 个代理。", viewModel.LocalProxyDiscoveryMessage);
+    }
+
+    [Fact]
+    public async Task EmptyDiscoveryDoesNotEraseManuallyEnteredLinks()
+    {
+        var outboundService = new RecordingOutboundService();
+        var discovery = new RecordingLocalProxyDiscovery(
+            new LocalProxyDiscoverySnapshot(
+                [],
+                true,
+                "系统当前没有启用可导入的代理。"));
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+            {
+                collection.AddSingleton<IOutboundService>(outboundService);
+                collection.AddSingleton<ILocalProxyDiscovery>(discovery);
+            });
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+        const string manual = "socks5://manual.example:1080#manual";
+        viewModel.UriImportText = manual;
+
+        await viewModel.DiscoverLocalProxiesCommand.ExecuteAsync(null);
+
+        Assert.Equal(manual, viewModel.UriImportText);
+        Assert.Null(outboundService.LastPreviewedUriList);
+        Assert.Contains("没有启用", viewModel.LocalProxyDiscoveryMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LateDiscoveryDoesNotReplaceInputChangedByTheUser()
+    {
+        var completion = new TaskCompletionSource<LocalProxyDiscoverySnapshot>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var outboundService = new RecordingOutboundService();
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+            {
+                collection.AddSingleton<IOutboundService>(outboundService);
+                collection.AddSingleton<ILocalProxyDiscovery>(
+                    new DelayedLocalProxyDiscovery(completion.Task));
+            });
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+        viewModel.UriImportText = "socks5://old.example:1080#old";
+
+        var discovery = viewModel.DiscoverLocalProxiesCommand.ExecuteAsync(null);
+        const string changed = "http://manual.example:8080#changed";
+        viewModel.UriImportText = changed;
+        completion.SetResult(new LocalProxyDiscoverySnapshot(
+            [
+                new LocalProxyCandidate(
+                    "system-socks5",
+                    "系统 SOCKS5 代理",
+                    LocalProxyProtocol.Socks5,
+                    "127.0.0.1",
+                    7891),
+            ],
+            true,
+            "已发现 1 个代理。"));
+        await discovery;
+
+        Assert.Equal(changed, viewModel.UriImportText);
+        Assert.Null(outboundService.LastPreviewedUriList);
+        Assert.Contains("没有自动替换", viewModel.LocalProxyDiscoveryMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SavingAReviewedUriListClearsTheSecretBearingInput()
     {
         var outboundService = new RecordingOutboundService();
@@ -323,6 +433,27 @@ public sealed class OutboundsViewModelTests
         Assert.Equal(reviewed, outboundService.LastImportedUriList);
         Assert.Equal(changed, viewModel.UriImportText);
         Assert.Contains("没有自动清空", viewModel.UriImportMessage, StringComparison.Ordinal);
+    }
+
+    private sealed class RecordingLocalProxyDiscovery(
+        LocalProxyDiscoverySnapshot snapshot) : ILocalProxyDiscovery
+    {
+        public Task<LocalProxyDiscoverySnapshot> DiscoverAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(snapshot);
+        }
+    }
+
+    private sealed class DelayedLocalProxyDiscovery(
+        Task<LocalProxyDiscoverySnapshot> result) : ILocalProxyDiscovery
+    {
+        public Task<LocalProxyDiscoverySnapshot> DiscoverAsync(
+            CancellationToken cancellationToken)
+        {
+            return result.WaitAsync(cancellationToken);
+        }
     }
 
     private sealed class RecordingOutboundService : IOutboundService

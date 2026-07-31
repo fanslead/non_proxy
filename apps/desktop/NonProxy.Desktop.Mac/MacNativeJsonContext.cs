@@ -9,5 +9,6 @@ namespace NonProxy.Desktop.Mac;
 [JsonSerializable(typeof(MacBridgeSmokePayload))]
 [JsonSerializable(typeof(MacApplicationCatalogPayload))]
 [JsonSerializable(typeof(MacApplicationSelectionPayload))]
+[JsonSerializable(typeof(MacSystemProxyDiscoveryPayload))]
 [JsonSerializable(typeof(MacBridgeEventPayload))]
 internal sealed partial class MacNativeJsonContext : JsonSerializerContext;

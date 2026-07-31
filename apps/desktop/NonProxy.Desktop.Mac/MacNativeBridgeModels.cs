@@ -15,7 +15,9 @@ internal sealed record MacBridgeSmokePayload(
     [property: JsonPropertyName("abiVersion")] uint AbiVersion,
     [property: JsonPropertyName("message")] string Message,
     [property: JsonPropertyName("applicationCatalog")] bool ApplicationCatalog,
-    [property: JsonPropertyName("applicationCount")] int ApplicationCount);
+    [property: JsonPropertyName("applicationCount")] int ApplicationCount,
+    [property: JsonPropertyName("proxyDiscovery")] bool ProxyDiscovery,
+    [property: JsonPropertyName("proxyCount")] int ProxyCount);
 
 internal sealed record MacApplicationDescriptor(
     [property: JsonPropertyName("displayName")] string DisplayName,
@@ -37,6 +39,20 @@ internal sealed record MacApplicationSelectionPayload(
     [property: JsonPropertyName("errorCode")] string? ErrorCode,
     [property: JsonPropertyName("application")]
         MacApplicationDescriptor? Application);
+
+internal sealed record MacSystemProxyDescriptor(
+    [property: JsonPropertyName("suggestedID")] string SuggestedId,
+    [property: JsonPropertyName("displayName")] string DisplayName,
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("host")] string Host,
+    [property: JsonPropertyName("port")] ushort Port);
+
+internal sealed record MacSystemProxyDiscoveryPayload(
+    [property: JsonPropertyName("success")] bool Success,
+    [property: JsonPropertyName("message")] string Message,
+    [property: JsonPropertyName("errorCode")] string? ErrorCode,
+    [property: JsonPropertyName("proxies")]
+        IReadOnlyList<MacSystemProxyDescriptor> Proxies);
 
 internal sealed record MacBridgeEventPayload(
     [property: JsonPropertyName("operation")] string Operation,

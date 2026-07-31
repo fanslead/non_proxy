@@ -57,6 +57,14 @@ struct BridgeCallbackSink: @unchecked Sendable {
         )
     }
 
+    func completeProxyDiscovery(_ payload: SystemProxyDiscoveryPayload) {
+        emit(
+            eventKind: 2,
+            statusCode: payload.success ? 0 : -1,
+            value: payload
+        )
+    }
+
     private func emit<Value: Encodable>(
         eventKind: Int32,
         statusCode: Int32,

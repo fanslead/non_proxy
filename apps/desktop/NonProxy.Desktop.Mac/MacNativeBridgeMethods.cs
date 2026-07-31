@@ -72,6 +72,21 @@ internal static unsafe partial class MacNativeBridgeMethods
 
     [LibraryImport(
         LibraryName,
+        EntryPoint = "np_mac_bridge_discover_system_proxies")]
+    internal static partial int DiscoverSystemProxies(
+        ulong operationId,
+        delegate* unmanaged[Cdecl]<
+            ulong,
+            int,
+            int,
+            byte*,
+            nuint,
+            nint,
+            void> callback,
+        nint context);
+
+    [LibraryImport(
+        LibraryName,
         EntryPoint = "np_mac_bridge_install_and_enable")]
     internal static partial int InstallAndEnable(
         ulong operationId,

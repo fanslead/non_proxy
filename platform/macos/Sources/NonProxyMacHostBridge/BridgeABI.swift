@@ -112,6 +112,31 @@ public func macBridgeChooseApplication(
     return 0
 }
 
+@_cdecl("np_mac_bridge_discover_system_proxies")
+public func macBridgeDiscoverSystemProxies(
+    operationID: UInt64,
+    callback: MacBridgeCallback?,
+    context: UnsafeMutableRawPointer?
+) -> Int32 {
+    guard let callback else {
+        return -1
+    }
+    let sink = BridgeCallbackSink(
+        operationID: operationID,
+        callback: callback,
+        context: context
+    )
+    Task { @MainActor in
+        do {
+            let proxies = try SystemProxyDiscoveryController().discover()
+            sink.completeProxyDiscovery(.result(proxies: proxies))
+        } catch {
+            sink.completeProxyDiscovery(.failure(error: error))
+        }
+    }
+    return 0
+}
+
 @_cdecl("np_mac_bridge_install_and_enable")
 public func macBridgeInstallAndEnable(
     operationID: UInt64,

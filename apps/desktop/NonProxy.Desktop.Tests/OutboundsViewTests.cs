@@ -104,6 +104,13 @@ public sealed class OutboundsViewTests
             Assert.Equal(
                 "验证物理直连公网出口",
                 AutomationProperties.GetName(directAction));
+            var discoveryAction = view.FindControl<Button>(
+                "DiscoverLocalProxyButton");
+            Assert.NotNull(discoveryAction);
+            Assert.True(discoveryAction.IsEnabled);
+            Assert.Equal(
+                "自动发现当前系统 SOCKS 或 HTTP 代理",
+                AutomationProperties.GetName(discoveryAction));
 
             var uriInput = view.FindControl<TextBox>("ProxyUriImportText");
             var uriPreview = view.FindControl<Border>("ProxyUriImportPreview");

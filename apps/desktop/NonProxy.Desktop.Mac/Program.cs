@@ -35,6 +35,9 @@ internal static class Program
                 IApplicationCatalog,
                 MacApplicationCatalog>();
             collection.AddSingleton<
+                ILocalProxyDiscovery,
+                MacLocalProxyDiscovery>();
+            collection.AddSingleton<
                 ISystemComponentInstaller,
                 SystemExtensionController>();
             collection.AddSingleton(

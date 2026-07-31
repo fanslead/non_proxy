@@ -1303,6 +1303,13 @@ pub trait OutboundConnector: Send + Sync {
 WireGuard、OpenVPN 或供应商订阅已经支持；这些协议必须在对应 connector/adapter
 真正实现后另行开放。
 
+macOS 桌面端还可通过 ABI v6 原生桥只读调用 `SCDynamicStoreCopyProxies`，发现系统
+当前明确启用的 SOCKS、HTTP 与 HTTPS 代理主机和端口。发现层不读取凭据、PAC 内容
+或排除列表，不扫描端口或枚举任意监听进程；相同协议与端点先去重，再转换成
+`proxy-uri-list-v1` 走同一预检。发现和预检都不写配置，也不证明握手可用。用户仍需
+明确保存、测试握手，并在需要时取得签名公网出口回执。完整边界见
+[ADR-0012](ADR/0012-discover-public-system-proxy-settings.md)。
+
 `SOCKS5` 声明 TCP、UDP、IPv4 和 IPv6 能力；`HTTP CONNECT` 只声明 TCP、IPv4 和 IPv6，并在导入结果中给出 TCP-only 提示。这里只表示协议能力，不表示健康检查已通过；从未探测或结果过期的出口使用 `RUNTIME_STATE_UNSPECIFIED`，桌面端显示“未验证”。
 
 ### 15.3 用户触发的代理握手测试
@@ -1587,7 +1594,7 @@ Mac 宿主目标为 `net10.0-macos`。它通过 `LibraryImport` 调用同包 Swi
 
 macOS 原生桥 ABI 约束：
 
-- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `5`；第二版状态模型加入 `gatewayAgent`，第三版加入官方系统设置导航入口，第四版加入后台服务升级状态，第五版加入应用目录与原生应用选择器。
+- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `6`；第二版状态模型加入 `gatewayAgent`，第三版加入官方系统设置导航入口，第四版加入后台服务升级状态，第五版加入应用目录与原生应用选择器，第六版加入只读系统代理发现。
 - Swift 回调只在回调执行期间借出 UTF-8 JSON 字节，C# 必须立即复制；两侧不互相释放内存。
 - C 的 `size_t` 精确映射为 C# `nuint`，回调使用 `UnmanagedCallersOnly`，任何托管异常都不得越过 ABI。
 - 托管 `GCHandle` 必须持有到原生 completed 事件；调用方取消等待不能提前释放仍可能被系统回调使用的上下文。

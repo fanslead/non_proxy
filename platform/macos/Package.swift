@@ -182,6 +182,7 @@ let package = Package(
                 .linkedFramework("NetworkExtension"),
                 .linkedFramework("Security"),
                 .linkedFramework("ServiceManagement"),
+                .linkedFramework("SystemConfiguration"),
                 .linkedFramework("SystemExtensions"),
                 .linkedFramework("UniformTypeIdentifiers"),
             ]
