@@ -2,11 +2,77 @@ import Foundation
 import SystemExtensions
 
 enum BridgeConstants {
-    static let abiVersion: UInt32 = 4
+    static let abiVersion: UInt32 = 5
     static let transparentBundleIdentifier =
         "com.nonproxy.desktop.transparent-proxy"
     static let dnsBundleIdentifier = "com.nonproxy.desktop.dns-proxy"
     static let localizedDescription = "NonProxy 智能分流"
+}
+
+struct ApplicationDescriptor: Codable, Equatable, Sendable {
+    let displayName: String
+    let stableIdentity: String
+    let signerIdentity: String?
+    let bundleIdentifier: String?
+    let isRunning: Bool
+}
+
+struct ApplicationCatalogPayload: Codable, Equatable, Sendable {
+    let success: Bool
+    let message: String
+    let errorCode: String?
+    let applications: [ApplicationDescriptor]
+
+    static func result(
+        applications: [ApplicationDescriptor]
+    ) -> ApplicationCatalogPayload {
+        ApplicationCatalogPayload(
+            success: true,
+            message: applications.isEmpty
+                ? "没有发现可选择的应用；可从“应用程序”文件夹手动选择。"
+                : "选择一个应用，即可让它的全部网络请求直连。",
+            errorCode: nil,
+            applications: applications
+        )
+    }
+
+    static func failure(error: Error) -> ApplicationCatalogPayload {
+        let bridgeError = BridgeError.from(error)
+        return ApplicationCatalogPayload(
+            success: false,
+            message: bridgeError.message,
+            errorCode: bridgeError.code,
+            applications: []
+        )
+    }
+}
+
+struct ApplicationSelectionPayload: Codable, Equatable, Sendable {
+    let success: Bool
+    let message: String
+    let errorCode: String?
+    let application: ApplicationDescriptor?
+
+    static func result(
+        application: ApplicationDescriptor?
+    ) -> ApplicationSelectionPayload {
+        ApplicationSelectionPayload(
+            success: true,
+            message: application == nil ? "未选择应用。" : "已读取所选应用身份。",
+            errorCode: nil,
+            application: application
+        )
+    }
+
+    static func failure(error: Error) -> ApplicationSelectionPayload {
+        let bridgeError = BridgeError.from(error)
+        return ApplicationSelectionPayload(
+            success: false,
+            message: bridgeError.message,
+            errorCode: bridgeError.code,
+            application: nil
+        )
+    }
 }
 
 enum BridgeOperation: String, Codable, Sendable {

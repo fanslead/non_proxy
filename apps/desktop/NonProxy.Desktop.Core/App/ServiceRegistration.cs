@@ -36,6 +36,7 @@ public static class ServiceRegistration
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
+        services.AddSingleton<IApplicationCatalog, UnavailableApplicationCatalog>();
         services.AddSingleton(LocalControlEndpoint.Unavailable);
         services.AddSingleton<IControlChannelFactory, UnavailableControlChannelFactory>();
         services.AddSingleton<ISessionCapabilityProvider, UnavailableSessionCapabilityProvider>();

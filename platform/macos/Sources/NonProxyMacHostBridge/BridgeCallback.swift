@@ -1,13 +1,14 @@
 import Foundation
 
-public typealias MacBridgeCallback = @convention(c) (
-    UInt64,
-    Int32,
-    Int32,
-    UnsafePointer<UInt8>?,
-    Int,
-    UnsafeMutableRawPointer?
-) -> Void
+public typealias MacBridgeCallback =
+    @convention(c) (
+        UInt64,
+        Int32,
+        Int32,
+        UnsafePointer<UInt8>?,
+        Int,
+        UnsafeMutableRawPointer?
+    ) -> Void
 
 struct BridgeCallbackSink: @unchecked Sendable {
     private let operationID: UInt64
@@ -38,6 +39,22 @@ struct BridgeCallbackSink: @unchecked Sendable {
 
     func completeProbe(_ payload: ProbePayload) {
         emit(eventKind: 2, statusCode: 0, value: payload)
+    }
+
+    func completeApplications(_ payload: ApplicationCatalogPayload) {
+        emit(
+            eventKind: 2,
+            statusCode: payload.success ? 0 : -1,
+            value: payload
+        )
+    }
+
+    func completeSelection(_ payload: ApplicationSelectionPayload) {
+        emit(
+            eventKind: 2,
+            statusCode: payload.success ? 0 : -1,
+            value: payload
+        )
     }
 
     private func emit<Value: Encodable>(

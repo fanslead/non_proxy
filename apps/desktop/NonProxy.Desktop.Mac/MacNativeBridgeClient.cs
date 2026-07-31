@@ -7,7 +7,7 @@ namespace NonProxy.Desktop.Mac;
 
 internal sealed class MacNativeBridgeClient
 {
-    internal const uint SupportedAbiVersion = 4;
+    internal const uint SupportedAbiVersion = 5;
     private const int StartAccepted = 0;
     private long _nextOperationId;
     private int _abiValidated;
@@ -36,6 +36,32 @@ internal sealed class MacNativeBridgeClient
         return Deserialize(
             json,
             MacNativeJsonContext.Default.MacBridgeEventPayload);
+    }
+
+    internal async Task<MacApplicationCatalogPayload> ListApplicationsAsync(
+        CancellationToken cancellationToken)
+    {
+        var json = await InvokeAsync(
+            NativeOperation.ListApplications,
+            approvalRequired: null,
+            operationCompleted: null,
+            cancellationToken);
+        return Deserialize(
+            json,
+            MacNativeJsonContext.Default.MacApplicationCatalogPayload);
+    }
+
+    internal async Task<MacApplicationSelectionPayload> ChooseApplicationAsync(
+        CancellationToken cancellationToken)
+    {
+        var json = await InvokeAsync(
+            NativeOperation.ChooseApplication,
+            approvalRequired: null,
+            operationCompleted: null,
+            cancellationToken);
+        return Deserialize(
+            json,
+            MacNativeJsonContext.Default.MacApplicationSelectionPayload);
     }
 
     internal async Task<MacBridgeEventPayload> InstallAndEnableAsync(
@@ -132,6 +158,16 @@ internal sealed class MacNativeBridgeClient
                     operationId,
                     callback,
                     handle),
+                NativeOperation.ListApplications =>
+                    MacNativeBridgeMethods.ListApplications(
+                        operationId,
+                        callback,
+                        handle),
+                NativeOperation.ChooseApplication =>
+                    MacNativeBridgeMethods.ChooseApplication(
+                        operationId,
+                        callback,
+                        handle),
                 NativeOperation.InstallAndEnable =>
                     MacNativeBridgeMethods.InstallAndEnable(
                         operationId,
@@ -266,6 +302,8 @@ internal sealed class MacNativeBridgeClient
     {
         Probe,
         Query,
+        ListApplications,
+        ChooseApplication,
         InstallAndEnable,
         DisableAndUninstall,
     }

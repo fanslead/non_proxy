@@ -178,9 +178,12 @@ let package = Package(
             name: "NonProxyMacHostBridge",
             dependencies: ["NonProxyMacRuntime"],
             linkerSettings: [
+                .linkedFramework("AppKit"),
                 .linkedFramework("NetworkExtension"),
+                .linkedFramework("Security"),
                 .linkedFramework("ServiceManagement"),
                 .linkedFramework("SystemExtensions"),
+                .linkedFramework("UniformTypeIdentifiers"),
             ]
         ),
         .executableTarget(

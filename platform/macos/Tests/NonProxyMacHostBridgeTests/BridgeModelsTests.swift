@@ -1,6 +1,7 @@
 import Foundation
 import SystemExtensions
 import Testing
+
 @testable import NonProxyMacHostBridge
 
 struct BridgeModelsTests {
@@ -33,6 +34,30 @@ struct BridgeModelsTests {
         #expect(!payload.success)
         #expect(payload.errorCode == "NP_MAC_TEST_FAILURE")
         #expect(payload.message == "测试错误")
+    }
+
+    @Test
+    func applicationCatalogPreservesSigningIdentityAndUtf8Name() throws {
+        let application = ApplicationDescriptor(
+            displayName: "企业办公",
+            stableIdentity: "com.example.office",
+            signerIdentity: "TEAM123",
+            bundleIdentifier: "com.example.office",
+            isRunning: true
+        )
+        let payload = ApplicationCatalogPayload.result(
+            applications: [application]
+        )
+
+        let data = try JSONEncoder().encode(payload)
+        let decoded = try JSONDecoder().decode(
+            ApplicationCatalogPayload.self,
+            from: data
+        )
+
+        #expect(decoded == payload)
+        #expect(decoded.applications.first?.stableIdentity == "com.example.office")
+        #expect(String(decoding: data, as: UTF8.self).contains("企业办公"))
     }
 
     @Test

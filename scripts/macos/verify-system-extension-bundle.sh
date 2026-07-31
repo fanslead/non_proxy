@@ -90,6 +90,8 @@ for symbol in \
     _np_mac_bridge_open_login_items_settings \
     _np_mac_bridge_probe \
     _np_mac_bridge_query \
+    _np_mac_bridge_list_applications \
+    _np_mac_bridge_choose_application \
     _np_mac_bridge_install_and_enable \
     _np_mac_bridge_disable_and_uninstall; do
     if ! nm -g "${bridge_library}" | grep -F "${symbol}" >/dev/null; then

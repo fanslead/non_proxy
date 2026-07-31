@@ -1399,11 +1399,13 @@ Mac 宿主目标为 `net10.0-macos`。它通过 `LibraryImport` 调用同包 Swi
 
 macOS 原生桥 ABI 约束：
 
-- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `4`；第二版状态模型加入 `gatewayAgent`，第三版加入官方系统设置导航入口，第四版加入后台服务升级状态。
+- `platform/macos/Interop/NonProxyMacHostBridge.h` 是类型和所有权的唯一来源，ABI 版本当前为 `5`；第二版状态模型加入 `gatewayAgent`，第三版加入官方系统设置导航入口，第四版加入后台服务升级状态，第五版加入应用目录与原生应用选择器。
 - Swift 回调只在回调执行期间借出 UTF-8 JSON 字节，C# 必须立即复制；两侧不互相释放内存。
 - C 的 `size_t` 精确映射为 C# `nuint`，回调使用 `UnmanagedCallersOnly`，任何托管异常都不得越过 ABI。
 - 托管 `GCHandle` 必须持有到原生 completed 事件；调用方取消等待不能提前释放仍可能被系统回调使用的上下文。
 - 同一进程最多执行一个异步系统变更，避免两组 System Extension 请求或偏好事务互相覆盖。
+- 共享 UI 只依赖 `IApplicationCatalog` 领域 DTO；macOS 在后台校验应用代码签名，使用 Code Signing Identifier 作为策略稳定身份、Team Identifier 作为签名约束，Bundle Identifier 仅用于搜索辅助。无法校验签名或缺少签名标识的应用不得生成看似成功但实际无法命中的规则。
+- Windows 复用同一应用选择页面，但平台应用目录仍返回明确不可用状态；后续实现必须提供 WFP ALE/包身份/签名对应的稳定身份，不能退回手填路径作为普通用户主流程。
 
 ### 17.5 托盘、菜单和窗口
 

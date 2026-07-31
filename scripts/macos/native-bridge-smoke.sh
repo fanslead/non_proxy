@@ -23,7 +23,8 @@ if [[ ! -x "${host_binary}" ]]; then
 fi
 
 output=$("${host_binary}" --native-bridge-smoke)
-if ! grep -F '"abiVersion":4' <<<"${output}" >/dev/null; then
+if ! grep -F '"abiVersion":5' <<<"${output}" >/dev/null ||
+   ! grep -F '"applicationCatalog":true' <<<"${output}" >/dev/null; then
     echo "原生桥接冒烟输出缺少预期 ABI 版本：${output}" >&2
     exit 68
 fi
@@ -49,4 +50,4 @@ if ! grep -F '"operation":"query"' <<<"${query_output}" >/dev/null ||
     exit 68
 fi
 
-echo "macOS 托管宿主已通过 C ABI、UTF-8、只读系统查询和变更确认门禁验证。"
+echo "macOS 托管宿主已通过 C ABI、应用目录、UTF-8、只读系统查询和变更确认门禁验证。"

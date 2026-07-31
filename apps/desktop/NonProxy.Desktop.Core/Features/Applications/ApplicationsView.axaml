@@ -9,42 +9,92 @@
         <StackPanel Margin="40"
                     MaxWidth="960"
                     Spacing="24">
-            <StackPanel Spacing="6">
-                <TextBlock Theme="{StaticResource NpPageTitle}"
-                           Text="应用直连" />
-                <TextBlock Theme="{StaticResource NpMutedText}"
-                           Text="应用规则不要求你知道软件访问了哪些域名；匹配到该应用的流量统一按规则处理。" />
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="20">
+                <StackPanel Spacing="6">
+                    <TextBlock Theme="{StaticResource NpPageTitle}"
+                               Text="应用直连" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="选择你认识的应用即可，无需查找它访问了哪些域名，也无需填写 Bundle ID。" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Theme="{StaticResource NpSecondaryButton}"
+                        Command="{Binding RefreshCommand}"
+                        Content="刷新应用"
+                        AutomationProperties.Name="刷新可选择的应用" />
+            </Grid>
 
             <Border Theme="{StaticResource NpCard}">
-                <StackPanel Spacing="14">
-                    <TextBlock Theme="{StaticResource NpSectionTitle}"
-                               Text="添加应用" />
-                    <Grid ColumnDefinitions="*,*"
-                          ColumnSpacing="12">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="显示名称" />
-                            <TextBox Theme="{StaticResource NpTextBox}"
-                                     Text="{Binding ApplicationName}"
-                                     PlaceholderText="例如：公司办公软件"
-                                     AutomationProperties.Name="应用显示名称" />
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="16">
+                        <StackPanel Spacing="5">
+                            <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                       Text="选择应用" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="正在运行的应用会排在前面；也可以从“应用程序”文件夹选择其他软件。" />
                         </StackPanel>
-                        <StackPanel Grid.Column="1"
-                                    Spacing="6">
-                            <TextBlock Text="应用身份" />
-                            <TextBox Theme="{StaticResource NpTextBox}"
-                                     Text="{Binding ApplicationIdentity}"
-                                     PlaceholderText="Bundle ID、包身份或签名标识"
-                                     AutomationProperties.Name="应用身份标识" />
-                        </StackPanel>
+                        <Button x:Name="ChooseApplicationButton"
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Theme="{StaticResource NpPrimaryButton}"
+                                Command="{Binding ChooseCommand}"
+                                Content="从应用程序中选择"
+                                AutomationProperties.Name="从应用程序中选择直连应用" />
                     </Grid>
-                    <Button HorizontalAlignment="Left"
-                            Theme="{StaticResource NpPrimaryButton}"
-                            Command="{Binding AddCommand}"
-                            Content="添加直连应用"
-                            AutomationProperties.Name="添加直连应用规则" />
+
+                    <TextBox x:Name="ApplicationSearchBox"
+                             Theme="{StaticResource NpTextBox}"
+                             Text="{Binding SearchText}"
+                             PlaceholderText="按应用名称搜索"
+                             AutomationProperties.Name="搜索可选择的应用" />
+
+                    <ItemsControl x:Name="AvailableApplicationsList"
+                                  ItemsSource="{Binding AvailableApplications}"
+                                  IsVisible="{Binding HasAvailableApplications}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="applications:ApplicationCatalogItem">
+                                <Grid ColumnDefinitions="*,Auto"
+                                      ColumnSpacing="16"
+                                      Margin="0,7">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock FontWeight="SemiBold"
+                                                   Text="{Binding DisplayName}" />
+                                        <StackPanel Orientation="Horizontal"
+                                                    Spacing="6">
+                                            <TextBlock Foreground="{DynamicResource NpSuccessBrush}"
+                                                       Text="{Binding StateLabel}" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       Text="·" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       Text="{Binding IdentityAssuranceLabel}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Theme="{StaticResource NpSecondaryButton}"
+                                            Command="{ReflectionBinding DataContext.AddCommand, ElementName=Root}"
+                                            CommandParameter="{Binding}"
+                                            Content="{Binding ActionLabel}"
+                                            AutomationProperties.Name="将应用设为直连" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Padding="16"
+                            CornerRadius="8"
+                            Background="{DynamicResource NpCanvasBrush}"
+                            IsVisible="{Binding HasNoAvailableApplications}">
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="{Binding CatalogMessage}" />
+                    </Border>
+
                     <TextBlock Theme="{StaticResource NpMutedText}"
                                Text="{Binding OperationMessage}" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="规则应用后，可在“活动记录”核对命中规则和实际出口路径。" />
                 </StackPanel>
             </Border>
 
@@ -55,17 +105,20 @@
                     <ItemsControl ItemsSource="{Binding Items}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="control:PolicyListItem">
-                                <Grid ColumnDefinitions="2*,3*,*,Auto"
+                                <Grid ColumnDefinitions="2*,*,Auto"
                                       ColumnSpacing="16"
                                       Margin="0,8">
-                                    <TextBlock FontWeight="SemiBold"
-                                               Text="{Binding Name}" />
+                                    <StackPanel Spacing="3">
+                                        <TextBlock FontWeight="SemiBold"
+                                                   Text="{Binding Name}" />
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   Text="全部网络请求直连" />
+                                    </StackPanel>
                                     <TextBlock Grid.Column="1"
-                                               Text="{Binding MatchValue}"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="2"
+                                               VerticalAlignment="Center"
                                                Text="{Binding StateLabel}" />
-                                    <Button Grid.Column="3"
+                                    <Button Grid.Column="2"
+                                            VerticalAlignment="Center"
                                             Theme="{StaticResource NpSecondaryButton}"
                                             Command="{ReflectionBinding DataContext.DeleteCommand, ElementName=Root}"
                                             CommandParameter="{Binding}"

@@ -44,11 +44,20 @@ internal static class MacHostDiagnostics
         {
             var result = await new MacNativeBridgeClient()
                 .ProbeAsync(CancellationToken.None);
+            var applications = await new MacNativeBridgeClient()
+                .ListApplicationsAsync(CancellationToken.None);
+            var smoke = new MacBridgeSmokePayload(
+                result.AbiVersion,
+                result.Message,
+                applications.Success && applications.Applications.Count > 0,
+                applications.Applications.Count);
             Console.WriteLine(JsonSerializer.Serialize(
-                result,
-                MacNativeJsonContext.Default.MacBridgeProbePayload));
+                smoke,
+                MacNativeJsonContext.Default.MacBridgeSmokePayload));
             return result.AbiVersion == MacNativeBridgeClient.SupportedAbiVersion
                 && result.Message.Contains("原生桥接", StringComparison.Ordinal)
+                && applications.Success
+                && applications.Applications.Count > 0
                     ? 0
                     : 1;
         }

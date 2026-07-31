@@ -42,6 +42,36 @@ internal static unsafe partial class MacNativeBridgeMethods
 
     [LibraryImport(
         LibraryName,
+        EntryPoint = "np_mac_bridge_list_applications")]
+    internal static partial int ListApplications(
+        ulong operationId,
+        delegate* unmanaged[Cdecl]<
+            ulong,
+            int,
+            int,
+            byte*,
+            nuint,
+            nint,
+            void> callback,
+        nint context);
+
+    [LibraryImport(
+        LibraryName,
+        EntryPoint = "np_mac_bridge_choose_application")]
+    internal static partial int ChooseApplication(
+        ulong operationId,
+        delegate* unmanaged[Cdecl]<
+            ulong,
+            int,
+            int,
+            byte*,
+            nuint,
+            nint,
+            void> callback,
+        nint context);
+
+    [LibraryImport(
+        LibraryName,
         EntryPoint = "np_mac_bridge_install_and_enable")]
     internal static partial int InstallAndEnable(
         ulong operationId,

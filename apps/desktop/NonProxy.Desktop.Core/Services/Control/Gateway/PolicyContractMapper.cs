@@ -111,7 +111,8 @@ public sealed class PolicyContractMapper
             {
                 Platform = ToPlatform(_platform.Platform),
                 StableId = draft.MatchValue.Trim(),
-                IncludeHelpers = false,
+                SignerId = draft.ApplicationSignerId?.Trim() ?? string.Empty,
+                IncludeHelpers = draft.IncludeApplicationHelpers,
             };
         }
 

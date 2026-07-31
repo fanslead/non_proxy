@@ -121,7 +121,9 @@ public sealed record PolicyDraft(
     PolicyAction Action,
     ulong? ExistingRevision = null,
     string? Destination = null,
-    string? OutboundId = null);
+    string? OutboundId = null,
+    string? ApplicationSignerId = null,
+    bool IncludeApplicationHelpers = false);
 
 public sealed record ApplyResult(
     bool Accepted,

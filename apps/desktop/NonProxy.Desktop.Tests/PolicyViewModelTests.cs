@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NonProxy.Desktop.Core.Features.Applications;
 using NonProxy.Desktop.Core.Features.Websites;
+using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Control;
 
 namespace NonProxy.Desktop.Tests;
@@ -47,19 +48,88 @@ public sealed class PolicyViewModelTests
     public async Task ApplicationRuleUsesStableIdentityInsteadOfDestinationGuessing()
     {
         var policyService = new RecordingPolicyService();
+        var applicationCatalog = new TestApplicationCatalog(
+            new ApplicationCatalogEntry(
+                "办公软件",
+                "com.example.office",
+                "TEAM123",
+                "com.example.office",
+                true));
         using var services = TestPlatformServices.Create(
             configure: collection =>
-                collection.AddSingleton<IPolicyService>(policyService));
+            {
+                collection.AddSingleton<IPolicyService>(policyService);
+                collection.AddSingleton<IApplicationCatalog>(applicationCatalog);
+            });
         var viewModel = services.GetRequiredService<ApplicationsViewModel>();
-        viewModel.ApplicationName = "办公软件";
-        viewModel.ApplicationIdentity = "com.example.office";
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+        var application = Assert.Single(viewModel.AvailableApplications);
 
-        await viewModel.AddCommand.ExecuteAsync(null);
+        await viewModel.AddCommand.ExecuteAsync(application);
 
         Assert.NotNull(policyService.LastSavedDraft);
         Assert.Equal(PolicyScope.Application, policyService.LastSavedDraft.Scope);
         Assert.Equal("com.example.office", policyService.LastSavedDraft.MatchValue);
+        Assert.Equal("TEAM123", policyService.LastSavedDraft.ApplicationSignerId);
+        Assert.True(policyService.LastSavedDraft.IncludeApplicationHelpers);
         Assert.Single(viewModel.Items);
+    }
+
+    [Fact]
+    public async Task ApplicationSearchMatchesFriendlyNameWithoutShowingIdentityInput()
+    {
+        var applicationCatalog = new TestApplicationCatalog(
+            new ApplicationCatalogEntry(
+                "企业办公",
+                "com.example.office",
+                "TEAM123",
+                "com.example.office",
+                false),
+            new ApplicationCatalogEntry(
+                "聊天工具",
+                "com.example.chat",
+                null,
+                "com.example.chat",
+                true));
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+                collection.AddSingleton<IApplicationCatalog>(applicationCatalog));
+        var viewModel = services.GetRequiredService<ApplicationsViewModel>();
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        viewModel.SearchText = "办公";
+
+        var result = Assert.Single(viewModel.AvailableApplications);
+        Assert.Equal("企业办公", result.DisplayName);
+        Assert.False(result.IsConfigured);
+    }
+
+    [Fact]
+    public async Task ChosenApplicationIsSavedWithoutManualIdentityInput()
+    {
+        var policyService = new RecordingPolicyService();
+        var applicationCatalog = new TestApplicationCatalog(
+            new ApplicationCatalogEntry(
+                "财务工具",
+                "com.example.finance",
+                "TEAM456",
+                "com.example.finance",
+                false));
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+            {
+                collection.AddSingleton<IPolicyService>(policyService);
+                collection.AddSingleton<IApplicationCatalog>(applicationCatalog);
+            });
+        var viewModel = services.GetRequiredService<ApplicationsViewModel>();
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        await viewModel.ChooseCommand.ExecuteAsync(null);
+
+        Assert.Equal(
+            "com.example.finance",
+            policyService.LastSavedDraft?.MatchValue);
+        Assert.Equal("TEAM456", policyService.LastSavedDraft?.ApplicationSignerId);
     }
 
     private sealed class RecordingPolicyService : IPolicyService
@@ -114,6 +184,31 @@ public sealed class PolicyViewModelTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(ApplyResult.Unavailable);
+        }
+    }
+
+    private sealed class TestApplicationCatalog(
+        params ApplicationCatalogEntry[] applications) : IApplicationCatalog
+    {
+        public Task<ApplicationCatalogSnapshot> ListAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new ApplicationCatalogSnapshot(
+                applications,
+                true,
+                true,
+                "测试应用目录"));
+        }
+
+        public Task<ApplicationSelectionResult> ChooseAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new ApplicationSelectionResult(
+                true,
+                applications.FirstOrDefault(),
+                "已选择测试应用"));
         }
     }
 }

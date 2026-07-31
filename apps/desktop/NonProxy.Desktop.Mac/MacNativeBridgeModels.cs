@@ -11,6 +11,33 @@ internal sealed record MacBridgeDiagnosticError(
     [property: JsonPropertyName("errorCode")] string ErrorCode,
     [property: JsonPropertyName("message")] string Message);
 
+internal sealed record MacBridgeSmokePayload(
+    [property: JsonPropertyName("abiVersion")] uint AbiVersion,
+    [property: JsonPropertyName("message")] string Message,
+    [property: JsonPropertyName("applicationCatalog")] bool ApplicationCatalog,
+    [property: JsonPropertyName("applicationCount")] int ApplicationCount);
+
+internal sealed record MacApplicationDescriptor(
+    [property: JsonPropertyName("displayName")] string DisplayName,
+    [property: JsonPropertyName("stableIdentity")] string StableIdentity,
+    [property: JsonPropertyName("signerIdentity")] string? SignerIdentity,
+    [property: JsonPropertyName("bundleIdentifier")] string? BundleIdentifier,
+    [property: JsonPropertyName("isRunning")] bool IsRunning);
+
+internal sealed record MacApplicationCatalogPayload(
+    [property: JsonPropertyName("success")] bool Success,
+    [property: JsonPropertyName("message")] string Message,
+    [property: JsonPropertyName("errorCode")] string? ErrorCode,
+    [property: JsonPropertyName("applications")]
+        IReadOnlyList<MacApplicationDescriptor> Applications);
+
+internal sealed record MacApplicationSelectionPayload(
+    [property: JsonPropertyName("success")] bool Success,
+    [property: JsonPropertyName("message")] string Message,
+    [property: JsonPropertyName("errorCode")] string? ErrorCode,
+    [property: JsonPropertyName("application")]
+        MacApplicationDescriptor? Application);
+
 internal sealed record MacBridgeEventPayload(
     [property: JsonPropertyName("operation")] string Operation,
     [property: JsonPropertyName("success")] bool Success,

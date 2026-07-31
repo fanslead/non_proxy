@@ -32,6 +32,9 @@ internal static class Program
                 MacPlatformInformation>();
             collection.AddSingleton<MacNativeBridgeClient>();
             collection.AddSingleton<
+                IApplicationCatalog,
+                MacApplicationCatalog>();
+            collection.AddSingleton<
                 ISystemComponentInstaller,
                 SystemExtensionController>();
             collection.AddSingleton(

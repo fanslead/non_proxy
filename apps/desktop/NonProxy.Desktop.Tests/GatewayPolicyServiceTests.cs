@@ -42,7 +42,9 @@ public sealed class GatewayPolicyServiceTests
             PolicyScope.Application,
             "Example.Office",
             PolicyAction.Direct,
-            ExistingRevision: 7));
+            ExistingRevision: 7,
+            ApplicationSignerId: "TEAM123",
+            IncludeApplicationHelpers: true));
 
         Assert.Equal(7UL, mapped.ExpectedRevision);
         Assert.Equal(8UL, mapped.Policy.Revision);
@@ -50,6 +52,8 @@ public sealed class GatewayPolicyServiceTests
             NonProxy.Common.V1.Platform.Windows,
             mapped.Policy.Match.App.Platform);
         Assert.Equal("Example.Office", mapped.Policy.Match.App.StableId);
+        Assert.Equal("TEAM123", mapped.Policy.Match.App.SignerId);
+        Assert.True(mapped.Policy.Match.App.IncludeHelpers);
     }
 
     [Fact]
