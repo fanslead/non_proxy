@@ -120,6 +120,20 @@ public sealed class PolicyContractMapper
         {
             matcher.Domain = ExactDomain(draft.MatchValue);
         }
+        else if (draft.Scope == PolicyScope.Network)
+        {
+            if (string.IsNullOrWhiteSpace(draft.MatchValue))
+            {
+                throw new ControlServiceException(
+                    "NP_POLICY_NETWORK_REQUIRED",
+                    "网络规则必须选择一个已保存的网络配置。");
+            }
+
+            matcher.Network = new NetworkMatcher
+            {
+                ProfileId = draft.MatchValue.Trim(),
+            };
+        }
         else if (draft.Scope == PolicyScope.ApplicationAndDestination)
         {
             if (string.IsNullOrWhiteSpace(draft.Destination))
@@ -163,6 +177,7 @@ public sealed class PolicyContractMapper
             PolicyScope.Application => PolicySourceKind.App,
             PolicyScope.Website => PolicySourceKind.Site,
             PolicyScope.ApplicationAndDestination => PolicySourceKind.AppDestination,
+            PolicyScope.Network => PolicySourceKind.Network,
             _ => throw InvalidContract("未知规则范围。"),
         };
     }
@@ -204,6 +219,23 @@ public sealed class PolicyContractMapper
 
     private static (PolicyScope Scope, string MatchValue) ReadMatcher(PolicyMatch? matcher)
     {
+        if (matcher?.Network is not null)
+        {
+            if (matcher.App is not null
+                || matcher.Domain is not null
+                || matcher.Cidr is not null)
+            {
+                throw InvalidContract("控制服务返回了桌面端尚不支持的组合网络规则。");
+            }
+
+            if (string.IsNullOrWhiteSpace(matcher.Network.ProfileId))
+            {
+                throw InvalidContract("控制服务返回了缺少配置档的网络规则。");
+            }
+
+            return (PolicyScope.Network, matcher.Network.ProfileId);
+        }
+
         if (matcher?.App is not null && matcher.Domain is not null)
         {
             return (PolicyScope.ApplicationAndDestination, matcher.App.StableId);

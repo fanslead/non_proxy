@@ -36,6 +36,46 @@ public sealed class GatewaySystemStatusServiceTests
         Assert.Equal(ConnectionState.Connected, overview.Connection);
     }
 
+    [Fact]
+    public async Task OverviewCountsOnlyCurrentDirectNetworkRules()
+    {
+        var client = new StubControlRpcClient
+        {
+            StatusResponse = new GetSystemStatusResponse(),
+            DecisionsResponse = new ListConnectionDecisionsResponse
+            {
+                Page = new NonProxy.Common.V1.PageResponse(),
+            },
+        };
+        var policies = new FixedPolicyService(
+            NetworkPolicy("home", PolicyApplyState.Active),
+            NetworkPolicy("old", PolicyApplyState.PendingRemoval));
+        var service = new GatewaySystemStatusService(
+            client,
+            policies,
+            new InstalledComponent());
+
+        var overview = await service.GetOverviewAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, overview.DirectNetworkCount);
+    }
+
+    private static PolicyListItem NetworkPolicy(
+        string id,
+        PolicyApplyState state)
+    {
+        return new PolicyListItem(
+            $"policy-{id}",
+            $"{id} 直连",
+            PolicyScope.Network,
+            id,
+            PolicyAction.Direct,
+            state,
+            1,
+            DateTimeOffset.UtcNow);
+    }
+
     private sealed class InstalledComponent : ISystemComponentInstaller
     {
         public Task<SystemComponentState> GetStateAsync(CancellationToken cancellationToken)
@@ -57,6 +97,41 @@ public sealed class GatewaySystemStatusServiceTests
         }
 
         public Task<InstallResult> OpenSystemSettingsAsync(
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    private sealed class FixedPolicyService(
+        params PolicyListItem[] policies) : IPolicyService
+    {
+        public Task<PolicyCatalog> GetCatalogAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new PolicyCatalog(
+                policies,
+                1,
+                DateTimeOffset.UtcNow));
+        }
+
+        public Task<ApplyResult> SaveAsync(
+            PolicyDraft draft,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ApplyResult> DeleteAsync(
+            string policyId,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ApplyResult> RollBackAsync(
+            ulong snapshotVersion,
             CancellationToken cancellationToken)
         {
             throw new NotSupportedException();

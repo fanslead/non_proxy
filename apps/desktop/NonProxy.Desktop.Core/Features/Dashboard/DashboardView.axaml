@@ -200,44 +200,29 @@
                 </StackPanel>
             </Border>
 
-            <Grid ColumnDefinitions="*,*,*"
-                  ColumnSpacing="18">
-                <Border Theme="{StaticResource NpCard}">
-                    <StackPanel Spacing="10">
-                        <TextBlock Theme="{StaticResource NpMutedText}"
-                                   Text="直连应用" />
-                        <TextBlock FontSize="32"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding State.DirectApplicationCount}" />
-                        <TextBlock Theme="{StaticResource NpMutedText}"
-                                   Text="应用级直连规则" />
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="1"
-                        Theme="{StaticResource NpCard}">
-                    <StackPanel Spacing="10">
-                        <TextBlock Theme="{StaticResource NpMutedText}"
-                                   Text="直连网站" />
-                        <TextBlock FontSize="32"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding State.DirectWebsiteCount}" />
-                        <TextBlock Theme="{StaticResource NpMutedText}"
-                                   Text="网站与域名规则" />
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="2"
-                        Theme="{StaticResource NpCard}">
-                    <StackPanel Spacing="10">
-                        <TextBlock Theme="{StaticResource NpMutedText}"
-                                   Text="近期决策" />
-                        <TextBlock FontSize="32"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding State.RecentDecisionCount}" />
-                        <TextBlock Theme="{StaticResource NpMutedText}"
-                                   Text="可核对的流量决策" />
-                    </StackPanel>
-                </Border>
-            </Grid>
+            <ItemsControl ItemsSource="{Binding State.Metrics}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="dashboard:DashboardMetric">
+                        <Border Margin="0,0,12,0"
+                                Theme="{StaticResource NpCard}">
+                            <StackPanel Spacing="10">
+                                <TextBlock Theme="{StaticResource NpMutedText}"
+                                           Text="{Binding Label}" />
+                                <TextBlock FontSize="32"
+                                           FontWeight="SemiBold"
+                                           Text="{Binding Value}" />
+                                <TextBlock Theme="{StaticResource NpMutedText}"
+                                           Text="{Binding Detail}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
             <Border Theme="{StaticResource NpCard}">
                 <StackPanel Spacing="12">

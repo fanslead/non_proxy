@@ -31,6 +31,51 @@ public sealed class GatewayPolicyServiceTests
     }
 
     [Fact]
+    public void NetworkDraftMapsToProfileMatcherWithoutRawFingerprint()
+    {
+        var mapper = new PolicyContractMapper(
+            new StubPlatformInformation(PlatformKind.MacOS));
+
+        var mapped = mapper.ToContract(new PolicyDraft(
+            null,
+            "办公室直连",
+            PolicyScope.Network,
+            "office-network",
+            PolicyAction.Direct));
+
+        Assert.Equal(PolicySourceKind.Network, mapped.Policy.SourceKind);
+        Assert.Equal("office-network", mapped.Policy.Match.Network.ProfileId);
+        Assert.Null(mapped.Policy.Match.App);
+        Assert.Null(mapped.Policy.Match.Domain);
+    }
+
+    [Fact]
+    public void NetworkStatusIsReadableByDesktopCatalog()
+    {
+        var item = PolicyContractMapper.FromStatus(new PolicyStatus
+        {
+            Policy = new NonProxy.Policy.V1.Policy
+            {
+                Id = "network-direct",
+                DisplayName = "办公室直连",
+                SourceKind = PolicySourceKind.Network,
+                Match = new PolicyMatch
+                {
+                    Network = new NetworkMatcher { ProfileId = "office-network" },
+                },
+                Decision = new DecisionSpec { Action = RouteAction.Direct },
+                Revision = 1,
+            },
+            State = PolicyRuntimeState.Active,
+            TargetSnapshotVersion = 4,
+        });
+
+        Assert.Equal(PolicyScope.Network, item.Scope);
+        Assert.Equal("office-network", item.MatchValue);
+        Assert.Equal(PolicyApplyState.Active, item.State);
+    }
+
+    [Fact]
     public void ExistingApplicationDraftRequiresAndIncrementsRevision()
     {
         var mapper = new PolicyContractMapper(

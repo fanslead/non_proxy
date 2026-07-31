@@ -2,6 +2,7 @@ using System.Text;
 using NonProxy.Control.V1;
 using NonProxy.Desktop.Core.Services.Control;
 using NonProxy.Desktop.Core.Services.Control.Rpc;
+using NonProxy.Policy.V1;
 using ProtoPolicy = NonProxy.Policy.V1.Policy;
 
 namespace NonProxy.Desktop.Tests;
@@ -9,6 +10,8 @@ namespace NonProxy.Desktop.Tests;
 internal sealed class StubControlRpcClient : IControlRpcClient
 {
     public Queue<ListPoliciesResponse> PoliciesResponses { get; } = new();
+
+    public Queue<ListNetworkProfilesResponse> NetworkProfilesResponses { get; } = new();
 
     public GetSystemStatusResponse StatusResponse { get; set; } = new();
 
@@ -26,6 +29,15 @@ internal sealed class StubControlRpcClient : IControlRpcClient
     public ControlServiceException? ApplyException { get; set; }
 
     public RollbackPolicySnapshotResponse RollbackResponse { get; set; } = new();
+
+    public ListNetworkProfilesResponse NetworkProfilesResponse { get; set; } = new()
+    {
+        Page = new NonProxy.Common.V1.PageResponse(),
+    };
+
+    public UpsertNetworkProfileResponse UpsertNetworkProfileResponse { get; set; } = new();
+
+    public DeleteNetworkProfileResponse DeleteNetworkProfileResponse { get; set; } = new();
 
     public ListOutboundsResponse OutboundsResponse { get; set; } = new()
     {
@@ -87,9 +99,15 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public ProtoPolicy? LastUpsertedPolicy { get; private set; }
 
+    public NetworkProfileSpec? LastUpsertedNetworkProfile { get; private set; }
+
+    public string? LastDeletedNetworkProfileId { get; private set; }
+
     public ulong LastExpectedRevision { get; private set; }
 
     public int ListPoliciesCallCount { get; private set; }
+
+    public int ListNetworkProfilesCallCount { get; private set; }
 
     public Task<GetSystemStatusResponse> GetSystemStatusAsync(
         CancellationToken cancellationToken)
@@ -159,6 +177,39 @@ internal sealed class StubControlRpcClient : IControlRpcClient
         return Task.FromResult(OutboundsResponses.Count > 0
             ? OutboundsResponses.Dequeue()
             : OutboundsResponse);
+    }
+
+    public Task<ListNetworkProfilesResponse> ListNetworkProfilesAsync(
+        string pageToken,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ListNetworkProfilesCallCount++;
+        return Task.FromResult(NetworkProfilesResponses.Count > 0
+            ? NetworkProfilesResponses.Dequeue()
+            : NetworkProfilesResponse);
+    }
+
+    public Task<UpsertNetworkProfileResponse> UpsertNetworkProfileAsync(
+        NetworkProfileSpec profile,
+        ulong expectedRevision,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastUpsertedNetworkProfile = profile;
+        LastExpectedRevision = expectedRevision;
+        return Task.FromResult(UpsertNetworkProfileResponse);
+    }
+
+    public Task<DeleteNetworkProfileResponse> DeleteNetworkProfileAsync(
+        string profileId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastDeletedNetworkProfileId = profileId;
+        LastExpectedRevision = expectedRevision;
+        return Task.FromResult(DeleteNetworkProfileResponse);
     }
 
     public Task<ListConnectionDecisionsResponse> ListConnectionDecisionsAsync(

@@ -35,6 +35,7 @@ public sealed class ShellNavigationTests
                 "全部规则",
                 "应用直连",
                 "网站直连",
+                "网络环境",
                 "网络出口",
                 "智能学习",
                 "活动记录",

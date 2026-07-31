@@ -1,0 +1,144 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:networks="using:NonProxy.Desktop.Core.Features.Networks"
+             x:Class="NonProxy.Desktop.Core.Features.Networks.NetworkProfilesView"
+             x:Name="Root"
+             x:DataType="networks:NetworkProfilesViewModel">
+    <ScrollViewer>
+        <StackPanel Margin="40"
+                    MaxWidth="960"
+                    Spacing="24">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                    <TextBlock Theme="{StaticResource NpPageTitle}"
+                               Text="网络环境" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="检测当前物理网络，并为整个网络环境创建直连规则。" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Theme="{StaticResource NpPrimaryButton}"
+                        Command="{Binding DetectCommand}"
+                        Content="检测当前网络"
+                        AutomationProperties.Name="检测当前物理网络" />
+            </Grid>
+
+            <Border Theme="{StaticResource NpCard}">
+                <Grid ColumnDefinitions="Auto,*"
+                      ColumnSpacing="14">
+                    <TextBlock FontSize="24"
+                               Text="⌁" />
+                    <StackPanel Grid.Column="1"
+                                Spacing="6">
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="隐私安全的本机识别" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   TextWrapping="Wrap"
+                                   Text="Wi-Fi 名称只在原生采集栈内存中哈希；界面、控制服务、日志和规则快照只保存脱敏指纹。" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding DetectionMessage}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}"
+                    IsVisible="{Binding HasDetectedNetwork}">
+                <StackPanel Spacing="14">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="当前检测结果" />
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="20"
+                          RowDefinitions="Auto,Auto">
+                        <StackPanel Spacing="4">
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="识别方式" />
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="{Binding DetectedFingerprintLabel}" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="{Binding DetectedFingerprintPreview}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1"
+                                    Spacing="4">
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="匹配范围" />
+                            <TextBlock Text="{Binding DetectedAccuracyLabel}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="12">
+                        <TextBox Theme="{StaticResource NpTextBox}"
+                                 Text="{Binding NetworkName}"
+                                 PlaceholderText="给这个网络起一个易懂的名称"
+                                 AutomationProperties.Name="网络配置名称" />
+                        <Button Grid.Column="1"
+                                Theme="{StaticResource NpPrimaryButton}"
+                                Command="{Binding SaveDirectCommand}"
+                                Content="让此网络直连"
+                                AutomationProperties.Name="保存并发布当前网络直连规则" />
+                    </Grid>
+                    <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                               Text="{Binding ValidationMessage}" />
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                   Text="已保存网络" />
+                        <Button Grid.Column="1"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding RefreshCommand}"
+                                Content="刷新"
+                                AutomationProperties.Name="刷新网络配置" />
+                    </Grid>
+                    <ItemsControl x:Name="NetworkProfileItemsList"
+                                  ItemsSource="{Binding Items}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="networks:NetworkProfileViewItem">
+                                <Grid ColumnDefinitions="2*,2*,2*,Auto"
+                                      ColumnSpacing="16"
+                                      Margin="0,10">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock FontWeight="SemiBold"
+                                                   Text="{Binding DisplayName}" />
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   Text="{Binding FingerprintPreview}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1"
+                                                Spacing="3">
+                                        <TextBlock Text="{Binding FingerprintKindLabel}" />
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   TextWrapping="Wrap"
+                                                   Text="{Binding AccuracyLabel}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2"
+                                               VerticalAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               Text="{Binding RuleStateLabel}" />
+                                    <Button Grid.Column="3"
+                                            VerticalAlignment="Center"
+                                            Theme="{StaticResource NpSecondaryButton}"
+                                            Command="{ReflectionBinding DataContext.DeleteCommand, ElementName=Root}"
+                                            CommandParameter="{Binding}"
+                                            Content="删除配置"
+                                            AutomationProperties.Name="删除网络配置及其规则" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="规则只有显示“已应用”时才表示 Provider 已确认；“等待系统组件确认”不等于流量已经切换。" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Theme="{StaticResource NpMutedText}"
+                       TextWrapping="Wrap"
+                       Text="{Binding OperationMessage}" />
+            <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                       TextWrapping="Wrap"
+                       Text="{Binding ErrorMessage}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -33,6 +33,20 @@ public interface IControlRpcClient
         string pageToken,
         CancellationToken cancellationToken);
 
+    Task<ListNetworkProfilesResponse> ListNetworkProfilesAsync(
+        string pageToken,
+        CancellationToken cancellationToken);
+
+    Task<UpsertNetworkProfileResponse> UpsertNetworkProfileAsync(
+        NonProxy.Policy.V1.NetworkProfileSpec profile,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+
+    Task<DeleteNetworkProfileResponse> DeleteNetworkProfileAsync(
+        string profileId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+
     Task<ListConnectionDecisionsResponse> ListConnectionDecisionsAsync(
         int pageSize,
         string pageToken,

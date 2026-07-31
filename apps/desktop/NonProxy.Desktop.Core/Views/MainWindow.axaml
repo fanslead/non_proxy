@@ -5,6 +5,7 @@
         xmlns:policies="using:NonProxy.Desktop.Core.Features.Policies"
         xmlns:applications="using:NonProxy.Desktop.Core.Features.Applications"
         xmlns:websites="using:NonProxy.Desktop.Core.Features.Websites"
+        xmlns:networks="using:NonProxy.Desktop.Core.Features.Networks"
         xmlns:outbounds="using:NonProxy.Desktop.Core.Features.Outbounds"
         xmlns:learning="using:NonProxy.Desktop.Core.Features.Learning"
         xmlns:activity="using:NonProxy.Desktop.Core.Features.Activity"
@@ -30,6 +31,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type websites:WebsitesViewModel}">
             <websites:WebsitesView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type networks:NetworkProfilesViewModel}">
+            <networks:NetworkProfilesView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type outbounds:OutboundsViewModel}">
             <outbounds:OutboundsView />

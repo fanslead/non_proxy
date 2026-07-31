@@ -4,6 +4,7 @@ using NonProxy.Desktop.Core.Features.Applications;
 using NonProxy.Desktop.Core.Features.Dashboard;
 using NonProxy.Desktop.Core.Features.Diagnostics;
 using NonProxy.Desktop.Core.Features.Learning;
+using NonProxy.Desktop.Core.Features.Networks;
 using NonProxy.Desktop.Core.Features.Outbounds;
 using NonProxy.Desktop.Core.Features.Policies;
 using NonProxy.Desktop.Core.Features.Settings;
@@ -30,6 +31,7 @@ public static class ServiceRegistration
         services.AddSingleton<ApplicationsViewModel>();
         services.AddSingleton<WebsitesViewModel>();
         services.AddSingleton<OutboundsViewModel>();
+        services.AddSingleton<NetworkProfilesViewModel>();
         services.AddSingleton<LearningViewModel>();
         services.AddSingleton<ActivityViewModel>();
         services.AddSingleton<DiagnosticsViewModel>();
@@ -49,6 +51,7 @@ public static class ServiceRegistration
         services.AddSingleton<PolicyContractMapper>();
         services.AddSingleton<ISystemStatusService, GatewaySystemStatusService>();
         services.AddSingleton<IPolicyService, GatewayPolicyService>();
+        services.AddSingleton<INetworkProfileService, GatewayNetworkProfileService>();
         services.AddSingleton<IOutboundService, GatewayOutboundService>();
         services.AddSingleton<ILearningService, DisconnectedLearningService>();
         services.AddSingleton<IActivityService, GatewayActivityService>();

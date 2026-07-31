@@ -1528,6 +1528,7 @@ apps/desktop/
 │   │   ├── Policies/
 │   │   ├── Applications/
 │   │   ├── Websites/
+│   │   ├── Networks/
 │   │   ├── Outbounds/
 │   │   ├── Learning/
 │   │   ├── Diagnostics/
@@ -1614,6 +1615,11 @@ public interface ISystemComponentInstaller
     Task<InstallResult> InstallAsync(CancellationToken cancellationToken);
     Task<InstallResult> UninstallAsync(CancellationToken cancellationToken);
 }
+
+public interface ICurrentNetworkEnvironment
+{
+    Task<CurrentNetworkEnvironment> CaptureAsync(CancellationToken cancellationToken);
+}
 ```
 
 Mac 宿主目标为 `net10.0-macos`。它通过 `LibraryImport` 调用同包 Swift 动态库的固定 C ABI，由动态库在最终 containing app 进程中使用 SystemExtensions 和 NetworkExtension framework；Windows 宿主调用 Windows Service/Installer。接口返回领域 DTO，不泄漏 `OSSystemExtensionRequest`、Win32 handle 或 WFP struct。
@@ -1627,6 +1633,9 @@ macOS 原生桥 ABI 约束：
 - 同一进程最多执行一个异步系统变更，避免两组 System Extension 请求或偏好事务互相覆盖。
 - 共享 UI 只依赖 `IApplicationCatalog` 领域 DTO；macOS 在后台校验应用代码签名，使用 Code Signing Identifier 作为策略稳定身份、Team Identifier 作为签名约束，Bundle Identifier 仅用于搜索辅助。无法校验签名或缺少签名标识的应用不得生成看似成功但实际无法命中的规则。
 - Windows 复用同一应用选择页面，但平台应用目录仍返回明确不可用状态；后续实现必须提供 WFP ALE/包身份/签名对应的稳定身份，不能退回手填路径作为普通用户主流程。
+- `ICurrentNetworkEnvironment` 只在用户点击“检测当前网络”时调用平台采集。macOS 实现
+  通过 ABI v7 返回单个最佳脱敏指纹、定位权限状态和通用建议名，不返回 SSID；Windows
+  未接入前返回明确不可用状态，但继续复用相同 `Networks` 页面、控制 RPC 和策略模型。
 
 ### 17.5 托盘、菜单和窗口
 
@@ -1645,6 +1654,20 @@ macOS 原生桥 ABI 约束：
 - 重连后使用 sequence/cursor 补齐或重新读取完整快照。
 - ViewModel 不把 transient UI state 写回权威策略库。
 - 策略编辑使用 draft，服务器确认 active snapshot 后再显示“已应用”。
+
+“网络环境”页的一键直连按以下顺序编排：
+
+1. 用户手势触发平台采集，并按完整指纹匹配已有网络配置档；不以显示名判断网络身份。
+2. 新档案以 revision 1 保存；已有档案只在用户修改显示名时递增 revision。
+3. 以档案 ID 创建或更新 `PolicyScope.Network + DIRECT` 草稿，再调用统一策略发布流程。
+4. 若策略写入被明确拒绝，且档案是本次新建，立即按返回 revision 删除孤立档案；若
+   RPC 结果未知或规则草稿已接受，则不得回收档案，以免删除可能已被引用的配置。
+5. `Accepted=true, Applied=false` 只显示“已保存/等待确认”。列表状态来自
+   `ListPolicies.policy_statuses`，不能根据按钮返回或本地集合乐观显示 active。
+6. 删除配置先删除引用它的网络规则草稿，再删除档案。旧 active 快照仍携带不可变绑定，
+   因而页面提示可能处于待移除状态；档案删除成功不等于旧数据面已完成切换。
+
+完整决策见 [ADR-0016](ADR/0016-orchestrate-one-click-network-direct.md)。
 
 ### 17.7 主题、可访问性和本地化
 
@@ -1708,6 +1731,7 @@ Windows：
   - System Component 状态。
   - 添加直连应用。
   - 添加直连网站。
+  - 检测当前网络并发布网络直连规则。
   - 策略应用与回滚。
   - 上游故障。
   - 托盘隐藏/恢复。

@@ -22,6 +22,21 @@ public interface IPolicyService
         CancellationToken cancellationToken);
 }
 
+public interface INetworkProfileService
+{
+    Task<NetworkProfileCatalog> GetCatalogAsync(
+        CancellationToken cancellationToken);
+
+    Task<NetworkProfileMutation> SaveAsync(
+        NetworkProfileDraft draft,
+        CancellationToken cancellationToken);
+
+    Task<NetworkProfileMutation> DeleteAsync(
+        string profileId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+}
+
 public interface IOutboundService
 {
     Task<OutboundCatalog> ListAsync(CancellationToken cancellationToken);

@@ -31,6 +31,7 @@ public sealed class DashboardViewModelTests
         Assert.Contains("正在检查", state.StatusDetail, StringComparison.Ordinal);
         Assert.Equal(0, state.DirectApplicationCount);
         Assert.Equal(0, state.DirectWebsiteCount);
+        Assert.Equal(0, state.DirectNetworkCount);
         Assert.False(state.HasRecentEvidence);
     }
 

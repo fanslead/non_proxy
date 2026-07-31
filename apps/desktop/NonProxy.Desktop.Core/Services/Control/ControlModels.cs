@@ -19,6 +19,7 @@ public sealed record SystemOverview(
     ulong? ActiveSnapshotVersion,
     int DirectApplicationCount,
     int DirectWebsiteCount,
+    int DirectNetworkCount,
     int RecentDecisionCount,
     DateTimeOffset CapturedAt,
     ulong? PendingSnapshotVersion = null)
@@ -36,6 +37,7 @@ public sealed record SystemOverview(
             0,
             0,
             0,
+            0,
             DateTimeOffset.UtcNow);
     }
 }
@@ -45,6 +47,7 @@ public enum PolicyScope
     Application,
     Website,
     ApplicationAndDestination,
+    Network,
 }
 
 public enum PolicyAction
@@ -81,6 +84,7 @@ public sealed record PolicyListItem(
         PolicyScope.Application => "应用",
         PolicyScope.Website => "网站",
         PolicyScope.ApplicationAndDestination => "应用 + 目标",
+        PolicyScope.Network => "网络环境",
         _ => "未知",
     };
 

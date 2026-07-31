@@ -10,6 +10,7 @@ public sealed record DashboardState(
     string SnapshotLabel,
     int DirectApplicationCount,
     int DirectWebsiteCount,
+    int DirectNetworkCount,
     int RecentDecisionCount,
     bool HasRecentEvidence)
 {
@@ -53,5 +54,19 @@ public sealed record DashboardState(
         0,
         0,
         0,
+        0,
         false);
+
+    public IReadOnlyList<DashboardMetric> Metrics =>
+    [
+        new("直连应用", DirectApplicationCount, "应用级直连规则"),
+        new("直连网站", DirectWebsiteCount, "网站与域名规则"),
+        new("直连网络", DirectNetworkCount, "网络环境直连规则"),
+        new("近期决策", RecentDecisionCount, "可核对的流量决策"),
+    ];
 }
+
+public sealed record DashboardMetric(
+    string Label,
+    int Value,
+    string Detail);

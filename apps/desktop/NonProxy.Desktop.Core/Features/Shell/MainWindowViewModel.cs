@@ -6,6 +6,7 @@ using NonProxy.Desktop.Core.Features.Common;
 using NonProxy.Desktop.Core.Features.Dashboard;
 using NonProxy.Desktop.Core.Features.Diagnostics;
 using NonProxy.Desktop.Core.Features.Learning;
+using NonProxy.Desktop.Core.Features.Networks;
 using NonProxy.Desktop.Core.Features.Outbounds;
 using NonProxy.Desktop.Core.Features.Policies;
 using NonProxy.Desktop.Core.Features.Settings;
@@ -29,6 +30,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         PoliciesViewModel policies,
         ApplicationsViewModel applications,
         WebsitesViewModel websites,
+        NetworkProfilesViewModel networks,
         OutboundsViewModel outbounds,
         LearningViewModel learning,
         ActivityViewModel activity,
@@ -44,6 +46,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             new("全部规则", "≡", policies),
             new("应用直连", "▣", applications),
             new("网站直连", "◎", websites),
+            new("网络环境", "⌁", networks),
             new("网络出口", "⇄", outbounds),
             new("智能学习", "✦", learning),
             new("活动记录", "◷", activity),

@@ -71,6 +71,7 @@ public sealed partial class DashboardViewModel : LoadableViewModel
             SnapshotLabel(overview),
             overview.DirectApplicationCount,
             overview.DirectWebsiteCount,
+            overview.DirectNetworkCount,
             overview.RecentDecisionCount,
             overview.RecentDecisionCount > 0);
     }

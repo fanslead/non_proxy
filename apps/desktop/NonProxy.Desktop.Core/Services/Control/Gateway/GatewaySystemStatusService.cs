@@ -44,6 +44,9 @@ public sealed class GatewaySystemStatusService : ISystemStatusService
             var websiteCount = visible.Count(item =>
                 item.Action == PolicyAction.Direct
                 && item.Scope == PolicyScope.Website);
+            var networkCount = visible.Count(item =>
+                item.Action == PolicyAction.Direct
+                && item.Scope == PolicyScope.Network);
             return new SystemOverview(
                 ConnectionState.Connected,
                 component,
@@ -52,6 +55,7 @@ public sealed class GatewaySystemStatusService : ISystemStatusService
                 OptionalVersion(status.ActiveSnapshotVersion),
                 applicationCount,
                 websiteCount,
+                networkCount,
                 DecisionCount(decisions.TotalCount),
                 DateTimeOffset.UtcNow,
                 OptionalVersion(status.PendingSnapshotVersion));
@@ -64,6 +68,7 @@ public sealed class GatewaySystemStatusService : ISystemStatusService
                 "等待控制服务",
                 exception.UserMessage,
                 null,
+                0,
                 0,
                 0,
                 0,
