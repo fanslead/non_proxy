@@ -8,24 +8,20 @@ enum DirectRelayStartResult {
 }
 
 final class DirectFlowRelayCoordinator: Sendable {
-    private let interfaces: PhysicalInterfaceCatalog
     private let registry: FlowRelayRegistry
 
-    init(
-        interfaces: PhysicalInterfaceCatalog,
-        registry: FlowRelayRegistry
-    ) {
-        self.interfaces = interfaces
+    init(registry: FlowRelayRegistry) {
         self.registry = registry
     }
 
     func startTCP(
         flow: NEAppProxyTCPFlow,
         endpoint: NWEndpoint,
+        interface: NWInterface?,
         onEstablished: @escaping @Sendable (String) -> Void,
         onSetupFailed: @escaping @Sendable (String) -> Void
     ) -> DirectRelayStartResult {
-        guard let interface = interfaces.preferredInterface() else {
+        guard let interface else {
             return .physicalInterfaceUnavailable
         }
         let connection = DirectConnectionFactory.makeTCP(
@@ -59,10 +55,11 @@ final class DirectFlowRelayCoordinator: Sendable {
 
     func startUDP(
         flow: NEAppProxyUDPFlow,
+        interface: NWInterface?,
         onEstablished: @escaping @Sendable (String) -> Void,
         onSetupFailed: @escaping @Sendable (String) -> Void
     ) -> DirectRelayStartResult {
-        guard let interface = interfaces.preferredInterface() else {
+        guard let interface else {
             return .physicalInterfaceUnavailable
         }
         let interfaceName = interface.name

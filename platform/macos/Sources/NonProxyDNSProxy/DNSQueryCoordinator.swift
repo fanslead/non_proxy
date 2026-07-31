@@ -1,4 +1,5 @@
 import Foundation
+import NonProxyMacPlatformSupport
 import NonProxyProviderContracts
 import NonProxyProviderCore
 
@@ -22,7 +23,7 @@ public final class DNSQueryCoordinator: Sendable {
     private let runtime: ProviderPolicyRuntime
     private let resolver: any ProviderDNSResolving
     private let catalogs: DNSResolverCatalogStore
-    private let networkProfile: DNSNetworkProfileMonitor
+    private let networkEnvironment: MacNetworkEnvironmentMonitor
     private let capacity: DNSQueryCapacity
     private let decisions: any ProviderDecisionSubmitting
 
@@ -30,14 +31,14 @@ public final class DNSQueryCoordinator: Sendable {
         runtime: ProviderPolicyRuntime,
         resolver: any ProviderDNSResolving,
         catalogs: DNSResolverCatalogStore,
-        networkProfile: DNSNetworkProfileMonitor,
+        networkEnvironment: MacNetworkEnvironmentMonitor,
         decisions: any ProviderDecisionSubmitting,
         capacity: DNSQueryCapacity = DNSQueryCapacity()
     ) {
         self.runtime = runtime
         self.resolver = resolver
         self.catalogs = catalogs
-        self.networkProfile = networkProfile
+        self.networkEnvironment = networkEnvironment
         self.decisions = decisions
         self.capacity = capacity
     }
@@ -61,8 +62,9 @@ public final class DNSQueryCoordinator: Sendable {
     ) async throws -> Data {
         let observedAt = Date()
         let question = try DNSMessageParser.parseQuery(context.message)
-        let baseProfileID = networkProfile.profileID()
-        let policyContext = PolicyConnectionContext(
+        let network = networkEnvironment.snapshot()
+        let baseProfileID = network.dnsCachePartitionID()
+        let unresolvedContext = PolicyConnectionContext(
             app: context.app,
             destination: PolicyDestination(
                 normalizedDomain: DomainNameNormalizer.normalize(question.name),
@@ -74,8 +76,13 @@ public final class DNSQueryCoordinator: Sendable {
             networkProfileID: nil
         )
         let decisionStarted = DispatchTime.now().uptimeNanoseconds
-        let decision = try runtime.decide(context: policyContext)
+        let evaluation = try runtime.evaluate(
+            context: unresolvedContext,
+            networkFingerprints: network.fingerprints
+        )
         let decisionFinished = DispatchTime.now().uptimeNanoseconds
+        let policyContext = evaluation.context
+        let decision = evaluation.decision
         let observation = ProviderDecisionObservation(
             flowID: UUID().uuidString.lowercased(),
             context: policyContext,
@@ -102,7 +109,11 @@ public final class DNSQueryCoordinator: Sendable {
                 "当前网络没有可用的明文系统 DNS 上游"
             )
         }
-        let profileID = networkProfile.profileID(upstreams: upstreams)
+        let profileID = network.dnsCachePartitionID(
+            resolverKeys: upstreams.map {
+                "\($0.ipAddress):\($0.port):\($0.scopeID)"
+            }
+        )
         var request = Nonproxy_Provider_V1_ResolveDnsRequest()
         request.queryID = UUID().uuidString.lowercased()
         request.app = protobufIdentity(context.app)
@@ -116,7 +127,7 @@ public final class DNSQueryCoordinator: Sendable {
         request.snapshotVersion = decision.snapshotVersion
         switch plan {
         case .direct:
-            let interfaceIndex = networkProfile.preferredInterfaceIndex
+            let interfaceIndex = network.preferredInterfaceIndex
             guard interfaceIndex > 0 else {
                 report(
                     observation,
@@ -140,7 +151,8 @@ public final class DNSQueryCoordinator: Sendable {
             return try await resolveProxy(
                 request,
                 question: question,
-                observation: observation
+                observation: observation,
+                network: network
             )
         case .refuse:
             throw DNSProxyError.providerUnavailable("DNS 路由计划无效")
@@ -180,7 +192,8 @@ public final class DNSQueryCoordinator: Sendable {
     private func resolveProxy(
         _ request: Nonproxy_Provider_V1_ResolveDnsRequest,
         question: DNSQuestion,
-        observation: ProviderDecisionObservation
+        observation: ProviderDecisionObservation,
+        network: MacNetworkEnvironmentSnapshot
     ) async throws -> Data {
         do {
             let response = try await resolver.resolveDNS(request)
@@ -206,7 +219,8 @@ public final class DNSQueryCoordinator: Sendable {
             return try await resolveProxyFallback(
                 request,
                 question: question,
-                observation: observation
+                observation: observation,
+                network: network
             )
         }
     }
@@ -214,9 +228,10 @@ public final class DNSQueryCoordinator: Sendable {
     private func resolveProxyFallback(
         _ original: Nonproxy_Provider_V1_ResolveDnsRequest,
         question: DNSQuestion,
-        observation: ProviderDecisionObservation
+        observation: ProviderDecisionObservation,
+        network: MacNetworkEnvironmentSnapshot
     ) async throws -> Data {
-        let interfaceIndex = networkProfile.preferredInterfaceIndex
+        let interfaceIndex = network.preferredInterfaceIndex
         guard interfaceIndex > 0 else {
             report(
                 observation,

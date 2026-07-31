@@ -36,7 +36,7 @@ public final class DNSProxyProvider:
                 return
             }
             var components: MacProviderRuntimeComponents?
-            var networkProfile: DNSNetworkProfileMonitor?
+            var networkEnvironment: MacNetworkEnvironmentMonitor?
             do {
                 let paths = try MacProviderPaths.live()
                 let relays = self.relays
@@ -58,18 +58,18 @@ public final class DNSProxyProvider:
                         settings: self.systemDNSSettings ?? []
                     )
                 )
-                let monitor = DNSNetworkProfileMonitor()
-                networkProfile = monitor
+                let monitor = MacNetworkEnvironmentMonitor()
+                networkEnvironment = monitor
                 await monitor.start()
                 let runtime = DNSProviderRuntime(
                     provider: created,
                     catalogs: catalogs,
-                    networkProfile: monitor,
+                    networkEnvironment: monitor,
                     coordinator: DNSQueryCoordinator(
                         runtime: created.runtime,
                         resolver: created.control,
                         catalogs: catalogs,
-                        networkProfile: monitor,
+                        networkEnvironment: monitor,
                         decisions: created.decisions
                     )
                 )
@@ -81,7 +81,7 @@ public final class DNSProxyProvider:
                 completion.complete(with: nil)
             } catch {
                 self.relays.stopAcceptingAndCancelAll()
-                networkProfile?.stop()
+                networkEnvironment?.stop()
                 components?.lifecycle.stop()
                 components?.decisions.stop()
                 components?.control.shutdown()
@@ -98,7 +98,7 @@ public final class DNSProxyProvider:
         settingsObservation.invalidate()
         let runtime = providerState.remove()
         relays.stopAcceptingAndCancelAll()
-        runtime?.networkProfile.stop()
+        runtime?.networkEnvironment.stop()
         runtime?.provider.lifecycle.stop()
         runtime?.provider.decisions.stop()
         runtime?.provider.control.shutdown()

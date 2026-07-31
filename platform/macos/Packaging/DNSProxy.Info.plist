@@ -20,6 +20,8 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>15.0</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>用于在本机识别当前 Wi-Fi 并自动应用对应的直连规则；网络名称只在内存中哈希。</string>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key>

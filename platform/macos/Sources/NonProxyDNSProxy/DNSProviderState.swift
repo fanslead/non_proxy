@@ -6,7 +6,7 @@ import Synchronization
 struct DNSProviderRuntime: Sendable {
     let provider: MacProviderRuntimeComponents
     let catalogs: DNSResolverCatalogStore
-    let networkProfile: DNSNetworkProfileMonitor
+    let networkEnvironment: MacNetworkEnvironmentMonitor
     let coordinator: DNSQueryCoordinator
 }
 

@@ -360,6 +360,10 @@ verify_extension() {
         "${plist}" \
         LSMinimumSystemVersion \
         "${host_minimum_system_version}"
+    assert_plist_value \
+        "${plist}" \
+        NSLocationWhenInUseUsageDescription \
+        "用于在本机识别当前 Wi-Fi 并自动应用对应的直连规则；网络名称只在内存中哈希。"
     file "${binary}" | grep -F "Mach-O" >/dev/null
     local extension_architectures
     extension_architectures=$(lipo -archs "${binary}")
@@ -369,6 +373,10 @@ verify_extension() {
     fi
     otool -L "${binary}" | grep -F \
         "/System/Library/Frameworks/NetworkExtension.framework/" >/dev/null
+    otool -L "${binary}" | grep -F \
+        "/System/Library/Frameworks/CoreWLAN.framework/" >/dev/null
+    otool -L "${binary}" | grep -F \
+        "/System/Library/Frameworks/SystemConfiguration.framework/" >/dev/null
     nm -g "${binary}" | grep -F \
         "_OBJC_CLASS_\$_${objective_c_class}" >/dev/null
     codesign --verify --strict --verbose=2 "${bundle}"
@@ -383,6 +391,9 @@ verify_extension() {
     assert_entitlement_true \
         "${entitlements}" \
         com.apple.security.app-sandbox
+    assert_entitlement_true \
+        "${entitlements}" \
+        com.apple.security.personal-information.location
     assert_entitlement_contains \
         "${entitlements}" \
         com.apple.security.application-groups \

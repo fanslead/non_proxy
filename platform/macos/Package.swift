@@ -144,9 +144,12 @@ let package = Package(
                 "NonProxyProviderContracts",
             ],
             linkerSettings: [
+                .linkedFramework("CoreWLAN"),
+                .linkedFramework("CryptoKit"),
                 .linkedFramework("Network"),
                 .linkedFramework("NetworkExtension"),
                 .linkedFramework("Security"),
+                .linkedFramework("SystemConfiguration"),
             ]
         ),
         .target(
@@ -251,6 +254,7 @@ let package = Package(
             dependencies: [
                 "NonProxyMacPlatformSupport",
                 "NonProxyProviderContracts",
+                "NonProxyProviderCore",
             ]
         ),
         .testTarget(
@@ -261,7 +265,9 @@ let package = Package(
             name: "NonProxyDNSProxyTests",
             dependencies: [
                 "NonProxyDNSProxy",
+                "NonProxyMacPlatformSupport",
                 "NonProxyProviderContracts",
+                "NonProxyProviderCore",
             ]
         ),
         .testTarget(

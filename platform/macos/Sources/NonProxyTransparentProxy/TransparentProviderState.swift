@@ -6,7 +6,7 @@ import Synchronization
 struct TransparentProviderRuntime: Sendable {
     let runID: UUID
     let provider: MacProviderRuntimeComponents
-    let interfaces: PhysicalInterfaceCatalog
+    let networkEnvironment: MacNetworkEnvironmentMonitor
     let directRelays: DirectFlowRelayCoordinator
     let proxyRelays: ProxyFlowRelayCoordinator
 }

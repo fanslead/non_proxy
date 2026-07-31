@@ -39,6 +39,46 @@ final class ProviderPolicyRuntimeTests: XCTestCase {
         )
     }
 
+    func testResolvesMostSpecificNetworkFingerprintInDecisionSnapshot() throws {
+        let ssidHash = String(repeating: "a", count: 64)
+        let runtime = ProviderPolicyRuntime()
+        try runtime.install(
+            networkSnapshot(ssidHash: ssidHash)
+        )
+
+        let evaluation = try runtime.evaluate(
+            context: context(),
+            networkFingerprints: [
+                try PolicyNetworkFingerprint(
+                    kind: .interfaceClass,
+                    value: "wifi"
+                ),
+                try PolicyNetworkFingerprint(
+                    kind: .wifiSsidSha256,
+                    value: ssidHash
+                ),
+            ]
+        )
+
+        XCTAssertEqual(evaluation.context.networkProfileID, "office")
+        XCTAssertEqual(evaluation.decision.result.action, .block)
+        XCTAssertEqual(evaluation.decision.matchedPolicyID, "office-direct")
+        XCTAssertEqual(evaluation.decision.reasonCode, "NP_POLICY_NETWORK_MATCH")
+
+        let fallback = try runtime.evaluate(
+            context: context(),
+            networkFingerprints: [
+                try PolicyNetworkFingerprint(
+                    kind: .interfaceClass,
+                    value: "wifi"
+                ),
+            ]
+        )
+        XCTAssertEqual(fallback.context.networkProfileID, "any-wifi")
+        XCTAssertEqual(fallback.decision.result.action, .direct)
+        XCTAssertNil(fallback.decision.matchedPolicyID)
+    }
+
     private func verifiedSnapshot(
         version: UInt64,
         action: Nonproxy_Common_V1_RouteAction
@@ -61,6 +101,42 @@ final class ProviderPolicyRuntimeTests: XCTestCase {
                 transport: .tcp,
                 port: 443
             )
+        )
+    }
+
+    private func networkSnapshot(
+        ssidHash: String
+    ) throws -> VerifiedPolicySnapshot {
+        var interfaceProfile = Nonproxy_Policy_V1_NetworkProfileBinding()
+        interfaceProfile.id = "any-wifi"
+        interfaceProfile.fingerprintKind = .interfaceClass
+        interfaceProfile.fingerprintValue = "wifi"
+
+        var officeProfile = Nonproxy_Policy_V1_NetworkProfileBinding()
+        officeProfile.id = "office"
+        officeProfile.fingerprintKind = .wifiSsidSha256
+        officeProfile.fingerprintValue = ssidHash
+
+        var network = Nonproxy_Policy_V1_NetworkMatcher()
+        network.profileID = "office"
+        var matcher = Nonproxy_Policy_V1_PolicyMatch()
+        matcher.network = network
+        var decision = SnapshotFixtures.directDecision()
+        decision.action = .block
+        var policy = Nonproxy_Policy_V1_Policy()
+        policy.id = "office-direct"
+        policy.displayName = "办公网络直连"
+        policy.sourceKind = .network
+        policy.match = matcher
+        policy.decision = decision
+        policy.enabled = true
+        policy.origin = .user
+        policy.revision = 1
+
+        var payload = SnapshotFixtures.payload(policies: [policy])
+        payload.networkProfiles = [interfaceProfile, officeProfile]
+        return try SnapshotValidator.validate(
+            SnapshotFixtures.snapshot(payload: payload, version: 9)
         )
     }
 }

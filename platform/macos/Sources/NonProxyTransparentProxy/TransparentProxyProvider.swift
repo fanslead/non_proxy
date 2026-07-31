@@ -28,7 +28,7 @@ public final class TransparentProxyProvider:
             return
         }
         Task { [weak self] in
-            var startedInterfaces: PhysicalInterfaceCatalog?
+            var startedEnvironment: MacNetworkEnvironmentMonitor?
             guard let self else {
                 completion.complete(
                     with: ProviderError.lifecycle("Transparent Provider 已释放")
@@ -37,9 +37,9 @@ public final class TransparentProxyProvider:
             }
             do {
                 let paths = try MacProviderPaths.live()
-                let interfaces = PhysicalInterfaceCatalog()
-                startedInterfaces = interfaces
-                await interfaces.start()
+                let networkEnvironment = MacNetworkEnvironmentMonitor()
+                startedEnvironment = networkEnvironment
+                await networkEnvironment.start()
                 let rejectedFlows = self.rejectedFlows
                 let flowRelays = self.flowRelays
                 let components = try MacProviderBootstrap.make(
@@ -67,9 +67,8 @@ public final class TransparentProxyProvider:
                 let runtime = TransparentProviderRuntime(
                     runID: runID,
                     provider: components,
-                    interfaces: interfaces,
+                    networkEnvironment: networkEnvironment,
                     directRelays: DirectFlowRelayCoordinator(
-                        interfaces: interfaces,
                         registry: flowRelays
                     ),
                     proxyRelays: try ProxyFlowRelayCoordinator(
@@ -88,7 +87,7 @@ public final class TransparentProxyProvider:
                 }
                 completion.complete(with: nil)
             } catch {
-                startedInterfaces?.stop()
+                startedEnvironment?.stop()
                 self.providerState.failStart(runID: runID)
                 completion.complete(with: error)
             }
@@ -103,7 +102,7 @@ public final class TransparentProxyProvider:
         runtime?.provider.lifecycle.stop()
         runtime?.provider.decisions.stop()
         runtime?.provider.control.shutdown()
-        runtime?.interfaces.stop()
+        runtime?.networkEnvironment.stop()
         flowRelays.stopAcceptingAndCancelAll()
         rejectedFlows.closeAll()
         completionHandler()
@@ -137,14 +136,20 @@ public final class TransparentProxyProvider:
         }
         do {
             let observedAt = Date()
-            let context = try contextFactory.make(
+            let unresolvedContext = try contextFactory.make(
                 flow: flow,
                 endpoint: endpoint,
                 transport: transport
             )
+            let network = runtime.networkEnvironment.snapshot()
             let decisionStarted = DispatchTime.now().uptimeNanoseconds
-            let decision = try runtime.provider.runtime.decide(context: context)
+            let evaluation = try runtime.provider.runtime.evaluate(
+                context: unresolvedContext,
+                networkFingerprints: network.fingerprints
+            )
             let decisionFinished = DispatchTime.now().uptimeNanoseconds
+            let context = evaluation.context
+            let decision = evaluation.decision
             let observation = ProviderDecisionObservation(
                 flowID: UUID().uuidString.lowercased(),
                 context: context,
@@ -163,6 +168,7 @@ public final class TransparentProxyProvider:
                     endpoint: endpoint,
                     transport: transport,
                     observation: observation,
+                    network: network,
                     failOpen: false
                 )
             case .proxy(let outboundID):
@@ -173,7 +179,8 @@ public final class TransparentProxyProvider:
                     destination: context.destination,
                     transport: transport,
                     outboundID: outboundID,
-                    observation: observation
+                    observation: observation,
+                    network: network
                 )
             case .reject(let errorCode):
                 report(
@@ -198,7 +205,8 @@ public final class TransparentProxyProvider:
         destination: PolicyDestination,
         transport: Nonproxy_Common_V1_TransportProtocol,
         outboundID: String,
-        observation: ProviderDecisionObservation
+        observation: ProviderDecisionObservation,
+        network: MacNetworkEnvironmentSnapshot
     ) -> Bool {
         let onEstablished: @Sendable () -> Void = { [weak self] in
             self?.report(
@@ -215,6 +223,7 @@ public final class TransparentProxyProvider:
                 endpoint: endpoint,
                 transport: transport,
                 observation: observation,
+                network: network,
                 code: code
             )
         }
@@ -253,6 +262,7 @@ public final class TransparentProxyProvider:
                 endpoint: endpoint,
                 transport: transport,
                 observation: observation,
+                network: network,
                 code: "NP_PROXY_ENDPOINT_INVALID"
             )
             return true
@@ -263,6 +273,7 @@ public final class TransparentProxyProvider:
                 endpoint: endpoint,
                 transport: transport,
                 observation: observation,
+                network: network,
                 code: "NP_PROXY_RELAY_CAPACITY_EXCEEDED"
             )
             return true
@@ -275,6 +286,7 @@ public final class TransparentProxyProvider:
         endpoint: NWEndpoint,
         transport: Nonproxy_Common_V1_TransportProtocol,
         observation: ProviderDecisionObservation,
+        network: MacNetworkEnvironmentSnapshot,
         failOpen: Bool
     ) -> Bool {
         let onEstablished: @Sendable (String) -> Void = { [weak self] interface in
@@ -300,6 +312,7 @@ public final class TransparentProxyProvider:
                 runtime.directRelays.startTCP(
                     flow: $0,
                     endpoint: endpoint,
+                    interface: network.preferredInterface,
                     onEstablished: onEstablished,
                     onSetupFailed: onSetupFailed
                 )
@@ -308,6 +321,7 @@ public final class TransparentProxyProvider:
             result = (flow as? NEAppProxyUDPFlow).map {
                 runtime.directRelays.startUDP(
                     flow: $0,
+                    interface: network.preferredInterface,
                     onEstablished: onEstablished,
                     onSetupFailed: onSetupFailed
                 )
@@ -346,6 +360,7 @@ public final class TransparentProxyProvider:
         endpoint: NWEndpoint,
         transport: Nonproxy_Common_V1_TransportProtocol,
         observation: ProviderDecisionObservation,
+        network: MacNetworkEnvironmentSnapshot,
         code: String
     ) {
         guard providerState.isCurrentStart(runID: runtime.runID) else {
@@ -362,6 +377,7 @@ public final class TransparentProxyProvider:
                 endpoint: endpoint,
                 transport: transport,
                 observation: observation,
+                network: network,
                 failOpen: true
             )
         case .reject(let errorCode):

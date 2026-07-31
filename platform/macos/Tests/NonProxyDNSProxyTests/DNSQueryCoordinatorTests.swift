@@ -1,5 +1,6 @@
 import Foundation
 @testable import NonProxyDNSProxy
+import NonProxyMacPlatformSupport
 import NonProxyProviderContracts
 import NonProxyProviderCore
 import Synchronization
@@ -20,7 +21,7 @@ final class DNSQueryCoordinatorTests: XCTestCase {
                     ]
                 )
             ),
-            networkProfile: DNSNetworkProfileMonitor(
+            networkEnvironment: MacNetworkEnvironmentMonitor(
                 initialInterfaceIndex: 7
             ),
             decisions: decisions
@@ -63,7 +64,7 @@ final class DNSQueryCoordinatorTests: XCTestCase {
             catalogs: DNSResolverCatalogStore(
                 DNSSystemResolverCatalog(upstreams: [])
             ),
-            networkProfile: DNSNetworkProfileMonitor(),
+            networkEnvironment: MacNetworkEnvironmentMonitor(),
             decisions: decisions
         )
 
@@ -82,6 +83,46 @@ final class DNSQueryCoordinatorTests: XCTestCase {
         XCTAssertEqual(decisions.records[0].evidence.level, .decision)
     }
 
+    func testUsesResolvedNetworkProfileForDnsPolicyDecision() async throws {
+        let fingerprint = try PolicyNetworkFingerprint(
+            kind: .interfaceClass,
+            value: "wifi"
+        )
+        let resolver = RecordingDNSResolver()
+        let decisions = RecordingDecisionSubmitter()
+        let coordinator = DNSQueryCoordinator(
+            runtime: try networkRuntime(fingerprint: fingerprint),
+            resolver: resolver,
+            catalogs: DNSResolverCatalogStore(
+                DNSSystemResolverCatalog(
+                    upstreams: [
+                        DNSUpstreamEndpoint(ipAddress: "1.1.1.1"),
+                    ]
+                )
+            ),
+            networkEnvironment: MacNetworkEnvironmentMonitor(
+                initialInterfaceIndex: 7,
+                initialFingerprints: [fingerprint]
+            ),
+            decisions: decisions
+        )
+
+        _ = try await coordinator.resolve(
+            DNSFlowQueryContext(
+                message: makeQuery(),
+                app: .unknown,
+                transport: .udp
+            )
+        )
+
+        let request = await resolver.lastRequest
+        XCTAssertNotNil(request)
+        XCTAssertEqual(decisions.records.count, 1)
+        XCTAssertEqual(decisions.records[0].context.networkProfileID, "office")
+        XCTAssertEqual(decisions.records[0].decision.matchedPolicyID, "office-direct")
+        XCTAssertEqual(decisions.records[0].decision.result.action, .direct)
+    }
+
     func testProxyFailureFallsBackToObservedDirectPathWhenOpen() async throws {
         let resolver = RecordingDNSResolver(failProxy: true)
         let decisions = RecordingDecisionSubmitter()
@@ -98,7 +139,7 @@ final class DNSQueryCoordinatorTests: XCTestCase {
                     ]
                 )
             ),
-            networkProfile: DNSNetworkProfileMonitor(
+            networkEnvironment: MacNetworkEnvironmentMonitor(
                 initialInterfaceIndex: 9
             ),
             decisions: decisions
@@ -137,7 +178,7 @@ final class DNSQueryCoordinatorTests: XCTestCase {
                     ]
                 )
             ),
-            networkProfile: DNSNetworkProfileMonitor(
+            networkEnvironment: MacNetworkEnvironmentMonitor(
                 initialInterfaceIndex: 7
             ),
             decisions: decisions
@@ -175,7 +216,7 @@ final class DNSQueryCoordinatorTests: XCTestCase {
                     ]
                 )
             ),
-            networkProfile: DNSNetworkProfileMonitor(
+            networkEnvironment: MacNetworkEnvironmentMonitor(
                 initialInterfaceIndex: 7
             ),
             decisions: decisions
@@ -210,6 +251,47 @@ final class DNSQueryCoordinatorTests: XCTestCase {
         payload.defaultDecision = decision
         var metadata = Nonproxy_Policy_V1_PolicySnapshotMetadata()
         metadata.snapshotVersion = 42
+        var wire = Nonproxy_Policy_V1_CompiledPolicySnapshot()
+        wire.metadata = metadata
+        let runtime = ProviderPolicyRuntime()
+        try runtime.install(
+            VerifiedPolicySnapshot(wireSnapshot: wire, payload: payload)
+        )
+        return runtime
+    }
+
+    private func networkRuntime(
+        fingerprint: PolicyNetworkFingerprint
+    ) throws -> ProviderPolicyRuntime {
+        var profile = Nonproxy_Policy_V1_NetworkProfileBinding()
+        profile.id = "office"
+        profile.fingerprintKind = fingerprint.kind
+        profile.fingerprintValue = fingerprint.value
+
+        var network = Nonproxy_Policy_V1_NetworkMatcher()
+        network.profileID = profile.id
+        var matcher = Nonproxy_Policy_V1_PolicyMatch()
+        matcher.network = network
+        var direct = Nonproxy_Policy_V1_DecisionSpec()
+        direct.action = .direct
+        direct.failureMode = .closed
+        var policy = Nonproxy_Policy_V1_Policy()
+        policy.id = "office-direct"
+        policy.sourceKind = .network
+        policy.match = matcher
+        policy.decision = direct
+        policy.enabled = true
+
+        var blocked = Nonproxy_Policy_V1_DecisionSpec()
+        blocked.action = .block
+        blocked.failureMode = .closed
+        var payload = Nonproxy_Policy_V1_CompiledPolicyPayload()
+        payload.formatVersion = 2
+        payload.policies = [policy]
+        payload.defaultDecision = blocked
+        payload.networkProfiles = [profile]
+        var metadata = Nonproxy_Policy_V1_PolicySnapshotMetadata()
+        metadata.snapshotVersion = 43
         var wire = Nonproxy_Policy_V1_CompiledPolicySnapshot()
         wire.metadata = metadata
         let runtime = ProviderPolicyRuntime()

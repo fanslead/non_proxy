@@ -38,13 +38,46 @@ public final class ProviderPolicyRuntime: Sendable {
     public func decide(
         context: PolicyConnectionContext
     ) throws -> PolicyDecision {
+        try evaluate(context: context).decision
+    }
+
+    public func evaluate(
+        context: PolicyConnectionContext,
+        networkFingerprints: [PolicyNetworkFingerprint] = []
+    ) throws -> ProviderPolicyEvaluation {
         let snapshot = state.withLock { $0.snapshot }
         guard let snapshot else {
             throw ProviderError.lifecycle("Provider 尚无可用策略快照")
         }
-        return ProviderPolicyEngine.decide(
-            snapshot: snapshot,
-            context: context
+        let resolvedContext = PolicyConnectionContext(
+            app: context.app,
+            destination: context.destination,
+            networkProfileID: context.networkProfileID
+                ?? PolicyNetworkProfileResolver.resolve(
+                    in: snapshot,
+                    fingerprints: networkFingerprints
+                )
         )
+        let decision = ProviderPolicyEngine.decide(
+            snapshot: snapshot,
+            context: resolvedContext
+        )
+        return ProviderPolicyEvaluation(
+            context: resolvedContext,
+            decision: decision
+        )
+    }
+}
+
+public struct ProviderPolicyEvaluation: Sendable {
+    public let context: PolicyConnectionContext
+    public let decision: PolicyDecision
+
+    public init(
+        context: PolicyConnectionContext,
+        decision: PolicyDecision
+    ) {
+        self.context = context
+        self.decision = decision
     }
 }

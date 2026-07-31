@@ -877,6 +877,15 @@ CompiledPolicySnapshot
 按旧算法读取，任何重建都发布新的 version 2 快照。DNS 的瞬时缓存分区 ID 不得冒充
 该稳定档案 ID。
 
+macOS 数据面由 DNS 与透明代理共用网络环境监视器。监视器从 `NWPathMonitor` 选择当前
+实际使用的物理接口，通过 CoreWLAN 读取 SSID 原始字节并立即哈希，同时从
+SystemConfiguration 的 per-service 状态读取该物理接口的默认网关并在 IP 规范化后
+连同可用的链路层地址哈希，以区分默认网关 IP 相同的不同局域网。不得使用 VPN 接管
+后的全局 `utun` 默认路由。Provider 按
+`wifi_ssid_sha256 > default_gateway_sha256 > interface_class` 的固定顺序解析配置档，并
+在同一次不可变快照读取中完成映射与策略判定。定位权限被拒绝或 SSID 不可读时，必须
+降级到网关或接口类型，不能阻止 Provider 启动；详见 ADR-0015。
+
 索引：
 
 - App rule：hash map。
