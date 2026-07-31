@@ -41,6 +41,7 @@ mod outbound_capabilities;
 mod outbound_health;
 mod outbound_import;
 mod outbound_import_service;
+mod outbound_import_uri;
 mod outbound_probe;
 mod proto_policy;
 mod provider_decision_rpc;

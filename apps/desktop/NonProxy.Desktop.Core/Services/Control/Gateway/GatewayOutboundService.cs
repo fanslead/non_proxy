@@ -165,7 +165,9 @@ public sealed partial class GatewayOutboundService : IOutboundService
         try
         {
             response = await _client.ImportConfigurationAsync(
+                "nonproxy-json-v1",
                 configuration,
+                false,
                 cancellationToken);
         }
         finally
@@ -272,6 +274,12 @@ public sealed partial class GatewayOutboundService : IOutboundService
             "NP_REQUEST_INVALID" or "NP_OUTBOUND_IMPORT_INVALID"
                 => "代理配置无效，请检查标识、地址、端口和凭据。",
             "NP_OUTBOUND_IMPORT_DUPLICATE_ID" => "同一次导入不能包含重复的代理标识。",
+            "NP_OUTBOUND_IMPORT_URI_INVALID" =>
+                "代理链接无效；请每行粘贴一个 SOCKS5 或 HTTP 代理链接。",
+            "NP_OUTBOUND_IMPORT_URI_SCHEME_UNSUPPORTED" =>
+                "当前只支持 socks5://、socks5h:// 和 http:// 代理链接。",
+            "NP_OUTBOUND_IMPORT_URI_CREDENTIAL_INVALID" =>
+                "代理链接中的账号和密码必须同时提供，并使用有效的百分号编码。",
             "NP_OUTBOUND_CREDENTIAL_INVALID" => "代理账号和密码必须同时填写且符合长度限制。",
             "NP_OUTBOUND_REVISION_EXHAUSTED" => "代理配置修订号已耗尽，请更换配置标识。",
             "NP_OUTBOUND_REVISION_CONFLICT" => "代理配置已被其他操作修改，请刷新后重试。",

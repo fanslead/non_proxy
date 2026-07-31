@@ -46,6 +46,14 @@ public interface IOutboundService
     Task<OutboundImportResult> ImportAsync(
         OutboundImportDraft draft,
         CancellationToken cancellationToken);
+
+    Task<OutboundImportResult> PreviewUriListAsync(
+        string uriList,
+        CancellationToken cancellationToken);
+
+    Task<OutboundImportResult> ImportUriListAsync(
+        string uriList,
+        CancellationToken cancellationToken);
 }
 
 public interface ILearningService

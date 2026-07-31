@@ -78,6 +78,23 @@ public sealed class DisconnectedOutboundService : IOutboundService
             "控制服务尚未连接，代理配置没有保存。");
     }
 
+    public Task<OutboundImportResult> PreviewUriListAsync(
+        string uriList,
+        CancellationToken cancellationToken)
+    {
+        return ImportUriListAsync(uriList, cancellationToken);
+    }
+
+    public Task<OutboundImportResult> ImportUriListAsync(
+        string uriList,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new ControlServiceException(
+            "NP_CONTROL_UNAVAILABLE",
+            "控制服务尚未连接，代理链接没有检查或保存。");
+    }
+
     public Task<OutboundTestResult> TestAsync(
         string outboundId,
         CancellationToken cancellationToken)

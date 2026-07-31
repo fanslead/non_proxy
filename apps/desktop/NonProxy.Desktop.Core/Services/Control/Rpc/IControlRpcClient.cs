@@ -44,7 +44,9 @@ public interface IControlRpcClient
         CancellationToken cancellationToken);
 
     Task<ImportConfigurationResponse> ImportConfigurationAsync(
+        string format,
         byte[] configuration,
+        bool validateOnly,
         CancellationToken cancellationToken);
 
     Task<TestOutboundResponse> TestOutboundAsync(

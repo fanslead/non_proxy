@@ -27,8 +27,82 @@
 
             <Border Theme="{StaticResource NpCard}">
                 <StackPanel Spacing="14">
+                    <StackPanel Spacing="4">
+                        <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                   Text="粘贴代理链接（推荐）" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="每行粘贴一个 socks5://、socks5h:// 或 http:// 链接。先检查识别结果，再明确保存；预览和列表始终隐藏账号与密码。"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <TextBox x:Name="ProxyUriImportText"
+                             Theme="{StaticResource NpTextBox}"
+                             AcceptsReturn="True"
+                             MinHeight="104"
+                             Text="{Binding UriImportText}"
+                             TextWrapping="Wrap"
+                             PlaceholderText="socks5://user:password@proxy.example:1080#office"
+                             AutomationProperties.Name="标准代理链接列表" />
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="10">
+                        <Button Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding PreviewUriImportCommand}"
+                                Content="检查链接"
+                                AutomationProperties.Name="检查代理链接但不保存" />
+                        <Button Theme="{StaticResource NpPrimaryButton}"
+                                Command="{Binding SaveUriImportCommand}"
+                                Content="保存检查结果"
+                                AutomationProperties.Name="保存已检查的代理链接" />
+                    </StackPanel>
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="{Binding UriImportMessage}"
+                               TextWrapping="Wrap" />
+                    <Border x:Name="ProxyUriImportPreview"
+                            BorderBrush="{DynamicResource NpBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            IsVisible="{Binding HasUriImportPreview}"
+                            Padding="14">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="2*,*,2*"
+                                  ColumnSpacing="12">
+                                <TextBlock FontWeight="SemiBold"
+                                           Text="配置标识" />
+                                <TextBlock Grid.Column="1"
+                                           FontWeight="SemiBold"
+                                           Text="协议" />
+                                <TextBlock Grid.Column="2"
+                                           FontWeight="SemiBold"
+                                           Text="服务器端点" />
+                            </Grid>
+                            <ItemsControl x:Name="ProxyUriImportPreviewItems"
+                                          ItemsSource="{Binding UriImportPreview}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="control:OutboundListItem">
+                                        <Grid ColumnDefinitions="2*,*,2*"
+                                              ColumnSpacing="12"
+                                              Margin="0,4">
+                                            <TextBlock Text="{Binding Name}" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Kind}" />
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding Endpoint}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="账号和密码不会出现在预览中；保存后只保留系统凭据引用。"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="14">
                     <TextBlock Theme="{StaticResource NpSectionTitle}"
-                               Text="添加本地代理" />
+                               Text="手动添加本地代理" />
                     <TextBlock Theme="{StaticResource NpMutedText}"
                                Text="只需填写本机代理监听信息；账号和密码会存入系统凭据库，不会写入规则数据库。" />
                     <Grid ColumnDefinitions="*,*"

@@ -226,11 +226,118 @@ public sealed class OutboundsViewModelTests
         Assert.False(viewModel.VerifyDirectExitCommand.CanExecute(null));
     }
 
+    [Fact]
+    public async Task UriImportRequiresPreviewAndInvalidatesItWhenTheSourceChanges()
+    {
+        var outboundService = new RecordingOutboundService();
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+                collection.AddSingleton<IOutboundService>(outboundService));
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+        const string source =
+            "socks5://alice:private@proxy.example:1080#office-proxy";
+
+        viewModel.UriImportText = source;
+        Assert.False(viewModel.SaveUriImportCommand.CanExecute(null));
+        await viewModel.PreviewUriImportCommand.ExecuteAsync(null);
+
+        Assert.Equal(source, outboundService.LastPreviewedUriList);
+        Assert.Single(viewModel.UriImportPreview);
+        Assert.True(viewModel.HasUriImportPreview);
+        Assert.True(viewModel.SaveUriImportCommand.CanExecute(null));
+        Assert.Null(outboundService.LastImportedUriList);
+
+        viewModel.UriImportText += "\nhttp://proxy.example:8080#backup";
+
+        Assert.Empty(viewModel.UriImportPreview);
+        Assert.False(viewModel.HasUriImportPreview);
+        Assert.False(viewModel.SaveUriImportCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task SavingAReviewedUriListClearsTheSecretBearingInput()
+    {
+        var outboundService = new RecordingOutboundService();
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+                collection.AddSingleton<IOutboundService>(outboundService));
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+        const string source =
+            "socks5://alice:private@proxy.example:1080#office-proxy";
+        viewModel.UriImportText = source;
+        await viewModel.PreviewUriImportCommand.ExecuteAsync(null);
+
+        await viewModel.SaveUriImportCommand.ExecuteAsync(null);
+
+        Assert.Equal(source, outboundService.LastImportedUriList);
+        Assert.Equal(string.Empty, viewModel.UriImportText);
+        Assert.Empty(viewModel.UriImportPreview);
+        Assert.Contains("系统凭据库", viewModel.UriImportMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LatePreviewCannotAuthorizeAChangedSource()
+    {
+        var completion = new TaskCompletionSource<OutboundImportResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var outboundService = new RecordingOutboundService
+        {
+            UriPreviewCompletion = completion,
+        };
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+                collection.AddSingleton<IOutboundService>(outboundService));
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+        viewModel.UriImportText = "socks5://proxy.example:1080#office";
+
+        var preview = viewModel.PreviewUriImportCommand.ExecuteAsync(null);
+        viewModel.UriImportText = "http://proxy.example:8080#changed";
+        completion.SetResult(RecordingOutboundService.UriImportResult());
+        await preview;
+
+        Assert.Empty(viewModel.UriImportPreview);
+        Assert.False(viewModel.SaveUriImportCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task SaveDoesNotEraseInputChangedWhileTheReviewedSourceIsSaving()
+    {
+        var outboundService = new RecordingOutboundService();
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+                collection.AddSingleton<IOutboundService>(outboundService));
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+        const string reviewed = "socks5://proxy.example:1080#office";
+        const string changed = "http://proxy.example:8080#changed";
+        viewModel.UriImportText = reviewed;
+        await viewModel.PreviewUriImportCommand.ExecuteAsync(null);
+        var completion = new TaskCompletionSource<OutboundImportResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        outboundService.UriImportCompletion = completion;
+
+        var save = viewModel.SaveUriImportCommand.ExecuteAsync(null);
+        viewModel.UriImportText = changed;
+        completion.SetResult(RecordingOutboundService.UriImportResult());
+        await save;
+
+        Assert.Equal(reviewed, outboundService.LastImportedUriList);
+        Assert.Equal(changed, viewModel.UriImportText);
+        Assert.Contains("没有自动清空", viewModel.UriImportMessage, StringComparison.Ordinal);
+    }
+
     private sealed class RecordingOutboundService : IOutboundService
     {
         private readonly List<OutboundListItem> _items = [];
 
         public OutboundImportDraft? LastDraft { get; private set; }
+
+        public string? LastPreviewedUriList { get; private set; }
+
+        public string? LastImportedUriList { get; private set; }
+
+        public TaskCompletionSource<OutboundImportResult>? UriPreviewCompletion { get; init; }
+
+        public TaskCompletionSource<OutboundImportResult>? UriImportCompletion { get; set; }
 
         public string? LastTestedOutboundId { get; private set; }
 
@@ -284,6 +391,45 @@ public sealed class OutboundsViewModelTests
                 "import-1",
                 [item],
                 Array.Empty<string>()));
+        }
+
+        public Task<OutboundImportResult> PreviewUriListAsync(
+            string uriList,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LastPreviewedUriList = uriList;
+            return UriPreviewCompletion?.Task ?? Task.FromResult(UriImportResult());
+        }
+
+        public async Task<OutboundImportResult> ImportUriListAsync(
+            string uriList,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LastImportedUriList = uriList;
+            var result = UriImportCompletion is null
+                ? UriImportResult()
+                : await UriImportCompletion.Task.WaitAsync(cancellationToken);
+            _items.AddRange(result.Outbounds);
+            return result;
+        }
+
+        public static OutboundImportResult UriImportResult()
+        {
+            return new OutboundImportResult(
+                "uri-import-1",
+                [
+                    new OutboundListItem(
+                        "office-proxy",
+                        "office-proxy",
+                        "SOCKS5",
+                        "proxy.example:1080",
+                        "未验证",
+                        null,
+                        null),
+                ],
+                []);
         }
 
         public Task<OutboundTestResult> TestAsync(

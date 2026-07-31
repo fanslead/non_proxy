@@ -69,6 +69,10 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public string? LastImportedConfiguration { get; private set; }
 
+    public string? LastImportFormat { get; private set; }
+
+    public bool LastImportWasValidationOnly { get; private set; }
+
     public string? LastTestedOutboundId { get; private set; }
 
     public string? LastVerifiedOutboundId { get; private set; }
@@ -179,10 +183,14 @@ internal sealed class StubControlRpcClient : IControlRpcClient
     }
 
     public Task<ImportConfigurationResponse> ImportConfigurationAsync(
+        string format,
         byte[] configuration,
+        bool validateOnly,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        LastImportFormat = format;
+        LastImportWasValidationOnly = validateOnly;
         LastImportedConfiguration = Encoding.UTF8.GetString(configuration);
         return Task.FromResult(ImportResponse);
     }

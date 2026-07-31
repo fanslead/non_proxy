@@ -517,6 +517,79 @@ async fn validate_only_import_does_not_write_metadata_or_credentials() {
 }
 
 #[tokio::test]
+async fn standard_uri_import_previews_then_atomically_stores_secret_free_summaries() {
+    let database = PolicyDatabase::open_in_memory(1)
+        .unwrap_or_else(|error| panic!("标准链接测试数据库打开失败: {error}"));
+    let gateway = Gateway::new(database, CompileCapabilities::full());
+    let credentials = Arc::new(MemoryCredentialStore::default());
+    let service = ControlRpcService::with_credential_store(
+        gateway.clone(),
+        SessionCapability::from_token([7; 32]),
+        credentials.clone(),
+    );
+
+    let preview = service
+        .import_configuration(Request::new(uri_import_request(true)))
+        .await
+        .unwrap_or_else(|error| panic!("标准链接预检 RPC 失败: {error}"))
+        .into_inner();
+
+    assert!(preview.error.is_none());
+    assert_eq!(preview.outbounds.len(), 2);
+    assert!(preview.outbounds.iter().all(|value| {
+        !value.endpoint_host.contains("alice") && !value.endpoint_host.contains("private")
+    }));
+    assert!(matches!(gateway.list_outbounds().await, Ok(values) if values.is_empty()));
+    assert!(credentials.is_empty());
+
+    let imported = service
+        .import_configuration(Request::new(uri_import_request(false)))
+        .await
+        .unwrap_or_else(|error| panic!("标准链接保存 RPC 失败: {error}"))
+        .into_inner();
+    assert!(imported.error.is_none());
+    assert_eq!(imported.outbounds.len(), 2);
+    let stored = gateway
+        .list_outbounds()
+        .await
+        .unwrap_or_else(|error| panic!("标准链接结果读取失败: {error}"));
+    assert_eq!(stored.len(), 2);
+    let references = stored
+        .iter()
+        .filter_map(nonproxy_storage::OutboundReference::credential)
+        .map(nonproxy_storage::CredentialReference::item_reference)
+        .collect::<Vec<_>>();
+    assert_eq!(references.len(), 1);
+    assert!(references.iter().all(|value| credentials.contains(value)));
+}
+
+#[tokio::test]
+async fn standard_uri_import_reports_only_the_safe_failing_line() {
+    let service = service([7; 32]);
+    let response = service
+        .import_configuration(Request::new(ImportConfigurationRequest {
+            context: Some(context([7; 32], "invalid-uri-list")),
+            format: "proxy-uri-list-v1".to_owned(),
+            configuration: b"socks5://proxy.example:1080\n\
+                             https://alice:private@secret.example:443"
+                .to_vec(),
+            validate_only: true,
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("非法标准链接响应失败: {error}"))
+        .into_inner();
+    let error = response
+        .error
+        .unwrap_or_else(|| panic!("非法标准链接必须返回安全错误"));
+
+    assert_eq!(error.code, "NP_OUTBOUND_IMPORT_URI_SCHEME_UNSUPPORTED");
+    assert_eq!(error.metadata.get("line").map(String::as_str), Some("2"));
+    assert!(!error.message.contains("alice"));
+    assert!(!error.message.contains("private"));
+    assert!(!error.message.contains("secret.example"));
+}
+
+#[tokio::test]
 async fn site_learning_rpc_is_bounded_tab_scoped_and_evented() {
     let database = PolicyDatabase::open_in_memory(1);
     let Ok(database) = database else {
@@ -820,6 +893,17 @@ fn import_request(validate_only: bool) -> ImportConfigurationRequest {
             }]
         }"#
         .to_vec(),
+        validate_only,
+    }
+}
+
+fn uri_import_request(validate_only: bool) -> ImportConfigurationRequest {
+    ImportConfigurationRequest {
+        context: Some(context([7; 32], "import-uri-list")),
+        format: "proxy-uri-list-v1".to_owned(),
+        configuration: b"socks5://alice:private@proxy.example:1080#Office\n\
+                         http://127.0.0.1:8080#Backup"
+            .to_vec(),
         validate_only,
     }
 }

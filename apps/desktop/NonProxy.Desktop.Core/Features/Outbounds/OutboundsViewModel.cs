@@ -51,6 +51,7 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
         : base("网络出口")
     {
         _outboundService = outboundService;
+        InitializeUriImportCommands();
         ImportCommand = new AsyncRelayCommand(ImportAsync, CanImport);
         TestCommand = new AsyncRelayCommand<OutboundListItem>(TestAsync);
         VerifyExitCommand = new AsyncRelayCommand<OutboundListItem>(

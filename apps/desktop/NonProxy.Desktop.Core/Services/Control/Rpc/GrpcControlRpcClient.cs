@@ -108,9 +108,12 @@ public sealed partial class GrpcControlRpcClient : IControlRpcClient, IDisposabl
     }
 
     public async Task<ImportConfigurationResponse> ImportConfigurationAsync(
+        string format,
         byte[] configuration,
+        bool validateOnly,
         CancellationToken cancellationToken)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
         ArgumentNullException.ThrowIfNull(configuration);
         if (configuration.Length == 0)
         {
@@ -125,9 +128,9 @@ public sealed partial class GrpcControlRpcClient : IControlRpcClient, IDisposabl
             var request = new ImportConfigurationRequest
             {
                 Context = context,
-                Format = "nonproxy-json-v1",
+                Format = format,
                 Configuration = UnsafeByteOperations.UnsafeWrap(configuration),
-                ValidateOnly = false,
+                ValidateOnly = validateOnly,
             };
             return await ExecuteAsync(
                 () => Client.ImportConfigurationAsync(

@@ -126,7 +126,11 @@ fn new_import_id() -> Result<String, GatewayError> {
 }
 
 fn import_failure(error: &OutboundImportError) -> ImportConfigurationResponse {
-    response_error(error.code(), &error.to_string(), false)
+    let mut response = response_error(error.code(), &error.to_string(), false);
+    if let (Some(line), Some(detail)) = (error.line(), response.error.as_mut()) {
+        detail.metadata.insert("line".to_owned(), line.to_string());
+    }
+    response
 }
 
 fn credential_failure(message: &str, cleanup_failures: usize) -> ImportConfigurationResponse {

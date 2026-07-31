@@ -374,6 +374,8 @@ public sealed class GatewayOutboundServiceTests
         Assert.Equal("import-1", result.ImportId);
         Assert.Equal("127.0.0.1:1080", Assert.Single(result.Outbounds).Endpoint);
         Assert.NotNull(client.LastImportedConfiguration);
+        Assert.Equal("nonproxy-json-v1", client.LastImportFormat);
+        Assert.False(client.LastImportWasValidationOnly);
         using var document = JsonDocument.Parse(client.LastImportedConfiguration);
         Assert.Equal(1, document.RootElement.GetProperty("version").GetInt32());
         var outbound = document.RootElement

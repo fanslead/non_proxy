@@ -1269,7 +1269,10 @@ pub trait OutboundConnector: Send + Sync {
 
 ### 15.2 标准本地代理导入
 
-首版导入契约固定为 `nonproxy-json-v1`，请求体上限 256 KiB，单次最多 100 个出口，未知字段、重复标识和不完整凭据对均被拒绝。桌面端不要求普通用户编写 JSON，而是把结构化表单转换为该内部契约：
+内部结构化表单使用 `nonproxy-json-v1`；面向普通用户的批量粘贴使用
+`proxy-uri-list-v1`。两种格式共用 256 KiB 请求上限、100 个出口上限、revision
+检查、凭据隔离和补偿事务。JSON 的未知字段、重复标识和不完整凭据对均被拒绝。
+桌面端不要求普通用户编写 JSON，而是把手动表单转换为内部契约：
 
 ```json
 {
@@ -1289,6 +1292,16 @@ pub trait OutboundConnector: Send + Sync {
 ```
 
 导入采用补偿事务：先把新凭据写入 macOS Keychain、Windows Credential Manager 或对应平台安全存储，再在一个 `BEGIN IMMEDIATE` 事务中校验全部 revision 并保存全部出口；数据库失败时删除新凭据，数据库成功后再清理旧凭据。SQLite、审计日志、RPC 响应和出口列表只包含版本化凭据引用，不包含用户名或密码。配置缓冲区在客户端和服务端完成处理后归零。
+
+标准链接导入接受每行一个 `socks5://`、`socks5h://` 或 `http://` URI；缺省端口分别
+使用 1080 和 80。路径、查询参数、未知协议、无主机、畸形百分号编码和不成对凭据
+都被拒绝，错误只报告行号而不回显链接。片段标签会规范化为安全稳定标识，重复标签
+追加确定性序号。桌面端必须先调用 `validate_only` 展示不含凭据的协议、标识和端点，
+并在标识已存在时提示保存将更新对应出口；源文本变化后立即作废预览，只有当前预览
+可以触发明确保存。完整决策见
+[ADR-0011](ADR/0011-import-standard-proxy-uris.md)。这不等同于 Shadowsocks、VMess、
+WireGuard、OpenVPN 或供应商订阅已经支持；这些协议必须在对应 connector/adapter
+真正实现后另行开放。
 
 `SOCKS5` 声明 TCP、UDP、IPv4 和 IPv6 能力；`HTTP CONNECT` 只声明 TCP、IPv4 和 IPv6，并在导入结果中给出 TCP-only 提示。这里只表示协议能力，不表示健康检查已通过；从未探测或结果过期的出口使用 `RUNTIME_STATE_UNSPECIFIED`，桌面端显示“未验证”。
 

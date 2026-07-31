@@ -1491,6 +1491,7 @@ dependencies = [
  "nonproxy-windows-ipc",
  "nonproxy-windows-network",
  "nonproxy-windows-wfp",
+ "percent-encoding",
  "prost",
  "prost-types",
  "serde",
@@ -1503,6 +1504,7 @@ dependencies = [
  "tokio-stream",
  "tonic",
  "tower",
+ "url",
  "windows-service",
  "zeroize",
 ]

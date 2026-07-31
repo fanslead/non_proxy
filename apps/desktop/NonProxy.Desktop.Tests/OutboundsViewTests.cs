@@ -104,6 +104,17 @@ public sealed class OutboundsViewTests
             Assert.Equal(
                 "验证物理直连公网出口",
                 AutomationProperties.GetName(directAction));
+
+            var uriInput = view.FindControl<TextBox>("ProxyUriImportText");
+            var uriPreview = view.FindControl<Border>("ProxyUriImportPreview");
+            Assert.NotNull(uriInput);
+            Assert.False(uriPreview?.IsVisible);
+            viewModel.UriImportText =
+                "socks5://alice:private@proxy.example:1080#office";
+            await viewModel.PreviewUriImportCommand.ExecuteAsync(null);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(uriPreview?.IsVisible);
+            Assert.Single(viewModel.UriImportPreview);
         }
         finally
         {
@@ -166,6 +177,28 @@ public sealed class OutboundsViewTests
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(new OutboundImportResult(
                 "unused",
+                [Outbound],
+                []));
+        }
+
+        public Task<OutboundImportResult> PreviewUriListAsync(
+            string uriList,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new OutboundImportResult(
+                "preview",
+                [Outbound],
+                []));
+        }
+
+        public Task<OutboundImportResult> ImportUriListAsync(
+            string uriList,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new OutboundImportResult(
+                "import",
                 [Outbound],
                 []));
         }

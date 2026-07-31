@@ -7,6 +7,7 @@ use thiserror::Error;
 use zeroize::Zeroizing;
 
 pub const IMPORT_FORMAT: &str = "nonproxy-json-v1";
+pub const URI_LIST_IMPORT_FORMAT: &str = "proxy-uri-list-v1";
 pub const MAX_IMPORT_BYTES: usize = 256 * 1024;
 const MAX_OUTBOUNDS: usize = 100;
 const MAX_CREDENTIAL_FIELD_BYTES: usize = 255;
@@ -33,20 +34,20 @@ struct ImportDocument {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct RawOutbound {
-    id: String,
-    kind: RawOutboundKind,
-    host: String,
-    port: u16,
-    username: Option<String>,
-    password: Option<String>,
+pub(crate) struct RawOutbound {
+    pub id: String,
+    pub kind: RawOutboundKind,
+    pub host: String,
+    pub port: u16,
+    pub username: Option<String>,
+    pub password: Option<String>,
     #[serde(default = "enabled_by_default")]
-    enabled: bool,
+    pub enabled: bool,
 }
 
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum RawOutboundKind {
+pub(crate) enum RawOutboundKind {
     HttpConnect,
     Socks5,
 }
@@ -57,34 +58,33 @@ pub fn prepare(
     import_id: String,
     current: &[OutboundReference],
 ) -> Result<PreparedImport, OutboundImportError> {
-    if format != IMPORT_FORMAT || configuration.is_empty() || configuration.len() > MAX_IMPORT_BYTES
-    {
+    if configuration.is_empty() || configuration.len() > MAX_IMPORT_BYTES {
         return Err(OutboundImportError::Invalid);
     }
-    let document: ImportDocument =
-        serde_json::from_slice(configuration).map_err(|_| OutboundImportError::Invalid)?;
-    if document.version != 1
-        || document.outbounds.is_empty()
-        || document.outbounds.len() > MAX_OUTBOUNDS
-    {
-        return Err(OutboundImportError::Invalid);
-    }
+    let raw_outbounds = match format {
+        IMPORT_FORMAT => parse_json(configuration)?,
+        URI_LIST_IMPORT_FORMAT => crate::outbound_import_uri::parse(configuration)?,
+        _ => return Err(OutboundImportError::Invalid),
+    };
     let existing = current
         .iter()
         .map(|value| (value.id().as_str(), value))
         .collect::<HashMap<_, _>>();
     let mut identifiers = HashSet::new();
-    let mut outbounds = Vec::with_capacity(document.outbounds.len());
+    let mut outbounds = Vec::with_capacity(raw_outbounds.len());
     let mut credentials = Vec::new();
     let mut replaced = Vec::new();
     let mut warnings = Vec::new();
 
-    for raw in document.outbounds {
+    for raw in raw_outbounds {
         if !identifiers.insert(raw.id.clone()) {
             return Err(OutboundImportError::DuplicateId);
         }
         let id = OutboundId::new(raw.id).map_err(|_| OutboundImportError::Invalid)?;
         let current = existing.get(id.as_str()).copied();
+        if current.is_some() {
+            warnings.push(format!("出口 {} 已存在，保存时将安全更新。", id.as_str()));
+        }
         let expected_revision = current.map(OutboundReference::revision);
         let revision = expected_revision
             .map_or(Some(1), |value| value.checked_add(1))
@@ -134,6 +134,18 @@ pub fn prepare(
     })
 }
 
+fn parse_json(configuration: &[u8]) -> Result<Vec<RawOutbound>, OutboundImportError> {
+    let document: ImportDocument =
+        serde_json::from_slice(configuration).map_err(|_| OutboundImportError::Invalid)?;
+    if document.version != 1
+        || document.outbounds.is_empty()
+        || document.outbounds.len() > MAX_OUTBOUNDS
+    {
+        return Err(OutboundImportError::Invalid);
+    }
+    Ok(document.outbounds)
+}
+
 fn prepare_credential(
     id: &OutboundId,
     revision: u64,
@@ -151,6 +163,8 @@ fn prepare_credential(
         || password.is_empty()
         || username.len() > MAX_CREDENTIAL_FIELD_BYTES
         || password.len() > MAX_CREDENTIAL_FIELD_BYTES
+        || username.chars().any(char::is_control)
+        || password.chars().any(char::is_control)
     {
         return Err(OutboundImportError::CredentialInvalid);
     }
@@ -187,6 +201,12 @@ pub enum OutboundImportError {
     CredentialInvalid,
     #[error("出口配置修订号已耗尽")]
     RevisionExhausted,
+    #[error("第 {line} 行不是受支持的 SOCKS5 或 HTTP 代理链接")]
+    UriInvalid { line: usize },
+    #[error("第 {line} 行的代理链接协议尚不支持")]
+    UriSchemeUnsupported { line: usize },
+    #[error("第 {line} 行的账号或密码编码无效")]
+    UriCredentialInvalid { line: usize },
 }
 
 impl OutboundImportError {
@@ -197,13 +217,29 @@ impl OutboundImportError {
             Self::DuplicateId => "NP_OUTBOUND_IMPORT_DUPLICATE_ID",
             Self::CredentialPair | Self::CredentialInvalid => "NP_OUTBOUND_CREDENTIAL_INVALID",
             Self::RevisionExhausted => "NP_OUTBOUND_REVISION_EXHAUSTED",
+            Self::UriInvalid { .. } => "NP_OUTBOUND_IMPORT_URI_INVALID",
+            Self::UriSchemeUnsupported { .. } => "NP_OUTBOUND_IMPORT_URI_SCHEME_UNSUPPORTED",
+            Self::UriCredentialInvalid { .. } => "NP_OUTBOUND_IMPORT_URI_CREDENTIAL_INVALID",
+        }
+    }
+
+    #[must_use]
+    pub const fn line(&self) -> Option<usize> {
+        match self {
+            Self::UriInvalid { line }
+            | Self::UriSchemeUnsupported { line }
+            | Self::UriCredentialInvalid { line } => Some(*line),
+            _ => None,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{IMPORT_FORMAT, prepare};
+    use nonproxy_model::OutboundId;
+    use nonproxy_storage::{OutboundKind, OutboundReference};
+
+    use super::{IMPORT_FORMAT, URI_LIST_IMPORT_FORMAT, prepare};
 
     #[test]
     fn prepares_versioned_credential_without_storing_secret_in_metadata() {
@@ -268,5 +304,36 @@ mod tests {
                 .is_err()
             );
         }
+    }
+
+    #[test]
+    fn uri_preview_warns_before_replacing_an_existing_identifier() {
+        let existing = OutboundReference::new(
+            OutboundId::new("office")
+                .unwrap_or_else(|error| panic!("现有出口标识创建失败: {error}")),
+            OutboundKind::Socks5,
+            Some("old.example"),
+            Some(1_080),
+            None,
+            7,
+        )
+        .unwrap_or_else(|error| panic!("现有出口配置创建失败: {error}"));
+
+        let prepared = prepare(
+            URI_LIST_IMPORT_FORMAT,
+            b"socks5://new.example:1080#office",
+            "00112233445566778899aabbccddeeff".to_owned(),
+            &[existing],
+        )
+        .unwrap_or_else(|error| panic!("替换预检失败: {error}"));
+
+        assert_eq!(prepared.outbounds[0].1, Some(7));
+        assert_eq!(prepared.outbounds[0].0.revision(), 8);
+        assert!(
+            prepared
+                .warnings
+                .iter()
+                .any(|value| value.contains("office 已存在") && value.contains("安全更新"))
+        );
     }
 }
