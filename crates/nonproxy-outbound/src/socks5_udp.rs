@@ -54,7 +54,7 @@ impl Socks5UdpAssociation {
     }
 
     pub async fn send(&self, endpoint: &FlowEndpoint, content: &[u8]) -> Result<(), OutboundError> {
-        if content.is_empty() || content.len() > MAXIMUM_UDP_CONTENT_BYTES {
+        if content.len() > MAXIMUM_UDP_CONTENT_BYTES {
             return Err(OutboundError::InvalidSocksResponse);
         }
         let mut packet = Vec::with_capacity(content.len() + 22);
@@ -83,7 +83,7 @@ impl Socks5UdpAssociation {
         }
         let (endpoint, consumed) = decode_endpoint(&packet[3..])?;
         let payload_start = 3 + consumed;
-        if payload_start >= packet.len() {
+        if payload_start > packet.len() {
             return Err(OutboundError::InvalidSocksResponse);
         }
         Ok((endpoint, packet[payload_start..].to_vec()))

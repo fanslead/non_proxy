@@ -11,7 +11,7 @@ NonProxyAppIdField(
 
 static UINT16
 NonProxyProxyPort(
-    _In_ const NP_WFP_CONFIG_V2* Config,
+    _In_ const NP_WFP_CONFIG_V3* Config,
     _In_ UINT16 LayerId,
     _In_ UINT64 FilterContext)
 {
@@ -92,7 +92,7 @@ NonProxyAllocateContext(
 static BOOLEAN
 NonProxyShouldRedirect(
     _In_ const FWPS_INCOMING_METADATA_VALUES0* Metadata,
-    _In_ const NP_WFP_CONFIG_V2* Config,
+    _In_ const NP_WFP_CONFIG_V3* Config,
     _In_ UINT64 FilterContext)
 {
     FWPS_CONNECTION_REDIRECT_STATE state;
@@ -134,7 +134,7 @@ NonProxyClassifyConnect(
     _In_ UINT64 FlowContext,
     _Inout_ FWPS_CLASSIFY_OUT0* ClassifyOut)
 {
-    NP_WFP_CONFIG_V2 config;
+    NP_WFP_CONFIG_V3 config;
     UINT64 classifyHandle = 0;
     FWPS_CONNECT_REQUEST0* request = NULL;
     NP_WFP_REDIRECT_CONTEXT_V1* context = NULL;

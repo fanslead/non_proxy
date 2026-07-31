@@ -1,14 +1,15 @@
 use crate::WindowsWfpError;
 
 pub const CONFIG_MAGIC: u32 = u32::from_le_bytes(*b"NPWF");
-pub const CONFIG_VERSION: u16 = 2;
+pub const CONFIG_VERSION: u16 = 3;
 pub const CONFIG_SIZE: u16 = 40;
 pub const CONFIG_FLAG_DNS_REDIRECT: u32 = 1;
 pub const CONFIG_FLAG_TCP_REDIRECT: u32 = 1 << 1;
+pub const CONFIG_FLAG_UDP_DIVERT: u32 = 1 << 2;
 
 pub const STATUS_MAGIC: u32 = u32::from_le_bytes(*b"NPWS");
-pub const STATUS_VERSION: u16 = 1;
-pub const STATUS_SIZE: u16 = 48;
+pub const STATUS_VERSION: u16 = 2;
+pub const STATUS_SIZE: u16 = 72;
 
 pub const REDIRECT_CONTEXT_MAGIC: u32 = u32::from_le_bytes(*b"NPWC");
 pub const REDIRECT_CONTEXT_VERSION: u16 = 1;
@@ -24,6 +25,10 @@ pub const IOCTL_APPLY_CONFIG: u32 =
     ctl_code(FILE_DEVICE_NETWORK, 0x801, METHOD_BUFFERED, FILE_WRITE_DATA);
 pub const IOCTL_QUERY_STATUS: u32 =
     ctl_code(FILE_DEVICE_NETWORK, 0x802, METHOD_BUFFERED, FILE_READ_DATA);
+pub const IOCTL_RECEIVE_UDP: u32 =
+    ctl_code(FILE_DEVICE_NETWORK, 0x803, METHOD_BUFFERED, FILE_READ_DATA);
+pub const IOCTL_INJECT_UDP: u32 =
+    ctl_code(FILE_DEVICE_NETWORK, 0x804, METHOD_BUFFERED, FILE_WRITE_DATA);
 
 const fn ctl_code(device: u32, function: u32, method: u32, access: u32) -> u32 {
     (device << 16) | (access << 14) | (function << 2) | method
@@ -104,7 +109,7 @@ impl WfpConfig {
             ipv6_proxy_port_network_order,
             ipv4_dns_port_network_order,
             ipv6_dns_port_network_order,
-            flags: CONFIG_FLAG_DNS_REDIRECT | CONFIG_FLAG_TCP_REDIRECT,
+            flags: CONFIG_FLAG_DNS_REDIRECT | CONFIG_FLAG_TCP_REDIRECT | CONFIG_FLAG_UDP_DIVERT,
             reserved: 0,
         }
     }
@@ -114,7 +119,8 @@ impl WfpConfig {
         {
             return Err(WindowsWfpError::InvalidData("WFP 驱动配置版本无效"));
         }
-        let known_flags = CONFIG_FLAG_DNS_REDIRECT | CONFIG_FLAG_TCP_REDIRECT;
+        let known_flags =
+            CONFIG_FLAG_DNS_REDIRECT | CONFIG_FLAG_TCP_REDIRECT | CONFIG_FLAG_UDP_DIVERT;
         if self.flags & !known_flags != 0 || self.reserved != 0 {
             return Err(WindowsWfpError::InvalidData("WFP 驱动配置包含未知标志"));
         }
@@ -162,6 +168,9 @@ pub struct WfpStatus {
     pub active_classifications: u32,
     pub redirected_connections: u64,
     pub fail_open_connections: u64,
+    pub queued_udp_datagrams: u64,
+    pub dropped_udp_datagrams: u64,
+    pub injected_udp_datagrams: u64,
 }
 
 impl WfpStatus {
@@ -273,6 +282,8 @@ mod tests {
         assert_eq!(size_of::<WfpStatus>(), usize::from(STATUS_SIZE));
         assert_eq!(IOCTL_APPLY_CONFIG, 0x0012_A004);
         assert_eq!(IOCTL_QUERY_STATUS, 0x0012_6008);
+        assert_eq!(IOCTL_RECEIVE_UDP, 0x0012_600c);
+        assert_eq!(IOCTL_INJECT_UDP, 0x0012_a010);
     }
 
     #[test]
@@ -310,10 +321,12 @@ mod tests {
     fn checked_in_driver_header_matches_rust_contract() {
         let header = include_str!("../../../platform/windows/include/nonproxy_wfp_abi.h");
         for required in [
-            "#define NP_WFP_CONFIG_VERSION ((UINT16)2)",
-            "C_ASSERT(sizeof(NP_WFP_CONFIG_V2) == 40);",
-            "C_ASSERT(sizeof(NP_WFP_STATUS_V1) == 48);",
+            "#define NP_WFP_CONFIG_VERSION ((UINT16)3)",
+            "C_ASSERT(sizeof(NP_WFP_CONFIG_V3) == 40);",
+            "C_ASSERT(sizeof(NP_WFP_STATUS_V2) == 72);",
             "C_ASSERT(FIELD_OFFSET(NP_WFP_REDIRECT_CONTEXT_V1, AppId) == 288);",
+            "C_ASSERT(FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V1, Data) == 88);",
+            "C_ASSERT(FIELD_OFFSET(NP_WFP_UDP_INJECT_V1, Payload) == 80);",
             "CTL_CODE(FILE_DEVICE_NETWORK, 0x801, METHOD_BUFFERED, FILE_WRITE_DATA)",
             "CTL_CODE(FILE_DEVICE_NETWORK, 0x802, METHOD_BUFFERED, FILE_READ_DATA)",
         ] {

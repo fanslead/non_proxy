@@ -22,11 +22,22 @@ DriverEntry(
     g_NonProxyWfp = g_DeviceObject->DeviceExtension;
     NonProxyInitializeState(g_NonProxyWfp);
 
+    status = NonProxyInitializeUdpDataPlane(
+        DriverObject,
+        g_NonProxyWfp);
+    if (!NT_SUCCESS(status)) {
+        NonProxyDeleteControlDevice(g_DeviceObject);
+        g_DeviceObject = NULL;
+        g_NonProxyWfp = NULL;
+        return status;
+    }
+
     status = FwpsRedirectHandleCreate0(
         &NP_WFP_PROVIDER_KEY,
         0,
         &g_NonProxyWfp->RedirectHandle);
     if (!NT_SUCCESS(status)) {
+        NonProxyUninitializeUdpDataPlane(g_NonProxyWfp);
         NonProxyDeleteControlDevice(g_DeviceObject);
         g_DeviceObject = NULL;
         g_NonProxyWfp = NULL;
@@ -36,6 +47,7 @@ DriverEntry(
     status = NonProxyRegisterCallouts(g_DeviceObject);
     if (!NT_SUCCESS(status)) {
         FwpsRedirectHandleDestroy0(g_NonProxyWfp->RedirectHandle);
+        NonProxyUninitializeUdpDataPlane(g_NonProxyWfp);
         NonProxyDeleteControlDevice(g_DeviceObject);
         g_DeviceObject = NULL;
         g_NonProxyWfp = NULL;
@@ -57,6 +69,7 @@ NonProxyDriverUnload(
             FwpsRedirectHandleDestroy0(g_NonProxyWfp->RedirectHandle);
             g_NonProxyWfp->RedirectHandle = NULL;
         }
+        NonProxyUninitializeUdpDataPlane(g_NonProxyWfp);
     }
     NonProxyDeleteControlDevice(g_DeviceObject);
     g_DeviceObject = NULL;
@@ -88,15 +101,75 @@ NonProxyRegisterCallouts(
         &callout,
         &g_NonProxyWfp->CalloutV6Id);
     if (!NT_SUCCESS(status)) {
-        FwpsCalloutUnregisterById0(g_NonProxyWfp->CalloutV4Id);
-        g_NonProxyWfp->CalloutV4Id = 0;
+        goto Failure;
     }
+
+    RtlZeroMemory(&callout, sizeof(callout));
+    callout.classifyFn = NonProxyClassifyUdpFlow;
+    callout.notifyFn = NonProxyCalloutNotify;
+    callout.calloutKey = NP_WFP_UDP_FLOW_CALLOUT_V4_KEY;
+    status = FwpsCalloutRegister1(
+        DeviceObject,
+        &callout,
+        &g_NonProxyWfp->UdpFlowCalloutV4Id);
+    if (!NT_SUCCESS(status)) {
+        goto Failure;
+    }
+    callout.calloutKey = NP_WFP_UDP_FLOW_CALLOUT_V6_KEY;
+    status = FwpsCalloutRegister1(
+        DeviceObject,
+        &callout,
+        &g_NonProxyWfp->UdpFlowCalloutV6Id);
+    if (!NT_SUCCESS(status)) {
+        goto Failure;
+    }
+
+    RtlZeroMemory(&callout, sizeof(callout));
+    callout.classifyFn = NonProxyClassifyUdpDatagram;
+    callout.notifyFn = NonProxyCalloutNotify;
+    callout.flowDeleteFn = NonProxyDeleteUdpFlow;
+    callout.calloutKey = NP_WFP_UDP_DATAGRAM_CALLOUT_V4_KEY;
+    status = FwpsCalloutRegister1(
+        DeviceObject,
+        &callout,
+        &g_NonProxyWfp->UdpDatagramCalloutV4Id);
+    if (!NT_SUCCESS(status)) {
+        goto Failure;
+    }
+    callout.calloutKey = NP_WFP_UDP_DATAGRAM_CALLOUT_V6_KEY;
+    status = FwpsCalloutRegister1(
+        DeviceObject,
+        &callout,
+        &g_NonProxyWfp->UdpDatagramCalloutV6Id);
+    if (!NT_SUCCESS(status)) {
+        goto Failure;
+    }
+    return status;
+
+Failure:
+    NonProxyUnregisterCallouts();
     return status;
 }
 
 VOID
 NonProxyUnregisterCallouts(VOID)
 {
+    if (g_NonProxyWfp->UdpDatagramCalloutV6Id != 0) {
+        FwpsCalloutUnregisterById0(g_NonProxyWfp->UdpDatagramCalloutV6Id);
+        g_NonProxyWfp->UdpDatagramCalloutV6Id = 0;
+    }
+    if (g_NonProxyWfp->UdpDatagramCalloutV4Id != 0) {
+        FwpsCalloutUnregisterById0(g_NonProxyWfp->UdpDatagramCalloutV4Id);
+        g_NonProxyWfp->UdpDatagramCalloutV4Id = 0;
+    }
+    if (g_NonProxyWfp->UdpFlowCalloutV6Id != 0) {
+        FwpsCalloutUnregisterById0(g_NonProxyWfp->UdpFlowCalloutV6Id);
+        g_NonProxyWfp->UdpFlowCalloutV6Id = 0;
+    }
+    if (g_NonProxyWfp->UdpFlowCalloutV4Id != 0) {
+        FwpsCalloutUnregisterById0(g_NonProxyWfp->UdpFlowCalloutV4Id);
+        g_NonProxyWfp->UdpFlowCalloutV4Id = 0;
+    }
     if (g_NonProxyWfp->CalloutV6Id != 0) {
         FwpsCalloutUnregisterById0(g_NonProxyWfp->CalloutV6Id);
         g_NonProxyWfp->CalloutV6Id = 0;

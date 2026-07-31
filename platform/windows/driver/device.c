@@ -49,29 +49,62 @@ NonProxyDispatchDeviceControl(
     ULONG inputLength = stack->Parameters.DeviceIoControl.InputBufferLength;
     ULONG outputLength = stack->Parameters.DeviceIoControl.OutputBufferLength;
     NTSTATUS status;
-    NP_WFP_STATUS_V1* output;
+    NP_WFP_STATUS_V2* output;
+    ULONG_PTR bytesWritten = 0;
 
-    if (outputLength < sizeof(NP_WFP_STATUS_V1)) {
-        return NonProxyComplete(Irp, STATUS_BUFFER_TOO_SMALL, sizeof(NP_WFP_STATUS_V1));
-    }
-
-    output = (NP_WFP_STATUS_V1*)Irp->AssociatedIrp.SystemBuffer;
     if (code == IOCTL_NP_WFP_APPLY_CONFIG) {
-        if (inputLength < sizeof(NP_WFP_CONFIG_V2)) {
+        if (inputLength != sizeof(NP_WFP_CONFIG_V3)) {
+            return NonProxyComplete(Irp, STATUS_INFO_LENGTH_MISMATCH, 0);
+        }
+        if (outputLength < sizeof(NP_WFP_STATUS_V2)) {
             return NonProxyComplete(Irp, STATUS_BUFFER_TOO_SMALL, 0);
         }
         status = NonProxyApplyConfig(
             extension,
-            (const NP_WFP_CONFIG_V2*)Irp->AssociatedIrp.SystemBuffer);
+            (const NP_WFP_CONFIG_V3*)Irp->AssociatedIrp.SystemBuffer);
         if (!NT_SUCCESS(status)) {
             return NonProxyComplete(Irp, status, 0);
         }
-    } else if (code != IOCTL_NP_WFP_QUERY_STATUS) {
-        return NonProxyComplete(Irp, STATUS_INVALID_DEVICE_REQUEST, 0);
+        output = (NP_WFP_STATUS_V2*)Irp->AssociatedIrp.SystemBuffer;
+        NonProxyReadStatus(extension, output);
+        return NonProxyComplete(Irp, STATUS_SUCCESS, sizeof(*output));
     }
-
-    NonProxyReadStatus(extension, output);
-    return NonProxyComplete(Irp, STATUS_SUCCESS, sizeof(*output));
+    if (code == IOCTL_NP_WFP_QUERY_STATUS) {
+        if (inputLength != 0) {
+            return NonProxyComplete(Irp, STATUS_INVALID_PARAMETER, 0);
+        }
+        if (outputLength < sizeof(NP_WFP_STATUS_V2)) {
+            return NonProxyComplete(
+                Irp,
+                STATUS_BUFFER_TOO_SMALL,
+                sizeof(NP_WFP_STATUS_V2));
+        }
+        output = (NP_WFP_STATUS_V2*)Irp->AssociatedIrp.SystemBuffer;
+        NonProxyReadStatus(extension, output);
+        return NonProxyComplete(Irp, STATUS_SUCCESS, sizeof(*output));
+    }
+    if (code == IOCTL_NP_WFP_RECEIVE_UDP) {
+        if (inputLength != 0) {
+            return NonProxyComplete(Irp, STATUS_INVALID_PARAMETER, 0);
+        }
+        status = NonProxyReceiveUdpBatch(
+            extension,
+            Irp->AssociatedIrp.SystemBuffer,
+            outputLength,
+            &bytesWritten);
+        return NonProxyComplete(Irp, status, bytesWritten);
+    }
+    if (code == IOCTL_NP_WFP_INJECT_UDP) {
+        if (outputLength != 0) {
+            return NonProxyComplete(Irp, STATUS_INVALID_PARAMETER, 0);
+        }
+        status = NonProxyInjectUdp(
+            extension,
+            Irp->AssociatedIrp.SystemBuffer,
+            inputLength);
+        return NonProxyComplete(Irp, status, 0);
+    }
+    return NonProxyComplete(Irp, STATUS_INVALID_DEVICE_REQUEST, 0);
 }
 
 NTSTATUS

@@ -37,7 +37,7 @@
       <SpectreMitigation>Spectre</SpectreMitigation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);FwpKClnt.lib;WdmSec.lib;Uuid.lib</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);FwpKClnt.lib;Ndis.lib;WdmSec.lib;Uuid.lib</AdditionalDependencies>
     </Link>
     <DriverSign>
       <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
@@ -48,6 +48,9 @@
     <ClCompile Include="device.c" />
     <ClCompile Include="driver.c" />
     <ClCompile Include="state.c" />
+    <ClCompile Include="udp_callout.c" />
+    <ClCompile Include="udp_inject.c" />
+    <ClCompile Include="udp_queue.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="nonproxy_wfp_driver.h" />

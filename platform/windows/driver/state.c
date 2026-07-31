@@ -6,24 +6,32 @@ NonProxyInitializeState(
 {
     RtlZeroMemory(Extension, sizeof(*Extension));
     KeInitializeSpinLock(&Extension->StateLock);
+    KeInitializeSpinLock(&Extension->UdpQueueLock);
+    InitializeListHead(&Extension->UdpQueue);
+    KeInitializeEvent(
+        &Extension->UdpInjectionIdle,
+        NotificationEvent,
+        TRUE);
     Extension->Config.Magic = NP_WFP_CONFIG_MAGIC;
     Extension->Config.Version = NP_WFP_CONFIG_VERSION;
-    Extension->Config.Size = sizeof(NP_WFP_CONFIG_V2);
+    Extension->Config.Size = sizeof(NP_WFP_CONFIG_V3);
 }
 
 NTSTATUS
 NonProxyApplyConfig(
     _Inout_ NP_WFP_DEVICE_EXTENSION* Extension,
-    _In_ const NP_WFP_CONFIG_V2* Config)
+    _In_ const NP_WFP_CONFIG_V3* Config)
 {
     KIRQL oldIrql;
+    BOOLEAN flushUdp = FALSE;
 
     if (Config->Magic != NP_WFP_CONFIG_MAGIC ||
         Config->Version != NP_WFP_CONFIG_VERSION ||
-        Config->Size != sizeof(NP_WFP_CONFIG_V2) ||
+        Config->Size != sizeof(NP_WFP_CONFIG_V3) ||
         (Config->Flags &
             ~(NP_WFP_CONFIG_FLAG_DNS_REDIRECT |
-              NP_WFP_CONFIG_FLAG_TCP_REDIRECT)) != 0 ||
+              NP_WFP_CONFIG_FLAG_TCP_REDIRECT |
+              NP_WFP_CONFIG_FLAG_UDP_DIVERT)) != 0 ||
         Config->Reserved != 0) {
         return STATUS_REVISION_MISMATCH;
     }
@@ -52,8 +60,14 @@ NonProxyApplyConfig(
         KeReleaseSpinLock(&Extension->StateLock, oldIrql);
         return STATUS_REVISION_MISMATCH;
     }
+    flushUdp =
+        (Extension->Config.Flags & NP_WFP_CONFIG_FLAG_UDP_DIVERT) != 0 &&
+        (Config->Flags & NP_WFP_CONFIG_FLAG_UDP_DIVERT) == 0;
     Extension->Config = *Config;
     KeReleaseSpinLock(&Extension->StateLock, oldIrql);
+    if (flushUdp) {
+        NonProxyFlushUdpQueue(Extension);
+    }
     return STATUS_SUCCESS;
 }
 
@@ -73,14 +87,15 @@ NonProxyDisableRedirect(
     Extension->Config.Ipv6DnsPortNetworkOrder = 0;
     Extension->Config.Reserved = 0;
     KeReleaseSpinLock(&Extension->StateLock, oldIrql);
+    NonProxyFlushUdpQueue(Extension);
 }
 
-NP_WFP_CONFIG_V2
+NP_WFP_CONFIG_V3
 NonProxyReadConfig(
     _Inout_ NP_WFP_DEVICE_EXTENSION* Extension)
 {
     KIRQL oldIrql;
-    NP_WFP_CONFIG_V2 config;
+    NP_WFP_CONFIG_V3 config;
 
     KeAcquireSpinLock(&Extension->StateLock, &oldIrql);
     config = Extension->Config;
@@ -91,9 +106,9 @@ NonProxyReadConfig(
 VOID
 NonProxyReadStatus(
     _Inout_ NP_WFP_DEVICE_EXTENSION* Extension,
-    _Out_ NP_WFP_STATUS_V1* Status)
+    _Out_ NP_WFP_STATUS_V2* Status)
 {
-    NP_WFP_CONFIG_V2 config = NonProxyReadConfig(Extension);
+    NP_WFP_CONFIG_V3 config = NonProxyReadConfig(Extension);
 
     RtlZeroMemory(Status, sizeof(*Status));
     Status->Magic = NP_WFP_STATUS_MAGIC;
@@ -108,4 +123,10 @@ NonProxyReadStatus(
         (UINT64)InterlockedCompareExchange64(&Extension->RedirectedConnections, 0, 0);
     Status->FailOpenConnections =
         (UINT64)InterlockedCompareExchange64(&Extension->FailOpenConnections, 0, 0);
+    Status->QueuedUdpDatagrams =
+        (UINT64)InterlockedCompareExchange64(&Extension->QueuedUdpDatagrams, 0, 0);
+    Status->DroppedUdpDatagrams =
+        (UINT64)InterlockedCompareExchange64(&Extension->DroppedUdpDatagrams, 0, 0);
+    Status->InjectedUdpDatagrams =
+        (UINT64)InterlockedCompareExchange64(&Extension->InjectedUdpDatagrams, 0, 0);
 }

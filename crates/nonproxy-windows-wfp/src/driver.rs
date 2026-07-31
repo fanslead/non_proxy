@@ -2,13 +2,18 @@ use std::{ffi::c_void, mem::MaybeUninit, ptr};
 
 use windows_sys::Win32::{
     Foundation::{
-        CloseHandle, GENERIC_READ, GENERIC_WRITE, GetLastError, HANDLE, INVALID_HANDLE_VALUE,
+        CloseHandle, ERROR_NO_MORE_ITEMS, GENERIC_READ, GENERIC_WRITE, GetLastError, HANDLE,
+        INVALID_HANDLE_VALUE,
     },
     Storage::FileSystem::{CreateFileW, FILE_ATTRIBUTE_NORMAL, OPEN_EXISTING},
     System::IO::DeviceIoControl,
 };
 
-use crate::{IOCTL_APPLY_CONFIG, IOCTL_QUERY_STATUS, WfpConfig, WfpStatus, WindowsWfpError};
+use crate::{
+    IOCTL_APPLY_CONFIG, IOCTL_INJECT_UDP, IOCTL_QUERY_STATUS, IOCTL_RECEIVE_UDP,
+    MAX_UDP_BATCH_BYTES, UdpDatagram, UdpInjection, WfpConfig, WfpStatus, WindowsWfpError,
+    decode_udp_batch,
+};
 
 const DEVICE_PATH: &str = r"\\.\NonProxyWfp";
 
@@ -74,6 +79,45 @@ impl WfpDriver {
         let status = unsafe { status.assume_init() };
         status.validate()?;
         Ok(status)
+    }
+
+    pub fn receive_udp_batch(&self) -> Result<Vec<UdpDatagram>, WindowsWfpError> {
+        let mut output = vec![0_u8; MAX_UDP_BATCH_BYTES];
+        let result = ioctl(
+            self.handle,
+            IOCTL_RECEIVE_UDP,
+            &[],
+            output.as_mut_ptr().cast(),
+            output.len(),
+            "读取 WFP UDP 数据报",
+        );
+        let bytes = match result {
+            Ok(value) => value,
+            Err(WindowsWfpError::Windows { code, .. }) if code == ERROR_NO_MORE_ITEMS => {
+                return Ok(Vec::new());
+            }
+            Err(error) => return Err(error),
+        };
+        if bytes == 0 || bytes > output.len() {
+            return Err(WindowsWfpError::InvalidData("WFP UDP batch 长度无效"));
+        }
+        output.truncate(bytes);
+        decode_udp_batch(&output)
+    }
+
+    pub fn inject_udp(&self, injection: &UdpInjection) -> Result<(), WindowsWfpError> {
+        let bytes = ioctl(
+            self.handle,
+            IOCTL_INJECT_UDP,
+            injection.as_bytes(),
+            ptr::null_mut(),
+            0,
+            "注入 WFP UDP 响应",
+        )?;
+        if bytes != 0 {
+            return Err(WindowsWfpError::InvalidData("WFP UDP 注入返回长度无效"));
+        }
+        Ok(())
     }
 }
 

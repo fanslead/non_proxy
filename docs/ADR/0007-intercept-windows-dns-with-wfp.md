@@ -40,7 +40,8 @@ NonProxy Driver、动态 BFE session 和 Service PID 递归排除机制可以把
   绕过或阻止探针；此时网站规则必须显示 Degraded，不能降级应用安全配置。
 - DNS UDP redirect 的反向元组、TCP fallback、VPN filter 顺序和服务异常退出
   必须在真实 Windows 上形成数据包与 Driver 证据。交叉编译不能替代该验收。
-- 通用 UDP/QUIC 捕获仍是独立数据面，不因本 ADR 自动完成。
+- 通用 UDP/QUIC 是 [ADR-0008](0008-divert-windows-udp-datagrams.md) 的独立
+  数据面，不因本 ADR 或 DNS 探针通过而自动获得真实环境验收。
 
 ## 参考
 

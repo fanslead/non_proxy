@@ -37,6 +37,11 @@ Microsoft 的 WFP 指南要求：标准过滤足够时优先使用用户态管�
 - 停止时先下发全 disabled，再停止 listener；BFE engine handle 关闭自动删除
   动态对象。控制 handle 异常关闭也会清零所有 flag。
 
+本 ADR 描述 TCP 与明文 DNS 的 connect redirect 子系统。同一最小 Driver 后续
+增加的 UDP flow identity、数据报搬运和反向注入由
+[ADR-0008](0008-divert-windows-udp-datagrams.md) 单独约束；这不改变“内核不
+执行产品策略”的边界。
+
 ## 安全边界
 
 - 控制设备 exclusive open，`IoCreateDeviceSecure` 只授权 SYSTEM 和 Administrators。
@@ -47,8 +52,8 @@ Microsoft 的 WFP 指南要求：标准过滤足够时优先使用用户态管�
 
 ## 未覆盖范围
 
-- 远端 53 端口之外的 UDP/QUIC 仍需独立处理 connected UDP 与 connectionless
-  `sendto`，不能把 DNS UDP 重定向等同于通用 UDP 支持。
+- 远端 53 端口之外的 UDP/QUIC 不复用本 ADR 的 connect redirect，使用
+  ADR-0008 的独立数据报搬运；真实 Windows 验收完成前仍不能表述为可用。
 - 网站规则需要 Windows DNS 捕获和应用归属关联，不能把 TLS SNI 当唯一域名来源。
 - 打包应用身份、签名验证、生产签名、安装/升级回滚、Driver Verifier 和 VPN 共存路径必须在真实 Windows 环境验收。
 

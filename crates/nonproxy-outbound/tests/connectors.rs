@@ -150,6 +150,15 @@ async fn socks5_udp_association_preserves_target_endpoint() {
 
     assert_eq!(endpoint, target);
     assert_eq!(payload, b"hello");
+    if let Err(error) = association.send(&target, &[]).await {
+        panic!("SOCKS5 空 UDP 数据报发送失败: {error}");
+    }
+    let empty = association.receive().await;
+    let Ok((endpoint, payload)) = empty else {
+        panic!("SOCKS5 空 UDP 数据报接收失败: {empty:?}");
+    };
+    assert_eq!(endpoint, target);
+    assert!(payload.is_empty());
     if let Err(error) = server.await {
         panic!("SOCKS5 UDP fixture 任务失败: {error}");
     }
@@ -273,16 +282,18 @@ async fn socks5_udp_fixture(listener: TcpListener, relay: UdpSocket) {
     };
     let port = relay_address.port().to_be_bytes();
     write_all(&mut stream, &[5, 0, 0, 1, 127, 0, 0, 1, port[0], port[1]]).await;
-    let mut packet = [0_u8; 512];
-    let received = relay.recv_from(&mut packet).await;
-    let Ok((length, peer)) = received else {
-        panic!("SOCKS5 UDP relay 接收失败: {received:?}");
-    };
-    assert_eq!(&packet[..4], &[0, 0, 0, 3]);
-    assert_eq!(packet[4] as usize, "dns.example".len());
-    let sent = relay.send_to(&packet[..length], peer).await;
-    if let Err(error) = sent {
-        panic!("SOCKS5 UDP relay 发送失败: {error}");
+    for _ in 0..2 {
+        let mut packet = [0_u8; 512];
+        let received = relay.recv_from(&mut packet).await;
+        let Ok((length, peer)) = received else {
+            panic!("SOCKS5 UDP relay 接收失败: {received:?}");
+        };
+        assert_eq!(&packet[..4], &[0, 0, 0, 3]);
+        assert_eq!(packet[4] as usize, "dns.example".len());
+        let sent = relay.send_to(&packet[..length], peer).await;
+        if let Err(error) = sent {
+            panic!("SOCKS5 UDP relay 发送失败: {error}");
+        }
     }
 }
 

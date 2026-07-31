@@ -5,6 +5,10 @@ mod dns_proxy;
 mod identity;
 mod policy_cache;
 mod tcp_proxy;
+mod udp_direct;
+mod udp_driver;
+mod udp_proxy;
+mod udp_session;
 
 use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddr},
@@ -21,12 +25,15 @@ use activation::{WfpActivation, WfpRedirectPorts};
 use dns_proxy::WindowsDnsProxy;
 use policy_cache::WindowsPolicyCache;
 use tcp_proxy::WindowsTcpProxy;
+use udp_proxy::WindowsUdpProxy;
+use udp_session::UdpSessionDependencies;
 
 pub struct WindowsCapture {
     _bfe: DynamicWfpSession,
     activation: WfpActivation,
     dns: WindowsDnsProxy,
     proxy: WindowsTcpProxy,
+    udp: WindowsUdpProxy,
     ipv4: TcpListener,
     ipv6: TcpListener,
     policies: WindowsPolicyCache,
@@ -62,15 +69,8 @@ impl WindowsCapture {
         )
         .await?;
         let (ipv4_dns_port, ipv6_dns_port) = dns.redirect_ports();
-        let proxy = WindowsTcpProxy::new(
-            gateway,
-            credential_store,
-            policies.clone(),
-            physical_interfaces,
-            direct_domain_resolver,
-        );
         let generation = unix_time_ms()?;
-        let driver = WfpDriver::open().map_err(data_plane_error)?;
+        let driver = Arc::new(WfpDriver::open().map_err(data_plane_error)?);
         driver
             .apply(&WfpConfig::disabled(generation))
             .map_err(data_plane_error)?;
@@ -87,6 +87,21 @@ impl WindowsCapture {
                 ipv6_dns_port.to_be(),
             ))
             .map_err(data_plane_error)?;
+        let udp = WindowsUdpProxy::start(Arc::clone(&driver), |injector| UdpSessionDependencies {
+            gateway: gateway.clone(),
+            credential_store: Arc::clone(&credential_store),
+            policies: policies.clone(),
+            physical_interfaces: Arc::clone(&physical_interfaces),
+            direct_domain_resolver: direct_domain_resolver.clone(),
+            injector,
+        });
+        let proxy = WindowsTcpProxy::new(
+            gateway,
+            credential_store,
+            policies.clone(),
+            physical_interfaces,
+            direct_domain_resolver,
+        );
         let activation = WfpActivation::new(
             driver,
             policies.clone(),
@@ -105,6 +120,7 @@ impl WindowsCapture {
             activation,
             dns,
             proxy,
+            udp,
             ipv4,
             ipv6,
             policies,
@@ -118,6 +134,7 @@ impl WindowsCapture {
             activation,
             dns,
             proxy,
+            udp,
             ipv4,
             ipv6,
             policies,
@@ -128,72 +145,41 @@ impl WindowsCapture {
         let proxy_server = proxy.serve(ipv4, ipv6, worker_stop_receiver.clone());
         let policy_server = policies.refresh_until_shutdown(worker_stop_receiver.clone());
         let dns_server = dns.serve(worker_stop_receiver.clone());
+        let udp_server = udp.serve(worker_stop_receiver.clone());
         let activation_server = activation.serve(activation_stop_receiver);
-        tokio::pin!(proxy_server);
-        tokio::pin!(policy_server);
-        tokio::pin!(dns_server);
+        let worker_server = async {
+            tokio::try_join!(proxy_server, policy_server, dns_server, udp_server).map(|_| ())
+        };
+        tokio::pin!(worker_server);
         tokio::pin!(activation_server);
         let first = tokio::select! {
             changed = shutdown.changed() => {
                 let _changed = changed;
                 FirstCompletion::Shutdown
             }
-            result = &mut proxy_server => FirstCompletion::Proxy(result),
-            result = &mut policy_server => FirstCompletion::Policy(result),
-            result = &mut dns_server => FirstCompletion::Dns(result),
+            result = &mut worker_server => FirstCompletion::Workers(result),
             result = &mut activation_server => FirstCompletion::Activation(result),
         };
         match first {
             FirstCompletion::Shutdown => {
                 let _stop_result = activation_stop_sender.send(true);
-                let activation_result = activation_server.await;
                 let _stop_result = worker_stop_sender.send(true);
-                let (proxy_result, policy_result, dns_result) =
-                    tokio::join!(&mut proxy_server, &mut policy_server, &mut dns_server);
+                let (activation_result, worker_result) =
+                    tokio::join!(&mut activation_server, &mut worker_server);
                 activation_result?;
-                proxy_result?;
-                policy_result?;
-                dns_result
+                worker_result
             }
-            FirstCompletion::Proxy(proxy_result) => {
+            FirstCompletion::Workers(worker_result) => {
                 let _stop_result = activation_stop_sender.send(true);
                 let activation_result = activation_server.await;
-                let _stop_result = worker_stop_sender.send(true);
-                let (policy_result, dns_result) = tokio::join!(&mut policy_server, &mut dns_server);
                 activation_result?;
-                proxy_result?;
-                policy_result?;
-                dns_result
-            }
-            FirstCompletion::Policy(policy_result) => {
-                let _stop_result = activation_stop_sender.send(true);
-                let activation_result = activation_server.await;
-                let _stop_result = worker_stop_sender.send(true);
-                let (proxy_result, dns_result) = tokio::join!(&mut proxy_server, &mut dns_server);
-                activation_result?;
-                policy_result?;
-                proxy_result?;
-                dns_result
-            }
-            FirstCompletion::Dns(dns_result) => {
-                let _stop_result = activation_stop_sender.send(true);
-                let activation_result = activation_server.await;
-                let _stop_result = worker_stop_sender.send(true);
-                let (proxy_result, policy_result) =
-                    tokio::join!(&mut proxy_server, &mut policy_server);
-                activation_result?;
-                dns_result?;
-                proxy_result?;
-                policy_result
+                worker_result
             }
             FirstCompletion::Activation(activation_result) => {
                 let _stop_result = worker_stop_sender.send(true);
-                let (proxy_result, policy_result, dns_result) =
-                    tokio::join!(&mut proxy_server, &mut policy_server, &mut dns_server);
+                let worker_result = worker_server.await;
                 activation_result?;
-                proxy_result?;
-                policy_result?;
-                dns_result
+                worker_result
             }
         }
     }
@@ -201,9 +187,7 @@ impl WindowsCapture {
 
 enum FirstCompletion {
     Shutdown,
-    Proxy(Result<(), GatewayError>),
-    Policy(Result<(), GatewayError>),
-    Dns(Result<(), GatewayError>),
+    Workers(Result<(), GatewayError>),
     Activation(Result<(), GatewayError>),
 }
 

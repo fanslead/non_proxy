@@ -563,9 +563,13 @@ Avalonia 官方当前把 macOS 26 和 Windows 11 24H2 列为 Tier 1；首发最�
 ### 10.3 Windows 平台层
 
 - Windows Service。
-- WFP ALE 应用识别与连接分类。
-- 标准 WFP 功能不足时才引入最小 Callout Driver。
-- 驱动只做分类、重定向和必要 metadata，不包含规则编译、协议或数据库。
+- WFP ALE 应用识别、TCP/DNS connect redirect，以及 UDP flow identity。
+- 远端非 53 UDP/QUIC 使用 `DATAGRAM_DATA` 有界搬运和 transport receive
+  注入，覆盖 connected UDP 与无连接 `sendto`。
+- 最小 Callout Driver 只做身份关联、重定向、定界复制和必要数据包构造，不
+  包含规则编译、域名解析、代理协议或数据库。
+- Service 统一执行 App/网站策略；DIRECT TCP/UDP/DNS 绑定可信物理接口，
+  PROXY 保留系统 VPN 路径或使用配置的 SOCKS5 出口。
 - 安装、驱动签名、开机启动和升级通过 Windows 平台桥接服务提供给 Avalonia UI。
 
 ### 10.4 浏览器扩展

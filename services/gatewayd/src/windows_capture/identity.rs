@@ -9,7 +9,11 @@ const AF_INET: u16 = 2;
 const AF_INET6: u16 = 23;
 
 pub fn app_identity(context: &RedirectContext) -> AppIdentity {
-    let Some(path) = decode_app_path(context.app_id()) else {
+    app_identity_from_bytes(context.app_id())
+}
+
+pub fn app_identity_from_bytes(app_id: &[u8]) -> AppIdentity {
+    let Some(path) = decode_app_path(app_id) else {
         return AppIdentity::unknown(Platform::Windows);
     };
     AppIdentity::new(Platform::Windows, path.clone())

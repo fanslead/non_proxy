@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use nonproxy_proto::events::v1::RuntimeState;
 use nonproxy_windows_wfp::{WfpConfig, WfpDriver};
@@ -14,7 +14,7 @@ use super::{data_plane_error, policy_cache::WindowsPolicyCache};
 const RECONCILE_INTERVAL: Duration = Duration::from_millis(100);
 
 pub struct WfpActivation {
-    driver: WfpDriver,
+    driver: Arc<WfpDriver>,
     policies: WindowsPolicyCache,
     generation: u64,
     process_id: u64,
@@ -33,7 +33,7 @@ pub(super) struct WfpRedirectPorts {
 
 impl WfpActivation {
     pub fn new(
-        driver: WfpDriver,
+        driver: Arc<WfpDriver>,
         policies: WindowsPolicyCache,
         generation: u64,
         process_id: u64,

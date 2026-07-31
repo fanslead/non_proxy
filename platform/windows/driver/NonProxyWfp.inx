@@ -44,5 +44,5 @@ NonProxyWfp.sys = 1
 [Strings]
 ProviderName = "NonProxy"
 ServiceName = "NonProxy WFP Callout Driver"
-ServiceDescription = "只执行 TCP ALE connect redirect 的最小内核组件"
+ServiceDescription = "执行 TCP/DNS 重定向与有界 UDP 数据报搬运的最小内核组件"
 DiskName = "NonProxy WFP Driver"

@@ -22,6 +22,9 @@ use windows_sys::{
 
 use crate::WindowsWfpError;
 
+#[path = "bfe_udp.rs"]
+mod udp_rules;
+
 pub const PROVIDER_KEY: GUID = GUID::from_u128(0x40485aa1_1262_4be1_80f8_574ad4d264e5);
 pub const SUBLAYER_KEY: GUID = GUID::from_u128(0xd8566362_525d_40de_946f_50ad7239a80e);
 pub const CALLOUT_V4_KEY: GUID = GUID::from_u128(0x32715ea8_87fd_4da0_8f7f_2dfbb1f8dbd2);
@@ -102,7 +105,7 @@ impl DynamicWfpSession {
     fn install_objects(&self) -> Result<(), WindowsWfpError> {
         let mut provider_key = PROVIDER_KEY;
         let mut provider_name = wide("NonProxy");
-        let mut provider_description = wide("NonProxy TCP 与明文 DNS connect redirect provider");
+        let mut provider_description = wide("NonProxy TCP、DNS 与 UDP WFP provider");
         let provider = FWPM_PROVIDER0 {
             providerKey: provider_key,
             displayData: display(&mut provider_name, &mut provider_description),
@@ -114,8 +117,8 @@ impl DynamicWfpSession {
             unsafe { FwpmProviderAdd0(self.engine, &provider, ptr::null_mut()) },
         )?;
 
-        let mut sublayer_name = wide("NonProxy connect redirect");
-        let mut sublayer_description = wide("处理 TCP 与远端 53 端口 DNS");
+        let mut sublayer_name = wide("NonProxy 网络接管");
+        let mut sublayer_description = wide("处理 TCP、远端 53 端口 DNS 与通用 UDP");
         let sublayer = FWPM_SUBLAYER0 {
             subLayerKey: SUBLAYER_KEY,
             displayData: display(&mut sublayer_name, &mut sublayer_description),
@@ -141,6 +144,7 @@ impl DynamicWfpSession {
             FWPM_LAYER_ALE_CONNECT_REDIRECT_V6,
             "NonProxy TCP IPv6 redirect",
         )?;
+        udp_rules::install(self.engine, &mut provider_key)?;
         self.add_filter(
             &mut provider_key,
             FilterSpec {

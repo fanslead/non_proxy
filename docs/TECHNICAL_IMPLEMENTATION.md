@@ -510,7 +510,8 @@ flowchart LR
 ```mermaid
 flowchart LR
     WUI["Avalonia Windows Host + Shared UI"] --> WS["NonProxy Windows Service"]
-    WFP["WFP ALE Filters/Callout"] --> WS
+    ALE["WFP ALE Connect Redirect"] --> WS
+    UDP["WFP UDP Datagram Divert"] --> WS
     WS --> CORE["Shared Policy + Gateway Core"]
     CORE --> OUT["Outbound Connectors"]
     OUT --> NET["Direct / Proxy / VPN Server"]
@@ -523,6 +524,9 @@ Windows Callout Driver 只负责：
 - 在 Service 明确启用期间把 TCP 连接重定向到本地服务。
 - 写入原始本地/远端地址、进程 ID 和有界 ALE App ID context。
 - 使用 redirect handle 判断自身是否已经处理连接，防止递归重定向。
+- 在 UDP flow 建立时关联 PID/App ID，在远端 53 之外的出站
+  `DATAGRAM_DATA_V4/V6` 只执行有界搬运。
+- 按 Service 提交的原始元组构造 UDP/IP 头并注入入站回复。
 
 Windows Service 的 DIRECT 出口不能复用系统默认路由。`nonproxy-windows-network` 在连接时按地址族动态选择可信物理接口：
 
@@ -558,6 +562,17 @@ Service 启动 DNS 监听前枚举 IPv4 路由；任何与 `198.18.0.0/15` 重�
 普通 TCP redirect。探针失效会立即撤销 DNS 确认、把运行时标为 Degraded，并
 退回可自恢复的 DNS-only。完整决策见
 [ADR-0007](ADR/0007-intercept-windows-dns-with-wfp.md)。
+
+远端 53 之外的 UDP/QUIC 不使用 ALE connect redirect。connected UDP 在
+`connect` 与 `send` 分层时存在系统已知丢包问题，因此动态 BFE session 在
+`ALE_FLOW_ESTABLISHED_V4/V6` 关联应用身份，在 `DATAGRAM_DATA_V4/V6` 搬运
+出站数据报。Service 以 PID + App ID + 原始本地/远端地址建立有界会话，执行
+共享策略后使用绑定物理接口的 DIRECT UDP 或 SOCKS5 UDP；回复由 Driver 以
+原元组重注入。HTTP CONNECT 不提供 UDP association。内核队列、用户态
+channel、活动会话、单会话 backlog、总 payload 和空闲时间均有硬上限；启用
+后无法安全搬运的单个数据报 fail-closed 并计数，Service/handle 退出则撤销
+整个能力并恢复系统原路径。完整依据和上限见
+[ADR-0008](ADR/0008-divert-windows-udp-datagrams.md)。
 
 驱动不得：
 
@@ -1782,24 +1797,33 @@ Provider 不逐条同步写日志：
 - Avalonia Windows 宿主使用 `NamedPipeClientStream` 连接认证 gRPC 控制面，继续复用与 macOS 相同的页面、ViewModel 和控制契约。
 - x64 与 ARM64 Windows target 都进入编译门禁；这只能证明平台代码可构建，不能替代 SCM、ACL 或真实流量验收。
 
-当前 Windows 数据面也已经具备：
+当前 Windows 数据面源码也已经具备：
 
-- WDM 最小 Callout Driver，只注册 ALE Connect Redirect V4/V6，不解析策略、域名、出口协议或数据库。
-- Rust 用户态动态 BFE session，原子添加 provider、sublayer、callout，以及高优先级 TCP/UDP 53 和普通 TCP filter；持有进程退出或 engine handle 关闭时由 BFE 清理。
+- WDM 最小 Callout Driver 注册 ALE Connect Redirect、UDP flow identity 和
+  UDP datagram V4/V6 callout，但不解析策略、域名、出口协议或数据库。
+- Rust 用户态动态 BFE session，原子添加 provider、sublayer、callout，以及
+  高优先级 TCP/UDP 53、普通 TCP、UDP flow 和远端非 53 UDP datagram filter；
+  持有进程退出或 engine handle 关闭时由 BFE 清理。
 - 固定大小、版本化的 Driver IOCTL ABI，以及带上限的原始地址/App ID redirect context；C/Rust 两侧具有尺寸和头文件一致性测试。
 - Service 先绑定 IPv4/IPv6 TCP 与随机 DNS loopback listener、打开 disabled 驱动并安装动态 WFP 对象。随后只启用 TCP/UDP 53；随机系统 resolver 探针与活动策略同时就绪后才启用普通 TCP。无活动快照时 DNS 普通查询明确走物理 DIRECT，普通 TCP 保持 fail-open 旁路。
 - 关闭时先禁用驱动，再停止 listener 和活动任务；控制 handle 意外关闭也会由 `IRP_MJ_CLEANUP` 清除启用标记。
 - 本地代理查询 accepted socket 的 redirect records/context，并在每个 DIRECT 或代理出口 socket 连接前设置 redirect records。
 - 用户态用不可变活动快照执行 App/CIDR/端口策略；DIRECT、PROXY、BLOCK 和代理失败的显式 fail-open/fail-closed 都在 Service 内完成。
-- 所有连接、队列和元数据均有上限；驱动内部失败采用有计数的 fail-open，避免 Service/Driver 异常造成整机断网。
+- TCP redirect 内部失败采用有计数的 fail-open；已启用的通用 UDP 在身份缺失、
+  畸形或队列耗尽时 fail-closed 并计数，避免明确 DIRECT/BLOCK 的报文泄漏。
+  控制 handle 退出会全量 disabled，后续流量恢复系统原路径。
 - GitHub CI 已配置 Windows 2022 + WDK 的 x64/ARM64 独立驱动构建；首次远端运行通过前只视为待验证门禁。Rust 用户态同时经过 x64 clippy 和 ARM64 check。
 - 共享策略快照能判断任意层级是否需要域名身份；`nonproxy-dns` 已实现有界、确定性的 IPv4/IPv6 合成地址空间和 30 秒回答；SQLite V6 迁移以事务保存安装级 ULA 与 24 小时可恢复绑定，并处理散列碰撞。
 - 本地 DNS 已实现 UDP/TCP framing、DIRECT/PROXY 查询、系统探针、地址池冲突检查；WFP TCP 连接可由合成地址反查域名，再执行真实 App + 域名策略，DIRECT 重新物理解域，PROXY 保留域名交给远端。
+- 通用 UDP/QUIC 已实现 flow App ID 关联、版本化 batch/injection ABI、4,096
+  records/约 16 MiB 内核队列、32 MiB Service 会话 payload 预算、DIRECT 物理
+  UDP、SOCKS5 UDP、空数据报和原始反向元组注入。端口 53 继续走独立 DNS 路径。
 
-尚未完成的 Windows 系统能力是远端 53 之外的 UDP/QUIC、安装器/升级回滚、
-生产驱动签名、Driver Verifier 与真实 VPN 共存路径验收。明文 DNS/WFP 代码
-和交叉构建不能证明真实系统 resolver、UDP 反向元组或第三方 VPN filter 顺序
-正确；Windows UI 在安装与系统验收完成前继续将系统组件标记为不可用。
+尚未完成的 Windows 系统能力是安装器/升级回滚、生产驱动签名、Driver
+Verifier 与真实 VPN 共存路径验收。明文 DNS、UDP/QUIC 源码和交叉构建不能
+证明真实系统 resolver、connected UDP/`sendto`、反向元组、QUIC 或第三方
+VPN filter 顺序正确；Windows UI 在安装与系统验收完成前继续将系统组件标记
+为不可用。
 
 ### 22.1 用户态优先
 
@@ -1808,15 +1832,16 @@ Windows POC 已确认：
 - 用户态管理 API 可以安全持有动态 WFP 对象，但 Connect Redirect 的元组修改必须由 Callout Driver 完成。
 - TCP accepted socket 可以查询原始 redirect context 和 records，并把 records 传递给新建出口 socket。
 - ALE App ID 可作为规范化应用路径身份；打包应用身份/签名增强仍属于后续 Windows 身份解析层。
-- WFP 明文 DNS filter 只验证远端 53 端口的 TCP/UDP；通用 UDP connect redirect
-  与无连接 `sendto` 语义仍需独立数据面，不能据此宣称 UDP/QUIC 已支持。
+- WFP 明文 DNS filter 只负责远端 53；通用 ALE UDP redirect 无法完整覆盖
+  connected UDP 与无连接 `sendto`，所以远端非 53 UDP 使用 flow identity +
+  DATAGRAM_DATA 搬运和 transport receive injection。
 - 可靠网站规则需要 Windows DNS 归属和可恢复的选择性合成地址关联，不能只依赖短期真实 IP 或 TLS SNI。
 
-因此采用 [ADR-0004：最小 WFP Connect Redirect Callout](ADR/0004-use-minimal-wfp-connect-redirect-callout.md)、[ADR-0006：选择性合成 DNS](ADR/0006-use-selective-synthetic-dns-on-windows.md) 与 [ADR-0007：WFP 明文 DNS 截获](ADR/0007-intercept-windows-dns-with-wfp.md)。复杂策略、出口协议、DNS 报文、存储与遥测继续严格留在用户态。
+因此采用 [ADR-0004：最小 WFP Connect Redirect Callout](ADR/0004-use-minimal-wfp-connect-redirect-callout.md)、[ADR-0006：选择性合成 DNS](ADR/0006-use-selective-synthetic-dns-on-windows.md)、[ADR-0007：WFP 明文 DNS 截获](ADR/0007-intercept-windows-dns-with-wfp.md) 与 [ADR-0008：UDP/QUIC 数据报搬运](ADR/0008-divert-windows-udp-datagrams.md)。复杂策略、出口协议、DNS 报文、存储与遥测继续严格留在用户态。
 
 ### 22.2 WFP 层
 
-TCP 与明文 DNS 当前使用：
+TCP 与明文 DNS 使用：
 
 - `FWPM_LAYER_ALE_CONNECT_REDIRECT_V4/V6`
 - 普通 TCP：`FWPM_CONDITION_IP_PROTOCOL == IPPROTO_TCP`
@@ -1825,8 +1850,19 @@ TCP 与明文 DNS 当前使用：
 - Driver `FwpsQueryConnectionRedirectState`、`FwpsAcquireWritableLayerDataPointer0` 和 `FwpsApplyModifiedLayerData0`
 - Winsock `SIO_QUERY_WFP_CONNECTION_REDIRECT_RECORDS`、`SIO_QUERY_WFP_CONNECTION_REDIRECT_CONTEXT` 和 `SIO_SET_WFP_CONNECTION_REDIRECT_RECORDS`
 
-DNS UDP 的接收/反向元组仍必须通过独立 WDK POC、性能和 Driver Verifier 结果
-确认；远端 53 之外的 UDP/QUIC 层选择尚未完成。
+通用 UDP/QUIC 使用：
+
+- `FWPM_LAYER_ALE_FLOW_ESTABLISHED_V4/V6` inspection callout 关联 PID/App ID；
+- `FWPM_LAYER_DATAGRAM_DATA_V4/V6` terminating callout，只匹配出站 UDP 且
+  `remote port != 53`；
+- 版本化 `RECEIVE_UDP` batch 与 `INJECT_UDP` IOCTL；
+- `FwpsConstructIpHeaderForTransportPacket0` 和
+  `FwpsInjectTransportReceiveAsync0` 恢复入站原始元组；
+- 约 16 MiB 内核记录队列、两个 256 项跨线程 channel、2,048 活动会话、每
+  会话 64 项与 32 MiB 总待处理 payload 预算。
+
+这些源码边界仍必须通过独立 WDK 构建、性能、Driver Verifier 与真实 VPN 结果
+确认。
 
 ### 22.3 共享复用
 
@@ -1901,8 +1937,11 @@ DNS UDP 的接收/反向元组仍必须通过独立 WDK POC、性能和 Driver V
 - DIRECT relay 的 socket 确实绑定物理网卡。
 - 第三方 VPN 开启时 DIRECT 与 PROXY 的出口 IP 证据不同。
 - PROXY flow copy。
-- TCP/UDP。
-- IPv4/IPv6。
+- TCP，connected UDP，无连接 `sendto` 与空 UDP 数据报。
+- IPv4/IPv6 和 QUIC 双向原始元组。
+- DIRECT socket 的物理接口索引与出口 IP；PROXY/VPN 路径的独立出口证据。
+- DNS 53 专用路径与通用 UDP filter 互不重复捕获。
+- 队列上限、drop/injection 计数和 32 MiB 总预算。
 - DNS 分流。
 - QUIC。
 - sleep/wake。

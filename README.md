@@ -8,7 +8,7 @@ NonProxy 是一个本地优先的跨平台智能分流网关。用户选择应�
 
 Windows 已接入 SCM Service、受限命名管道、共享 UI、最小 WFP ALE Connect Redirect Driver、动态 BFE session、版本化 IOCTL/context ABI、redirect records 和用户态 TCP DIRECT/PROXY/BLOCK。DIRECT TCP/DNS 会实时选择可信物理接口并设置 `IP_UNICAST_IF`/`IPV6_UNICAST_IF`；没有物理路径时明确失败。域名身份运行时会在确认 `198.18.0.0/15` 无路由冲突后分配可恢复的 IPv4/安装级 ULA 合成地址，由 WFP TCP 代理反查域名并重新物理解域或保留给远端代理。
 
-Windows DNS 不修改网卡设置：动态 WFP filter 先只把远端 TCP/UDP 53 重定向到随机 loopback listener，系统 resolver 探针通过且活动策略就绪后才启用普通 TCP；探针失效则退回 DNS-only。当前 x64/ARM64 Rust 交叉门禁已覆盖该代码，WDK CI 负责未签名 Driver 构建；远端 53 之外的 UDP/QUIC、安装升级、生产驱动签名、Driver Verifier 与真实 VPN 路径尚未验收，未覆盖能力不会被表述为可用。
+Windows DNS 不修改网卡设置：动态 WFP filter 先只把远端 TCP/UDP 53 重定向到随机 loopback listener，系统 resolver 探针通过且活动策略就绪后才启用普通 TCP；探针失效则退回 DNS-only。远端 53 之外的 UDP/QUIC 使用同一最小 Driver 的 ALE flow 身份关联、DATAGRAM_DATA 有界搬运和入站重注入，Service 继续执行 App/域名策略、物理 DIRECT 或 SOCKS5 UDP。当前 Rust 单测和 x64 Windows 交叉门禁已覆盖用户态与 ABI；WDK 构建、安装升级、生产驱动签名、Driver Verifier 与真实 VPN 路径尚未验收，未验收能力不会被表述为可用。
 
 运行概览会按“后台服务 → 透明代理 → DNS 分流 → 网络接管”显示真实分段状态。等待授权时可通过原生桥直接打开 macOS“登录项与扩展”，允许后重新检查；部分安装可执行修复，卸载需要二次确认。诊断页复用同一组分段证据并显示稳定错误码。
 
@@ -37,6 +37,7 @@ Safari 扩展的正式登记、启用、普通/无痕窗口与多标签页验收
 - [Windows DIRECT 物理接口 ADR](docs/ADR/0005-bind-windows-direct-to-physical-interface.md)
 - [Windows 选择性合成 DNS ADR](docs/ADR/0006-use-selective-synthetic-dns-on-windows.md)
 - [Windows WFP 明文 DNS 截获 ADR](docs/ADR/0007-intercept-windows-dns-with-wfp.md)
+- [Windows UDP/QUIC 数据报搬运 ADR](docs/ADR/0008-divert-windows-udp-datagrams.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链
