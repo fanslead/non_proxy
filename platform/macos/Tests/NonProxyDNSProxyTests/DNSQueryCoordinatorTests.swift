@@ -1,5 +1,6 @@
 import Foundation
 @testable import NonProxyDNSProxy
+import NonProxyMacNetworkIdentity
 import NonProxyMacPlatformSupport
 import NonProxyProviderContracts
 import NonProxyProviderCore
@@ -84,9 +85,8 @@ final class DNSQueryCoordinatorTests: XCTestCase {
     }
 
     func testUsesResolvedNetworkProfileForDnsPolicyDecision() async throws {
-        let fingerprint = try PolicyNetworkFingerprint(
-            kind: .interfaceClass,
-            value: "wifi"
+        let fingerprint = try XCTUnwrap(
+            MacNetworkFingerprintFactory.interfaceClass("wifi")
         )
         let resolver = RecordingDNSResolver()
         let decisions = RecordingDecisionSubmitter()
@@ -261,11 +261,11 @@ final class DNSQueryCoordinatorTests: XCTestCase {
     }
 
     private func networkRuntime(
-        fingerprint: PolicyNetworkFingerprint
+        fingerprint: MacNetworkFingerprint
     ) throws -> ProviderPolicyRuntime {
         var profile = Nonproxy_Policy_V1_NetworkProfileBinding()
         profile.id = "office"
-        profile.fingerprintKind = fingerprint.kind
+        profile.fingerprintKind = .interfaceClass
         profile.fingerprintValue = fingerprint.value
 
         var network = Nonproxy_Policy_V1_NetworkMatcher()

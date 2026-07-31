@@ -1,5 +1,6 @@
 import Network
 import NetworkExtension
+import NonProxyMacNetworkIdentity
 
 enum DirectRelayStartResult {
     case accepted

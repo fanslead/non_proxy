@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import NetworkExtension
+import NonProxyMacNetworkIdentity
 import NonProxyMacPlatformSupport
 import NonProxyProviderCore
 

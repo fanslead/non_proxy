@@ -1,4 +1,5 @@
 import Foundation
+import NonProxyMacNetworkIdentity
 import NonProxyMacPlatformSupport
 import NonProxyProviderCore
 import Synchronization

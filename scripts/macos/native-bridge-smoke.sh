@@ -23,7 +23,7 @@ if [[ ! -x "${host_binary}" ]]; then
 fi
 
 output=$("${host_binary}" --native-bridge-smoke)
-if ! grep -F '"abiVersion":6' <<<"${output}" >/dev/null ||
+if ! grep -F '"abiVersion":7' <<<"${output}" >/dev/null ||
    ! grep -F '"applicationCatalog":true' <<<"${output}" >/dev/null ||
    ! grep -F '"proxyDiscovery":true' <<<"${output}" >/dev/null; then
     echo "原生桥接冒烟输出缺少预期 ABI 版本：${output}" >&2

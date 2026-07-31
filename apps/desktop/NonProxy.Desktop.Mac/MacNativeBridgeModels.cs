@@ -54,6 +54,19 @@ internal sealed record MacSystemProxyDiscoveryPayload(
     [property: JsonPropertyName("proxies")]
         IReadOnlyList<MacSystemProxyDescriptor> Proxies);
 
+internal sealed record MacNetworkFingerprintDescriptor(
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("value")] string Value);
+
+internal sealed record MacCurrentNetworkPayload(
+    [property: JsonPropertyName("success")] bool Success,
+    [property: JsonPropertyName("message")] string Message,
+    [property: JsonPropertyName("errorCode")] string? ErrorCode,
+    [property: JsonPropertyName("permissionState")] string PermissionState,
+    [property: JsonPropertyName("suggestedName")] string? SuggestedName,
+    [property: JsonPropertyName("fingerprint")]
+        MacNetworkFingerprintDescriptor? Fingerprint);
+
 internal sealed record MacBridgeEventPayload(
     [property: JsonPropertyName("operation")] string Operation,
     [property: JsonPropertyName("success")] bool Success,

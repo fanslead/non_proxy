@@ -1,6 +1,5 @@
 import Network
-import NonProxyProviderCore
-@testable import NonProxyMacPlatformSupport
+@testable import NonProxyMacNetworkIdentity
 import XCTest
 
 final class MacNetworkEnvironmentMonitorTests: XCTestCase {
@@ -12,8 +11,8 @@ final class MacNetworkEnvironmentMonitorTests: XCTestCase {
         )
 
         XCTAssertEqual(fingerprints.map(\.kind), [
-            .wifiSsidSha256,
-            .defaultGatewaySha256,
+            .wifiSSIDHash,
+            .defaultGatewayHash,
             .interfaceClass,
         ])
         XCTAssertEqual(
@@ -95,14 +94,12 @@ final class MacNetworkEnvironmentMonitorTests: XCTestCase {
     }
 
     func testDnsCachePartitionDoesNotExposeStableNetworkProfile() throws {
+        let fingerprint = try XCTUnwrap(
+            MacNetworkFingerprintFactory.interfaceClass("wifi")
+        )
         let monitor = MacNetworkEnvironmentMonitor(
             initialInterfaceIndex: 7,
-            initialFingerprints: [
-                try PolicyNetworkFingerprint(
-                    kind: .interfaceClass,
-                    value: "wifi"
-                ),
-            ]
+            initialFingerprints: [fingerprint]
         )
         let network = monitor.snapshot()
 

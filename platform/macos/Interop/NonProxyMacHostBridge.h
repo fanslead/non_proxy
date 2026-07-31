@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#define NP_MAC_BRIDGE_ABI_VERSION 6u
+#define NP_MAC_BRIDGE_ABI_VERSION 7u
 
 /**
  * Swift 仅在回调执行期间借出 payload 指针；调用方必须在回调返回前复制字节。
@@ -65,6 +65,11 @@ int32_t np_mac_bridge_choose_application(
     void *context);
 
 int32_t np_mac_bridge_discover_system_proxies(
+    uint64_t operation_id,
+    np_mac_bridge_callback callback,
+    void *context);
+
+int32_t np_mac_bridge_capture_current_network(
     uint64_t operation_id,
     np_mac_bridge_callback callback,
     void *context);

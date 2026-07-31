@@ -241,6 +241,17 @@ else
         "Add :NSSystemExtensionUsageDescription string NonProxy 需要安装网络系统扩展，以便按应用和网站选择直连或指定代理。" \
         "${app_bundle}/Contents/Info.plist"
 fi
+location_usage="用于在本机识别当前 Wi-Fi 并自动应用对应的直连规则；网络名称只在内存中哈希。"
+if "${plist_buddy}" -c "Print :NSLocationWhenInUseUsageDescription" \
+    "${app_bundle}/Contents/Info.plist" >/dev/null 2>&1; then
+    "${plist_buddy}" -c \
+        "Set :NSLocationWhenInUseUsageDescription ${location_usage}" \
+        "${app_bundle}/Contents/Info.plist"
+else
+    "${plist_buddy}" -c \
+        "Add :NSLocationWhenInUseUsageDescription string ${location_usage}" \
+        "${app_bundle}/Contents/Info.plist"
+fi
 
 signing_identity=${NONPROXY_CODESIGN_IDENTITY:--}
 restricted_signing=${NONPROXY_RESTRICTED_SIGNING:-0}

@@ -1,5 +1,6 @@
 import Network
 import NetworkExtension
+import NonProxyMacNetworkIdentity
 import NonProxyMacPlatformSupport
 import NonProxyProviderContracts
 import NonProxyProviderCore
@@ -145,7 +146,7 @@ public final class TransparentProxyProvider:
             let decisionStarted = DispatchTime.now().uptimeNanoseconds
             let evaluation = try runtime.provider.runtime.evaluate(
                 context: unresolvedContext,
-                networkFingerprints: network.fingerprints
+                networkFingerprints: network.policyFingerprints
             )
             let decisionFinished = DispatchTime.now().uptimeNanoseconds
             let context = evaluation.context

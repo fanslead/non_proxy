@@ -1,4 +1,5 @@
 import Foundation
+import NonProxyMacNetworkIdentity
 import SystemExtensions
 import Testing
 
@@ -58,6 +59,42 @@ struct BridgeModelsTests {
         #expect(decoded == payload)
         #expect(decoded.applications.first?.stableIdentity == "com.example.office")
         #expect(String(decoding: data, as: UTF8.self).contains("企业办公"))
+    }
+
+    @Test
+    func currentNetworkPayloadExposesOnlyPrivacySafeFingerprint() throws {
+        let fingerprint = try #require(
+            MacNetworkFingerprintFactory.wifiSSID("Office WiFi")
+        )
+
+        let payload = CurrentNetworkPayload.result(
+            fingerprints: [fingerprint],
+            permission: .authorized
+        )
+        let data = try JSONEncoder().encode(payload)
+        let json = String(decoding: data, as: UTF8.self)
+
+        #expect(payload.success)
+        #expect(payload.fingerprint?.kind == .wifiSSIDHash)
+        #expect(payload.fingerprint?.value.count == 64)
+        #expect(!json.contains("Office WiFi"))
+        #expect(json.contains("wifi_ssid_sha256"))
+    }
+
+    @Test
+    func currentNetworkPayloadExplainsGatewayFallbackAfterDenial() throws {
+        let fingerprint = try #require(
+            MacNetworkFingerprintFactory.defaultGateway("192.168.1.1")
+        )
+
+        let payload = CurrentNetworkPayload.result(
+            fingerprints: [fingerprint],
+            permission: .denied
+        )
+
+        #expect(payload.success)
+        #expect(payload.message.contains("定位权限不可用"))
+        #expect(payload.suggestedName == "当前局域网")
     }
 
     @Test

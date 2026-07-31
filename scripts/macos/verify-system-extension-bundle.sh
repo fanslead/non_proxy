@@ -53,6 +53,10 @@ assert_plist_value \
     "${app_plist}" \
     CFBundleIdentifier \
     com.nonproxy.desktop
+assert_plist_value \
+    "${app_plist}" \
+    NSLocationWhenInUseUsageDescription \
+    "用于在本机识别当前 Wi-Fi 并自动应用对应的直连规则；网络名称只在内存中哈希。"
 host_executable=$(/usr/libexec/PlistBuddy \
     -c "Print :CFBundleExecutable" \
     "${app_plist}")
@@ -85,6 +89,12 @@ otool -L "${bridge_library}" | grep -F \
     "/System/Library/Frameworks/SystemExtensions.framework/" >/dev/null
 otool -L "${bridge_library}" | grep -F \
     "/System/Library/Frameworks/ServiceManagement.framework/" >/dev/null
+otool -L "${bridge_library}" | grep -F \
+    "/System/Library/Frameworks/CoreLocation.framework/" >/dev/null
+otool -L "${bridge_library}" | grep -F \
+    "/System/Library/Frameworks/CoreWLAN.framework/" >/dev/null
+otool -L "${bridge_library}" | grep -F \
+    "/System/Library/Frameworks/SystemConfiguration.framework/" >/dev/null
 for symbol in \
     _np_mac_bridge_abi_version \
     _np_mac_bridge_open_login_items_settings \
@@ -92,6 +102,7 @@ for symbol in \
     _np_mac_bridge_query \
     _np_mac_bridge_list_applications \
     _np_mac_bridge_choose_application \
+    _np_mac_bridge_capture_current_network \
     _np_mac_bridge_install_and_enable \
     _np_mac_bridge_disable_and_uninstall; do
     if ! nm -g "${bridge_library}" | grep -F "${symbol}" >/dev/null; then

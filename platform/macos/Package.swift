@@ -117,6 +117,15 @@ let package = Package(
             name: "NonProxyMacRuntime"
         ),
         .target(
+            name: "NonProxyMacNetworkIdentity",
+            linkerSettings: [
+                .linkedFramework("CoreWLAN"),
+                .linkedFramework("CryptoKit"),
+                .linkedFramework("Network"),
+                .linkedFramework("SystemConfiguration"),
+            ]
+        ),
+        .target(
             name: "NonProxySafariStateBridge",
             publicHeadersPath: "include",
             linkerSettings: [
@@ -139,22 +148,21 @@ let package = Package(
         .target(
             name: "NonProxyMacPlatformSupport",
             dependencies: [
+                "NonProxyMacNetworkIdentity",
                 "NonProxyMacRuntime",
                 "NonProxyProviderCore",
                 "NonProxyProviderContracts",
             ],
             linkerSettings: [
-                .linkedFramework("CoreWLAN"),
-                .linkedFramework("CryptoKit"),
                 .linkedFramework("Network"),
                 .linkedFramework("NetworkExtension"),
                 .linkedFramework("Security"),
-                .linkedFramework("SystemConfiguration"),
             ]
         ),
         .target(
             name: "NonProxyTransparentProxy",
             dependencies: [
+                "NonProxyMacNetworkIdentity",
                 "NonProxyMacPlatformSupport",
                 "NonProxyProviderCore",
                 "NonProxyProviderContracts",
@@ -167,6 +175,7 @@ let package = Package(
         .target(
             name: "NonProxyDNSProxy",
             dependencies: [
+                "NonProxyMacNetworkIdentity",
                 "NonProxyMacPlatformSupport",
                 "NonProxyProviderCore",
                 "NonProxyProviderContracts",
@@ -179,9 +188,13 @@ let package = Package(
         ),
         .target(
             name: "NonProxyMacHostBridge",
-            dependencies: ["NonProxyMacRuntime"],
+            dependencies: [
+                "NonProxyMacNetworkIdentity",
+                "NonProxyMacRuntime",
+            ],
             linkerSettings: [
                 .linkedFramework("AppKit"),
+                .linkedFramework("CoreLocation"),
                 .linkedFramework("NetworkExtension"),
                 .linkedFramework("Security"),
                 .linkedFramework("ServiceManagement"),
@@ -243,6 +256,10 @@ let package = Package(
             dependencies: ["NonProxySafariStateBridge"]
         ),
         .testTarget(
+            name: "NonProxyMacNetworkIdentityTests",
+            dependencies: ["NonProxyMacNetworkIdentity"]
+        ),
+        .testTarget(
             name: "NonProxyProviderCoreTests",
             dependencies: [
                 "NonProxyProviderCore",
@@ -252,6 +269,7 @@ let package = Package(
         .testTarget(
             name: "NonProxyMacPlatformSupportTests",
             dependencies: [
+                "NonProxyMacNetworkIdentity",
                 "NonProxyMacPlatformSupport",
                 "NonProxyProviderContracts",
                 "NonProxyProviderCore",
@@ -265,6 +283,7 @@ let package = Package(
             name: "NonProxyDNSProxyTests",
             dependencies: [
                 "NonProxyDNSProxy",
+                "NonProxyMacNetworkIdentity",
                 "NonProxyMacPlatformSupport",
                 "NonProxyProviderContracts",
                 "NonProxyProviderCore",

@@ -137,6 +137,27 @@ public func macBridgeDiscoverSystemProxies(
     return 0
 }
 
+@_cdecl("np_mac_bridge_capture_current_network")
+public func macBridgeCaptureCurrentNetwork(
+    operationID: UInt64,
+    callback: MacBridgeCallback?,
+    context: UnsafeMutableRawPointer?
+) -> Int32 {
+    guard let callback else {
+        return -1
+    }
+    let sink = BridgeCallbackSink(
+        operationID: operationID,
+        callback: callback,
+        context: context
+    )
+    Task { @MainActor in
+        let payload = await CurrentNetworkIdentityController().capture()
+        sink.completeCurrentNetwork(payload)
+    }
+    return 0
+}
+
 @_cdecl("np_mac_bridge_install_and_enable")
 public func macBridgeInstallAndEnable(
     operationID: UInt64,

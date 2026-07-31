@@ -1,75 +1,9 @@
-import CryptoKit
 import CoreWLAN
 import Darwin
 import Foundation
 import Network
-import NonProxyProviderCore
 import Synchronization
 import SystemConfiguration
-
-struct MacNetworkInterfaceRank: Comparable {
-    let isUsed: Bool
-    let priority: Int
-    let hasDefaultGateway: Bool
-    let name: String
-
-    static func < (
-        lhs: MacNetworkInterfaceRank,
-        rhs: MacNetworkInterfaceRank
-    ) -> Bool {
-        if lhs.isUsed != rhs.isUsed {
-            return lhs.isUsed && !rhs.isUsed
-        }
-        if lhs.priority != rhs.priority {
-            return lhs.priority < rhs.priority
-        }
-        if lhs.hasDefaultGateway != rhs.hasDefaultGateway {
-            return lhs.hasDefaultGateway && !rhs.hasDefaultGateway
-        }
-        return lhs.name < rhs.name
-    }
-}
-
-public struct MacNetworkEnvironmentSnapshot: @unchecked Sendable {
-    public let fingerprints: [PolicyNetworkFingerprint]
-    public let preferredInterface: NWInterface?
-    public let preferredInterfaceIndex: UInt32
-
-    private let runID: UUID
-    private let generation: UInt64
-    private let signature: String
-
-    fileprivate init(
-        fingerprints: [PolicyNetworkFingerprint],
-        preferredInterface: NWInterface?,
-        preferredInterfaceIndex: UInt32,
-        runID: UUID,
-        generation: UInt64,
-        signature: String
-    ) {
-        self.fingerprints = fingerprints
-        self.preferredInterface = preferredInterface
-        self.preferredInterfaceIndex = preferredInterfaceIndex
-        self.runID = runID
-        self.generation = generation
-        self.signature = signature
-    }
-
-    public func dnsCachePartitionID(
-        resolverKeys: [String] = []
-    ) -> String {
-        let source = [
-            runID.uuidString.lowercased(),
-            String(generation),
-            signature,
-            String(preferredInterfaceIndex),
-            resolverKeys.sorted().joined(separator: ","),
-        ].joined(separator: "|")
-        let digest = MacNetworkFingerprintFactory.sha256(Data(source.utf8))
-        return "dns-\(runID.uuidString.prefix(8).lowercased())"
-            + "-\(generation)-\(digest.prefix(16))"
-    }
-}
 
 public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
     public typealias WiFiSSIDFetcher = @Sendable (
@@ -78,7 +12,7 @@ public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
     ) -> Void
     public typealias DefaultGatewayReader = @Sendable (
         String
-    ) -> PolicyNetworkFingerprint?
+    ) -> MacNetworkFingerprint?
 
     private static let initialPathTimeout: DispatchTimeInterval = .seconds(3)
 
@@ -86,7 +20,7 @@ public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
         var interfaces: [NWInterface] = []
         var signature = "unknown"
         var generation: UInt64 = 1
-        var fingerprints: [PolicyNetworkFingerprint]
+        var fingerprints: [MacNetworkFingerprint]
         var continuation: CheckedContinuation<Void, Never>?
         var refreshToken: UInt64 = 0
         var started = false
@@ -95,7 +29,7 @@ public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
 
         init(
             physicalInterfaceIndex: UInt32,
-            fingerprints: [PolicyNetworkFingerprint]
+            fingerprints: [MacNetworkFingerprint]
         ) {
             self.physicalInterfaceIndex = physicalInterfaceIndex
             self.fingerprints = fingerprints
@@ -114,7 +48,7 @@ public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
     public init(
         monitor: NWPathMonitor = NWPathMonitor(),
         initialInterfaceIndex: UInt32 = 0,
-        initialFingerprints: [PolicyNetworkFingerprint] = [],
+        initialFingerprints: [MacNetworkFingerprint] = [],
         wifiSSIDFetcher: WiFiSSIDFetcher? = nil,
         defaultGatewayReader: DefaultGatewayReader? = nil
     ) {
@@ -175,18 +109,6 @@ public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
         continuation?.resume()
     }
 
-    public var fingerprints: [PolicyNetworkFingerprint] {
-        snapshot().fingerprints
-    }
-
-    public var preferredInterfaceIndex: UInt32 {
-        snapshot().preferredInterfaceIndex
-    }
-
-    public func preferredInterface() -> NWInterface? {
-        snapshot().preferredInterface
-    }
-
     public func snapshot() -> MacNetworkEnvironmentSnapshot {
         state.withLock {
             MacNetworkEnvironmentSnapshot(
@@ -198,12 +120,6 @@ public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
                 signature: $0.signature
             )
         }
-    }
-
-    public func dnsCachePartitionID(
-        resolverKeys: [String] = []
-    ) -> String {
-        snapshot().dnsCachePartitionID(resolverKeys: resolverKeys)
     }
 
     public static func priority(
@@ -225,7 +141,7 @@ public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
         let candidates = path.availableInterfaces
             .compactMap { interface -> (
                 interface: NWInterface,
-                gateway: PolicyNetworkFingerprint?,
+                gateway: MacNetworkFingerprint?,
                 rank: MacNetworkInterfaceRank
             )? in
                 guard let priority = Self.priority(for: interface.type) else {
@@ -249,9 +165,8 @@ public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
         let interfaceClass = preferred.map {
             MacNetworkFingerprintFactory.name(for: $0.interface.type)
         } ?? (path.usesInterfaceType(.other) ? "other" : nil)
-        let gatewayFingerprint = preferred?.gateway
         let baseFingerprints = [
-            gatewayFingerprint,
+            preferred?.gateway,
             interfaceClass.flatMap(
                 MacNetworkFingerprintFactory.interfaceClass
             ),
@@ -368,7 +283,7 @@ public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
 
     private static func readDefaultGateway(
         interfaceName: String
-    ) -> PolicyNetworkFingerprint? {
+    ) -> MacNetworkFingerprint? {
         for family in ["IPv4", "IPv6"] {
             let pattern = "State:/Network/Service/.*/\(family)" as CFString
             let keys = SCDynamicStoreCopyKeyList(nil, pattern) as? [String]
@@ -396,112 +311,5 @@ public final class MacNetworkEnvironmentMonitor: @unchecked Sendable {
             }
         }
         return nil
-    }
-}
-
-enum MacNetworkFingerprintFactory {
-    static func make(
-        interfaceClass: String?,
-        wifiSSID: String? = nil,
-        defaultGateway: String? = nil
-    ) -> [PolicyNetworkFingerprint] {
-        [
-            wifiSSID.flatMap(Self.wifiSSID),
-            defaultGateway.flatMap { Self.defaultGateway($0) },
-            interfaceClass.flatMap(Self.interfaceClass),
-        ].compactMap { $0 }
-    }
-
-    static func wifiSSID(_ value: String) -> PolicyNetworkFingerprint? {
-        guard !value.isEmpty else {
-            return nil
-        }
-        return wifiSSIDData(Data(value.utf8))
-    }
-
-    static func wifiSSIDData(
-        _ value: Data
-    ) -> PolicyNetworkFingerprint? {
-        guard !value.isEmpty else {
-            return nil
-        }
-        return try? PolicyNetworkFingerprint(
-            kind: .wifiSsidSha256,
-            value: sha256(value)
-        )
-    }
-
-    static func defaultGateway(
-        _ value: String,
-        hardwareAddress: String? = nil
-    ) -> PolicyNetworkFingerprint? {
-        guard let canonical = canonicalIPAddress(value) else {
-            return nil
-        }
-        let family = IPv4Address(canonical) == nil ? "ipv6" : "ipv4"
-        var identity = "\(family):\(canonical)"
-        if let hardwareAddress = canonicalHardwareAddress(hardwareAddress) {
-            identity += "|lladdr:\(hardwareAddress)"
-        }
-        return try? PolicyNetworkFingerprint(
-            kind: .defaultGatewaySha256,
-            value: sha256(Data(identity.utf8))
-        )
-    }
-
-    static func interfaceClass(
-        _ value: String
-    ) -> PolicyNetworkFingerprint? {
-        try? PolicyNetworkFingerprint(kind: .interfaceClass, value: value)
-    }
-
-    static func canonicalIPAddress(_ value: String) -> String? {
-        if let address = IPv4Address(value) {
-            return String(describing: address)
-        }
-        if let address = IPv6Address(value) {
-            return String(describing: address)
-        }
-        return nil
-    }
-
-    static func canonicalHardwareAddress(_ value: String?) -> String? {
-        guard let value else {
-            return nil
-        }
-        let normalized = value.lowercased()
-        let octets = normalized.split(
-            separator: ":",
-            omittingEmptySubsequences: false
-        )
-        guard octets.count == 6,
-              octets.allSatisfy({ octet in
-                  octet.count == 2 && octet.utf8.allSatisfy {
-                      (48 ... 57).contains($0) || (97 ... 102).contains($0)
-                  }
-              })
-        else {
-            return nil
-        }
-        return normalized
-    }
-
-    static func name(for type: NWInterface.InterfaceType) -> String {
-        switch type {
-        case .wifi:
-            "wifi"
-        case .cellular:
-            "cellular"
-        case .wiredEthernet:
-            "ethernet"
-        default:
-            "other"
-        }
-    }
-
-    static func sha256(_ value: Data) -> String {
-        SHA256.hash(data: value)
-            .map { String(format: "%02x", $0) }
-            .joined()
     }
 }

@@ -37,6 +37,9 @@ macOS 还存在明确的平台限制：当前 SSID 通过 CoreWLAN 获取，并�
 8. 两个 System Extension 都声明沙箱定位能力。正式签名 provisioning profile 必须
    包含对应权限。macOS 设备验收必须分别覆盖“已授权可读 SSID”和“拒绝授权后按网关/
    接口类型降级”两种场景；本地构建通过不代表用户已授予定位权限。
+9. 网络指纹生成和路径监视位于轻量的 `NonProxyMacNetworkIdentity` 模块，由 Provider
+   与原生宿主桥共同使用。主应用只在用户点击检测时请求定位授权，ABI 只返回指纹类型、
+   脱敏值和权限状态，不返回原始 SSID；桌面 UI 和 `gatewayd` 不得自行重算另一套指纹。
 
 ## 结果
 

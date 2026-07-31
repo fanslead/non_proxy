@@ -1,4 +1,5 @@
 import Foundation
+import NonProxyMacNetworkIdentity
 import NonProxyMacPlatformSupport
 import NonProxyProviderContracts
 import NonProxyProviderCore
@@ -78,7 +79,7 @@ public final class DNSQueryCoordinator: Sendable {
         let decisionStarted = DispatchTime.now().uptimeNanoseconds
         let evaluation = try runtime.evaluate(
             context: unresolvedContext,
-            networkFingerprints: network.fingerprints
+            networkFingerprints: network.policyFingerprints
         )
         let decisionFinished = DispatchTime.now().uptimeNanoseconds
         let policyContext = evaluation.context

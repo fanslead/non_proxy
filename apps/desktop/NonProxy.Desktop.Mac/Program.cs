@@ -38,6 +38,9 @@ internal static class Program
                 ILocalProxyDiscovery,
                 MacLocalProxyDiscovery>();
             collection.AddSingleton<
+                ICurrentNetworkEnvironment,
+                MacCurrentNetworkEnvironment>();
+            collection.AddSingleton<
                 ISystemComponentInstaller,
                 SystemExtensionController>();
             collection.AddSingleton(

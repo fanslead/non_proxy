@@ -1,12 +1,89 @@
 import Foundation
+import NonProxyMacNetworkIdentity
 import SystemExtensions
 
 enum BridgeConstants {
-    static let abiVersion: UInt32 = 6
+    static let abiVersion: UInt32 = 7
     static let transparentBundleIdentifier =
         "com.nonproxy.desktop.transparent-proxy"
     static let dnsBundleIdentifier = "com.nonproxy.desktop.dns-proxy"
     static let localizedDescription = "NonProxy 智能分流"
+}
+
+enum NetworkLocationPermissionState: String, Codable, Sendable {
+    case authorized
+    case denied
+    case restricted
+    case notDetermined
+    case unknown
+}
+
+struct NetworkFingerprintDescriptor: Codable, Equatable, Sendable {
+    let kind: MacNetworkFingerprintKind
+    let value: String
+}
+
+struct CurrentNetworkPayload: Codable, Equatable, Sendable {
+    let success: Bool
+    let message: String
+    let errorCode: String?
+    let permissionState: NetworkLocationPermissionState
+    let suggestedName: String?
+    let fingerprint: NetworkFingerprintDescriptor?
+
+    static func result(
+        snapshot: MacNetworkEnvironmentSnapshot,
+        permission: NetworkLocationPermissionState
+    ) -> CurrentNetworkPayload {
+        result(
+            fingerprints: snapshot.fingerprints,
+            permission: permission
+        )
+    }
+
+    static func result(
+        fingerprints: [MacNetworkFingerprint],
+        permission: NetworkLocationPermissionState
+    ) -> CurrentNetworkPayload {
+        guard let fingerprint = fingerprints.first else {
+            return CurrentNetworkPayload(
+                success: false,
+                message: "当前没有可识别的物理网络，请连接网络后重试。",
+                errorCode: "NP_MAC_NETWORK_UNAVAILABLE",
+                permissionState: permission,
+                suggestedName: nil,
+                fingerprint: nil
+            )
+        }
+        let suggestedName: String
+        let message: String
+        switch fingerprint.kind {
+        case .wifiSSIDHash:
+            suggestedName = "当前 Wi-Fi"
+            message = "已用本机哈希识别当前 Wi-Fi；原始网络名称不会离开原生采集栈。"
+        case .defaultGatewayHash:
+            suggestedName = "当前局域网"
+            message = permission == .denied || permission == .restricted
+                ? "定位权限不可用，已改用物理网关的脱敏指纹。"
+                : "已用物理网关的脱敏指纹识别当前网络。"
+        case .interfaceClass:
+            suggestedName = fingerprint.value == "ethernet"
+                ? "当前有线网络"
+                : "当前网络"
+            message = "只能识别当前网络类型；在同类型网络间切换时可能共用此配置。"
+        }
+        return CurrentNetworkPayload(
+            success: true,
+            message: message,
+            errorCode: nil,
+            permissionState: permission,
+            suggestedName: suggestedName,
+            fingerprint: NetworkFingerprintDescriptor(
+                kind: fingerprint.kind,
+                value: fingerprint.value
+            )
+        )
+    }
 }
 
 struct ApplicationDescriptor: Codable, Equatable, Sendable {
