@@ -22,6 +22,8 @@ pub enum GatewayError {
     InvalidContract(&'static str),
     #[error("请求超出允许范围: {0}")]
     InvalidRequest(&'static str),
+    #[error("默认代理尚未通过当前配置的新鲜握手测试")]
+    DefaultOutboundUnverified,
     #[error("{0}状态互斥锁已损坏")]
     StateLockPoisoned(&'static str),
     #[error("后台数据库任务失败: {0}")]
@@ -58,6 +60,7 @@ impl GatewayError {
                 "NP_REQUEST_INVALID"
             }
             Self::Learning(error) => error.code(),
+            Self::DefaultOutboundUnverified => "NP_DEFAULT_OUTBOUND_UNVERIFIED",
             Self::Storage(StorageError::PolicyRevisionConflict) => "NP_POLICY_REVISION_CONFLICT",
             Self::Storage(StorageError::OutboundRevisionConflict) => {
                 "NP_OUTBOUND_REVISION_CONFLICT"

@@ -274,7 +274,7 @@ async fn authenticated_default_route_change_is_visible_in_status_and_catalog() {
         Err(error) => panic!("默认路由 RPC 测试 ID 创建失败: {error}"),
     };
     let outbound = match OutboundReference::new(
-        outbound_id,
+        outbound_id.clone(),
         OutboundKind::Socks5,
         Some("127.0.0.1"),
         Some(1_080),
@@ -288,6 +288,44 @@ async fn authenticated_default_route_change_is_visible_in_status_and_catalog() {
         panic!("默认路由 RPC 测试出口保存失败: {error}");
     }
     let service = ControlRpcService::new(gateway.clone(), SessionCapability::from_token([7; 32]));
+
+    let unverified = service
+        .set_default_route(Request::new(SetDefaultRouteRequest {
+            context: Some(context([7; 32], "set-default-route-unverified")),
+            expected_routing_revision: 1,
+            route: Some(set_default_route_request::Route::OutboundId(
+                "primary".to_owned(),
+            )),
+        }))
+        .await;
+    assert!(matches!(
+        unverified,
+        Ok(value)
+            if value.get_ref().routing_revision == 0
+                && value.get_ref().snapshot.is_none()
+                && matches!(
+                    value.get_ref().error.as_ref(),
+                    Some(error) if error.code == "NP_DEFAULT_OUTBOUND_UNVERIFIED"
+                )
+    ));
+    let unchanged = gateway
+        .status()
+        .await
+        .unwrap_or_else(|error| panic!("未验证默认路由状态读取失败: {error}"));
+    assert_eq!(unchanged.routing.revision(), 1);
+    assert!(matches!(
+        unchanged.routing.route(),
+        nonproxy_storage::DefaultRoute::Direct
+    ));
+    assert!(unchanged.pending.is_none());
+
+    let now = crate::clock::unix_time_ms()
+        .unwrap_or_else(|error| panic!("默认路由测试时间读取失败: {error}"));
+    if let Err(error) =
+        gateway.report_outbound_health(outbound_id, 1, RuntimeState::Ready, Some(24), now)
+    {
+        panic!("默认路由测试健康状态保存失败: {error}");
+    }
 
     let changed = service
         .set_default_route(Request::new(SetDefaultRouteRequest {

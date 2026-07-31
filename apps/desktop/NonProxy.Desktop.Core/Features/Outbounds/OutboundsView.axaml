@@ -338,7 +338,7 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <TextBlock Theme="{StaticResource NpMutedText}"
-                               Text="“测试握手”只验证代理可连接；“验证出口”才会保存带签名的公网来源回执。" />
+                               Text="代理必须先通过新鲜握手测试才能设为默认；“验证出口”才会保存带签名的公网来源回执。" />
                 </StackPanel>
             </Border>
         </StackPanel>

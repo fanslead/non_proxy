@@ -140,6 +140,7 @@ public sealed class OutboundsViewTests
             null,
             null,
             SupportsDefaultRoute: true,
+            IsHandshakeVerified: true,
             CanVerifyExit: true);
 
         public Task<OutboundCatalog> ListAsync(

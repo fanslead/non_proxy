@@ -8,6 +8,7 @@ use nonproxy_model::{
     PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction,
 };
 use nonproxy_policy_compiler::{CompileCapabilities, CompileError};
+use nonproxy_proto::events::v1::RuntimeState;
 use nonproxy_storage::{
     DefaultRoute, LearningPolicySelection, OutboundKind, OutboundReference, PolicyDatabase,
     ProviderAck, StorageError,
@@ -102,6 +103,7 @@ async fn selecting_default_proxy_stages_a_proxy_default_snapshot() {
     if let Err(error) = gateway.save_outbounds(vec![(outbound.clone(), None)]).await {
         panic!("默认代理测试出口保存失败: {error}");
     }
+    mark_outbound_ready(&gateway, &outbound);
 
     let update = gateway
         .set_default_route_and_stage(DefaultRoute::Proxy(outbound.id().clone()), 1)
@@ -135,6 +137,7 @@ async fn rollback_restores_the_source_snapshot_default_route() {
     if let Err(error) = gateway.save_outbounds(vec![(outbound.clone(), None)]).await {
         panic!("回滚测试出口保存失败: {error}");
     }
+    mark_outbound_ready(&gateway, &outbound);
     let proxy = gateway
         .set_default_route_and_stage(DefaultRoute::Proxy(outbound.id().clone()), 1)
         .await;
@@ -529,6 +532,23 @@ fn proxy_outbound(id: &str) -> OutboundReference {
         panic!("测试出口无效: {outbound:?}");
     };
     outbound
+}
+
+fn mark_outbound_ready(gateway: &Gateway, outbound: &OutboundReference) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .and_then(|value| u64::try_from(value.as_millis()).ok())
+        .unwrap_or_else(|| panic!("测试系统时间无效"));
+    if let Err(error) = gateway.report_outbound_health(
+        outbound.id().clone(),
+        outbound.revision(),
+        RuntimeState::Ready,
+        Some(20),
+        now,
+    ) {
+        panic!("测试出口健康状态保存失败: {error}");
+    }
 }
 
 async fn activate(gateway: &Gateway, snapshot: &nonproxy_gatewayd::PublishedSnapshot) {

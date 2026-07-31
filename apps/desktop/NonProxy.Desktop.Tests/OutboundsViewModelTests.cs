@@ -60,7 +60,8 @@ public sealed class OutboundsViewModelTests
                 "127.0.0.1:1080",
                 "未验证",
                 null,
-                null),
+                null,
+                SupportsDefaultRoute: true),
             new OutboundListItem(
                 "backup",
                 "B Backup",
@@ -77,11 +78,17 @@ public sealed class OutboundsViewModelTests
         await viewModel.RefreshCommand.ExecuteAsync(null);
         var selected = viewModel.Items[0];
 
+        Assert.False(selected.CanSetAsDefault);
+        Assert.Equal("需先通过握手测试", selected.DefaultEligibilityLabel);
+
         await viewModel.TestCommand.ExecuteAsync(selected);
 
         Assert.Equal("office", outboundService.LastTestedOutboundId);
         Assert.Equal("代理握手可用", viewModel.Items[0].Health);
         Assert.Equal(TimeSpan.FromMilliseconds(28), viewModel.Items[0].Latency);
+        Assert.True(viewModel.Items[0].IsHandshakeVerified);
+        Assert.True(viewModel.Items[0].CanSetAsDefault);
+        Assert.Equal(string.Empty, viewModel.Items[0].DefaultEligibilityLabel);
         Assert.Equal("未验证", viewModel.Items[1].Health);
         Assert.Contains("不代表公网出口", viewModel.OperationMessage, StringComparison.Ordinal);
     }
@@ -167,7 +174,8 @@ public sealed class OutboundsViewModelTests
                 "未验证",
                 null,
                 null,
-                SupportsDefaultRoute: true));
+                SupportsDefaultRoute: true,
+                IsHandshakeVerified: true));
         using var services = TestPlatformServices.Create(
             configure: collection =>
                 collection.AddSingleton<IOutboundService>(outboundService));

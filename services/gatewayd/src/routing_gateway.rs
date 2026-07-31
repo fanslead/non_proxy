@@ -1,5 +1,8 @@
 use nonproxy_model::{DecisionSpec, FailureMode, RouteAction};
-use nonproxy_storage::{DefaultRoute, OutboundReference, RoutingSettings, StorageError};
+use nonproxy_proto::events::v1::RuntimeState;
+use nonproxy_storage::{
+    DefaultRoute, OutboundKind, OutboundReference, RoutingSettings, StorageError,
+};
 
 use crate::{
     Gateway, GatewayError, PublishedSnapshot,
@@ -53,6 +56,8 @@ impl Gateway {
     ) -> Result<StagedRoutingSettings, GatewayError> {
         let _operation = self.mutation_gate.lock().await;
         let now = unix_time_ms()?;
+        self.require_verified_default_proxy(&route, expected_revision, now)
+            .await?;
         let capabilities = self.capabilities().clone();
         let system_policy_config = self.system_policy_config.clone();
         self.database
@@ -83,6 +88,41 @@ impl Gateway {
                 })
             })
             .await
+    }
+
+    async fn require_verified_default_proxy(
+        &self,
+        route: &DefaultRoute,
+        expected_revision: u64,
+        now_unix_ms: u64,
+    ) -> Result<(), GatewayError> {
+        let DefaultRoute::Proxy(outbound_id) = route else {
+            return Ok(());
+        };
+        let outbound_id = outbound_id.clone();
+        let outbound = self
+            .database
+            .run(move |database| {
+                let routing = database.routing_settings().get()?;
+                if expected_revision == 0 || routing.revision() != expected_revision {
+                    return Err(StorageError::RoutingRevisionConflict.into());
+                }
+                Ok(database.outbounds().get(&outbound_id)?)
+            })
+            .await?;
+        let Some(outbound) = outbound else {
+            return Err(StorageError::DefaultOutboundUnavailable.into());
+        };
+        if !outbound.enabled() || outbound.kind() != OutboundKind::Socks5 {
+            return Err(StorageError::DefaultOutboundUnavailable.into());
+        }
+        if !matches!(
+            self.outbound_health(&outbound, now_unix_ms)?,
+            Some(observation) if observation.state == RuntimeState::Ready
+        ) {
+            return Err(GatewayError::DefaultOutboundUnverified);
+        }
+        Ok(())
     }
 
     pub(crate) async fn stage_rollback_with_route(

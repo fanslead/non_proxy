@@ -11,6 +11,18 @@ internal static class OutboundContractMapper
 
     public static OutboundListItem ToItem(OutboundSummary outbound)
     {
+        TimeSpan? latency = outbound.Latency is null
+            ? null
+            : ToTimeSpan(outbound.Latency);
+        DateTimeOffset? lastCheckedAt = outbound.LastCheckedAt is null
+            ? null
+            : ToDateTimeOffset(outbound.LastCheckedAt);
+        var handshakeVerified = outbound.Health == RuntimeState.Ready;
+        if (handshakeVerified && (latency is null || lastCheckedAt is null))
+        {
+            throw InvalidProbeContract();
+        }
+
         return new OutboundListItem(
             outbound.Id,
             string.IsNullOrWhiteSpace(outbound.DisplayName)
@@ -19,12 +31,11 @@ internal static class OutboundContractMapper
             KindLabel(outbound.Kind),
             EndpointLabel(outbound.EndpointHost, outbound.EndpointPort),
             HealthLabel(outbound.Health),
-            outbound.Latency is null ? null : ToTimeSpan(outbound.Latency),
-            outbound.LastCheckedAt is null
-                ? null
-                : ToDateTimeOffset(outbound.LastCheckedAt),
+            latency,
+            lastCheckedAt,
             outbound.IsDefault,
             SupportsDefaultRoute(outbound),
+            handshakeVerified,
             CanVerifyExit(outbound));
     }
 

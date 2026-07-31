@@ -314,6 +314,8 @@ public sealed partial class GatewayOutboundService : IOutboundService
             "NP_ROUTING_REVISION_CONFLICT" => "默认路由已被其他操作修改，请刷新后重试。",
             "NP_DEFAULT_OUTBOUND_UNAVAILABLE"
                 => "该代理已不存在、已停用或能力不足，请刷新列表。",
+            "NP_DEFAULT_OUTBOUND_UNVERIFIED"
+                => "该代理尚未通过新鲜握手测试，请先点击“测试握手”再设为默认。",
             "NP_SNAPSHOT_ALREADY_PENDING"
                 => "已有路由快照等待系统组件确认，请稍后刷新再试。",
             "NP_POLICY_COMPILE_REJECTED"

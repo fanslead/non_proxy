@@ -931,10 +931,12 @@ RoutingSettings
 
 1. 校验 revision 未过期。
 2. 校验代理出口存在、启用且可承载完整网关。
-3. 用所选出口生成 fail-closed 的默认 `PROXY` decision。
-4. 编译包含该默认 decision 的完整不可变快照。
-5. 更新 `routing_settings` 并递增 revision。
-6. 写入唯一 pending 快照和审计事件。
+3. 校验当前出口配置 revision 在 60 秒内取得 `READY` 握手观察；进程重启、配置变化、
+   失败或过期均必须重新测试。
+4. 用所选出口生成 fail-closed 的默认 `PROXY` decision。
+5. 编译包含该默认 decision 的完整不可变快照。
+6. 更新 `routing_settings` 并递增 revision。
+7. 写入唯一 pending 快照和审计事件。
 
 任一步失败都回滚默认路由和快照，不能出现权威配置与待确认快照内容分裂。
 每个新快照还会由可信构建器追加 macOS gatewayd 防回环系统规则；客户端提交的
@@ -1318,7 +1320,7 @@ macOS 桌面端还可通过 ABI v6 原生桥只读调用 `SCDynamicStoreCopyProx
 
 网关复用数据面的当前出口加载器和系统凭据引用，实际完成 HTTP CONNECT 或 SOCKS5 TCP 握手。成功结果记录完整握手耗时；失败只返回稳定错误码和去敏提示，不回传连接器内部错误、用户名、密码、凭据引用或原始配置。
 
-健康观察保存在进程内的有界注册表中，并同时绑定 `outbound_id` 与配置 revision。配置 revision 变化后旧结果立即失效；观察超过 60 秒后恢复为“未验证”。`OutboundSummary` 返回 `health`、`last_checked_at` 和 `latency`，macOS 与 Windows 共享桌面层使用同一映射。
+健康观察保存在进程内的有界注册表中，并同时绑定 `outbound_id` 与配置 revision。配置 revision 变化后旧结果立即失效；观察超过 60 秒后恢复为“未验证”。`OutboundSummary` 返回 `health`、`last_checked_at` 和 `latency`，macOS 与 Windows 共享桌面层使用同一映射。`READY` 若缺少时间或延迟属于无效控制契约，客户端不得据此开放默认代理操作。
 
 该测试只证明“所选代理能够对固定目标完成 TCP 代理握手”，不能证明以下事项：
 
@@ -1404,9 +1406,10 @@ Service 一并恢复。任何平台都不能先切服务端密钥。
 ### 15.5 默认代理选择
 
 保存或测试一个代理不会自动改变默认路径。只有用户显式点击“设为默认”，且
-`SetDefaultRoute` 通过鉴权、revision、出口可用性和策略能力校验后，系统才生成
-新的待确认快照。未命中应用/网站直连规则的流量使用该快照中的默认代理；直连规则
-仍具有更高的显式策略优先级。
+`SetDefaultRoute` 通过鉴权、routing revision、出口可用性、策略能力和当前配置的
+新鲜 `READY` 握手校验后，系统才生成新的待确认快照。门禁位于 `gatewayd` 权威写入
+路径内，桌面端禁用按钮只是提前反馈，不能替代服务端检查。未命中应用/网站直连规则
+的流量使用该快照中的默认代理；直连规则仍具有更高的显式策略优先级。
 
 桌面端必须区分三种事实：
 
@@ -1421,6 +1424,9 @@ HTTP CONNECT 只具备 TCP 能力，在完整网关捕获 TCP/UDP 的配置下�
 默认出口；共享桌面端会禁用其“设为默认”操作并显示“不支持全局默认”。SOCKS5
 只有同时声明 TCP、UDP、IPv4 和 IPv6 且处于启用状态时才显示可选。用户仍可把
 这些出口用于能力匹配的显式代理规则。
+
+完整门禁、失败原子性与回滚边界见
+[ADR-0013](ADR/0013-require-fresh-handshake-before-default-route.md)。
 
 ## 16. 第三方客户端适配器
 

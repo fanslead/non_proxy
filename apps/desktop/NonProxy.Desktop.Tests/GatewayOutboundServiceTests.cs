@@ -56,9 +56,41 @@ public sealed class GatewayOutboundServiceTests
         Assert.Equal<ulong>(3, catalog.RoutingRevision);
         Assert.True(item.IsDefault);
         Assert.True(item.SupportsDefaultRoute);
+        Assert.True(item.IsHandshakeVerified);
         Assert.Equal("代理握手可用", item.Health);
         Assert.Equal(TimeSpan.FromMilliseconds(42), item.Latency);
         Assert.Equal(checkedAt, item.LastCheckedAt);
+    }
+
+    [Fact]
+    public async Task ListRejectsReadyHealthWithoutCompleteObservationEvidence()
+    {
+        var client = new StubControlRpcClient
+        {
+            OutboundsResponse = new ListOutboundsResponse
+            {
+                Page = new PageResponse(),
+                RoutingRevision = 1,
+                Outbounds =
+                {
+                    new OutboundSummary
+                    {
+                        Id = "office",
+                        Kind = OutboundKind.Socks5,
+                        Enabled = true,
+                        Health = NonProxy.Events.V1.RuntimeState.Ready,
+                        LastCheckedAt = Timestamp.FromDateTimeOffset(
+                            DateTimeOffset.UtcNow),
+                    },
+                },
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var error = await Assert.ThrowsAsync<ControlServiceException>(() =>
+            service.ListAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("NP_CONTROL_CONTRACT_INVALID", error.Code);
     }
 
     [Fact]
@@ -285,6 +317,31 @@ public sealed class GatewayOutboundServiceTests
         Assert.False(result.Applied);
         Assert.Equal((ulong?)9, result.SnapshotVersion);
         Assert.Contains("等待系统组件确认", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SetDefaultExplainsThatAFreshHandshakeIsRequired()
+    {
+        var client = new StubControlRpcClient
+        {
+            SetDefaultRouteResponse = new SetDefaultRouteResponse
+            {
+                Error = new ErrorDetail
+                {
+                    Code = "NP_DEFAULT_OUTBOUND_UNVERIFIED",
+                },
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var result = await service.SetDefaultAsync(
+            "office",
+            4,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.Accepted);
+        Assert.Equal("NP_DEFAULT_OUTBOUND_UNVERIFIED", result.Code);
+        Assert.Contains("测试握手", result.Message, StringComparison.Ordinal);
     }
 
     [Fact]

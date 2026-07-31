@@ -151,16 +151,22 @@ public sealed record OutboundListItem(
     DateTimeOffset? LastCheckedAt,
     bool IsDefault = false,
     bool SupportsDefaultRoute = false,
+    bool IsHandshakeVerified = false,
     bool CanVerifyExit = false,
     ExitVerificationReceipt? ExitReceipt = null)
 {
-    public bool CanSetAsDefault => !IsDefault && SupportsDefaultRoute;
+    public bool CanSetAsDefault =>
+        !IsDefault && SupportsDefaultRoute && IsHandshakeVerified;
 
     public string DefaultLabel => IsDefault ? "默认代理配置" : string.Empty;
 
-    public string DefaultEligibilityLabel => !IsDefault && !SupportsDefaultRoute
-        ? "不支持全局默认"
-        : string.Empty;
+    public string DefaultEligibilityLabel => (IsDefault, SupportsDefaultRoute, IsHandshakeVerified)
+        switch
+    {
+        (false, false, _) => "不支持全局默认",
+        (false, true, false) => "需先通过握手测试",
+        _ => string.Empty,
+    };
 
     public string LatencyLabel => Latency is { } value
         ? $"{Math.Ceiling(value.TotalMilliseconds):0} ms"

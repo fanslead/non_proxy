@@ -239,7 +239,9 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
                         Health = result.Health,
                         Latency = result.Latency,
                         LastCheckedAt = result.CheckedAt,
+                        IsHandshakeVerified = result.Healthy,
                     };
+                    SetDefaultCommand.NotifyCanExecuteChanged();
                 }
 
                 OperationMessage = result.Message;
