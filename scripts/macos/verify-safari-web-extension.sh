@@ -91,7 +91,12 @@ fi
 file "${binary}" | grep -F "Mach-O" >/dev/null
 otool -L "${binary}" | grep -F \
     "/System/Library/Frameworks/SafariServices.framework/" >/dev/null
-nm -g "${binary}" | grep -F "SafariWebExtensionHandler" >/dev/null
+for architecture in ${extension_architectures}; do
+    if ! otool -arch "${architecture}" -ov "${binary}" |
+        grep -F "SafariWebExtensionHandler" >/dev/null; then
+        fail "Safari 扩展 ${architecture} 二进制缺少 Principal Class"
+    fi
+done
 
 if ! diff -qr "${source_root}" "${resources}" >/dev/null; then
     fail "Safari App Extension 资源与当前浏览器构建产物不一致"
