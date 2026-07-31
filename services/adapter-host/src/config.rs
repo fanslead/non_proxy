@@ -10,8 +10,10 @@ use crate::AdapterHostError;
 
 const STATE_DIRECTORY_ENVIRONMENT: &str = "NONPROXY_ADAPTER_STATE_DIR";
 const SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_ADAPTER_SOCKET_PATH";
+const BUNDLE_FINGERPRINT_ENVIRONMENT: &str = "NONPROXY_ADAPTER_BUNDLE_FINGERPRINT";
 const CAPABILITY_FILE_NAME: &str = "adapter.capability";
 const CATALOG_FILE_NAME: &str = "installations.json";
+const DEVELOPMENT_FINGERPRINT: &str = "development";
 #[cfg(target_os = "macos")]
 const MACOS_STATE_PATH: &str = "Library/Group Containers/group.com.nonproxy.shared/Library/Application Support/NonProxy/adapter-host";
 
@@ -19,6 +21,7 @@ const MACOS_STATE_PATH: &str = "Library/Group Containers/group.com.nonproxy.shar
 pub struct AdapterHostConfig {
     state_directory: PathBuf,
     socket_path: PathBuf,
+    bundle_fingerprint: String,
 }
 
 impl AdapterHostConfig {
@@ -29,15 +32,30 @@ impl AdapterHostConfig {
         let socket_path = env::var_os(SOCKET_PATH_ENVIRONMENT)
             .map(PathBuf::from)
             .unwrap_or_else(|| state_directory.join("adapter-host.sock"));
-        Self::new(state_directory, socket_path)
+        let bundle_fingerprint = match env::var(BUNDLE_FINGERPRINT_ENVIRONMENT) {
+            Ok(value) => validate_bundle_fingerprint(value)?,
+            Err(env::VarError::NotPresent) => DEVELOPMENT_FINGERPRINT.to_owned(),
+            Err(env::VarError::NotUnicode(_)) => return Err(AdapterHostError::Configuration),
+        };
+        Self::build(state_directory, socket_path, bundle_fingerprint)
     }
 
     pub fn new(
         state_directory: impl Into<PathBuf>,
         socket_path: impl Into<PathBuf>,
     ) -> Result<Self, AdapterHostError> {
-        let state_directory = state_directory.into();
-        let socket_path = socket_path.into();
+        Self::build(
+            state_directory.into(),
+            socket_path.into(),
+            DEVELOPMENT_FINGERPRINT.to_owned(),
+        )
+    }
+
+    fn build(
+        state_directory: PathBuf,
+        socket_path: PathBuf,
+        bundle_fingerprint: String,
+    ) -> Result<Self, AdapterHostError> {
         if !state_directory.is_absolute()
             || !socket_path.is_absolute()
             || socket_path.parent() != Some(state_directory.as_path())
@@ -47,6 +65,7 @@ impl AdapterHostConfig {
         Ok(Self {
             state_directory,
             socket_path,
+            bundle_fingerprint,
         })
     }
 
@@ -75,6 +94,11 @@ impl AdapterHostConfig {
     }
 
     #[must_use]
+    pub fn bundle_fingerprint(&self) -> &str {
+        &self.bundle_fingerprint
+    }
+
+    #[must_use]
     pub fn catalog_path(&self) -> PathBuf {
         self.state_directory.join(CATALOG_FILE_NAME)
     }
@@ -88,6 +112,17 @@ impl AdapterHostConfig {
     pub const fn capability_file_name(&self) -> &'static str {
         CAPABILITY_FILE_NAME
     }
+}
+
+fn validate_bundle_fingerprint(value: String) -> Result<String, AdapterHostError> {
+    if value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    {
+        return Ok(value);
+    }
+    Err(AdapterHostError::Configuration)
 }
 
 fn reject_symlink(path: &Path) -> Result<(), AdapterHostError> {
@@ -113,7 +148,7 @@ fn default_state_directory() -> Result<PathBuf, AdapterHostError> {
 
 #[cfg(test)]
 mod tests {
-    use super::AdapterHostConfig;
+    use super::{AdapterHostConfig, validate_bundle_fingerprint};
 
     #[test]
     fn socket_must_be_a_direct_child_of_state_directory() {
@@ -123,5 +158,13 @@ mod tests {
 
         assert!(valid.is_ok());
         assert!(escaped.is_err());
+    }
+
+    #[test]
+    fn bundle_fingerprint_requires_canonical_sha256() {
+        assert!(validate_bundle_fingerprint("a".repeat(64)).is_ok());
+        assert!(validate_bundle_fingerprint("A".repeat(64)).is_err());
+        assert!(validate_bundle_fingerprint("a".repeat(63)).is_err());
+        assert!(validate_bundle_fingerprint("g".repeat(64)).is_err());
     }
 }

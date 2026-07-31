@@ -66,38 +66,45 @@ build_product() {
         --product "${product}"
 }
 
-build_gateway() {
+build_rust_services() {
     local rust_profile_directory=debug
-    local gateway_target_root="${repo_root}/target"
+    local rust_target_root="${repo_root}/target"
     if [[ "${configuration}" == Release ]]; then
         rust_profile_directory=release
     fi
 
-    build_gateway_target() {
+    build_service_target() {
         local target=$1
         if [[ "${configuration}" == Release ]]; then
-            CARGO_TARGET_DIR="${gateway_target_root}" cargo build \
+            CARGO_TARGET_DIR="${rust_target_root}" cargo build \
                 --manifest-path "${repo_root}/Cargo.toml" \
                 -p nonproxy-gatewayd \
+                -p nonproxy-adapter-host \
                 --release \
                 --target "${target}"
         else
-            CARGO_TARGET_DIR="${gateway_target_root}" cargo build \
+            CARGO_TARGET_DIR="${rust_target_root}" cargo build \
                 --manifest-path "${repo_root}/Cargo.toml" \
                 -p nonproxy-gatewayd \
+                -p nonproxy-adapter-host \
                 --target "${target}"
         fi
     }
 
     if [[ "${architecture}" == universal ]]; then
-        build_gateway_target aarch64-apple-darwin
-        build_gateway_target x86_64-apple-darwin
-        gateway_temporary_directory=$(mktemp -d)
-        gateway_source="${gateway_temporary_directory}/nonproxy-gatewayd"
+        build_service_target aarch64-apple-darwin
+        build_service_target x86_64-apple-darwin
+        rust_temporary_directory=$(mktemp -d)
+        gateway_source="${rust_temporary_directory}/nonproxy-gatewayd"
+        adapter_host_source="${rust_temporary_directory}/nonproxy-adapter-host"
         lipo -create \
-            "${gateway_target_root}/aarch64-apple-darwin/${rust_profile_directory}/nonproxy-gatewayd" \
-            "${gateway_target_root}/x86_64-apple-darwin/${rust_profile_directory}/nonproxy-gatewayd" \
+            "${rust_target_root}/aarch64-apple-darwin/${rust_profile_directory}/nonproxy-gatewayd" \
+            "${rust_target_root}/x86_64-apple-darwin/${rust_profile_directory}/nonproxy-gatewayd" \
             -output "${gateway_source}"
+        lipo -create \
+            "${rust_target_root}/aarch64-apple-darwin/${rust_profile_directory}/nonproxy-adapter-host" \
+            "${rust_target_root}/x86_64-apple-darwin/${rust_profile_directory}/nonproxy-adapter-host" \
+            -output "${adapter_host_source}"
         return
     fi
 
@@ -110,8 +117,9 @@ build_gateway() {
             rust_target=x86_64-apple-darwin
             ;;
     esac
-    build_gateway_target "${rust_target}"
-    gateway_source="${gateway_target_root}/${rust_target}/${rust_profile_directory}/nonproxy-gatewayd"
+    build_service_target "${rust_target}"
+    gateway_source="${rust_target_root}/${rust_target}/${rust_profile_directory}/nonproxy-gatewayd"
+    adapter_host_source="${rust_target_root}/${rust_target}/${rust_profile_directory}/nonproxy-adapter-host"
 }
 
 bin_path_for_build() {
@@ -139,16 +147,17 @@ build_product NonProxyMacHostBridge
 build_product NonProxyNativeMessagingHost
 build_product NonProxySafariWebExtension
 build_browser_extensions
-gateway_temporary_directory=
+rust_temporary_directory=
 gateway_source=
-cleanup_gateway_build() {
-    if [[ -n "${gateway_temporary_directory}" &&
-          -d "${gateway_temporary_directory}" ]]; then
-        rm -rf "${gateway_temporary_directory}"
+adapter_host_source=
+cleanup_rust_build() {
+    if [[ -n "${rust_temporary_directory}" &&
+          -d "${rust_temporary_directory}" ]]; then
+        rm -rf "${rust_temporary_directory}"
     fi
 }
-trap cleanup_gateway_build EXIT
-build_gateway
+trap cleanup_rust_build EXIT
+build_rust_services
 bin_path=$(bin_path_for_build)
 
 extensions_root="${app_bundle}/Contents/Library/SystemExtensions"
@@ -160,6 +169,8 @@ dns_bundle="${extensions_root}/com.nonproxy.desktop.dns-proxy.systemextension"
 bridge_library="${frameworks_root}/libNonProxyMacHostBridge.dylib"
 gateway_agent_plist="${launch_agents_root}/com.nonproxy.gatewayd.plist"
 gateway_binary="${resources_root}/nonproxy-gatewayd"
+adapter_host_agent_plist="${launch_agents_root}/com.nonproxy.adapter-host.plist"
+adapter_host_binary="${resources_root}/nonproxy-adapter-host"
 native_messaging_host="${resources_root}/nonproxy-native-messaging-host"
 browser_extensions_source="${repo_root}/packages/browser-extension/dist"
 browser_extensions_root="${resources_root}/BrowserExtensions"
@@ -189,11 +200,17 @@ install -m 0755 \
 rm -f \
     "${gateway_agent_plist}" \
     "${gateway_binary}" \
+    "${adapter_host_agent_plist}" \
+    "${adapter_host_binary}" \
     "${native_messaging_host}"
 install -m 0644 \
     "${packaging_root}/com.nonproxy.gatewayd.plist" \
     "${gateway_agent_plist}"
 install -m 0755 "${gateway_source}" "${gateway_binary}"
+install -m 0644 \
+    "${packaging_root}/com.nonproxy.adapter-host.plist" \
+    "${adapter_host_agent_plist}"
+install -m 0755 "${adapter_host_source}" "${adapter_host_binary}"
 install -m 0755 \
     "${bin_path}/NonProxyNativeMessagingHost" \
     "${native_messaging_host}"
@@ -317,6 +334,10 @@ codesign \
     "${bridge_sign_args[@]}" \
     --identifier com.nonproxy.gatewayd \
     "${gateway_binary}"
+codesign \
+    "${bridge_sign_args[@]}" \
+    --identifier com.nonproxy.adapter-host \
+    "${adapter_host_binary}"
 codesign "${bridge_sign_args[@]}" "${native_messaging_host}"
 
 gateway_team_identifier=$(
@@ -340,11 +361,26 @@ gateway_bundle_fingerprint=$(
         shasum -a 256 |
         awk '{print $1}'
 )
+adapter_host_binary_digest=$(shasum -a 256 "${adapter_host_binary}" | awk '{print $1}')
+adapter_host_plist_digest=$(
+    shasum -a 256 "${packaging_root}/com.nonproxy.adapter-host.plist" |
+        awk '{print $1}'
+)
+adapter_host_bundle_fingerprint=$(
+    printf '%s%s' "${adapter_host_binary_digest}" "${adapter_host_plist_digest}" |
+        shasum -a 256 |
+        awk '{print $1}'
+)
 "${plist_buddy}" -c "Add :EnvironmentVariables dict" \
     "${gateway_agent_plist}"
 "${plist_buddy}" -c \
     "Add :EnvironmentVariables:NONPROXY_GATEWAY_BUNDLE_FINGERPRINT string ${gateway_bundle_fingerprint}" \
     "${gateway_agent_plist}"
+"${plist_buddy}" -c "Add :EnvironmentVariables dict" \
+    "${adapter_host_agent_plist}"
+"${plist_buddy}" -c \
+    "Add :EnvironmentVariables:NONPROXY_ADAPTER_BUNDLE_FINGERPRINT string ${adapter_host_bundle_fingerprint}" \
+    "${adapter_host_agent_plist}"
 if [[ -n "${gateway_team_identifier}" &&
       "${gateway_team_identifier}" != "not set" ]]; then
     "${plist_buddy}" -c \

@@ -9,6 +9,7 @@ fi
 app_bundle=${1%/}
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 gateway_plist_template="${script_dir}/../../platform/macos/Packaging/com.nonproxy.gatewayd.plist"
+adapter_host_plist_template="${script_dir}/../../platform/macos/Packaging/com.nonproxy.adapter-host.plist"
 extensions_root="${app_bundle}/Contents/Library/SystemExtensions"
 transparent_bundle="${extensions_root}/com.nonproxy.desktop.transparent-proxy.systemextension"
 dns_bundle="${extensions_root}/com.nonproxy.desktop.dns-proxy.systemextension"
@@ -16,6 +17,8 @@ bridge_library="${app_bundle}/Contents/Frameworks/libNonProxyMacHostBridge.dylib
 launch_agents_root="${app_bundle}/Contents/Library/LaunchAgents"
 gateway_agent_plist="${launch_agents_root}/com.nonproxy.gatewayd.plist"
 gateway_binary="${app_bundle}/Contents/Resources/nonproxy-gatewayd"
+adapter_host_agent_plist="${launch_agents_root}/com.nonproxy.adapter-host.plist"
+adapter_host_binary="${app_bundle}/Contents/Resources/nonproxy-adapter-host"
 native_messaging_host="${app_bundle}/Contents/Resources/nonproxy-native-messaging-host"
 browser_extensions_source="${script_dir}/../../packages/browser-extension/dist"
 browser_extensions_root="${app_bundle}/Contents/Resources/BrowserExtensions"
@@ -118,13 +121,16 @@ fi
 launch_agent_count=$(find "${launch_agents_root}" \
     -mindepth 1 \
     -maxdepth 1 | wc -l | tr -d ' ')
-if [[ "${launch_agent_count}" != 1 ||
+if [[ "${launch_agent_count}" != 2 ||
       ! -f "${gateway_agent_plist}" ||
-      -L "${gateway_agent_plist}" ]]; then
-    echo "LaunchAgent 目录只能包含 NonProxy gatewayd 配置" >&2
+      -L "${gateway_agent_plist}" ||
+      ! -f "${adapter_host_agent_plist}" ||
+      -L "${adapter_host_agent_plist}" ]]; then
+    echo "LaunchAgent 目录只能包含 NonProxy gatewayd 与 adapter-host 配置" >&2
     exit 67
 fi
 plutil -lint "${gateway_agent_plist}" >/dev/null
+plutil -lint "${adapter_host_agent_plist}" >/dev/null
 assert_plist_value \
     "${gateway_agent_plist}" \
     Label \
@@ -137,6 +143,18 @@ assert_plist_value "${gateway_agent_plist}" RunAtLoad true
 assert_plist_value "${gateway_agent_plist}" KeepAlive true
 assert_plist_value "${gateway_agent_plist}" ProcessType Background
 assert_plist_value "${gateway_agent_plist}" ThrottleInterval 5
+assert_plist_value \
+    "${adapter_host_agent_plist}" \
+    Label \
+    com.nonproxy.adapter-host
+assert_plist_value \
+    "${adapter_host_agent_plist}" \
+    BundleProgram \
+    Contents/Resources/nonproxy-adapter-host
+assert_plist_value "${adapter_host_agent_plist}" RunAtLoad true
+assert_plist_value "${adapter_host_agent_plist}" KeepAlive true
+assert_plist_value "${adapter_host_agent_plist}" ProcessType Background
+assert_plist_value "${adapter_host_agent_plist}" ThrottleInterval 5
 gateway_bundle_fingerprint=$(
     /usr/libexec/PlistBuddy -c \
         "Print :EnvironmentVariables:NONPROXY_GATEWAY_BUNDLE_FINGERPRINT" \
@@ -145,6 +163,16 @@ gateway_bundle_fingerprint=$(
 if [[ ${#gateway_bundle_fingerprint} -ne 64 ||
       "${gateway_bundle_fingerprint}" == *[!0-9a-f]* ]]; then
     echo "LaunchAgent 缺少规范的 gatewayd 包指纹" >&2
+    exit 67
+fi
+adapter_host_bundle_fingerprint=$(
+    /usr/libexec/PlistBuddy -c \
+        "Print :EnvironmentVariables:NONPROXY_ADAPTER_BUNDLE_FINGERPRINT" \
+        "${adapter_host_agent_plist}"
+)
+if [[ ${#adapter_host_bundle_fingerprint} -ne 64 ||
+      "${adapter_host_bundle_fingerprint}" == *[!0-9a-f]* ]]; then
+    echo "LaunchAgent 缺少规范的 adapter-host 包指纹" >&2
     exit 67
 fi
 configured_exit_probe_endpoint=$(
@@ -171,13 +199,15 @@ if ! "${script_dir}/validate-exit-probe-config.sh" \
     "${configured_exit_probe_public_keys}"; then
     exit 67
 fi
-for forbidden_key in Program ProgramArguments; do
-    if /usr/libexec/PlistBuddy \
-        -c "Print :${forbidden_key}" \
-        "${gateway_agent_plist}" >/dev/null 2>&1; then
-        echo "LaunchAgent 必须仅使用可随 App 移动的 BundleProgram" >&2
-        exit 67
-    fi
+for plist in "${gateway_agent_plist}" "${adapter_host_agent_plist}"; do
+    for forbidden_key in Program ProgramArguments; do
+        if /usr/libexec/PlistBuddy \
+            -c "Print :${forbidden_key}" \
+            "${plist}" >/dev/null 2>&1; then
+            echo "LaunchAgent 必须仅使用可随 App 移动的 BundleProgram" >&2
+            exit 67
+        fi
+    done
 done
 if [[ ! -x "${gateway_binary}" || -L "${gateway_binary}" ]]; then
     echo "macOS App 缺少 gatewayd 可执行文件" >&2
@@ -236,6 +266,33 @@ if [[ "${NONPROXY_RESTRICTED_SIGNING:-0}" == 1 &&
       ( -z "${gateway_team_identifier}" ||
         "${gateway_team_identifier}" == "not set" ) ]]; then
     echo "正式受限签名的 gatewayd 缺少 TeamIdentifier" >&2
+    exit 67
+fi
+if [[ ! -x "${adapter_host_binary}" || -L "${adapter_host_binary}" ]]; then
+    echo "macOS App 缺少 adapter-host 可执行文件" >&2
+    exit 67
+fi
+file "${adapter_host_binary}" | grep -F "Mach-O" >/dev/null
+adapter_host_architectures=$(lipo -archs "${adapter_host_binary}")
+if [[ "${host_architectures}" != "${adapter_host_architectures}" ]]; then
+    echo "宿主与 adapter-host 架构不一致" >&2
+    exit 67
+fi
+codesign --verify --strict --verbose=2 "${adapter_host_binary}"
+adapter_host_identifier=$(
+    codesign -d --verbose=4 "${adapter_host_binary}" 2>&1 |
+        awk -F= '$1 == "Identifier" { print $2; exit }'
+)
+if [[ "${adapter_host_identifier}" != com.nonproxy.adapter-host ]]; then
+    echo "adapter-host 代码签名标识必须固定为 com.nonproxy.adapter-host" >&2
+    exit 67
+fi
+adapter_host_team_identifier=$(
+    codesign -d --verbose=4 "${adapter_host_binary}" 2>&1 |
+        awk -F= '$1 == "TeamIdentifier" { print $2; exit }'
+)
+if [[ "${adapter_host_team_identifier}" != "${gateway_team_identifier}" ]]; then
+    echo "adapter-host 与 gatewayd 的 TeamIdentifier 不一致" >&2
     exit 67
 fi
 if [[ ! -x "${native_messaging_host}" || -L "${native_messaging_host}" ]]; then
@@ -309,6 +366,17 @@ expected_gateway_fingerprint=$(
 )
 if [[ "${gateway_bundle_fingerprint}" != "${expected_gateway_fingerprint}" ]]; then
     echo "LaunchAgent 包指纹与已签名 gatewayd 或 plist 不一致" >&2
+    exit 67
+fi
+adapter_host_binary_digest=$(shasum -a 256 "${adapter_host_binary}" | awk '{print $1}')
+adapter_host_plist_digest=$(shasum -a 256 "${adapter_host_plist_template}" | awk '{print $1}')
+expected_adapter_host_fingerprint=$(
+    printf '%s%s' "${adapter_host_binary_digest}" "${adapter_host_plist_digest}" |
+        shasum -a 256 |
+        awk '{print $1}'
+)
+if [[ "${adapter_host_bundle_fingerprint}" != "${expected_adapter_host_fingerprint}" ]]; then
+    echo "LaunchAgent 包指纹与已签名 adapter-host 或 plist 不一致" >&2
     exit 67
 fi
 
@@ -465,4 +533,4 @@ assert_plist_value \
     NSSystemExtensionUsageDescription \
     "NonProxy 需要安装网络系统扩展，以便按应用和网站选择直连或指定代理。"
 codesign --verify --deep --strict --verbose=2 "${app_bundle}"
-echo "macOS App 已包含签名有效的系统扩展、Safari .appex、浏览器资产、Native Messaging Host 与 gatewayd。"
+echo "macOS App 已包含签名有效的系统扩展、Safari .appex、浏览器资产、Native Messaging Host、gatewayd 与 adapter-host。"

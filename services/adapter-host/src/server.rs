@@ -2,7 +2,10 @@ use std::future::Future;
 
 use nonproxy_local_auth::SessionCapability;
 
-use crate::{AdapterHostConfig, AdapterHostError, rpc_state::AdapterRpcService};
+use crate::{
+    AdapterHostConfig, AdapterHostError, rpc_state::AdapterRpcService,
+    runtime_identity::RuntimeIdentityGuard,
+};
 
 pub async fn run(config: AdapterHostConfig) -> Result<(), AdapterHostError> {
     run_with_shutdown(config, shutdown_signal()).await
@@ -34,6 +37,7 @@ async fn serve_platform(
     use tonic::transport::Server;
 
     let (listener, _guard) = crate::unix_socket::bind_private_socket(config.socket_path()).await?;
+    let _runtime_identity = RuntimeIdentityGuard::create(&config)?;
     let rpc = AdapterServiceServer::new(service)
         .max_decoding_message_size(AdapterRpcService::max_message_bytes())
         .max_encoding_message_size(AdapterRpcService::max_message_bytes());
@@ -54,6 +58,20 @@ async fn serve_platform(
     Err(AdapterHostError::Configuration)
 }
 
+#[cfg(unix)]
 async fn shutdown_signal() {
-    let _signal = tokio::signal::ctrl_c().await;
+    let terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate());
+    let Ok(mut terminate) = terminate else {
+        let _interrupt = tokio::signal::ctrl_c().await;
+        return;
+    };
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {}
+        _ = terminate.recv() => {}
+    }
+}
+
+#[cfg(not(unix))]
+async fn shutdown_signal() {
+    let _interrupt = tokio::signal::ctrl_c().await;
 }

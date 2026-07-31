@@ -12,6 +12,7 @@ mod path_validation;
 mod process_runner;
 mod rpc;
 mod rpc_state;
+mod runtime_identity;
 mod server;
 #[cfg(unix)]
 mod unix_socket;
