@@ -17,8 +17,9 @@ Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名
 共享桌面端已经加入当前网络一键直连：macOS 只在用户点击时采集当前物理网络并在宿主进程内生成隐私安全指纹，原始 SSID 不跨越原生边界；网络档案、网络作用域规则和待确认快照按 revision 编排，明确区分“已保存”“等待确认”和“已激活”。桌面生命周期使用跨平台托盘与原生菜单，关闭窗口只隐藏界面，恢复窗口和“只退出界面”是不同动作；系统/浅色/深色主题采用有界、原子、本地设置。控制事件作为页面失效信号，侧栏会显示订阅连接状态，中断重连后重新读取权威 RPC 快照，不把事件摘要当成本地事实。智能学习的实际入口位于当前浏览器标签页，桌面页不再提供无法关联标签页的伪开始按钮。
 
 活动记录现在保存并展示认证 Provider 解析出的应用签名、父应用与 Helper 归属。只有当前平台
-且签名身份完整的非系统记录才提供“让此应用始终直连”，并在明确确认后创建带 signer 约束、
-包含辅助进程的应用规则；旧记录、身份不足、跨平台和已有规则都会保持只读说明。规则保存后
+且签名身份完整的非系统记录才提供“让此应用始终直连”，并在明确确认后创建带 signer 约束
+的应用规则；macOS 可包含已经认证的辅助进程，Windows 当前只匹配精确 Win32 可执行文件。
+旧记录、身份不足、跨平台和已有规则都会保持只读说明。规则保存后
 继续等待 Provider ACK，页面不会把 pending 误报成已经生效。
 
 运行概览现在持续核对“完整网关”和“客户端协同”两条接入路径，不保存会过期的向导完成状态。完整网关只有在系统组件、默认代理、直连规则和活动数据面同时满足时显示基础就绪；客户端登记仍保持待同步/待路径证据。引导按钮只切换到既有权威页面，不会根据未知的 MDM、Always-On VPN 或第三方 TUN 猜测环境已经兼容。
@@ -26,6 +27,8 @@ Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名
 “全部规则”页可以二次确认后恢复上一份真正生效的配置。恢复点由后台从有效快照历史选取，操作同时绑定当前活动版本并原子恢复当时的默认路由；并发发布会拒绝旧确认，Provider ACK 前只显示等待确认。当前规则草稿不会被回滚操作删除。
 
 第三方客户端协同已覆盖 Surge、Clash/Mihomo 和 sing-box 的显式登记、活动快照无损投影、客户端原生校验、主配置与 sidecar 双文件事务、公开重载、配置确认和失败恢复。共享页面可用系统原生文件选择器选取客户端与当前配置，也保留绝对路径高级回退；所有选择结果仍由隔离 adapter-host 重新验证。页面独立显示候选校验、配置载入和真实路径，当前没有路径级证据时始终提示“尚未证明绕过 VPN”。Windows 复用同一页面，但 Adapter 命名管道未接入前保持明确不可用。
+
+应用直连页已经在 macOS 与 Windows 共用。Windows 目录从当前用户运行进程和系统注册应用中筛选可信 Win32 `.exe`，也可通过系统文件选择器补充；稳定身份直接来自 `FwpmGetAppIdFromFileName0`，只有通过 Authenticode 信任校验并取得证书 SHA-256 的应用才能创建规则。WFP TCP/UDP 运行时会重新核对进程路径对应的 ALE App ID 和同一 signer，Windows 不虚构 Helper 关系。MSIX/UWP 包目录与 ALE package identity 尚未接入，不能回退成文件名或展示名匹配；真实 Windows 上的 WinTrust/Catalog 签名、PID 复用与 WFP 命中仍按验收文档取证。
 
 正式签名 macOS 包的只读查询、安装、升级、卸载和完整生命周期验收使用 [macOS 系统组件验收手册](docs/MACOS_SYSTEM_ACCEPTANCE.md)。验收命令拒绝临时签名、非 `/Applications` 包和未经显式确认的系统变更，并输出带 SHA-256 清单的独立证据目录。
 
@@ -81,6 +84,7 @@ TCP/DNS/UDP/QUIC 验收使用
 - [上一有效快照恢复 ADR](docs/ADR/0030-restore-the-previous-effective-snapshot.md)
 - [有时限运行态路由覆盖 ADR](docs/ADR/0031-time-bounded-runtime-routing-overrides.md)
 - [活动证据创建签名应用规则 ADR](docs/ADR/0032-create-signed-app-rules-from-activity.md)
+- [Windows WFP 与 Authenticode 应用身份 ADR](docs/ADR/0033-bind-windows-app-rules-to-wfp-and-authenticode.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链

@@ -136,7 +136,7 @@ public sealed partial class ApplicationsViewModel : LoadableViewModel
                 application.StableIdentity,
                 PolicyAction.Direct,
                 ApplicationSignerId: application.SignerIdentity,
-                IncludeApplicationHelpers: true),
+                IncludeApplicationHelpers: application.IncludeHelpers),
             cancellationToken);
 
         OperationMessage = result.Message;

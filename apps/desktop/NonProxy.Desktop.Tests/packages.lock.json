@@ -375,6 +375,12 @@
           "NonProxy.Contracts": "[1.0.0, )"
         }
       },
+      "nonproxy.desktop.windows": {
+        "type": "Project",
+        "dependencies": {
+          "NonProxy.Desktop.Core": "[1.0.0, )"
+        }
+      },
       "Avalonia": {
         "type": "CentralTransitive",
         "requested": "[12.1.1, )",

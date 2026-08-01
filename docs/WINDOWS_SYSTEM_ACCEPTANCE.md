@@ -81,7 +81,7 @@ WDK 产物、Service 显示 Running 或策略显示 DIRECT，都不能单独代�
 这些 PowerShell 命令属于装有 SDK/WDK 的工程验收环境。Microsoft 不允许把
 `signtool.exe` 当普通产品依赖重新分发；消费级安装 bootstrap 必须改用
 `WinVerifyTrust`/Catalog Admin API 做等价验证。该 bootstrap 尚未落地，所以
-当前 Windows UI 保持“不可用”是有意的安全门，而不是遗漏一个启动 PowerShell
+当前 Windows 系统组件安装 UI 保持“不可用”是有意的安全门，而不是遗漏一个启动 PowerShell
 的按钮。
 
 ## 4. 系统生命周期验收
@@ -177,7 +177,9 @@ Remove-Item Env:\NONPROXY_ALLOW_WINDOWS_SYSTEM_MUTATION
 
 每个 VPN 组合至少执行：
 
-1. 默认 PROXY，指定应用 DIRECT；应用访问事先未知的 TCP/UDP 目标。
+1. 在应用直连页分别选择一个运行中的 Authenticode 应用和一个通过 `.exe` 选择器加入的
+   应用；确认目录显示的 signer 与运行时活动记录一致。再以默认 PROXY、指定应用 DIRECT
+   访问事先未知的 TCP/UDP 目标，并确认规则命中。
 2. 浏览器一个标签页网站 DIRECT，同时另一标签页保持 PROXY。
 3. DIRECT/PROXY 各自的 IPv4、IPv6、TCP、DNS UDP/TCP、connected UDP、
    `sendto`、空 UDP 与 QUIC。
@@ -185,6 +187,8 @@ Remove-Item Env:\NONPROXY_ALLOW_WINDOWS_SYSTEM_MUTATION
 5. 物理接口消失时 DIRECT 明确失败，不能静默回落到 VPN。
 6. DNS 探针失败时普通 TCP 捕获保持安全退化；DNS 与通用 UDP 不重复捕获。
 7. 队列饱和、畸形 context、未知 App ID 和进程退出时执行文档化失败语义。
+8. 使用无签名副本、同名不同路径、同路径不同 signer、应用升级、快速退出重启和 PID 复用
+   验证：无签名/错 signer 不得命中，合法同 signer 更新仍应命中同一 ALE App ID。
 
 ### 单条用例必须留存的四层证据
 
@@ -214,10 +218,14 @@ DIRECT 包出现在物理接口且不先进入第三方 VPN；仅比较公网 IP
 仓库已经提供发布目录、签名校验、Primitive Driver 安装/卸载、版本化复制、
 失败回滚、生命周期留证、Driver Verifier 安全门和 CI PowerShell 解析入口。
 
-当前开发环境不是 Windows，尚未执行 WDK C 构建、Hardware Dev Center 签名、
-SCM/UAC、Driver Verifier 或真实 VPN W4 验收。Avalonia Windows 宿主因此继续
+当前开发环境不是 Windows，尚未执行原生 Win32 应用目录/WinTrust/WFP 身份联合验收、WDK C
+构建、Hardware Dev Center 签名、SCM/UAC、Driver Verifier 或真实 VPN W4 验收。
+Avalonia Windows 宿主因此继续
 把系统组件显示为不可用；在签名 bootstrap 和上述 W2～W4 证据完成前不得改成
 “可安装”或“已确认直连”。
+
+MSIX/UWP 包目录、ALE package identity 与包发布者尚未实现，不属于当前 Win32 验收通过项；
+不得用文件名、展示名或普通路径结果替代包身份证据。
 
 ## 8. 官方依据
 

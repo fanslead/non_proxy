@@ -1,0 +1,142 @@
+using NonProxy.Desktop.Core.Platform;
+using NonProxy.Desktop.Windows.ApplicationCatalog;
+
+namespace NonProxy.Desktop.Tests;
+
+public sealed class WindowsApplicationCatalogTests
+{
+    [Fact]
+    public void StableIdentityDecoderMatchesWfpUtf16Normalization()
+    {
+        var bytes = "\\device\\harddiskvolume4\\apps\\office.exe\0"
+            .SelectMany(character => BitConverter.GetBytes(character))
+            .ToArray();
+
+        var identity = WindowsApplicationStableIdentity.Decode(bytes);
+
+        Assert.Equal(
+            "\\device\\harddiskvolume4\\apps\\office.exe",
+            identity);
+        Assert.Null(WindowsApplicationStableIdentity.Decode([1]));
+        Assert.Null(WindowsApplicationStableIdentity.Decode(
+            [0x61, 0x00, 0x00, 0x00, 0x62, 0x00]));
+        Assert.Equal(
+            "cert-sha256:039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+            WindowsApplicationStableIdentity.SignerIdentity([1, 2, 3]));
+        Assert.Null(WindowsApplicationStableIdentity.Decode([0x00, 0xd8]));
+    }
+
+    [Fact]
+    public async Task CatalogKeepsOnlyTrustedIdentitiesAndMergesRunningState()
+    {
+        var discovery = new FixedDiscovery(
+            new("C:\\Apps\\Office.exe", "Office", false),
+            new("C:\\Apps\\Office-running.exe", "Office", true),
+            new("C:\\Apps\\Unsigned.exe", "Unsigned", true));
+        var identity = new FixedIdentityReader(candidate => candidate.DisplayName switch
+        {
+            "Unsigned" => null,
+            _ => Application(candidate.DisplayName, candidate.IsRunning),
+        });
+        var catalog = new WindowsApplicationCatalog(
+            discovery,
+            identity,
+            new FixedPicker(null));
+
+        var snapshot = await catalog.ListAsync(
+            TestContext.Current.CancellationToken);
+
+        var application = Assert.Single(snapshot.Applications);
+        Assert.True(snapshot.IsAvailable);
+        Assert.True(snapshot.CanChooseApplication);
+        Assert.True(application.IsRunning);
+        Assert.False(application.IncludeHelpers);
+        Assert.Contains("1 个可信应用", snapshot.Message, StringComparison.Ordinal);
+        Assert.Contains("2 个项目", snapshot.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PickerRejectsUnsignedExecutableWithoutCreatingASelection()
+    {
+        var catalog = new WindowsApplicationCatalog(
+            new FixedDiscovery(),
+            new FixedIdentityReader(_ => null),
+            new FixedPicker("C:\\Apps\\Unsigned.exe"));
+
+        var result = await catalog.ChooseAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Application);
+        Assert.Contains("可信 Authenticode 签名", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PickerFailureReturnsSafeUnavailableSelection()
+    {
+        var catalog = new WindowsApplicationCatalog(
+            new FixedDiscovery(),
+            new FixedIdentityReader(_ => throw new InvalidOperationException()),
+            new ThrowingPicker());
+
+        var result = await catalog.ChooseAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Application);
+        Assert.Contains("未创建规则", result.Message, StringComparison.Ordinal);
+    }
+
+    private static ApplicationCatalogEntry Application(
+        string displayName,
+        bool isRunning)
+    {
+        return new(
+            displayName,
+            "\\device\\harddiskvolume4\\apps\\office.exe",
+            $"cert-sha256:{new string('a', 64)}",
+            null,
+            isRunning,
+            null,
+            false);
+    }
+
+    private sealed class FixedDiscovery(
+        params WindowsApplicationCandidate[] candidates) : IWindowsApplicationDiscovery
+    {
+        public IReadOnlyList<WindowsApplicationCandidate> Discover(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return candidates;
+        }
+    }
+
+    private sealed class FixedIdentityReader(
+        Func<WindowsApplicationCandidate, ApplicationCatalogEntry?> read)
+        : IWindowsApplicationIdentityReader
+    {
+        public ApplicationCatalogEntry? Read(WindowsApplicationCandidate candidate)
+        {
+            return read(candidate);
+        }
+    }
+
+    private sealed class FixedPicker(string? path) : IWindowsExecutablePicker
+    {
+        public Task<string?> PickAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(path);
+        }
+    }
+
+    private sealed class ThrowingPicker : IWindowsExecutablePicker
+    {
+        public Task<string?> PickAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("picker unavailable");
+        }
+    }
+}

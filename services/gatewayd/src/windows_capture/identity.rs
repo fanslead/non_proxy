@@ -1,6 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
-use nonproxy_model::{AppIdentity, Platform};
 use nonproxy_windows_wfp::RedirectContext;
 
 use crate::GatewayError;
@@ -8,40 +7,9 @@ use crate::GatewayError;
 const AF_INET: u16 = 2;
 const AF_INET6: u16 = 23;
 
-pub fn app_identity(context: &RedirectContext) -> AppIdentity {
-    app_identity_from_bytes(context.app_id())
-}
-
-pub fn app_identity_from_bytes(app_id: &[u8]) -> AppIdentity {
-    let Some(path) = decode_app_path(app_id) else {
-        return AppIdentity::unknown(Platform::Windows);
-    };
-    AppIdentity::new(Platform::Windows, path.clone())
-        .and_then(|identity| identity.with_path_hint(path))
-        .unwrap_or_else(|_| AppIdentity::unknown(Platform::Windows))
-}
-
 pub fn original_remote(context: &RedirectContext) -> Result<SocketAddr, GatewayError> {
     decode_socket_address(context.original_remote())
         .ok_or(GatewayError::InvalidContract("WFP 原始目标地址无效"))
-}
-
-fn decode_app_path(bytes: &[u8]) -> Option<String> {
-    if bytes.is_empty() || !bytes.len().is_multiple_of(2) {
-        return None;
-    }
-    let words = bytes
-        .chunks_exact(2)
-        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-        .take_while(|value| *value != 0)
-        .collect::<Vec<_>>();
-    let path = String::from_utf16(&words).ok()?.replace('/', "\\");
-    let normalized = path.to_lowercase();
-    if normalized.is_empty() || normalized.chars().any(char::is_control) {
-        None
-    } else {
-        Some(normalized)
-    }
 }
 
 fn decode_socket_address(bytes: &[u8; 128]) -> Option<SocketAddr> {

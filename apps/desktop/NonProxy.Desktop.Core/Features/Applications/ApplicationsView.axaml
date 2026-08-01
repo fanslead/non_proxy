@@ -15,7 +15,7 @@
                     <TextBlock Theme="{StaticResource NpPageTitle}"
                                Text="应用直连" />
                     <TextBlock Theme="{StaticResource NpMutedText}"
-                               Text="选择你认识的应用即可，无需查找它访问了哪些域名，也无需填写 Bundle ID。" />
+                               Text="选择你认识的应用即可，无需查找它访问了哪些域名，也无需填写应用路径或身份 ID。" />
                 </StackPanel>
                 <Button Grid.Column="1"
                         VerticalAlignment="Center"
@@ -33,7 +33,7 @@
                             <TextBlock Theme="{StaticResource NpSectionTitle}"
                                        Text="选择应用" />
                             <TextBlock Theme="{StaticResource NpMutedText}"
-                                       Text="正在运行的应用会排在前面；也可以从“应用程序”文件夹选择其他软件。" />
+                                       Text="正在运行的应用会排在前面；也可以通过系统文件选择器选择其他软件。" />
                         </StackPanel>
                         <Button x:Name="ChooseApplicationButton"
                                 Grid.Column="1"

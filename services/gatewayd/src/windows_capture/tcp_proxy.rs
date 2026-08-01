@@ -7,6 +7,7 @@ use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_model::{ConnectionContext, Destination, FailureMode, RouteAction, Transport};
 use nonproxy_outbound::{OutboundError, TcpDialer};
 use nonproxy_policy::{PolicyEngine, PolicyEvaluation};
+use nonproxy_windows_identity::WindowsAppIdentityResolver;
 use nonproxy_windows_network::PhysicalInterfaceCatalog;
 use nonproxy_windows_wfp::query_redirect_metadata;
 use tokio::{
@@ -30,7 +31,7 @@ use crate::{
 use super::{
     dialer::{DirectPathObserver, RedirectTcpDialer},
     direct_dns::WindowsDirectDomainResolver,
-    identity::{app_identity, original_remote},
+    identity::original_remote,
     policy_cache::WindowsPolicyCache,
 };
 
@@ -38,13 +39,19 @@ const MAXIMUM_ACTIVE_CONNECTIONS: usize = 2_048;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 
 pub struct WindowsTcpProxy {
+    dependencies: TcpConnectionDependencies,
+    capacity: Arc<Semaphore>,
+}
+
+#[derive(Clone)]
+struct TcpConnectionDependencies {
     gateway: Gateway,
     credential_store: Arc<dyn CredentialStore>,
     policies: WindowsPolicyCache,
     physical_interfaces: Arc<PhysicalInterfaceCatalog>,
     direct_domain_resolver: WindowsDirectDomainResolver,
-    capacity: Arc<Semaphore>,
     decisions: DecisionEventReporter,
+    application_identities: Arc<WindowsAppIdentityResolver>,
 }
 
 impl WindowsTcpProxy {
@@ -55,15 +62,19 @@ impl WindowsTcpProxy {
         physical_interfaces: Arc<PhysicalInterfaceCatalog>,
         direct_domain_resolver: WindowsDirectDomainResolver,
         decisions: DecisionEventReporter,
+        application_identities: Arc<WindowsAppIdentityResolver>,
     ) -> Self {
         Self {
-            gateway,
-            credential_store,
-            policies,
-            physical_interfaces,
-            direct_domain_resolver,
+            dependencies: TcpConnectionDependencies {
+                gateway,
+                credential_store,
+                policies,
+                physical_interfaces,
+                direct_domain_resolver,
+                decisions,
+                application_identities,
+            },
             capacity: Arc::new(Semaphore::new(MAXIMUM_ACTIVE_CONNECTIONS)),
-            decisions,
         }
     }
 
@@ -110,37 +121,27 @@ impl WindowsTcpProxy {
             drop(stream);
             return;
         };
-        let gateway = self.gateway.clone();
-        let credential_store = Arc::clone(&self.credential_store);
-        let policies = self.policies.clone();
-        let physical_interfaces = Arc::clone(&self.physical_interfaces);
-        let direct_domain_resolver = self.direct_domain_resolver.clone();
-        let decisions = self.decisions.clone();
+        let dependencies = self.dependencies.clone();
         tasks.spawn(async move {
             let _permit = permit;
-            let _result = handle_connection(
-                stream,
-                gateway,
-                credential_store,
-                policies,
-                physical_interfaces,
-                direct_domain_resolver,
-                decisions,
-            )
-            .await;
+            let _result = handle_connection(stream, dependencies).await;
         });
     }
 }
 
 async fn handle_connection(
     mut inbound: TcpStream,
-    gateway: Gateway,
-    credential_store: Arc<dyn CredentialStore>,
-    policies: WindowsPolicyCache,
-    physical_interfaces: Arc<PhysicalInterfaceCatalog>,
-    direct_domain_resolver: WindowsDirectDomainResolver,
-    decisions: DecisionEventReporter,
+    dependencies: TcpConnectionDependencies,
 ) -> Result<(), GatewayError> {
+    let TcpConnectionDependencies {
+        gateway,
+        credential_store,
+        policies,
+        physical_interfaces,
+        direct_domain_resolver,
+        decisions,
+        application_identities,
+    } = dependencies;
     let metadata =
         query_redirect_metadata(std::os::windows::io::AsRawSocket::as_raw_socket(&inbound))
             .map_err(data_plane_error)?;
@@ -167,7 +168,10 @@ async fn handle_connection(
             Destination::new(None, Some(remote.ip()), remote.port(), Transport::Tcp)?,
         )
     };
-    let context = ConnectionContext::new(app_identity(metadata.context()), destination);
+    let app = application_identities
+        .resolve(metadata.context().app_id(), metadata.context().process_id())
+        .await;
+    let context = ConnectionContext::new(app, destination);
     let snapshot = policies
         .current()
         .await

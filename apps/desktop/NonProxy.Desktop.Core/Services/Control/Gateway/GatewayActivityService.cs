@@ -8,6 +8,8 @@ namespace NonProxy.Desktop.Core.Services.Control.Gateway;
 
 public sealed class GatewayActivityService : IActivityService
 {
+    private const int MaximumStableIdentityCharacters = 2048;
+    private const int MaximumShortIdentityCharacters = 512;
     private readonly IControlRpcClient _client;
 
     public GatewayActivityService(IControlRpcClient client)
@@ -32,14 +34,22 @@ public sealed class GatewayActivityService : IActivityService
     {
         ValidateEvidence(value);
         var platform = MapPlatform(value.AppPlatform);
-        var stableId = RequiredIdentity(value.AppStableId, "稳定身份");
-        var signerId = OptionalIdentity(value.AppSignerId, "签名身份");
+        var stableId = RequiredIdentity(
+            value.AppStableId,
+            "稳定身份",
+            MaximumStableIdentityCharacters);
+        var signerId = OptionalIdentity(
+            value.AppSignerId,
+            "签名身份",
+            MaximumShortIdentityCharacters);
         var parentStableId = OptionalIdentity(
             value.AppParentStableId,
-            "父应用身份");
+            "父应用身份",
+            MaximumShortIdentityCharacters);
         var helperGroupId = OptionalIdentity(
             value.AppHelperGroupId,
-            "辅助进程组身份");
+            "辅助进程组身份",
+            MaximumShortIdentityCharacters);
         var action = ActionLabel(value);
         var evidence = EvidenceLabel(value.EvidenceLevel);
         var occurredAt = value.ObservedAt?.ToDateTimeOffset()
@@ -84,13 +94,19 @@ public sealed class GatewayActivityService : IActivityService
         };
     }
 
-    private static string RequiredIdentity(string value, string label)
+    private static string RequiredIdentity(
+        string value,
+        string label,
+        int maximumCharacters)
     {
-        return OptionalIdentity(value, label)
+        return OptionalIdentity(value, label, maximumCharacters)
             ?? throw InvalidEvidenceContract($"活动记录缺少应用{label}。");
     }
 
-    private static string? OptionalIdentity(string value, string label)
+    private static string? OptionalIdentity(
+        string value,
+        string label,
+        int maximumCharacters)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -99,7 +115,7 @@ public sealed class GatewayActivityService : IActivityService
 
         var normalized = value.Trim();
         if (normalized.Length != value.Length
-            || normalized.Length > 512
+            || normalized.Length > maximumCharacters
             || normalized.Any(char.IsControl))
         {
             throw InvalidEvidenceContract($"活动记录的应用{label}无效。");

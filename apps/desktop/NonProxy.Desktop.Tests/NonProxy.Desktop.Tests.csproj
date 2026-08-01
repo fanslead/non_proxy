@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../NonProxy.Desktop.Core/NonProxy.Desktop.Core.csproj" />
+    <ProjectReference Include="../NonProxy.Desktop.Windows/NonProxy.Desktop.Windows.csproj" />
   </ItemGroup>
 
 </Project>

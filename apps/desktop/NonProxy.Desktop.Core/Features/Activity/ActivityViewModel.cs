@@ -100,7 +100,8 @@ public sealed partial class ActivityViewModel : LoadableViewModel
         DirectConfirmation = new ActivityDirectConfirmation(
             item.Application,
             item.Record.ApplicationRuleStableId,
-            signerId);
+            signerId,
+            item.Record.ApplicationPlatform == PlatformKind.MacOS);
     }
 
     private void CancelDirect()
@@ -127,7 +128,7 @@ public sealed partial class ActivityViewModel : LoadableViewModel
                         confirmation.RuleStableId,
                         PolicyAction.Direct,
                         ApplicationSignerId: confirmation.SignerId,
-                        IncludeApplicationHelpers: true),
+                        IncludeApplicationHelpers: confirmation.IncludeHelpers),
                     token);
                 OperationMessage = result.Message;
                 if (result.Accepted)

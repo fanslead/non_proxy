@@ -17,6 +17,7 @@ use std::{
     sync::Arc,
 };
 
+use nonproxy_windows_identity::WindowsAppIdentityResolver;
 use nonproxy_windows_network::PhysicalInterfaceCatalog;
 use nonproxy_windows_wfp::{DynamicWfpSession, WfpConfig, WfpDriver};
 use tokio::{net::TcpListener, sync::watch};
@@ -71,6 +72,7 @@ impl WindowsCapture {
         let policies = WindowsPolicyCache::load(gateway.clone(), "windows-wfp", true).await?;
         let (decisions, decision_worker) = decision_event_channel(gateway.clone());
         let physical_interfaces = Arc::new(PhysicalInterfaceCatalog::new());
+        let application_identities = Arc::new(WindowsAppIdentityResolver::new());
         let (dns, dns_ready, direct_domain_resolver) = WindowsDnsProxy::start(
             gateway.clone(),
             Arc::clone(&credential_store),
@@ -105,6 +107,7 @@ impl WindowsCapture {
             direct_domain_resolver: direct_domain_resolver.clone(),
             injector,
             decisions: decisions.clone(),
+            application_identities: Arc::clone(&application_identities),
         });
         let proxy = WindowsTcpProxy::new(
             gateway,
@@ -113,6 +116,7 @@ impl WindowsCapture {
             physical_interfaces,
             direct_domain_resolver,
             decisions,
+            application_identities,
         );
         let activation = WfpActivation::new(
             driver,

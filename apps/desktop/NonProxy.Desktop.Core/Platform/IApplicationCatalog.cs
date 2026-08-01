@@ -6,7 +6,8 @@ public sealed record ApplicationCatalogEntry(
     string? SignerIdentity,
     string? BundleIdentifier,
     bool IsRunning,
-    string? BundlePath = null)
+    string? BundlePath = null,
+    bool IncludeHelpers = true)
 {
     public string StateLabel => IsRunning ? "正在运行" : "已安装";
 

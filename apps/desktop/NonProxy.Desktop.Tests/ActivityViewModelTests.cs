@@ -98,6 +98,32 @@ public sealed class ActivityViewModelTests
         Assert.Null(policies.LastSavedDraft);
     }
 
+    [Fact]
+    public async Task WindowsActivityCreatesExactExecutableRuleWithoutHelperClaim()
+    {
+        var activity = new FixedActivityService(Activity(
+            5,
+            "Windows Office",
+            "\\device\\harddiskvolume4\\apps\\office.exe",
+            PlatformKind.Windows,
+            $"cert-sha256:{new string('a', 64)}"));
+        var policies = new RecordingPolicyService();
+        var viewModel = new ActivityViewModel(
+            activity,
+            policies,
+            new TestPlatformInformation(PlatformKind.Windows));
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        viewModel.RequestDirectCommand.Execute(Assert.Single(viewModel.Items));
+
+        var confirmation = Assert.IsType<ActivityDirectConfirmation>(
+            viewModel.DirectConfirmation);
+        Assert.False(confirmation.IncludeHelpers);
+        Assert.DoesNotContain("辅助进程", confirmation.Detail, StringComparison.Ordinal);
+        await viewModel.ConfirmDirectCommand.ExecuteAsync(null);
+        Assert.False(policies.LastSavedDraft?.IncludeApplicationHelpers);
+    }
+
     internal static ActivityItem Activity(
         long sequence,
         string application,

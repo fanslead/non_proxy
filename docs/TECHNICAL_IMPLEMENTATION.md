@@ -769,10 +769,12 @@ macOS：
 
 Windows：
 
-- `stable_id`：WFP ALE App ID 规范化路径或包身份。
-- `signer_id`：代码签名发布者/包发布者。
-- UWP/MSIX 使用 Package Family Name。
-- Win32 可补充文件 hash，但更新后需要签名身份迁移。
+- 已实现的可信 Win32 `stable_id`：`FwpmGetAppIdFromFileName0` 返回的 WFP ALE App ID；
+  桌面端和数据面不得自行把 DOS 路径重新编码成身份。
+- 已实现的可信 Win32 `signer_id`：通过 Authenticode 信任校验后，叶子签名证书 DER 的
+  SHA-256。
+- UWP/MSIX 后续必须使用 WFP ALE package identity、包目录和包发布者；当前不显示，也不
+  回退到文件名、展示名或未验证路径。
 
 ### 10.2 Destination
 
@@ -1793,7 +1795,15 @@ macOS 原生桥 ABI 约束：
 - 托管 `GCHandle` 必须持有到原生 completed 事件；调用方取消等待不能提前释放仍可能被系统回调使用的上下文。
 - 同一进程最多执行一个异步系统变更，避免两组 System Extension 请求或偏好事务互相覆盖。
 - 共享 UI 只依赖 `IApplicationCatalog` 领域 DTO；macOS 在后台校验应用代码签名，使用 Code Signing Identifier 作为策略稳定身份、Team Identifier 作为签名约束，Bundle Identifier 仅用于搜索辅助。无法校验签名或缺少签名标识的应用不得生成看似成功但实际无法命中的规则。
-- Windows 复用同一应用选择页面，但平台应用目录仍返回明确不可用状态；后续实现必须提供 WFP ALE/包身份/签名对应的稳定身份，不能退回手填路径作为普通用户主流程。
+- Windows 复用同一应用选择页面，并由独立目录组合当前用户会话 Win32 运行进程、HKCU/HKLM
+  `App Paths` 与系统 `.exe` 选择器。候选通过 `FwpmGetAppIdFromFileName0` 取得与 ALE
+  context 同源的 canonical App ID，再用 `WinVerifyTrustEx` 校验 Authenticode，并把叶子
+  签名证书 DER 的 SHA-256 保存为 `cert-sha256:<hex>` signer；无签名/不可信候选不生成
+  规则。数据面按 PID 读取映像路径，反查 WFP App ID 与捕获值等值后才附加相同 signer，
+  结果按 PID、创建时间和 App ID 有界缓存，阻塞式 Win32 解析并发上限为 32，容量不足时
+  安全省略 signer。Windows 规则当前为精确可执行文件匹配且
+  `include_helpers=false`；MSIX/UWP package identity 尚未接入，完整边界见
+  [ADR-0033](ADR/0033-bind-windows-app-rules-to-wfp-and-authenticode.md)。
 - `ICurrentNetworkEnvironment` 只在用户点击“检测当前网络”时调用平台采集。macOS 实现
   通过 ABI v7 返回单个最佳脱敏指纹、定位权限状态和通用建议名，不返回 SSID；Windows
   未接入前返回明确不可用状态，但继续复用相同 `Networks` 页面、控制 RPC 和策略模型。
@@ -1851,7 +1861,8 @@ macOS 原生桥 ABI 约束：
 活动页读取连接决策与策略目录两个权威 RPC，并从认证 Provider 已入库的 `app_platform`、
 `app_stable_id`、`app_signer_id`、`app_parent_stable_id` 和 `app_helper_group_id` 构建证据卡。
 快捷创建应用直连规则只对当前平台、非系统规则、非 `unknown-app`、具有签名身份且不存在同一
-应用作用域规则的记录开放；父身份存在时使用父身份，规则始终携带 signer 约束并包含 Helper。
+应用作用域规则的记录开放；父身份存在时使用父身份，规则始终携带 signer 约束。macOS 包含
+经过认证的 Helper 关系；Windows 按精确可执行文件身份创建且不声称覆盖未知子进程。
 旧记录不补造签名，跨平台记录不转换身份，已有 DIRECT/PROXY/BLOCK 规则都必须回到规则页处理。
 用户确认后复用 `UpsertPolicy` 与快照发布流程；`Accepted=true, Applied=false` 保持 pending 文案，
 只有 Provider ACK 后列表状态才会变成 active。完整决策见
@@ -2331,7 +2342,8 @@ Windows POC 已确认：
 
 - 用户态管理 API 可以安全持有动态 WFP 对象，但 Connect Redirect 的元组修改必须由 Callout Driver 完成。
 - TCP accepted socket 可以查询原始 redirect context 和 records，并把 records 传递给新建出口 socket。
-- ALE App ID 可作为规范化应用路径身份；打包应用身份/签名增强仍属于后续 Windows 身份解析层。
+- ALE App ID 已用于可信 Win32 精确可执行文件身份，并由运行时重新核对 App ID 与 Authenticode
+  signer；打包应用的 ALE package identity、包目录与发布者仍属于后续 Windows 身份解析层。
 - WFP 明文 DNS filter 只负责远端 53；通用 ALE UDP redirect 无法完整覆盖
   connected UDP 与无连接 `sendto`，所以远端非 53 UDP 使用 flow identity +
   DATAGRAM_DATA 搬运和 transport receive injection。

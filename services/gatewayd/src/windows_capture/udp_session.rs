@@ -7,6 +7,7 @@ use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_model::{ConnectionContext, Destination, FailureMode, RouteAction, Transport};
 use nonproxy_outbound::{Socks5UdpAssociation, SystemTcpDialer};
 use nonproxy_policy::{PolicyEngine, PolicyEvaluation};
+use nonproxy_windows_identity::WindowsAppIdentityResolver;
 use nonproxy_windows_network::PhysicalInterfaceCatalog;
 use nonproxy_windows_wfp::{MAX_UDP_PAYLOAD_BYTES, UdpDatagram, UdpInjectionContext};
 use tokio::{
@@ -27,7 +28,6 @@ use crate::{
 
 use super::{
     direct_dns::WindowsDirectDomainResolver,
-    identity::app_identity_from_bytes,
     policy_cache::WindowsPolicyCache,
     udp_direct::{connect_direct_udp, connect_system_udp},
     udp_driver::UdpInjector,
@@ -58,6 +58,7 @@ pub struct UdpSessionDependencies {
     pub direct_domain_resolver: WindowsDirectDomainResolver,
     pub injector: UdpInjector,
     pub decisions: DecisionEventReporter,
+    pub application_identities: Arc<WindowsAppIdentityResolver>,
 }
 
 pub async fn run_udp_session(
@@ -70,7 +71,11 @@ pub async fn run_udp_session(
     let injection = first.injection_context();
     let first_payload = PendingUdpPayload::new(first.payload().to_vec(), first_budget);
     let (target, destination) = session_target(&first, &dependencies).await?;
-    let context = ConnectionContext::new(app_identity_from_bytes(first.app_id()), destination);
+    let app = dependencies
+        .application_identities
+        .resolve(first.app_id(), first.process_id())
+        .await;
+    let context = ConnectionContext::new(app, destination);
     drop(first);
     let snapshot = dependencies
         .policies

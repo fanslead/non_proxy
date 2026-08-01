@@ -1,6 +1,7 @@
 use crate::ModelError;
 
 const MAX_IDENTITY_FIELD_LENGTH: usize = 512;
+const MAX_STABLE_ID_LENGTH: usize = 8_192;
 const UNKNOWN_APP_STABLE_ID: &str = "unknown-app";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -24,7 +25,7 @@ pub struct AppIdentity {
 impl AppIdentity {
     pub fn new(platform: Platform, stable_id: impl Into<String>) -> Result<Self, ModelError> {
         let stable_id = stable_id.into();
-        validate_required_field(&stable_id)?;
+        validate_required_stable_id(&stable_id)?;
         Ok(Self {
             platform,
             stable_id,
@@ -148,7 +149,7 @@ pub struct AppMatcher {
 impl AppMatcher {
     pub fn new(platform: Platform, stable_id: impl Into<String>) -> Result<Self, ModelError> {
         let stable_id = stable_id.into();
-        validate_required_field(&stable_id)?;
+        validate_required_stable_id(&stable_id)?;
         Ok(Self {
             platform,
             stable_id,
@@ -208,26 +209,26 @@ impl AppMatcher {
     }
 }
 
-fn validate_required_field(value: &str) -> Result<(), ModelError> {
+fn validate_required_stable_id(value: &str) -> Result<(), ModelError> {
     if value.is_empty() || value.trim() != value {
         return Err(ModelError::EmptyAppStableId);
     }
-    validate_field_length(value)
+    validate_field_length(value, MAX_STABLE_ID_LENGTH)
 }
 
 fn validate_optional_field(value: String) -> Result<String, ModelError> {
     if value.is_empty() || value.trim() != value || value.chars().any(char::is_control) {
         return Err(ModelError::InvalidAppIdentityField);
     }
-    validate_field_length(&value)?;
+    validate_field_length(&value, MAX_IDENTITY_FIELD_LENGTH)?;
     Ok(value)
 }
 
-fn validate_field_length(value: &str) -> Result<(), ModelError> {
+fn validate_field_length(value: &str, maximum_length: usize) -> Result<(), ModelError> {
     if value.chars().any(char::is_control) {
         return Err(ModelError::InvalidAppIdentityField);
     }
-    if value.len() > MAX_IDENTITY_FIELD_LENGTH {
+    if value.len() > maximum_length {
         return Err(ModelError::AppIdentityFieldTooLong);
     }
     Ok(())
@@ -285,5 +286,22 @@ mod tests {
         assert_eq!(identity.stable_id(), UNKNOWN_APP_STABLE_ID);
         assert_eq!(identity.platform(), Platform::Windows);
         assert_eq!(identity.signer_id(), None);
+    }
+
+    #[test]
+    fn windows_wfp_stable_identity_can_exceed_short_metadata_limit() {
+        let stable_id = format!("\\device\\{}\\app.exe", "a".repeat(2_048));
+
+        let identity = AppIdentity::new(Platform::Windows, stable_id.clone());
+        let matcher = AppMatcher::new(Platform::Windows, stable_id);
+        let oversized_signer = AppIdentity::new(Platform::Windows, "app")
+            .and_then(|value| value.with_signer_id("a".repeat(513)));
+
+        assert!(identity.is_ok());
+        assert!(matcher.is_ok());
+        assert!(matches!(
+            oversized_signer,
+            Err(ModelError::AppIdentityFieldTooLong)
+        ));
     }
 }

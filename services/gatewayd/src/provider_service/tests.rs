@@ -3,6 +3,8 @@ use std::sync::Arc;
 use nonproxy_policy_compiler::CompileCapabilities;
 #[cfg(not(target_os = "windows"))]
 use nonproxy_proto::events::v1::event_envelope;
+#[cfg(not(target_os = "windows"))]
+use nonproxy_proto::provider::v1::ReportHealthRequest;
 use nonproxy_proto::{
     common::v1::{
         AppIdentity, ComponentKind, ComponentVersion, Destination, ErrorDetail, EvidenceLevel,
@@ -12,7 +14,7 @@ use nonproxy_proto::{
     policy::v1::{Decision, DecisionSpec},
     provider::v1::{
         ConnectionContext, DecisionEvidence, DecisionRecord, ProviderKind, ProviderRequestContext,
-        RegisterProviderRequest, ReportDecisionBatchRequest, ReportHealthRequest,
+        RegisterProviderRequest, ReportDecisionBatchRequest,
         provider_service_server::ProviderService,
     },
 };

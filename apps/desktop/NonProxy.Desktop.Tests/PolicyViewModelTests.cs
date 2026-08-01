@@ -114,6 +114,8 @@ public sealed class PolicyViewModelTests
                 "com.example.finance",
                 "TEAM456",
                 "com.example.finance",
+                false,
+                null,
                 false));
         using var services = TestPlatformServices.Create(
             configure: collection =>
@@ -130,6 +132,7 @@ public sealed class PolicyViewModelTests
             "com.example.finance",
             policyService.LastSavedDraft?.MatchValue);
         Assert.Equal("TEAM456", policyService.LastSavedDraft?.ApplicationSignerId);
+        Assert.False(policyService.LastSavedDraft?.IncludeApplicationHelpers);
     }
 
     private sealed class RecordingPolicyService : IPolicyService
