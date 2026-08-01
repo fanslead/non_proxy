@@ -5,20 +5,33 @@ using Microsoft.Win32;
 namespace NonProxy.Desktop.Windows.ApplicationCatalog;
 
 [SupportedOSPlatform("windows")]
-internal sealed class WindowsApplicationDiscovery : IWindowsApplicationDiscovery
+internal sealed class WindowsApplicationDiscovery(
+    IWindowsPackageDiscovery packageDiscovery) : IWindowsApplicationDiscovery
 {
     private const int MaximumCandidates = 1024;
     private const string AppPaths =
         @"Software\Microsoft\Windows\CurrentVersion\App Paths";
 
-    public IReadOnlyList<WindowsApplicationCandidate> Discover(
+    public WindowsApplicationDiscoverySnapshot Discover(
         CancellationToken cancellationToken)
     {
         var candidates = new Dictionary<string, WindowsApplicationCandidate>(
             StringComparer.OrdinalIgnoreCase);
         AddRunning(candidates, cancellationToken);
         AddRegistered(candidates, cancellationToken);
-        return candidates.Values.ToArray();
+        var packageSnapshot = packageDiscovery.Discover(cancellationToken);
+        foreach (var candidate in packageSnapshot.Candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (candidates.Count >= MaximumCandidates)
+            {
+                break;
+            }
+            AddCandidate(candidates, candidate);
+        }
+        return new WindowsApplicationDiscoverySnapshot(
+            candidates.Values.ToArray(),
+            packageSnapshot.IsAvailable);
     }
 
     private static void AddRunning(
@@ -45,11 +58,10 @@ internal sealed class WindowsApplicationDiscovery : IWindowsApplicationDiscovery
                     var path = NormalizeExecutablePath(process.MainModule?.FileName);
                     if (path is not null)
                     {
-                        AddCandidate(
-                            candidates,
+                        AddCandidate(candidates, new WindowsApplicationCandidate(
                             path,
                             CleanDisplayName(process.ProcessName, path),
-                            true);
+                            true));
                     }
                 }
                 catch (Exception exception) when (
@@ -92,13 +104,12 @@ internal sealed class WindowsApplicationDiscovery : IWindowsApplicationDiscovery
                             application?.GetValue(null) as string);
                         if (path is not null)
                         {
-                            AddCandidate(
-                                candidates,
+                            AddCandidate(candidates, new WindowsApplicationCandidate(
                                 path,
                                 CleanDisplayName(
                                     Path.GetFileNameWithoutExtension(name),
                                     path),
-                                false);
+                                false));
                         }
                     }
                 }
@@ -115,22 +126,18 @@ internal sealed class WindowsApplicationDiscovery : IWindowsApplicationDiscovery
 
     private static void AddCandidate(
         Dictionary<string, WindowsApplicationCandidate> candidates,
-        string path,
-        string displayName,
-        bool isRunning)
+        WindowsApplicationCandidate candidate)
     {
-        if (candidates.TryGetValue(path, out var existing))
+        var key = $"{candidate.Kind}:{candidate.IdentitySource}";
+        if (candidates.TryGetValue(key, out var existing))
         {
-            candidates[path] = existing with
+            candidates[key] = existing with
             {
-                IsRunning = existing.IsRunning || isRunning,
+                IsRunning = existing.IsRunning || candidate.IsRunning,
             };
             return;
         }
-        candidates.Add(path, new WindowsApplicationCandidate(
-            path,
-            displayName,
-            isRunning));
+        candidates.Add(key, candidate);
     }
 
     internal static string DisplayNameFor(string path)
@@ -198,5 +205,15 @@ internal sealed class WindowsApplicationDiscovery : IWindowsApplicationDiscovery
             ? Path.GetFileNameWithoutExtension(path)
             : value.Trim();
         return string.IsNullOrWhiteSpace(name) ? "Windows 应用" : name;
+    }
+
+    internal static string CleanPackageDisplayName(string? value, string fallback)
+    {
+        var name = string.IsNullOrWhiteSpace(value) || value.Any(char.IsControl)
+            ? fallback
+            : value.Trim();
+        return string.IsNullOrWhiteSpace(name) || name.Any(char.IsControl)
+            ? "Windows 打包应用"
+            : name;
     }
 }

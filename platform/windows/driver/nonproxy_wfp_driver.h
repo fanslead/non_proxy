@@ -17,7 +17,8 @@
 typedef struct _NP_WFP_UDP_FLOW_CONTEXT {
     UINT64 ProcessId;
     UINT32 AppIdLength;
-    UCHAR AppId[ANYSIZE_ARRAY];
+    UINT32 PackageSidLength;
+    UCHAR Data[ANYSIZE_ARRAY];
 } NP_WFP_UDP_FLOW_CONTEXT;
 
 typedef struct _NP_WFP_UDP_PACKET_NODE {
@@ -85,6 +86,12 @@ NonProxyDisableRedirect(
 NP_WFP_CONFIG_V3
 NonProxyReadConfig(
     _Inout_ NP_WFP_DEVICE_EXTENSION* Extension);
+
+BOOLEAN
+NonProxyReadPackageSid(
+    _In_ const FWP_VALUE0* Value,
+    _Outptr_result_bytebuffer_(*PackageSidLength) const UCHAR** PackageSid,
+    _Out_ UINT32* PackageSidLength);
 
 VOID
 NonProxyReadStatus(

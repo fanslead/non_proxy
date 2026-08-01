@@ -4,13 +4,18 @@ using NonProxy.Desktop.Core.Platform;
 
 namespace NonProxy.Desktop.Windows.ApplicationCatalog;
 
-[SupportedOSPlatform("windows")]
+[SupportedOSPlatform("windows10.0.18362.0")]
 internal sealed class WindowsApplicationIdentityReader : IWindowsApplicationIdentityReader
 {
     public ApplicationCatalogEntry? Read(WindowsApplicationCandidate candidate)
     {
+        if (candidate.Kind == WindowsApplicationCandidateKind.Package)
+        {
+            return ReadPackage(candidate);
+        }
+
         var path = WindowsApplicationDiscovery.NormalizeExecutablePath(
-            candidate.ExecutablePath);
+            candidate.IdentitySource);
         if (path is null)
         {
             return null;
@@ -27,6 +32,30 @@ internal sealed class WindowsApplicationIdentityReader : IWindowsApplicationIden
             stableIdentity,
             signerIdentity,
             null,
+            candidate.IsRunning,
+            null,
+            false);
+    }
+
+    private static ApplicationCatalogEntry? ReadPackage(
+        WindowsApplicationCandidate candidate)
+    {
+        var stableIdentity = WindowsPackageNativeIdentity.StableIdentity(
+            candidate.IdentitySource);
+        var signerIdentity = WindowsPackageStableIdentity.SignerIdentity(
+            candidate.PackagePublisherId);
+        if (stableIdentity is null || signerIdentity is null)
+        {
+            return null;
+        }
+
+        return new ApplicationCatalogEntry(
+            WindowsApplicationDiscovery.CleanPackageDisplayName(
+                candidate.DisplayName,
+                candidate.IdentitySource),
+            stableIdentity,
+            signerIdentity,
+            candidate.IdentitySource,
             candidate.IsRunning,
             null,
             false);

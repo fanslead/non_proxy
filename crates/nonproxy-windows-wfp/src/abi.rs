@@ -12,9 +12,10 @@ pub const STATUS_VERSION: u16 = 2;
 pub const STATUS_SIZE: u16 = 72;
 
 pub const REDIRECT_CONTEXT_MAGIC: u32 = u32::from_le_bytes(*b"NPWC");
-pub const REDIRECT_CONTEXT_VERSION: u16 = 1;
+pub const REDIRECT_CONTEXT_VERSION: u16 = 2;
 pub const REDIRECT_CONTEXT_HEADER_SIZE: u16 = 288;
 pub const MAX_APP_ID_BYTES: usize = 4_096;
+pub const MAX_PACKAGE_SID_BYTES: usize = 68;
 
 const FILE_DEVICE_NETWORK: u32 = 0x12;
 const METHOD_BUFFERED: u32 = 0;
@@ -189,6 +190,7 @@ pub struct RedirectContext {
     original_local: [u8; 128],
     original_remote: [u8; 128],
     app_id: Vec<u8>,
+    package_sid: Vec<u8>,
 }
 
 impl RedirectContext {
@@ -208,9 +210,19 @@ impl RedirectContext {
             .map_err(|_| WindowsWfpError::InvalidData("WFP redirect context 长度溢出"))?;
         let app_id_length = usize::try_from(read_u32(bytes, 280)?)
             .map_err(|_| WindowsWfpError::InvalidData("WFP 应用身份长度溢出"))?;
+        let package_sid_length = usize::try_from(read_u32(bytes, 284)?)
+            .map_err(|_| WindowsWfpError::InvalidData("WFP 包身份长度溢出"))?;
+        let payload_length =
+            app_id_length
+                .checked_add(package_sid_length)
+                .ok_or(WindowsWfpError::InvalidData(
+                    "WFP redirect context 长度溢出",
+                ))?;
         if total_size != bytes.len()
+            || read_u32(bytes, 12)? != 0
             || app_id_length > MAX_APP_ID_BYTES
-            || total_size != usize::from(REDIRECT_CONTEXT_HEADER_SIZE) + app_id_length
+            || package_sid_length > MAX_PACKAGE_SID_BYTES
+            || total_size != usize::from(REDIRECT_CONTEXT_HEADER_SIZE) + payload_length
         {
             return Err(WindowsWfpError::InvalidData(
                 "WFP redirect context 长度不一致",
@@ -220,11 +232,14 @@ impl RedirectContext {
         original_local.copy_from_slice(&bytes[24..152]);
         let mut original_remote = [0_u8; 128];
         original_remote.copy_from_slice(&bytes[152..280]);
+        let app_id_start = usize::from(REDIRECT_CONTEXT_HEADER_SIZE);
+        let package_sid_start = app_id_start + app_id_length;
         Ok(Self {
             process_id: read_u64(bytes, 16)?,
             original_local,
             original_remote,
-            app_id: bytes[usize::from(REDIRECT_CONTEXT_HEADER_SIZE)..].to_vec(),
+            app_id: bytes[app_id_start..package_sid_start].to_vec(),
+            package_sid: bytes[package_sid_start..].to_vec(),
         })
     }
 
@@ -246,6 +261,11 @@ impl RedirectContext {
     #[must_use]
     pub fn app_id(&self) -> &[u8] {
         &self.app_id
+    }
+
+    #[must_use]
+    pub fn package_sid(&self) -> &[u8] {
+        &self.package_sid
     }
 }
 
@@ -318,15 +338,55 @@ mod tests {
     }
 
     #[test]
+    fn redirect_context_splits_app_id_and_package_sid() {
+        let app_id = [b'a', 0, 0, 0];
+        let package_sid = [1, 2, 3];
+        let mut bytes =
+            vec![
+                0_u8;
+                usize::from(REDIRECT_CONTEXT_HEADER_SIZE) + app_id.len() + package_sid.len()
+            ];
+        bytes[0..4].copy_from_slice(&REDIRECT_CONTEXT_MAGIC.to_le_bytes());
+        bytes[4..6].copy_from_slice(&REDIRECT_CONTEXT_VERSION.to_le_bytes());
+        bytes[6..8].copy_from_slice(&REDIRECT_CONTEXT_HEADER_SIZE.to_le_bytes());
+        let total_size = u32::try_from(bytes.len()).unwrap_or_default();
+        bytes[8..12].copy_from_slice(&total_size.to_le_bytes());
+        bytes[16..24].copy_from_slice(&42_u64.to_le_bytes());
+        bytes[280..284].copy_from_slice(
+            &u32::try_from(app_id.len())
+                .unwrap_or_default()
+                .to_le_bytes(),
+        );
+        bytes[284..288].copy_from_slice(
+            &u32::try_from(package_sid.len())
+                .unwrap_or_default()
+                .to_le_bytes(),
+        );
+        let data = usize::from(REDIRECT_CONTEXT_HEADER_SIZE);
+        bytes[data..data + app_id.len()].copy_from_slice(&app_id);
+        bytes[data + app_id.len()..].copy_from_slice(&package_sid);
+
+        let context = RedirectContext::decode(&bytes)
+            .unwrap_or_else(|error| panic!("redirect context v2 解码失败: {error}"));
+
+        assert_eq!(context.process_id(), 42);
+        assert_eq!(context.app_id(), app_id);
+        assert_eq!(context.package_sid(), package_sid);
+    }
+
+    #[test]
     fn checked_in_driver_header_matches_rust_contract() {
         let header = include_str!("../../../platform/windows/include/nonproxy_wfp_abi.h");
         for required in [
             "#define NP_WFP_CONFIG_VERSION ((UINT16)3)",
+            "#define NP_WFP_CONTEXT_VERSION ((UINT16)2)",
+            "#define NP_WFP_UDP_ABI_VERSION ((UINT16)2)",
+            "#define NP_WFP_MAX_PACKAGE_SID_BYTES ((UINT32)68)",
             "C_ASSERT(sizeof(NP_WFP_CONFIG_V3) == 40);",
             "C_ASSERT(sizeof(NP_WFP_STATUS_V2) == 72);",
-            "C_ASSERT(FIELD_OFFSET(NP_WFP_REDIRECT_CONTEXT_V1, AppId) == 288);",
-            "C_ASSERT(FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V1, Data) == 88);",
-            "C_ASSERT(FIELD_OFFSET(NP_WFP_UDP_INJECT_V1, Payload) == 80);",
+            "C_ASSERT(FIELD_OFFSET(NP_WFP_REDIRECT_CONTEXT_V2, Data) == 288);",
+            "C_ASSERT(FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V2, Data) == 96);",
+            "C_ASSERT(FIELD_OFFSET(NP_WFP_UDP_INJECT_V2, Payload) == 80);",
             "CTL_CODE(FILE_DEVICE_NETWORK, 0x801, METHOD_BUFFERED, FILE_WRITE_DATA)",
             "CTL_CODE(FILE_DEVICE_NETWORK, 0x802, METHOD_BUFFERED, FILE_READ_DATA)",
         ] {
@@ -335,5 +395,20 @@ mod tests {
                 "Windows Driver ABI header 缺少固定契约: {required}"
             );
         }
+        let identity = include_str!("../../../platform/windows/driver/identity.c");
+        for required in ["Value->type != FWP_SID", "RtlValidSid", "RtlLengthSid"] {
+            assert!(
+                identity.contains(required),
+                "Windows Driver package SID 校验缺少固定契约: {required}"
+            );
+        }
+        let project = include_str!("../../../platform/windows/driver/NonProxyWfp.vcxproj");
+        assert!(project.contains("<ClCompile Include=\"identity.c\" />"));
+        let tcp_callout = include_str!("../../../platform/windows/driver/callout.c");
+        let udp_callout = include_str!("../../../platform/windows/driver/udp_callout.c");
+        assert!(tcp_callout.contains("FWPS_FIELD_ALE_CONNECT_REDIRECT_V4_ALE_PACKAGE_ID"));
+        assert!(tcp_callout.contains("FWPS_FIELD_ALE_CONNECT_REDIRECT_V6_ALE_PACKAGE_ID"));
+        assert!(udp_callout.contains("FWPS_FIELD_ALE_FLOW_ESTABLISHED_V4_ALE_PACKAGE_ID"));
+        assert!(udp_callout.contains("FWPS_FIELD_ALE_FLOW_ESTABLISHED_V6_ALE_PACKAGE_ID"));
     }
 }

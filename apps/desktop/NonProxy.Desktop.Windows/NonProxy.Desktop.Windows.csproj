@@ -2,7 +2,9 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net10.0-windows10.0.26100.0</TargetFrameworks>
+    <TargetPlatformMinVersion>10.0.18362.0</TargetPlatformMinVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>NonProxy.Desktop.Windows</RootNamespace>
@@ -15,5 +17,11 @@
   <ItemGroup>
     <ProjectReference Include="../NonProxy.Desktop.Core/NonProxy.Desktop.Core.csproj" />
   </ItemGroup>
+
+  <Target Name="RejectPortableWindowsPublish"
+          BeforeTargets="Publish"
+          Condition="'$(TargetFramework)' == 'net10.0'">
+    <Error Text="Windows 发布必须指定 -f net10.0-windows10.0.26100.0，以包含官方打包应用目录投影。" />
+  </Target>
 
 </Project>

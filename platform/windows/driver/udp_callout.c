@@ -9,6 +9,15 @@ NonProxyUdpFlowAppIdField(
         : FWPS_FIELD_ALE_FLOW_ESTABLISHED_V6_ALE_APP_ID;
 }
 
+static UINT32
+NonProxyUdpFlowPackageSidField(
+    _In_ UINT16 LayerId)
+{
+    return LayerId == FWPS_LAYER_ALE_FLOW_ESTABLISHED_V4
+        ? FWPS_FIELD_ALE_FLOW_ESTABLISHED_V4_ALE_PACKAGE_ID
+        : FWPS_FIELD_ALE_FLOW_ESTABLISHED_V6_ALE_PACKAGE_ID;
+}
+
 static UINT16
 NonProxyUdpDatagramLayer(
     _In_ UINT16 FlowLayerId)
@@ -65,7 +74,7 @@ NonProxyBuildUdpRecord(
     ULONG recordSize;
     SIZE_T allocationSize;
     NP_WFP_UDP_PACKET_NODE* node = NULL;
-    NP_WFP_UDP_DATAGRAM_V1* record;
+    NP_WFP_UDP_DATAGRAM_V2* record;
     UCHAR* contiguous;
     UCHAR* temporary = NULL;
     UINT16 localPortNetworkOrder;
@@ -82,13 +91,18 @@ NonProxyBuildUdpRecord(
     }
     payloadSize = udpSize - NP_WFP_UDP_HEADER_BYTES;
     if (Flow->AppIdLength > NP_WFP_MAX_APP_ID_BYTES ||
+        Flow->PackageSidLength > NP_WFP_MAX_PACKAGE_SID_BYTES ||
+        Flow->AppIdLength > MAXULONG - Flow->PackageSidLength -
+            FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V2, Data) ||
         payloadSize > MAXULONG - Flow->AppIdLength -
-            FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V1, Data)) {
+            Flow->PackageSidLength -
+            FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V2, Data)) {
         return NULL;
     }
     recordSize =
-        FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V1, Data) +
+        FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V2, Data) +
         Flow->AppIdLength +
+        Flow->PackageSidLength +
         payloadSize;
     allocationSize =
         FIELD_OFFSET(NP_WFP_UDP_PACKET_NODE, Record) + recordSize;
@@ -140,10 +154,10 @@ NonProxyBuildUdpRecord(
     }
 
     node->RecordSize = recordSize;
-    record = (NP_WFP_UDP_DATAGRAM_V1*)node->Record;
+    record = (NP_WFP_UDP_DATAGRAM_V2*)node->Record;
     record->Magic = NP_WFP_UDP_DATAGRAM_MAGIC;
     record->Version = NP_WFP_UDP_ABI_VERSION;
-    record->HeaderSize = FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V1, Data);
+    record->HeaderSize = FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V2, Data);
     record->TotalSize = recordSize;
     record->AddressFamily =
         Values->layerId == FWPS_LAYER_DATAGRAM_DATA_V4 ? AF_INET : AF_INET6;
@@ -168,10 +182,15 @@ NonProxyBuildUdpRecord(
     NonProxyCopyUdpAddress(Values, TRUE, record->LocalAddress);
     NonProxyCopyUdpAddress(Values, FALSE, record->RemoteAddress);
     record->AppIdLength = Flow->AppIdLength;
+    record->PackageSidLength = Flow->PackageSidLength;
     record->PayloadLength = payloadSize;
-    RtlCopyMemory(record->Data, Flow->AppId, Flow->AppIdLength);
+    RtlCopyMemory(record->Data, Flow->Data, Flow->AppIdLength);
     RtlCopyMemory(
         record->Data + Flow->AppIdLength,
+        Flow->Data + Flow->AppIdLength,
+        Flow->PackageSidLength);
+    RtlCopyMemory(
+        record->Data + Flow->AppIdLength + Flow->PackageSidLength,
         contiguous + NP_WFP_UDP_HEADER_BYTES,
         payloadSize);
     if (temporary != NULL) {
@@ -191,7 +210,10 @@ NonProxyClassifyUdpFlow(
     _Inout_ FWPS_CLASSIFY_OUT0* ClassifyOut)
 {
     const FWP_BYTE_BLOB* appId;
+    const UCHAR* packageSid;
     UINT32 appIdLength;
+    UINT32 packageSidLength;
+    ULONG headerSize;
     SIZE_T contextSize;
     NP_WFP_UDP_FLOW_CONTEXT* context;
     NTSTATUS status;
@@ -207,11 +229,20 @@ NonProxyClassifyUdpFlow(
     appId = IncomingValues->incomingValue[
         NonProxyUdpFlowAppIdField(IncomingValues->layerId)].value.byteBlob;
     appIdLength = appId == NULL ? 0 : appId->size;
-    if (appIdLength > NP_WFP_MAX_APP_ID_BYTES) {
+    if (appIdLength > NP_WFP_MAX_APP_ID_BYTES ||
+        (appIdLength != 0 && appId->data == NULL) ||
+        !NonProxyReadPackageSid(
+            &IncomingValues->incomingValue[
+                NonProxyUdpFlowPackageSidField(IncomingValues->layerId)].value,
+            &packageSid,
+            &packageSidLength)) {
         return;
     }
-    contextSize =
-        FIELD_OFFSET(NP_WFP_UDP_FLOW_CONTEXT, AppId) + appIdLength;
+    headerSize = FIELD_OFFSET(NP_WFP_UDP_FLOW_CONTEXT, Data);
+    if (appIdLength > MAXULONG - packageSidLength - headerSize) {
+        return;
+    }
+    contextSize = headerSize + appIdLength + packageSidLength;
     context = ExAllocatePool2(
         POOL_FLAG_NON_PAGED,
         contextSize,
@@ -226,8 +257,15 @@ NonProxyClassifyUdpFlow(
         ? Metadata->processId
         : 0;
     context->AppIdLength = appIdLength;
-    if (appIdLength != 0 && appId->data != NULL) {
-        RtlCopyMemory(context->AppId, appId->data, appIdLength);
+    context->PackageSidLength = packageSidLength;
+    if (appIdLength != 0) {
+        RtlCopyMemory(context->Data, appId->data, appIdLength);
+    }
+    if (packageSidLength != 0) {
+        RtlCopyMemory(
+            context->Data + appIdLength,
+            packageSid,
+            packageSidLength);
     }
     status = FwpsFlowAssociateContext0(
         Metadata->flowHandle,

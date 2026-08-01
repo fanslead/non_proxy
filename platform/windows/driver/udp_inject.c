@@ -77,10 +77,10 @@ NonProxyUdpBytesAreZero(
 
 static NTSTATUS
 NonProxyValidateUdpInjection(
-    _In_ const NP_WFP_UDP_INJECT_V1* Injection,
+    _In_ const NP_WFP_UDP_INJECT_V2* Injection,
     _In_ ULONG InputLength)
 {
-    ULONG headerSize = FIELD_OFFSET(NP_WFP_UDP_INJECT_V1, Payload);
+    ULONG headerSize = FIELD_OFFSET(NP_WFP_UDP_INJECT_V2, Payload);
 
     if (Injection->Magic != NP_WFP_UDP_INJECT_MAGIC ||
         Injection->Version != NP_WFP_UDP_ABI_VERSION ||
@@ -116,7 +116,7 @@ NonProxyInjectUdp(
     _In_reads_bytes_(InputLength) const VOID* Input,
     _In_ ULONG InputLength)
 {
-    const NP_WFP_UDP_INJECT_V1* injection = Input;
+    const NP_WFP_UDP_INJECT_V2* injection = Input;
     NP_WFP_UDP_INJECTION_CONTEXT* context = NULL;
     ULONG udpSize;
     ULONG bufferSize;
@@ -126,7 +126,7 @@ NonProxyInjectUdp(
     NTSTATUS status;
 
     if (Input == NULL ||
-        InputLength < FIELD_OFFSET(NP_WFP_UDP_INJECT_V1, Payload)) {
+        InputLength < FIELD_OFFSET(NP_WFP_UDP_INJECT_V2, Payload)) {
         return STATUS_BUFFER_TOO_SMALL;
     }
     status = NonProxyValidateUdpInjection(injection, InputLength);

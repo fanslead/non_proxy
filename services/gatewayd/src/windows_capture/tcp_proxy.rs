@@ -169,7 +169,11 @@ async fn handle_connection(
         )
     };
     let app = application_identities
-        .resolve(metadata.context().app_id(), metadata.context().process_id())
+        .resolve(
+            metadata.context().app_id(),
+            metadata.context().package_sid(),
+            metadata.context().process_id(),
+        )
         .await;
     let context = ConnectionContext::new(app, destination);
     let snapshot = policies

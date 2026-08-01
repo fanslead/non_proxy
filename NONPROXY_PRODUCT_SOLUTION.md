@@ -308,8 +308,8 @@ Telegram → 新加坡节点
 
 - 从“正在运行的应用”选择。
 - macOS 从应用目录或系统 `.app` 选择器选择。
-- Windows 从可信 Win32 注册应用目录或系统 `.exe` 选择器选择；MSIX/UWP 包应用在包身份
-  目录接入前不显示，不能退化为文件名匹配。
+- Windows 从可信 Win32 注册应用目录、系统 `.exe` 选择器或当前用户 MSIX/UWP 包目录
+  选择；包目录不可用时明确提示但不隐藏 Win32 应用。
 - 在最近连接中点击“让这个应用始终直连”。
 
 应用身份不能只使用进程名。macOS 应保存：
@@ -327,7 +327,8 @@ Windows 使用 WFP `FwpmGetAppIdFromFileName0` 产生的 ALE App ID 作为稳定
 已通过 Authenticode 信任校验的叶子签名证书 SHA-256 约束发布者。桌面选择器与 TCP/UDP
 运行时必须使用同一算法；运行时还要把进程路径反查出的 WFP ID 与捕获 ID 等值核对。
 Windows 当前按精确 Win32 可执行文件匹配，不把尚未建立关系证据的子进程描述为 Helper；
-MSIX/UWP 后续必须使用 WFP ALE package identity 与包发布者，不能复用弱路径身份。
+MSIX/UWP 使用 WFP ALE package SID 作为稳定身份，并用由进程 PFN 解析出的 PublisherId
+约束发布者，不能复用弱路径身份。非空但畸形或与进程不一致的包 SID 不得回退成 Win32。
 
 “最近连接”快捷入口只能使用数据面已经认证并由控制服务权威保存的应用身份。当前平台、
 稳定身份和签名身份完整，且记录不属于系统保护流量、同一父应用也没有既有规则时，才显示

@@ -32,9 +32,9 @@ WFP ALE 连接元数据中的应用身份不是普通的 `C:\...` 路径。桌�
 7. WFP ABI 最多携带 4096 字节 App ID。领域模型允许最多 8192 字节 UTF-8 稳定身份，
    桌面解码允许最多 2048 个 UTF-16 code unit；短 signer、显示名和 Helper 元数据继续
    保持 512 字节/字符级边界。
-8. 本决策不把 MSIX/UWP 打包应用描述为已支持。后续目录和数据面必须同时接入 WFP ALE
-   package identity、包目录与包发布者，并完成真实设备验收；在此之前不显示打包应用，也不
-   回退到文件名、展示名或未验证路径。
+8. MSIX/UWP 使用独立 package identity 链，不复用本 ADR 的 Win32 路径/证书算法；具体
+   目录、ALE package SID、PublisherId 与失败语义由 [ADR-0034](0034-bind-packaged-apps-to-ale-package-sid.md)
+   约束。两类身份均不回退到文件名、展示名或未验证路径。
 
 ## 失败语义
 

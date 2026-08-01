@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 
-use crate::{MAX_APP_ID_BYTES, WindowsWfpError};
+use crate::{MAX_APP_ID_BYTES, MAX_PACKAGE_SID_BYTES, WindowsWfpError};
 
 pub const MAX_UDP_BATCH_BYTES: usize = 256 * 1024;
 pub const MAX_UDP_PAYLOAD_BYTES: usize = 65_000;
@@ -8,9 +8,9 @@ pub const MAX_UDP_PAYLOAD_BYTES: usize = 65_000;
 const BATCH_MAGIC: u32 = u32::from_le_bytes(*b"NPUB");
 const DATAGRAM_MAGIC: u32 = u32::from_le_bytes(*b"NPUD");
 const INJECTION_MAGIC: u32 = u32::from_le_bytes(*b"NPUI");
-const UDP_ABI_VERSION: u16 = 1;
+const UDP_ABI_VERSION: u16 = 2;
 const BATCH_HEADER_SIZE: usize = 16;
-const DATAGRAM_HEADER_SIZE: usize = 88;
+const DATAGRAM_HEADER_SIZE: usize = 96;
 const INJECTION_HEADER_SIZE: usize = 80;
 const AF_INET: u16 = 2;
 const AF_INET6: u16 = 23;
@@ -25,6 +25,7 @@ pub struct UdpDatagram {
     local: SocketAddr,
     remote: SocketAddr,
     app_id: Vec<u8>,
+    package_sid: Vec<u8>,
     payload: Vec<u8>,
 }
 
@@ -77,6 +78,11 @@ impl UdpDatagram {
     #[must_use]
     pub fn app_id(&self) -> &[u8] {
         &self.app_id
+    }
+
+    #[must_use]
+    pub fn package_sid(&self) -> &[u8] {
+        &self.package_sid
     }
 
     #[must_use]
@@ -182,19 +188,23 @@ fn decode_datagram(bytes: &[u8]) -> Result<UdpDatagram, WindowsWfpError> {
         || read_u16(bytes, 4)? != UDP_ABI_VERSION
         || usize::from(read_u16(bytes, 6)?) != DATAGRAM_HEADER_SIZE
         || read_u16(bytes, 14)? != 0
+        || read_u32(bytes, 92)? != 0
     {
         return Err(WindowsWfpError::InvalidData("WFP UDP 数据报版本无效"));
     }
     let total = usize_from_u32(read_u32(bytes, 8)?)?;
     let app_length = usize_from_u32(read_u32(bytes, 80)?)?;
-    let payload_length = usize_from_u32(read_u32(bytes, 84)?)?;
+    let package_sid_length = usize_from_u32(read_u32(bytes, 84)?)?;
+    let payload_length = usize_from_u32(read_u32(bytes, 88)?)?;
     let expected = DATAGRAM_HEADER_SIZE
         .checked_add(app_length)
+        .and_then(|value| value.checked_add(package_sid_length))
         .and_then(|value| value.checked_add(payload_length))
         .ok_or(WindowsWfpError::InvalidData("WFP UDP 数据报长度溢出"))?;
     if total != bytes.len()
         || total != expected
         || app_length > MAX_APP_ID_BYTES
+        || package_sid_length > MAX_PACKAGE_SID_BYTES
         || payload_length > MAX_UDP_PAYLOAD_BYTES
     {
         return Err(WindowsWfpError::InvalidData("WFP UDP 数据报长度无效"));
@@ -205,7 +215,8 @@ fn decode_datagram(bytes: &[u8]) -> Result<UdpDatagram, WindowsWfpError> {
     let interface_index = read_u32(bytes, 36)?;
     let local = decode_address(family, &bytes[48..64], local_port, interface_index)?;
     let remote = decode_address(family, &bytes[64..80], remote_port, interface_index)?;
-    let payload_start = DATAGRAM_HEADER_SIZE + app_length;
+    let package_sid_start = DATAGRAM_HEADER_SIZE + app_length;
+    let payload_start = package_sid_start + package_sid_length;
     Ok(UdpDatagram {
         packet_id: read_u64(bytes, 16)?,
         process_id: read_u64(bytes, 24)?,
@@ -214,7 +225,8 @@ fn decode_datagram(bytes: &[u8]) -> Result<UdpDatagram, WindowsWfpError> {
         sub_interface_index: read_u32(bytes, 40)?,
         local,
         remote,
-        app_id: bytes[DATAGRAM_HEADER_SIZE..payload_start].to_vec(),
+        app_id: bytes[DATAGRAM_HEADER_SIZE..package_sid_start].to_vec(),
+        package_sid: bytes[package_sid_start..payload_start].to_vec(),
         payload: bytes[payload_start..].to_vec(),
     })
 }

@@ -73,7 +73,7 @@ pub async fn run_udp_session(
     let (target, destination) = session_target(&first, &dependencies).await?;
     let app = dependencies
         .application_identities
-        .resolve(first.app_id(), first.process_id())
+        .resolve(first.app_id(), first.package_sid(), first.process_id())
         .await;
     let context = ConnectionContext::new(app, destination);
     drop(first);

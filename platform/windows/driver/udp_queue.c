@@ -9,7 +9,7 @@ NonProxyEnqueueUdpRecord(
     BOOLEAN accepted = FALSE;
 
     if (Node == NULL ||
-        Node->RecordSize < FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V1, Data) ||
+        Node->RecordSize < FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V2, Data) ||
         Node->RecordSize > NP_WFP_MAX_UDP_BATCH_BYTES) {
         return STATUS_INVALID_PARAMETER;
     }
@@ -40,9 +40,9 @@ NonProxyReceiveUdpBatch(
     _In_ ULONG OutputLength,
     _Out_ ULONG_PTR* BytesWritten)
 {
-    NP_WFP_UDP_BATCH_V1* batch = Output;
+    NP_WFP_UDP_BATCH_V2* batch = Output;
     LIST_ENTRY detached;
-    ULONG selectedBytes = FIELD_OFFSET(NP_WFP_UDP_BATCH_V1, Datagrams);
+    ULONG selectedBytes = FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams);
     ULONG cursor;
     ULONG count = 0;
     KIRQL oldIrql;
@@ -50,7 +50,7 @@ NonProxyReceiveUdpBatch(
     InitializeListHead(&detached);
     *BytesWritten = 0;
     if (Output == NULL ||
-        OutputLength < FIELD_OFFSET(NP_WFP_UDP_BATCH_V1, Datagrams) ||
+        OutputLength < FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams) ||
         OutputLength > NP_WFP_MAX_UDP_BATCH_BYTES) {
         return STATUS_INVALID_BUFFER_SIZE;
     }
@@ -76,7 +76,7 @@ NonProxyReceiveUdpBatch(
     if (count == 0) {
         return STATUS_NO_MORE_ENTRIES;
     }
-    cursor = FIELD_OFFSET(NP_WFP_UDP_BATCH_V1, Datagrams);
+    cursor = FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams);
     while (!IsListEmpty(&detached)) {
         PLIST_ENTRY entry = RemoveHeadList(&detached);
         NP_WFP_UDP_PACKET_NODE* node =
@@ -88,10 +88,10 @@ NonProxyReceiveUdpBatch(
         cursor += node->RecordSize;
         ExFreePoolWithTag(node, NP_WFP_POOL_TAG);
     }
-    RtlZeroMemory(batch, FIELD_OFFSET(NP_WFP_UDP_BATCH_V1, Datagrams));
+    RtlZeroMemory(batch, FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams));
     batch->Magic = NP_WFP_UDP_BATCH_MAGIC;
     batch->Version = NP_WFP_UDP_ABI_VERSION;
-    batch->HeaderSize = FIELD_OFFSET(NP_WFP_UDP_BATCH_V1, Datagrams);
+    batch->HeaderSize = FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams);
     batch->TotalSize = selectedBytes;
     batch->DatagramCount = count;
     *BytesWritten = selectedBytes;

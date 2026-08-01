@@ -5,16 +5,23 @@ use std::{
 };
 
 use windows_sys::Win32::{
-    Foundation::{CloseHandle, FILETIME, HANDLE},
+    Foundation::{CloseHandle, ERROR_INSUFFICIENT_BUFFER, ERROR_SUCCESS, FILETIME, HANDLE},
     NetworkManagement::WindowsFilteringPlatform::{
         FWP_BYTE_BLOB, FwpmFreeMemory0, FwpmGetAppIdFromFileName0,
     },
-    Security::WinTrust::{
-        WINTRUST_ACTION_GENERIC_VERIFY_V2, WINTRUST_DATA, WINTRUST_FILE_INFO,
-        WTD_CACHE_ONLY_URL_RETRIEVAL, WTD_CHOICE_FILE, WTD_DISABLE_MD2_MD4, WTD_REVOKE_NONE,
-        WTD_STATEACTION_CLOSE, WTD_STATEACTION_VERIFY, WTD_UI_NONE, WTHelperGetProvCertFromChain,
-        WTHelperGetProvSignerFromChain, WTHelperProvDataFromStateData, WinVerifyTrustEx,
+    Security::{
+        FreeSid, GetLengthSid, IsValidSid,
+        Isolation::DeriveAppContainerSidFromAppContainerName,
+        PSID,
+        WinTrust::{
+            WINTRUST_ACTION_GENERIC_VERIFY_V2, WINTRUST_DATA, WINTRUST_FILE_INFO,
+            WTD_CACHE_ONLY_URL_RETRIEVAL, WTD_CHOICE_FILE, WTD_DISABLE_MD2_MD4, WTD_REVOKE_NONE,
+            WTD_STATEACTION_CLOSE, WTD_STATEACTION_VERIFY, WTD_UI_NONE,
+            WTHelperGetProvCertFromChain, WTHelperGetProvSignerFromChain,
+            WTHelperProvDataFromStateData, WinVerifyTrustEx,
+        },
     },
+    Storage::Packaging::Appx::{GetPackageFamilyName, PackageNameAndPublisherIdFromFamilyName},
     System::Threading::{
         GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
     },
@@ -22,16 +29,22 @@ use windows_sys::Win32::{
 
 use crate::{
     certificate_signer_identity, decode_wfp_app_id,
-    resolver::{IdentitySource, ProcessIdentitySource},
+    resolver::{IdentitySource, PackageIdentitySource, ProcessIdentitySource},
 };
 
 const MAXIMUM_PROCESS_PATH_CHARACTERS: usize = 32_768;
+const MAXIMUM_PACKAGE_NAME_CHARACTERS: usize = 256;
+const MAXIMUM_PACKAGE_SID_BYTES: usize = 68;
 const MAXIMUM_CERTIFICATE_BYTES: usize = 1024 * 1024;
 
 pub(super) struct WindowsNativeIdentitySource;
 
 impl IdentitySource for WindowsNativeIdentitySource {
-    fn process(&self, process_id: u32, expected_stable_id: &str) -> Option<ProcessIdentitySource> {
+    fn desktop_process(
+        &self,
+        process_id: u32,
+        expected_stable_id: &str,
+    ) -> Option<ProcessIdentitySource> {
         let process = ProcessHandle::open(process_id)?;
         let path = process.image_path()?;
         (stable_id_for_path(&path).as_deref() == Some(expected_stable_id)).then(|| {
@@ -39,6 +52,23 @@ impl IdentitySource for WindowsNativeIdentitySource {
                 path,
                 creation_time: process.creation_time(),
             }
+        })
+    }
+
+    fn package_process(
+        &self,
+        process_id: u32,
+        expected_sid: &[u8],
+    ) -> Option<PackageIdentitySource> {
+        let process = ProcessHandle::open(process_id)?;
+        let family_name = process.package_family_name()?;
+        let derived_sid = package_sid_for_family(&family_name)?;
+        if derived_sid != expected_sid {
+            return None;
+        }
+        Some(PackageIdentitySource {
+            publisher_id: package_publisher_id(&family_name)?,
+            creation_time: process.creation_time(),
         })
     }
 
@@ -79,6 +109,22 @@ impl ProcessHandle {
             (u64::from(creation.dwHighDateTime) << 32) | u64::from(creation.dwLowDateTime),
         )
     }
+
+    fn package_family_name(&self) -> Option<String> {
+        let mut length = 0_u32;
+        let status = unsafe { GetPackageFamilyName(self.0, &mut length, null_mut()) };
+        if status != ERROR_INSUFFICIENT_BUFFER
+            || length < 2
+            || usize::try_from(length).ok()? > MAXIMUM_PACKAGE_NAME_CHARACTERS
+        {
+            return None;
+        }
+        let mut buffer = vec![0_u16; usize::try_from(length).ok()?];
+        let status = unsafe { GetPackageFamilyName(self.0, &mut length, buffer.as_mut_ptr()) };
+        (status == ERROR_SUCCESS)
+            .then(|| decode_wide_buffer(&buffer, length))
+            .flatten()
+    }
 }
 
 impl Drop for ProcessHandle {
@@ -116,6 +162,87 @@ impl Drop for WfpBlob {
             self.0 = null_mut();
         }
     }
+}
+
+fn package_sid_for_family(family_name: &str) -> Option<Vec<u8>> {
+    let family_name = wide_path(family_name)?;
+    let mut sid: PSID = null_mut();
+    let result =
+        unsafe { DeriveAppContainerSidFromAppContainerName(family_name.as_ptr(), &mut sid) };
+    if result < 0 || sid.is_null() {
+        return None;
+    }
+    let owned = OwnedSid(sid);
+    if unsafe { IsValidSid(owned.0) } == 0 {
+        return None;
+    }
+    let length = usize::try_from(unsafe { GetLengthSid(owned.0) }).ok()?;
+    if length == 0 || length > MAXIMUM_PACKAGE_SID_BYTES {
+        return None;
+    }
+    Some(unsafe { std::slice::from_raw_parts(owned.0.cast::<u8>(), length) }.to_vec())
+}
+
+struct OwnedSid(PSID);
+
+impl Drop for OwnedSid {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            let _released = unsafe { FreeSid(self.0) };
+            self.0 = null_mut();
+        }
+    }
+}
+
+fn package_publisher_id(family_name: &str) -> Option<String> {
+    let family_name = wide_path(family_name)?;
+    let mut name_length = 0_u32;
+    let mut publisher_length = 0_u32;
+    let status = unsafe {
+        PackageNameAndPublisherIdFromFamilyName(
+            family_name.as_ptr(),
+            &mut name_length,
+            null_mut(),
+            &mut publisher_length,
+            null_mut(),
+        )
+    };
+    if status != ERROR_INSUFFICIENT_BUFFER
+        || name_length < 2
+        || publisher_length < 2
+        || usize::try_from(name_length).ok()? > MAXIMUM_PACKAGE_NAME_CHARACTERS
+        || usize::try_from(publisher_length).ok()? > MAXIMUM_PACKAGE_NAME_CHARACTERS
+    {
+        return None;
+    }
+    let mut name = vec![0_u16; usize::try_from(name_length).ok()?];
+    let mut publisher = vec![0_u16; usize::try_from(publisher_length).ok()?];
+    let status = unsafe {
+        PackageNameAndPublisherIdFromFamilyName(
+            family_name.as_ptr(),
+            &mut name_length,
+            name.as_mut_ptr(),
+            &mut publisher_length,
+            publisher.as_mut_ptr(),
+        )
+    };
+    (status == ERROR_SUCCESS)
+        .then(|| decode_wide_buffer(&publisher, publisher_length))
+        .flatten()
+}
+
+fn decode_wide_buffer(buffer: &[u16], length: u32) -> Option<String> {
+    let used = usize::try_from(length).ok()?;
+    let mut value = buffer.get(..used)?;
+    if value.last() == Some(&0) {
+        value = &value[..value.len() - 1];
+    }
+    let value = String::from_utf16(value).ok()?;
+    (!value.is_empty()
+        && !value
+            .chars()
+            .any(|character| character == '\0' || character.is_control()))
+    .then_some(value)
 }
 
 fn trusted_signer_identity(path: &str) -> Option<String> {

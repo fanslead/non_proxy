@@ -11,7 +11,7 @@ namespace NonProxy.Desktop.Windows;
 internal static class Program
 {
     [STAThread]
-    [SupportedOSPlatform("windows")]
+    [SupportedOSPlatform("windows10.0.18362.0")]
     public static void Main(string[] args)
     {
         using var services = ServiceRegistration.BuildProvider(collection =>
@@ -21,6 +21,9 @@ internal static class Program
             collection.AddSingleton<
                 IWindowsApplicationDiscovery,
                 WindowsApplicationDiscovery>();
+            collection.AddSingleton<
+                IWindowsPackageDiscovery,
+                WindowsPackageDiscovery>();
             collection.AddSingleton<
                 IWindowsApplicationIdentityReader,
                 WindowsApplicationIdentityReader>();

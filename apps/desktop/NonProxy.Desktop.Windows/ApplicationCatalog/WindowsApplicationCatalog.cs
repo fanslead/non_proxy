@@ -4,13 +4,35 @@ using NonProxy.Desktop.Core.Platform;
 namespace NonProxy.Desktop.Windows.ApplicationCatalog;
 
 internal sealed record WindowsApplicationCandidate(
-    string ExecutablePath,
+    string IdentitySource,
     string DisplayName,
-    bool IsRunning);
+    bool IsRunning,
+    WindowsApplicationCandidateKind Kind = WindowsApplicationCandidateKind.Win32,
+    string? PackagePublisherId = null);
+
+internal enum WindowsApplicationCandidateKind
+{
+    Win32,
+    Package,
+}
+
+internal sealed record WindowsApplicationDiscoverySnapshot(
+    IReadOnlyList<WindowsApplicationCandidate> Candidates,
+    bool PackageCatalogAvailable = true);
+
+internal sealed record WindowsPackageDiscoverySnapshot(
+    IReadOnlyList<WindowsApplicationCandidate> Candidates,
+    bool IsAvailable);
 
 internal interface IWindowsApplicationDiscovery
 {
-    IReadOnlyList<WindowsApplicationCandidate> Discover(
+    WindowsApplicationDiscoverySnapshot Discover(
+        CancellationToken cancellationToken);
+}
+
+internal interface IWindowsPackageDiscovery
+{
+    WindowsPackageDiscoverySnapshot Discover(
         CancellationToken cancellationToken);
 }
 
@@ -34,16 +56,20 @@ internal sealed class WindowsApplicationCatalog(
     {
         try
         {
-            var candidates = await Task.Run(
+            var discoverySnapshot = await Task.Run(
                 () => discovery.Discover(cancellationToken),
                 cancellationToken);
             var applications = await Task.Run(
-                () => Resolve(candidates, cancellationToken),
+                () => Resolve(discoverySnapshot.Candidates, cancellationToken),
                 cancellationToken);
-            var skipped = candidates.Count - applications.Length;
+            var skipped = discoverySnapshot.Candidates.Count - applications.Length;
             var message = skipped == 0
                 ? $"已找到 {applications.Length} 个可信应用。"
                 : $"已找到 {applications.Length} 个可信应用；另有 {skipped} 个项目因路径或签名身份不足未显示。";
+            if (!discoverySnapshot.PackageCatalogAvailable)
+            {
+                message += " Windows 打包应用目录暂时不可用；Win32 应用仍可选择。";
+            }
             return new ApplicationCatalogSnapshot(
                 applications,
                 true,

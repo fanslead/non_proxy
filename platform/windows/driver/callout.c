@@ -9,6 +9,15 @@ NonProxyAppIdField(
         : FWPS_FIELD_ALE_CONNECT_REDIRECT_V6_ALE_APP_ID;
 }
 
+static UINT32
+NonProxyPackageSidField(
+    _In_ UINT16 LayerId)
+{
+    return LayerId == FWPS_LAYER_ALE_CONNECT_REDIRECT_V4
+        ? FWPS_FIELD_ALE_CONNECT_REDIRECT_V4_ALE_PACKAGE_ID
+        : FWPS_FIELD_ALE_CONNECT_REDIRECT_V6_ALE_PACKAGE_ID;
+}
+
 static UINT16
 NonProxyProxyPort(
     _In_ const NP_WFP_CONFIG_V3* Config,
@@ -46,7 +55,7 @@ NonProxySetLoopback(
     }
 }
 
-static NP_WFP_REDIRECT_CONTEXT_V1*
+static NP_WFP_REDIRECT_CONTEXT_V2*
 NonProxyAllocateContext(
     _In_ const FWPS_INCOMING_VALUES0* IncomingValues,
     _In_ const FWPS_INCOMING_METADATA_VALUES0* Metadata,
@@ -57,12 +66,22 @@ NonProxyAllocateContext(
     const FWP_BYTE_BLOB* appId =
         IncomingValues->incomingValue[field].value.byteBlob;
     UINT32 appIdLength = appId == NULL ? 0 : appId->size;
-    NP_WFP_REDIRECT_CONTEXT_V1* context;
+    const UCHAR* packageSid;
+    UINT32 packageSidLength;
+    ULONG headerSize = FIELD_OFFSET(NP_WFP_REDIRECT_CONTEXT_V2, Data);
+    NP_WFP_REDIRECT_CONTEXT_V2* context;
 
-    if (appIdLength > NP_WFP_MAX_APP_ID_BYTES) {
+    if (appIdLength > NP_WFP_MAX_APP_ID_BYTES ||
+        (appIdLength != 0 && appId->data == NULL) ||
+        !NonProxyReadPackageSid(
+            &IncomingValues->incomingValue[
+                NonProxyPackageSidField(IncomingValues->layerId)].value,
+            &packageSid,
+            &packageSidLength) ||
+        appIdLength > MAXULONG - packageSidLength - headerSize) {
         return NULL;
     }
-    *TotalSize = FIELD_OFFSET(NP_WFP_REDIRECT_CONTEXT_V1, AppId) + appIdLength;
+    *TotalSize = headerSize + appIdLength + packageSidLength;
     context = ExAllocatePool2(
         POOL_FLAG_NON_PAGED,
         *TotalSize,
@@ -74,7 +93,7 @@ NonProxyAllocateContext(
     RtlZeroMemory(context, *TotalSize);
     context->Magic = NP_WFP_CONTEXT_MAGIC;
     context->Version = NP_WFP_CONTEXT_VERSION;
-    context->HeaderSize = FIELD_OFFSET(NP_WFP_REDIRECT_CONTEXT_V1, AppId);
+    context->HeaderSize = (UINT16)headerSize;
     context->TotalSize = (UINT32)*TotalSize;
     context->ProcessId =
         FWPS_IS_METADATA_FIELD_PRESENT(Metadata, FWPS_METADATA_FIELD_PROCESS_ID)
@@ -83,8 +102,15 @@ NonProxyAllocateContext(
     context->OriginalLocal = Request->localAddressAndPort;
     context->OriginalRemote = Request->remoteAddressAndPort;
     context->AppIdLength = appIdLength;
-    if (appIdLength != 0 && appId->data != NULL) {
-        RtlCopyMemory(context->AppId, appId->data, appIdLength);
+    context->PackageSidLength = packageSidLength;
+    if (appIdLength != 0) {
+        RtlCopyMemory(context->Data, appId->data, appIdLength);
+    }
+    if (packageSidLength != 0) {
+        RtlCopyMemory(
+            context->Data + appIdLength,
+            packageSid,
+            packageSidLength);
     }
     return context;
 }
@@ -137,7 +163,7 @@ NonProxyClassifyConnect(
     NP_WFP_CONFIG_V3 config;
     UINT64 classifyHandle = 0;
     FWPS_CONNECT_REQUEST0* request = NULL;
-    NP_WFP_REDIRECT_CONTEXT_V1* context = NULL;
+    NP_WFP_REDIRECT_CONTEXT_V2* context = NULL;
     SIZE_T contextSize = 0;
     NTSTATUS status;
     BOOLEAN contextTransferred = FALSE;

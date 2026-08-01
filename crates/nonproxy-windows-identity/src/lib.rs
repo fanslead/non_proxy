@@ -4,6 +4,7 @@
 //! WFP and WinTrust calls are isolated in `native` and only compiled for Windows.
 
 mod app_id;
+mod package_id;
 #[cfg(any(windows, test))]
 mod resolver;
 
@@ -11,6 +12,9 @@ mod resolver;
 mod native;
 
 pub use app_id::{certificate_signer_identity, decode_wfp_app_id};
+pub use package_id::{
+    decode_package_sid, package_publisher_signer_identity, package_stable_identity,
+};
 
 #[cfg(windows)]
 pub use resolver::WindowsAppIdentityResolver;

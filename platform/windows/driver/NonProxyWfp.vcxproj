@@ -52,6 +52,7 @@
     <ClCompile Include="callout.c" />
     <ClCompile Include="device.c" />
     <ClCompile Include="driver.c" />
+    <ClCompile Include="identity.c" />
     <ClCompile Include="state.c" />
     <ClCompile Include="udp_callout.c" />
     <ClCompile Include="udp_inject.c" />

@@ -46,6 +46,11 @@ WDK 产物、Service 显示 Running 或策略显示 DIRECT，都不能单独代�
 发布 UI 和 Service 后，组装一个全新的空目录：
 
 ```powershell
+dotnet publish .\apps\desktop\NonProxy.Desktop.Windows\NonProxy.Desktop.Windows.csproj `
+  -c Release -f net10.0-windows10.0.26100.0 -r win-x64 --self-contained true `
+  -o .\.artifacts\desktop\win-x64
+cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-gatewayd
+
 .\scripts\windows\build-release-package.ps1 `
   -Version 0.1.0 `
   -Architecture x64 `
@@ -177,18 +182,21 @@ Remove-Item Env:\NONPROXY_ALLOW_WINDOWS_SYSTEM_MUTATION
 
 每个 VPN 组合至少执行：
 
-1. 在应用直连页分别选择一个运行中的 Authenticode 应用和一个通过 `.exe` 选择器加入的
-   应用；确认目录显示的 signer 与运行时活动记录一致。再以默认 PROXY、指定应用 DIRECT
-   访问事先未知的 TCP/UDP 目标，并确认规则命中。
+1. 在应用直连页分别选择一个运行中的 Authenticode 应用、一个通过 `.exe` 选择器加入的
+   应用和一个 MSIX/UWP AppContainer 应用；确认 Win32 signer、包 PublisherId/package SID
+   与运行时活动记录一致。再以默认 PROXY、指定应用 DIRECT 访问事先未知的 TCP/UDP 目标，
+   并确认三类规则分别命中。
 2. 浏览器一个标签页网站 DIRECT，同时另一标签页保持 PROXY。
 3. DIRECT/PROXY 各自的 IPv4、IPv6、TCP、DNS UDP/TCP、connected UDP、
    `sendto`、空 UDP 与 QUIC。
 4. 代理断开时 PROXY fail-closed，DIRECT 保持物理可达。
 5. 物理接口消失时 DIRECT 明确失败，不能静默回落到 VPN。
 6. DNS 探针失败时普通 TCP 捕获保持安全退化；DNS 与通用 UDP 不重复捕获。
-7. 队列饱和、畸形 context、未知 App ID 和进程退出时执行文档化失败语义。
-8. 使用无签名副本、同名不同路径、同路径不同 signer、应用升级、快速退出重启和 PID 复用
-   验证：无签名/错 signer 不得命中，合法同 signer 更新仍应命中同一 ALE App ID。
+7. 队列饱和、畸形 context、未知 App ID、非空畸形/错配 package SID 和进程退出时执行
+   文档化失败语义；包 SID 不得降级为 Win32 身份。
+8. 使用无签名副本、同名不同路径、同路径不同 signer、不同 PublisherId 的同名包、包升级、
+   快速退出重启和 PID 复用验证：无签名/错 signer/错 PublisherId 不得命中，合法更新仍应
+   命中对应 ALE App ID 或 versionless package family SID。
 
 ### 单条用例必须留存的四层证据
 
@@ -218,14 +226,15 @@ DIRECT 包出现在物理接口且不先进入第三方 VPN；仅比较公网 IP
 仓库已经提供发布目录、签名校验、Primitive Driver 安装/卸载、版本化复制、
 失败回滚、生命周期留证、Driver Verifier 安全门和 CI PowerShell 解析入口。
 
-当前开发环境不是 Windows，尚未执行原生 Win32 应用目录/WinTrust/WFP 身份联合验收、WDK C
-构建、Hardware Dev Center 签名、SCM/UAC、Driver Verifier 或真实 VPN W4 验收。
+当前开发环境不是 Windows，尚未执行原生 Win32/打包应用目录、WinTrust、PFN/package SID、
+PublisherId 与 WFP 身份联合验收、WDK C 构建、Hardware Dev Center 签名、SCM/UAC、
+Driver Verifier 或真实 VPN W4 验收。
 Avalonia Windows 宿主因此继续
 把系统组件显示为不可用；在签名 bootstrap 和上述 W2～W4 证据完成前不得改成
 “可安装”或“已确认直连”。
 
-MSIX/UWP 包目录、ALE package identity 与包发布者尚未实现，不属于当前 Win32 验收通过项；
-不得用文件名、展示名或普通路径结果替代包身份证据。
+MSIX/UWP 包目录、ALE package SID 与 PublisherId 已有 W0 源码和交叉编译证据，但没有真实
+Windows 验收结果；不得用文件名、展示名、普通路径、桌面目录成功或单元测试替代包身份证据。
 
 ## 8. 官方依据
 

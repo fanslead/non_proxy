@@ -27,6 +27,26 @@ public sealed class WindowsApplicationCatalogTests
     }
 
     [Fact]
+    public void PackageIdentityDecoderRequiresCanonicalApplicationPackageSid()
+    {
+        var sid = PackageSid(2, 1, 2, 3, 4, 5, 6, 7);
+
+        Assert.Equal(
+            "package-sid:S-1-15-2-1-2-3-4-5-6-7",
+            WindowsPackageStableIdentity.StableIdentity(sid));
+        Assert.Equal(
+            "package-publisher-id:8wekyb3d8bbwe",
+            WindowsPackageStableIdentity.SignerIdentity("8WEKYB3D8BBWE"));
+        Assert.Null(WindowsPackageStableIdentity.StableIdentity(
+            PackageSid(3, 1, 2, 3, 4, 5, 6, 7)));
+        Assert.Null(WindowsPackageStableIdentity.StableIdentity(
+            sid.AsSpan(0, sid.Length - 1)));
+        Assert.Null(WindowsPackageStableIdentity.SignerIdentity("publisher"));
+        Assert.Null(WindowsPackageStableIdentity.SignerIdentity("8wekyb3d8bbw_"));
+        Assert.Null(WindowsPackageStableIdentity.SignerIdentity(" 8wekyb3d8bbwe"));
+    }
+
+    [Fact]
     public async Task CatalogKeepsOnlyTrustedIdentitiesAndMergesRunningState()
     {
         var discovery = new FixedDiscovery(
@@ -53,6 +73,27 @@ public sealed class WindowsApplicationCatalogTests
         Assert.False(application.IncludeHelpers);
         Assert.Contains("1 个可信应用", snapshot.Message, StringComparison.Ordinal);
         Assert.Contains("2 个项目", snapshot.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CatalogReportsPackageDiscoveryFailureWithoutHidingWin32Apps()
+    {
+        var discovery = new FixedDiscovery(
+            [new("C:\\Apps\\Office.exe", "Office", false)],
+            false);
+        var catalog = new WindowsApplicationCatalog(
+            discovery,
+            new FixedIdentityReader(candidate => Application(
+                candidate.DisplayName,
+                candidate.IsRunning)),
+            new FixedPicker(null));
+
+        var snapshot = await catalog.ListAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.Single(snapshot.Applications);
+        Assert.True(snapshot.IsAvailable);
+        Assert.Contains("打包应用目录暂时不可用", snapshot.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -101,14 +142,45 @@ public sealed class WindowsApplicationCatalogTests
             false);
     }
 
-    private sealed class FixedDiscovery(
-        params WindowsApplicationCandidate[] candidates) : IWindowsApplicationDiscovery
+    private static byte[] PackageSid(params uint[] subAuthorities)
     {
-        public IReadOnlyList<WindowsApplicationCandidate> Discover(
+        var sid = new byte[8 + (subAuthorities.Length * sizeof(uint))];
+        sid[0] = 1;
+        sid[1] = checked((byte)subAuthorities.Length);
+        sid[7] = 15;
+        for (var index = 0; index < subAuthorities.Length; index++)
+        {
+            BitConverter.GetBytes(subAuthorities[index])
+                .CopyTo(sid, 8 + (index * sizeof(uint)));
+        }
+        return sid;
+    }
+
+    private sealed class FixedDiscovery : IWindowsApplicationDiscovery
+    {
+        private readonly bool _packageCatalogAvailable;
+        private readonly WindowsApplicationCandidate[] _candidates;
+
+        public FixedDiscovery(params WindowsApplicationCandidate[] candidates)
+            : this(candidates, true)
+        {
+        }
+
+        public FixedDiscovery(
+            WindowsApplicationCandidate[] candidates,
+            bool packageCatalogAvailable)
+        {
+            _packageCatalogAvailable = packageCatalogAvailable;
+            _candidates = candidates;
+        }
+
+        public WindowsApplicationDiscoverySnapshot Discover(
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return candidates;
+            return new WindowsApplicationDiscoverySnapshot(
+                _candidates,
+                _packageCatalogAvailable);
         }
     }
 

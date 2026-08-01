@@ -28,7 +28,7 @@ Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名
 
 第三方客户端协同已覆盖 Surge、Clash/Mihomo 和 sing-box 的显式登记、活动快照无损投影、客户端原生校验、主配置与 sidecar 双文件事务、公开重载、配置确认和失败恢复。共享页面可用系统原生文件选择器选取客户端与当前配置，也保留绝对路径高级回退；所有选择结果仍由隔离 adapter-host 重新验证。页面独立显示候选校验、配置载入和真实路径，当前没有路径级证据时始终提示“尚未证明绕过 VPN”。Windows 复用同一页面，但 Adapter 命名管道未接入前保持明确不可用。
 
-应用直连页已经在 macOS 与 Windows 共用。Windows 目录从当前用户运行进程和系统注册应用中筛选可信 Win32 `.exe`，也可通过系统文件选择器补充；稳定身份直接来自 `FwpmGetAppIdFromFileName0`，只有通过 Authenticode 信任校验并取得证书 SHA-256 的应用才能创建规则。WFP TCP/UDP 运行时会重新核对进程路径对应的 ALE App ID 和同一 signer，Windows 不虚构 Helper 关系。MSIX/UWP 包目录与 ALE package identity 尚未接入，不能回退成文件名或展示名匹配；真实 Windows 上的 WinTrust/Catalog 签名、PID 复用与 WFP 命中仍按验收文档取证。
+应用直连页已经在 macOS 与 Windows 共用。Windows 目录从当前用户运行进程和系统注册应用中筛选可信 Win32 `.exe`，也可通过系统文件选择器补充；稳定身份直接来自 `FwpmGetAppIdFromFileName0`，只有通过 Authenticode 信任校验并取得证书 SHA-256 的应用才能创建规则。MSIX/UWP 由当前用户包目录提供 PFN 与 PublisherId，规则稳定身份使用系统派生的 AppContainer package SID。WFP TCP/UDP 会携带 ALE package SID，并按 PID 重新读取 PFN、派生 SID、解析 PublisherId 后等值核对；非空畸形包 SID 不回退为 Win32。Windows 不虚构 Helper 关系；真实 Windows 上的包目录、WinTrust/Catalog 签名、PID 复用与 WFP 命中仍按验收文档取证。
 
 正式签名 macOS 包的只读查询、安装、升级、卸载和完整生命周期验收使用 [macOS 系统组件验收手册](docs/MACOS_SYSTEM_ACCEPTANCE.md)。验收命令拒绝临时签名、非 `/Applications` 包和未经显式确认的系统变更，并输出带 SHA-256 清单的独立证据目录。
 

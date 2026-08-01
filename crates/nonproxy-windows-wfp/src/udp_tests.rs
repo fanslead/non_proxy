@@ -16,6 +16,7 @@ fn decodes_bounded_ipv4_batch_and_encodes_response() {
     assert_eq!(decoded.len(), 1);
     assert_eq!(decoded[0].local().to_string(), "192.0.2.10:53000");
     assert_eq!(decoded[0].remote().to_string(), "198.51.100.7:443");
+    assert_eq!(decoded[0].package_sid(), &[1, 2, 3]);
     assert_eq!(decoded[0].payload(), b"quic");
     let injection =
         UdpInjection::encode(decoded[0].injection_context(), b"reply").unwrap_or_else(|error| {
@@ -42,10 +43,28 @@ fn rejects_count_length_and_payload_inconsistency() {
     assert!(decode_udp_batch(&batch).is_err());
 }
 
+#[test]
+fn rejects_reserved_fields_and_oversized_package_sid() {
+    let mut reserved = datagram_record(AF_INET, &[192, 0, 2, 10], &[198, 51, 100, 7]);
+    reserved[92] = 1;
+    assert!(decode_datagram(&reserved).is_err());
+
+    let mut oversized = datagram_record(AF_INET, &[192, 0, 2, 10], &[198, 51, 100, 7]);
+    let payload = oversized.split_off(oversized.len() - 4);
+    oversized.extend([0; 66]);
+    oversized.extend(payload);
+    let oversized_length = u32::try_from(oversized.len()).unwrap_or_default();
+    write_u32(&mut oversized, 8, oversized_length);
+    write_u32(&mut oversized, 84, 69);
+
+    assert!(decode_datagram(&oversized).is_err());
+}
+
 fn datagram_record(family: u16, local: &[u8], remote: &[u8]) -> Vec<u8> {
     let app = b"a\0p\0p\0";
+    let package_sid = [1, 2, 3];
     let payload = b"quic";
-    let total = DATAGRAM_HEADER_SIZE + app.len() + payload.len();
+    let total = DATAGRAM_HEADER_SIZE + app.len() + package_sid.len() + payload.len();
     let mut record = vec![0_u8; total];
     write_u32(&mut record, 0, DATAGRAM_MAGIC);
     write_u16(&mut record, 4, UDP_ABI_VERSION);
@@ -68,9 +87,16 @@ fn datagram_record(family: u16, local: &[u8], remote: &[u8]) -> Vec<u8> {
     write_u32(
         &mut record,
         84,
+        u32::try_from(package_sid.len()).unwrap_or_default(),
+    );
+    write_u32(
+        &mut record,
+        88,
         u32::try_from(payload.len()).unwrap_or_default(),
     );
     record[DATAGRAM_HEADER_SIZE..DATAGRAM_HEADER_SIZE + app.len()].copy_from_slice(app);
-    record[DATAGRAM_HEADER_SIZE + app.len()..].copy_from_slice(payload);
+    record[DATAGRAM_HEADER_SIZE + app.len()..DATAGRAM_HEADER_SIZE + app.len() + package_sid.len()]
+        .copy_from_slice(&package_sid);
+    record[DATAGRAM_HEADER_SIZE + app.len() + package_sid.len()..].copy_from_slice(payload);
     record
 }

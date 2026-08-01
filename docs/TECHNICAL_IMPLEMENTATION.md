@@ -359,7 +359,9 @@ edition = "2024"
 - 使用 Avalonia 12 和 .NET 10 LTS。
 - `NonProxy.Desktop.Core` 保存唯一 C#/AXAML UI 源码。
 - macOS 薄宿主目标为 `net10.0-macos`，以访问完整 macOS API；最终包必须在 macOS 构建。
-- Windows 薄宿主目标为 `net10.0`。
+- Windows 薄宿主同时提供 `net10.0` 测试目标和
+  `net10.0-windows10.0.26100.0` 生产目标；发布必须显式选择后者，最低系统版本仍为
+  Windows 10 1903。
 - 使用 CommunityToolkit.Mvvm。
 - 发布使用 self-contained 平台包，用户无需预装 .NET。
 - 首发不启用 NativeAOT；待反射、序列化、诊断和打包链路稳定后再单独评估。
@@ -773,8 +775,11 @@ Windows：
   桌面端和数据面不得自行把 DOS 路径重新编码成身份。
 - 已实现的可信 Win32 `signer_id`：通过 Authenticode 信任校验后，叶子签名证书 DER 的
   SHA-256。
-- UWP/MSIX 后续必须使用 WFP ALE package identity、包目录和包发布者；当前不显示，也不
-  回退到文件名、展示名或未验证路径。
+- 已实现的 UWP/MSIX `stable_id`：严格解析 WFP `ALE_PACKAGE_ID` 的 application package
+  SID，格式为 `package-sid:S-1-15-2-...`；桌面端从 PFN 调用系统 API 派生相同 SID。
+- 已实现的 UWP/MSIX `signer_id`：由进程 PFN 解析的 13 字符 PublisherId，格式为
+  `package-publisher-id:<lowercase>`。运行时必须重新读取进程 PFN、派生 SID 并与捕获值
+  等值核对；非空畸形 SID 不回退到文件名、展示名、Win32 App ID 或未验证路径。
 
 ### 10.2 Destination
 
@@ -1801,9 +1806,11 @@ macOS 原生桥 ABI 约束：
   签名证书 DER 的 SHA-256 保存为 `cert-sha256:<hex>` signer；无签名/不可信候选不生成
   规则。数据面按 PID 读取映像路径，反查 WFP App ID 与捕获值等值后才附加相同 signer，
   结果按 PID、创建时间和 App ID 有界缓存，阻塞式 Win32 解析并发上限为 32，容量不足时
-  安全省略 signer。Windows 规则当前为精确可执行文件匹配且
-  `include_helpers=false`；MSIX/UWP package identity 尚未接入，完整边界见
-  [ADR-0033](ADR/0033-bind-windows-app-rules-to-wfp-and-authenticode.md)。
+  安全省略 signer。MSIX/UWP 候选来自当前用户 `PackageManager` 目录；规则 SID 由 PFN
+  调用 `DeriveAppContainerSidFromAppContainerName` 产生，数据面把 TCP/UDP 的 ALE package
+  SID 交给 gateway，再按 PID 重新读取 PFN、派生 SID、解析 PublisherId。Windows 规则
+  均为精确身份匹配且 `include_helpers=false`；完整边界见 [ADR-0033](ADR/0033-bind-windows-app-rules-to-wfp-and-authenticode.md)
+  与 [ADR-0034](ADR/0034-bind-packaged-apps-to-ale-package-sid.md)。
 - `ICurrentNetworkEnvironment` 只在用户点击“检测当前网络”时调用平台采集。macOS 实现
   通过 ABI v7 返回单个最佳脱敏指纹、定位权限状态和通用建议名，不返回 SSID；Windows
   未接入前返回明确不可用状态，但继续复用相同 `Networks` 页面、控制 RPC 和策略模型。
@@ -1941,7 +1948,8 @@ macOS：
 
 Windows：
 
-- `dotnet publish` 从 `NonProxy.Desktop.Windows` 生成 `win-x64`/`win-arm64` self-contained UI。
+- `dotnet publish -f net10.0-windows10.0.26100.0` 从 `NonProxy.Desktop.Windows` 生成
+  `win-x64`/`win-arm64` self-contained UI；portable `net10.0` 仅供测试，项目会拒绝用它发布。
 - 安装器组合 Avalonia UI、Windows Service、WFP 组件和 Native Messaging Host。
 - 驱动签名与普通应用签名分开验证。
 
@@ -2343,7 +2351,8 @@ Windows POC 已确认：
 - 用户态管理 API 可以安全持有动态 WFP 对象，但 Connect Redirect 的元组修改必须由 Callout Driver 完成。
 - TCP accepted socket 可以查询原始 redirect context 和 records，并把 records 传递给新建出口 socket。
 - ALE App ID 已用于可信 Win32 精确可执行文件身份，并由运行时重新核对 App ID 与 Authenticode
-  signer；打包应用的 ALE package identity、包目录与发布者仍属于后续 Windows 身份解析层。
+  signer；打包应用使用独立的 ALE package SID 与 PublisherId 身份链，非空包 SID 优先且
+  不允许降级成 Win32 身份。
 - WFP 明文 DNS filter 只负责远端 53；通用 ALE UDP redirect 无法完整覆盖
   connected UDP 与无连接 `sendto`，所以远端非 53 UDP 使用 flow identity +
   DATAGRAM_DATA 搬运和 transport receive injection。
@@ -2364,7 +2373,7 @@ TCP 与明文 DNS 使用：
 
 通用 UDP/QUIC 使用：
 
-- `FWPM_LAYER_ALE_FLOW_ESTABLISHED_V4/V6` inspection callout 关联 PID/App ID；
+- `FWPM_LAYER_ALE_FLOW_ESTABLISHED_V4/V6` inspection callout 关联 PID/App ID/package SID；
 - `FWPM_LAYER_DATAGRAM_DATA_V4/V6` terminating callout，只匹配出站 UDP 且
   `remote port != 53`；
 - 版本化 `RECEIVE_UDP` batch 与 `INJECT_UDP` IOCTL；
