@@ -1,22 +1,28 @@
 use std::sync::Arc;
 
-use nonproxy_storage::{CredentialKind, CredentialReference, StorageError, SubscriptionSource};
-use nonproxy_subscription::SubscriptionEndpoint;
+use nonproxy_storage::SubscriptionSource;
 
 use crate::{
-    Gateway, GatewayError,
-    credential_store::{
-        CredentialStore, CredentialWrite, delete_credentials, load_credential, store_credentials,
+    Gateway,
+    credential_cleanup_service::{
+        cleanup_queued_references, queue_and_cleanup_references, retry_due_cleanup,
+        store_credentials_with_cleanup,
     },
+    credential_store::{CredentialStore, CredentialWrite, load_credential},
+    subscription_delete_service::delete_subscription,
     subscription_fetcher::SubscriptionFetcher,
     subscription_gateway::SubscriptionState,
     subscription_prepare::prepare_subscription_refresh,
+    subscription_service_configuration::{
+        configured_source, endpoint_credential, parse_endpoint, validate_expected_revision,
+    },
     subscription_service_helpers::{
         content_hash, next_failure, next_success, random_refresh_id, refresh_result,
         stale_credentials,
     },
     subscription_service_types::{
-        SubscriptionRefreshResult, SubscriptionServiceError, SubscriptionUpsert,
+        SubscriptionDeleteResult, SubscriptionRefreshResult, SubscriptionServiceError,
+        SubscriptionUpsert,
     },
     subscription_task_tracker::SubscriptionTaskTracker,
 };
@@ -101,9 +107,14 @@ impl SubscriptionService {
             reference: source.endpoint_credential().item_reference().to_owned(),
             secret: request.endpoint_url,
         });
-        let new_references = store_credentials(Arc::clone(&self.credential_store), credentials)
-            .await
-            .map_err(SubscriptionServiceError::CredentialWrite)?;
+        let new_references = store_credentials_with_cleanup(
+            &self.gateway,
+            Arc::clone(&self.credential_store),
+            credentials,
+            now_unix_ms,
+        )
+        .await
+        .map_err(SubscriptionServiceError::from)?;
         let commit = self
             .gateway
             .save_subscription_refresh(
@@ -119,16 +130,28 @@ impl SubscriptionService {
         let commit = match commit {
             Ok(value) => value,
             Err(error) => {
-                let cleanup =
-                    delete_credentials(Arc::clone(&self.credential_store), new_references).await;
+                let cleanup = queue_and_cleanup_references(
+                    &self.gateway,
+                    Arc::clone(&self.credential_store),
+                    new_references,
+                    now_unix_ms,
+                )
+                .await;
                 return Err(SubscriptionServiceError::Commit {
                     source: error,
-                    cleanup_failures: cleanup,
+                    cleanup_failures: cleanup.failure_count(),
+                    cleanup_retry_persisted: cleanup.retry_persisted(),
                 });
             }
         };
         let stale = stale_credentials(old_url, &commit, &new_references);
-        let cleanup_failures = delete_credentials(Arc::clone(&self.credential_store), stale).await;
+        let cleanup_failures = cleanup_queued_references(
+            &self.gateway,
+            Arc::clone(&self.credential_store),
+            stale.into_iter().map(|reference| (reference, 0)).collect(),
+            now_unix_ms,
+        )
+        .await;
         Ok(SubscriptionRefreshResult {
             source_id: request.source_id,
             revision,
@@ -155,6 +178,56 @@ impl SubscriptionService {
             service
                 .refresh_inner(source_id, expected_revision, now_unix_ms)
                 .await
+        })
+        .await
+        .map_err(|_| SubscriptionServiceError::TaskFailed)?
+    }
+
+    pub(crate) async fn delete_at(
+        &self,
+        source_id: String,
+        expected_revision: u64,
+        now_unix_ms: u64,
+    ) -> Result<SubscriptionDeleteResult, SubscriptionServiceError> {
+        let task = self
+            .tasks
+            .start()
+            .ok_or(SubscriptionServiceError::TaskClosed)?;
+        let gateway = self.gateway.clone();
+        let credential_store = Arc::clone(&self.credential_store);
+        tokio::spawn(async move {
+            let _task = task;
+            delete_subscription(
+                &gateway,
+                credential_store,
+                source_id,
+                expected_revision,
+                now_unix_ms,
+            )
+            .await
+        })
+        .await
+        .map_err(|_| SubscriptionServiceError::TaskFailed)?
+    }
+
+    pub(crate) async fn retry_credential_cleanup_at(
+        &self,
+        now_unix_ms: u64,
+    ) -> Result<usize, SubscriptionServiceError> {
+        let task = self
+            .tasks
+            .start()
+            .ok_or(SubscriptionServiceError::TaskClosed)?;
+        let service = self.clone();
+        tokio::spawn(async move {
+            let _task = task;
+            retry_due_cleanup(
+                &service.gateway,
+                Arc::clone(&service.credential_store),
+                now_unix_ms,
+            )
+            .await
+            .map_err(SubscriptionServiceError::Gateway)
         })
         .await
         .map_err(|_| SubscriptionServiceError::TaskFailed)?
@@ -228,10 +301,14 @@ impl SubscriptionService {
             &state.outbounds,
         )?;
         let node_count = prepared.nodes.len();
-        let new_references =
-            store_credentials(Arc::clone(&self.credential_store), prepared.credentials)
-                .await
-                .map_err(SubscriptionServiceError::CredentialWrite)?;
+        let new_references = store_credentials_with_cleanup(
+            &self.gateway,
+            Arc::clone(&self.credential_store),
+            prepared.credentials,
+            now_unix_ms,
+        )
+        .await
+        .map_err(SubscriptionServiceError::from)?;
         let commit = self
             .gateway
             .apply_subscription_refresh(
@@ -247,16 +324,28 @@ impl SubscriptionService {
         let commit = match commit {
             Ok(value) => value,
             Err(error) => {
-                let cleanup =
-                    delete_credentials(Arc::clone(&self.credential_store), new_references).await;
+                let cleanup = queue_and_cleanup_references(
+                    &self.gateway,
+                    Arc::clone(&self.credential_store),
+                    new_references,
+                    now_unix_ms,
+                )
+                .await;
                 return Err(SubscriptionServiceError::Commit {
                     source: error,
-                    cleanup_failures: cleanup,
+                    cleanup_failures: cleanup.failure_count(),
+                    cleanup_retry_persisted: cleanup.retry_persisted(),
                 });
             }
         };
         let stale = stale_credentials(None, &commit, &new_references);
-        let cleanup_failures = delete_credentials(Arc::clone(&self.credential_store), stale).await;
+        let cleanup_failures = cleanup_queued_references(
+            &self.gateway,
+            Arc::clone(&self.credential_store),
+            stale.into_iter().map(|reference| (reference, 0)).collect(),
+            now_unix_ms,
+        )
+        .await;
         Ok(SubscriptionRefreshResult {
             source_id: source.id().to_owned(),
             revision: source.revision(),
@@ -286,67 +375,4 @@ impl SubscriptionService {
             .await?;
         Err(error)
     }
-}
-
-fn configured_source(
-    request: &SubscriptionUpsert,
-    current: Option<&SubscriptionSource>,
-    endpoint: CredentialReference,
-    revision: u64,
-) -> Result<SubscriptionSource, SubscriptionServiceError> {
-    match current {
-        Some(source) => Ok(source.reconfigured(
-            &request.display_name,
-            endpoint,
-            request.enabled,
-            request.refresh_interval_seconds,
-            revision,
-        )?),
-        None => {
-            let source = SubscriptionSource::new(
-                &request.source_id,
-                &request.display_name,
-                endpoint,
-                request.refresh_interval_seconds,
-                revision,
-                0,
-            )?;
-            Ok(if request.enabled {
-                source
-            } else {
-                source.disabled()
-            })
-        }
-    }
-}
-
-fn validate_expected_revision(
-    current: Option<&SubscriptionSource>,
-    expected: Option<u64>,
-) -> Result<(), SubscriptionServiceError> {
-    if matches!((current, expected), (None, None))
-        || current.is_some_and(|source| Some(source.revision()) == expected)
-    {
-        return Ok(());
-    }
-    Err(GatewayError::Storage(StorageError::SubscriptionRevisionConflict).into())
-}
-
-fn endpoint_credential(
-    source_id: &str,
-    revision: u64,
-    refresh_id: &str,
-) -> Result<CredentialReference, SubscriptionServiceError> {
-    Ok(CredentialReference::new(
-        format!("subscription:{source_id}:url:v{revision}:{refresh_id}"),
-        CredentialKind::SubscriptionUrl,
-        format!("{source_id} 订阅地址"),
-        revision,
-    )?)
-}
-
-fn parse_endpoint(value: &[u8]) -> Result<SubscriptionEndpoint, SubscriptionServiceError> {
-    let value =
-        std::str::from_utf8(value).map_err(|_| SubscriptionServiceError::EndpointEncoding)?;
-    Ok(SubscriptionEndpoint::parse(value)?)
 }

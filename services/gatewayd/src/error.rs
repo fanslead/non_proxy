@@ -91,7 +91,8 @@ impl GatewayError {
                 | StorageError::SubscriptionRevisionConflict
                 | StorageError::SubscriptionGenerationConflict
                 | StorageError::SubscriptionOwnershipConflict
-                | StorageError::SubscriptionDefaultOutboundRemoved),
+                | StorageError::SubscriptionDefaultOutboundRemoved
+                | StorageError::SubscriptionOutboundInUse),
             ) => error.code(),
             Self::Storage(StorageError::NetworkProfileRevisionConflict) => {
                 "NP_NETWORK_PROFILE_REVISION_CONFLICT"

@@ -1576,6 +1576,60 @@ public nonisolated struct Nonproxy_Control_V1_RefreshSubscriptionSourceResponse:
   fileprivate var _result: Nonproxy_Control_V1_SubscriptionMutationResult? = nil
 }
 
+/// DeleteSubscriptionSourceRequest 原子删除订阅源及未被引用的全部所属出口。
+public nonisolated struct Nonproxy_Control_V1_DeleteSubscriptionSourceRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var sourceID: String = String()
+
+  public var expectedRevision: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+}
+
+/// DeleteSubscriptionSourceResponse 不返回任何已删除凭据引用。
+public nonisolated struct Nonproxy_Control_V1_DeleteSubscriptionSourceResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var sourceID: String = String()
+
+  public var removedOutboundCount: UInt32 = 0
+
+  public var warnings: [String] = []
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+}
+
 /// ConnectionDecisionSummary 是不含 URL 路径、查询参数和秘密的连接活动证据。
 public nonisolated struct Nonproxy_Control_V1_ConnectionDecisionSummary: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -4656,6 +4710,99 @@ nonisolated extension Nonproxy_Control_V1_RefreshSubscriptionSourceResponse: Swi
 
   public static func ==(lhs: Nonproxy_Control_V1_RefreshSubscriptionSourceResponse, rhs: Nonproxy_Control_V1_RefreshSubscriptionSourceResponse) -> Bool {
     if lhs._result != rhs._result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_DeleteSubscriptionSourceRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeleteSubscriptionSourceRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}source_id\0\u{3}expected_revision\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.sourceID) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.expectedRevision) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.sourceID.isEmpty {
+      try visitor.visitSingularStringField(value: self.sourceID, fieldNumber: 2)
+    }
+    if self.expectedRevision != 0 {
+      try visitor.visitSingularUInt64Field(value: self.expectedRevision, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_DeleteSubscriptionSourceRequest, rhs: Nonproxy_Control_V1_DeleteSubscriptionSourceRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.sourceID != rhs.sourceID {return false}
+    if lhs.expectedRevision != rhs.expectedRevision {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_DeleteSubscriptionSourceResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeleteSubscriptionSourceResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}source_id\0\u{3}removed_outbound_count\0\u{1}warnings\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.sourceID) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.removedOutboundCount) }()
+      case 3: try { try decoder.decodeRepeatedStringField(value: &self.warnings) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.sourceID.isEmpty {
+      try visitor.visitSingularStringField(value: self.sourceID, fieldNumber: 1)
+    }
+    if self.removedOutboundCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.removedOutboundCount, fieldNumber: 2)
+    }
+    if !self.warnings.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.warnings, fieldNumber: 3)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_DeleteSubscriptionSourceResponse, rhs: Nonproxy_Control_V1_DeleteSubscriptionSourceResponse) -> Bool {
+    if lhs.sourceID != rhs.sourceID {return false}
+    if lhs.removedOutboundCount != rhs.removedOutboundCount {return false}
+    if lhs.warnings != rhs.warnings {return false}
+    if lhs._error != rhs._error {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

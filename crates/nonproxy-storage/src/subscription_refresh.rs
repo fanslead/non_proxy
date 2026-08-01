@@ -6,6 +6,7 @@ use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 use crate::{
     CredentialReference, StorageError, SubscriptionNode, SubscriptionNodeOwnership,
     SubscriptionRefreshCommit, SubscriptionRepository, SubscriptionSource,
+    credential_cleanup_repository::enqueue_credential_cleanup,
     migration::to_sqlite_u64,
     outbound_repository::{save_outbound, validate_default_outbound, validate_revision},
     subscription_codec::decode_ownership,
@@ -41,8 +42,13 @@ impl SubscriptionRepository<'_> {
             attempted_at_unix_ms,
             next_refresh_at_unix_ms,
         )?;
-        transaction.commit()?;
         normalize_commit(&mut commit);
+        enqueue_credential_cleanup(
+            &transaction,
+            commit.replaced_credential_references().iter().cloned(),
+            attempted_at_unix_ms,
+        )?;
+        transaction.commit()?;
         Ok(commit)
     }
 
@@ -65,6 +71,13 @@ impl SubscriptionRepository<'_> {
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         validate_source_revision(&transaction, source, expected_current_revision)?;
+        let previous_url = transaction
+            .query_row(
+                "SELECT endpoint_credential_reference FROM subscription_source WHERE id = ?1",
+                [source.id()],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
         save_source(&transaction, source, attempted_at_unix_ms)?;
         let mut commit = apply_refresh_transaction(
             &transaction,
@@ -76,8 +89,18 @@ impl SubscriptionRepository<'_> {
             attempted_at_unix_ms,
             next_refresh_at_unix_ms,
         )?;
-        transaction.commit()?;
+        if previous_url.as_deref() != Some(source.endpoint_credential().item_reference())
+            && let Some(previous_url) = previous_url
+        {
+            commit.add_replaced_credential(previous_url);
+        }
         normalize_commit(&mut commit);
+        enqueue_credential_cleanup(
+            &transaction,
+            commit.replaced_credential_references().iter().cloned(),
+            attempted_at_unix_ms,
+        )?;
+        transaction.commit()?;
         Ok(commit)
     }
 }

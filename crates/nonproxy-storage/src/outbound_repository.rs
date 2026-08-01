@@ -3,7 +3,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 
 use crate::{
     CredentialKind, CredentialReference, OutboundKind, OutboundReference, StorageError,
-    migration::to_sqlite_u64,
+    credential_cleanup_repository::enqueue_credential_cleanup, migration::to_sqlite_u64,
 };
 
 pub struct OutboundRepository<'connection> {
@@ -32,6 +32,15 @@ impl<'connection> OutboundRepository<'connection> {
         outbounds: &[(OutboundReference, Option<u64>)],
         updated_at_unix_ms: u64,
     ) -> Result<(), StorageError> {
+        self.save_batch_with_credential_cleanup(outbounds, std::iter::empty(), updated_at_unix_ms)
+    }
+
+    pub fn save_batch_with_credential_cleanup(
+        &mut self,
+        outbounds: &[(OutboundReference, Option<u64>)],
+        credential_references: impl IntoIterator<Item = String>,
+        updated_at_unix_ms: u64,
+    ) -> Result<(), StorageError> {
         if outbounds.is_empty() {
             return Err(StorageError::OutboundInvalid);
         }
@@ -45,6 +54,7 @@ impl<'connection> OutboundRepository<'connection> {
         for (outbound, _) in outbounds {
             save_outbound(&transaction, outbound, updated_at_unix_ms)?;
         }
+        enqueue_credential_cleanup(&transaction, credential_references, updated_at_unix_ms)?;
         transaction.commit()?;
         Ok(())
     }

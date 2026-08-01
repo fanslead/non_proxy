@@ -283,6 +283,33 @@ pub struct SubscriptionRefreshCommit {
     retired_outbound_ids: Vec<OutboundId>,
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub struct SubscriptionDeleteCommit {
+    credential_references: Vec<String>,
+    outbound_count: usize,
+}
+
+impl SubscriptionDeleteCommit {
+    #[must_use]
+    pub fn credential_references(&self) -> &[String] {
+        &self.credential_references
+    }
+
+    #[must_use]
+    pub const fn outbound_count(&self) -> usize {
+        self.outbound_count
+    }
+
+    pub(crate) fn new(mut credential_references: Vec<String>, outbound_count: usize) -> Self {
+        credential_references.sort();
+        credential_references.dedup();
+        Self {
+            credential_references,
+            outbound_count,
+        }
+    }
+}
+
 impl SubscriptionRefreshCommit {
     #[must_use]
     pub const fn generation(&self) -> u64 {
@@ -308,6 +335,10 @@ impl SubscriptionRefreshCommit {
     pub(crate) fn normalize_replaced_credentials(&mut self) {
         self.replaced_credential_references.sort();
         self.replaced_credential_references.dedup();
+    }
+
+    pub(crate) fn add_replaced_credential(&mut self, reference: String) {
+        self.replaced_credential_references.push(reference);
     }
 }
 

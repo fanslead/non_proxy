@@ -4,7 +4,7 @@ use thiserror::Error;
 use zeroize::Zeroizing;
 
 use crate::{
-    GatewayError, credential_store::CredentialWriteFailure,
+    GatewayError, credential_cleanup_service::CredentialCleanupOutcome,
     subscription_prepare::SubscriptionPrepareError,
 };
 
@@ -15,6 +15,22 @@ pub(crate) struct SubscriptionUpsert {
     pub(crate) enabled: bool,
     pub(crate) refresh_interval_seconds: u32,
     pub(crate) expected_revision: Option<u64>,
+}
+
+impl From<CredentialCleanupOutcome> for SubscriptionServiceError {
+    fn from(cleanup: CredentialCleanupOutcome) -> Self {
+        Self::CredentialWrite {
+            cleanup_failures: cleanup.failure_count(),
+            cleanup_retry_persisted: cleanup.retry_persisted(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SubscriptionDeleteResult {
+    pub(crate) source_id: String,
+    pub(crate) outbound_count: usize,
+    pub(crate) cleanup_failures: usize,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -40,12 +56,16 @@ pub(crate) enum SubscriptionServiceError {
     #[error("系统凭据库无法读取订阅地址")]
     CredentialRead,
     #[error("系统凭据库无法完整写入订阅凭据")]
-    CredentialWrite(CredentialWriteFailure),
+    CredentialWrite {
+        cleanup_failures: usize,
+        cleanup_retry_persisted: bool,
+    },
     #[error("订阅数据库提交失败")]
     Commit {
         #[source]
         source: GatewayError,
         cleanup_failures: usize,
+        cleanup_retry_persisted: bool,
     },
     #[error("订阅源修订号已耗尽")]
     RevisionExhausted,
@@ -69,7 +89,7 @@ impl SubscriptionServiceError {
             Self::EndpointEncoding => "NP_SUBSCRIPTION_ENDPOINT_INVALID",
             Self::Fetch(error) => error.code(),
             Self::Prepare(error) => error.code(),
-            Self::CredentialRead | Self::CredentialWrite(_) => "NP_CREDENTIAL_STORE_FAILED",
+            Self::CredentialRead | Self::CredentialWrite { .. } => "NP_CREDENTIAL_STORE_FAILED",
             Self::Commit { source, .. } | Self::Gateway(source) => source.code(),
             Self::RevisionExhausted => "NP_SUBSCRIPTION_REVISION_EXHAUSTED",
             Self::TaskFailed => "NP_SUBSCRIPTION_TASK_FAILED",
@@ -84,7 +104,7 @@ impl SubscriptionServiceError {
         match self {
             Self::Fetch(error) => error.retryable(),
             Self::CredentialRead
-            | Self::CredentialWrite(_)
+            | Self::CredentialWrite { .. }
             | Self::Random(_)
             | Self::TaskFailed
             | Self::TaskClosed => true,
@@ -96,11 +116,28 @@ impl SubscriptionServiceError {
     #[must_use]
     pub(crate) const fn cleanup_failures(&self) -> usize {
         match self {
-            Self::CredentialWrite(error) => error.cleanup_failures(),
+            Self::CredentialWrite {
+                cleanup_failures, ..
+            } => *cleanup_failures,
             Self::Commit {
                 cleanup_failures, ..
             } => *cleanup_failures,
             _ => 0,
+        }
+    }
+
+    #[must_use]
+    pub(crate) const fn cleanup_retry_persisted(&self) -> bool {
+        match self {
+            Self::CredentialWrite {
+                cleanup_retry_persisted,
+                ..
+            }
+            | Self::Commit {
+                cleanup_retry_persisted,
+                ..
+            } => *cleanup_retry_persisted,
+            _ => true,
         }
     }
 }

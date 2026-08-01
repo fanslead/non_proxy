@@ -50,6 +50,8 @@ impl SubscriptionScheduler {
                 }
                 _ = ticker.tick(), if tasks.len() < MAX_PARALLEL_REFRESHES => {
                     if let Ok(now) = unix_time_ms() {
+                        let _cleanup_result =
+                            self.service.retry_credential_cleanup_at(now).await;
                         self.schedule_due(now, &mut tasks, &mut active).await;
                     }
                 }

@@ -32,4 +32,23 @@ impl Gateway {
             })
             .await
     }
+
+    pub(crate) async fn save_imported_outbounds(
+        &self,
+        outbounds: Vec<(OutboundReference, Option<u64>)>,
+        replaced_credential_references: Vec<String>,
+        updated_at_unix_ms: u64,
+    ) -> Result<(), GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        self.database
+            .run(move |database| {
+                database.outbounds().save_batch_with_credential_cleanup(
+                    &outbounds,
+                    replaced_credential_references,
+                    updated_at_unix_ms,
+                )?;
+                Ok(())
+            })
+            .await
+    }
 }

@@ -1411,8 +1411,8 @@ URL 的 path、query 和 hostname 均按秘密处理；只接受 HTTPS，DNS 解
 `200 OK`，响应和整个请求分别限制为 256 KiB 与 15 秒。完整决策见
 [ADR-0038](ADR/0038-fetch-remote-subscriptions-over-pinned-public-https.md)。
 
-订阅源 URL/Token 已只进入系统凭据库，刷新并发、节点归属和后台到期扫描已由 gatewayd 编排；
-删除语义和桌面交互完成前，UI 仍不得把该能力描述成“自动订阅管理已完成”。
+订阅源 URL/Token 已只进入系统凭据库，刷新并发、节点归属、受 revision 保护的删除和后台到期
+扫描已由 gatewayd 编排；桌面交互完成前，UI 仍不得把该能力描述成“自动订阅管理已完成”。
 
 #### 15.2.2 订阅权威状态与节点归属
 
@@ -1447,7 +1447,13 @@ gatewayd 已按 [ADR-0040](ADR/0040-orchestrate-subscription-refresh-with-compen
 使用同一共享任务跟踪器：先拒绝新刷新，再排空调度任务和脱离调用方的任务，避免运行时退出
 截断“新凭据 → SQLite CAS → 补偿/旧凭据清理”链路。
 
-本层尚未实现删除语义和桌面管理页；这些边界完成前，仍不能宣称完整自动订阅管理可用。
+V0014 的持久凭据清理队列把订阅刷新、地址重配置、手动出口导入和订阅删除统一到同一回收
+协议。旧凭据引用与新权威状态在同一个 IMMEDIATE 事务中排队；删除 RPC 在事务内拒绝移除
+默认出口、策略或出口组仍引用的订阅节点，然后排队 URL/节点引用、删除源与出口并写审计。
+gatewayd 立即尝试清理，失败项按 1 分钟起、最长 30 分钟退避，并在每次 30 秒调度扫描前处理
+最多 100 项。队列只含引用和稳定错误码，不含任何秘密；完整决策见
+[ADR-0041](ADR/0041-delete-subscriptions-with-durable-credential-cleanup.md)。桌面管理页完成前，
+仍不能宣称完整自动订阅管理可用。
 
 macOS 桌面端还可通过 ABI v7 原生桥只读调用 `SCDynamicStoreCopyProxies`，发现系统
 当前明确启用的 SOCKS、HTTP 与 HTTPS 代理主机和端口。发现层不读取凭据、PAC 内容

@@ -142,6 +142,118 @@ fn refresh_atomically_updates_nodes_retires_missing_and_tracks_credential_cleanu
     assert_eq!(source.node_count(), 2);
     assert_eq!(source.content_hash(), Some([2; 32]));
     assert_eq!(source.consecutive_failures(), 0);
+    let cleanup = database
+        .credential_cleanup()
+        .due(2_000, 10)
+        .unwrap_or_else(|error| panic!("刷新凭据清理队列读取失败: {error}"));
+    assert_eq!(cleanup.len(), 1);
+    assert_eq!(
+        cleanup[0].reference(),
+        "outbound:subscription-office-a:v1:first"
+    );
+}
+
+#[test]
+fn deletion_removes_owned_outbounds_and_persists_idempotent_credential_cleanup() {
+    let mut database = database_with_source("office");
+    let nodes = vec![node("node-a", "subscription-office-a", 1, None, "first")];
+    database
+        .subscriptions()
+        .apply_refresh("office", 1, 0, [1; 32], &nodes, 1_100, 4_700)
+        .unwrap_or_else(|error| panic!("删除测试订阅刷新失败: {error}"));
+
+    let deleted = database
+        .subscriptions()
+        .delete("office", 1, 1_200)
+        .unwrap_or_else(|error| panic!("订阅删除失败: {error}"));
+    assert_eq!(deleted.outbound_count(), 1);
+    assert_eq!(deleted.credential_references().len(), 2);
+    assert!(
+        database
+            .subscriptions()
+            .get("office")
+            .unwrap_or_else(|error| panic!("删除后订阅读取失败: {error}"))
+            .is_none()
+    );
+    let outbound_id = OutboundId::new("subscription-office-a")
+        .unwrap_or_else(|error| panic!("删除测试出口标识创建失败: {error}"));
+    assert!(
+        database
+            .outbounds()
+            .get(&outbound_id)
+            .unwrap_or_else(|error| panic!("删除后出口读取失败: {error}"))
+            .is_none()
+    );
+
+    let cleanup = database
+        .credential_cleanup()
+        .due(1_200, 10)
+        .unwrap_or_else(|error| panic!("删除凭据清理队列读取失败: {error}"));
+    assert_eq!(cleanup.len(), 2);
+    let failed_reference = cleanup[0].reference().to_owned();
+    database
+        .credential_cleanup()
+        .complete(&[cleanup[1].reference().to_owned()])
+        .unwrap_or_else(|error| panic!("凭据清理完成记录失败: {error}"));
+    database
+        .credential_cleanup()
+        .record_failures(
+            &[(failed_reference.clone(), 61_200)],
+            "NP_CREDENTIAL_STORE_FAILED",
+            1_200,
+        )
+        .unwrap_or_else(|error| panic!("凭据清理失败记录失败: {error}"));
+    assert!(
+        database
+            .credential_cleanup()
+            .due(61_199, 10)
+            .unwrap_or_else(|error| panic!("未到期凭据清理读取失败: {error}"))
+            .is_empty()
+    );
+    let retry = database
+        .credential_cleanup()
+        .due(61_200, 10)
+        .unwrap_or_else(|error| panic!("到期凭据清理读取失败: {error}"));
+    assert_eq!(retry.len(), 1);
+    assert_eq!(retry[0].reference(), failed_reference);
+    assert_eq!(retry[0].attempts(), 1);
+}
+
+#[test]
+fn deletion_rejects_an_owned_default_outbound_without_partial_cleanup() {
+    let mut database = database_with_source("office");
+    let nodes = vec![node("node-a", "subscription-office-a", 1, None, "first")];
+    database
+        .subscriptions()
+        .apply_refresh("office", 1, 0, [1; 32], &nodes, 1_100, 4_700)
+        .unwrap_or_else(|error| panic!("默认出口删除测试刷新失败: {error}"));
+    let default_id = OutboundId::new("subscription-office-a")
+        .unwrap_or_else(|error| panic!("默认出口删除测试标识创建失败: {error}"));
+    let snapshot = SnapshotArtifact::new(1, 1, 1_200, [9; 32], 0, vec![1])
+        .unwrap_or_else(|error| panic!("默认出口删除测试快照创建失败: {error}"));
+    database
+        .routing_settings()
+        .set_and_stage(&DefaultRoute::Proxy(default_id), 1, &snapshot, 1_200)
+        .unwrap_or_else(|error| panic!("默认出口删除测试路由保存失败: {error}"));
+
+    assert!(matches!(
+        database.subscriptions().delete("office", 1, 1_300),
+        Err(StorageError::SubscriptionDefaultOutboundRemoved)
+    ));
+    assert!(
+        database
+            .subscriptions()
+            .get("office")
+            .unwrap_or_else(|error| panic!("默认出口拒绝后订阅读取失败: {error}"))
+            .is_some()
+    );
+    assert_eq!(
+        database
+            .credential_cleanup()
+            .count()
+            .unwrap_or_else(|error| panic!("默认出口拒绝后清理队列计数失败: {error}")),
+        0
+    );
 }
 
 #[test]

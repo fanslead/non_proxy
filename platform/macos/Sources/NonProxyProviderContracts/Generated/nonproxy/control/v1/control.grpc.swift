@@ -176,6 +176,19 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "DeleteSubscriptionSource" metadata.
+        public enum DeleteSubscriptionSource: Sendable {
+            /// Request type for "DeleteSubscriptionSource".
+            public typealias Input = Nonproxy_Control_V1_DeleteSubscriptionSourceRequest
+            /// Response type for "DeleteSubscriptionSource".
+            public typealias Output = Nonproxy_Control_V1_DeleteSubscriptionSourceResponse
+            /// Descriptor for "DeleteSubscriptionSource".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "DeleteSubscriptionSource",
+                type: .unary
+            )
+        }
         /// Namespace for "ListConnectionDecisions" metadata.
         public enum ListConnectionDecisions: Sendable {
             /// Request type for "ListConnectionDecisions".
@@ -437,6 +450,7 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             ListSubscriptionSources.descriptor,
             UpsertSubscriptionSource.descriptor,
             RefreshSubscriptionSource.descriptor,
+            DeleteSubscriptionSource.descriptor,
             ListConnectionDecisions.descriptor,
             ListExitProbes.descriptor,
             ImportConfiguration.descriptor,
@@ -705,6 +719,25 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_RefreshSubscriptionSourceResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_RefreshSubscriptionSourceResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "DeleteSubscriptionSource" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_DeleteSubscriptionSourceRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_DeleteSubscriptionSourceRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_DeleteSubscriptionSourceResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func deleteSubscriptionSource<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteSubscriptionSourceRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_DeleteSubscriptionSourceRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_DeleteSubscriptionSourceResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteSubscriptionSourceResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "ListConnectionDecisions" method.
@@ -1442,6 +1475,36 @@ extension Nonproxy_Control_V1_ControlService {
             try await self.client.unary(
                 request: request,
                 descriptor: Nonproxy_Control_V1_ControlService.Method.RefreshSubscriptionSource.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "DeleteSubscriptionSource" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_DeleteSubscriptionSourceRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_DeleteSubscriptionSourceRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_DeleteSubscriptionSourceResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func deleteSubscriptionSource<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteSubscriptionSourceRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_DeleteSubscriptionSourceRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_DeleteSubscriptionSourceResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteSubscriptionSourceResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.DeleteSubscriptionSource.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -2322,6 +2385,31 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
         )
     }
 
+    /// Call the "DeleteSubscriptionSource" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_DeleteSubscriptionSourceRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func deleteSubscriptionSource<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteSubscriptionSourceRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteSubscriptionSourceResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.deleteSubscriptionSource(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_DeleteSubscriptionSourceRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_DeleteSubscriptionSourceResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "ListConnectionDecisions" method.
     ///
     /// - Parameters:
@@ -3141,6 +3229,35 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.refreshSubscriptionSource(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "DeleteSubscriptionSource" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func deleteSubscriptionSource<Result>(
+        _ message: Nonproxy_Control_V1_DeleteSubscriptionSourceRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteSubscriptionSourceResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteSubscriptionSourceRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.deleteSubscriptionSource(
             request: request,
             options: options,
             onResponse: handleResponse

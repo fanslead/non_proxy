@@ -33,6 +33,8 @@ const CONNECTION_DECISION_APP_IDENTITY: &str =
     include_str!("../../../migrations/V0012__connection_decision_app_identity.sql");
 const SUBSCRIPTION_SOURCES: &str =
     include_str!("../../../migrations/V0013__subscription_sources.sql");
+const CREDENTIAL_CLEANUP_QUEUE: &str =
+    include_str!("../../../migrations/V0014__credential_cleanup_queue.sql");
 
 struct Migration {
     version: i64,
@@ -105,6 +107,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 13,
         name: "subscription_sources",
         sql: SUBSCRIPTION_SOURCES,
+    },
+    Migration {
+        version: 14,
+        name: "credential_cleanup_queue",
+        sql: CREDENTIAL_CLEANUP_QUEUE,
     },
 ];
 

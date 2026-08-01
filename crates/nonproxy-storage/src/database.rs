@@ -7,11 +7,11 @@ use std::{
 use rusqlite::{Connection, OpenFlags};
 
 use crate::{
-    ConnectionDecisionRepository, ExitProbeRepository, LearningConfirmationRepository,
-    LearningRepository, MigrationReport, NetworkProfileRepository, OutboundRepository,
-    PolicyRepository, ProviderRepository, RetentionRepository, RoutingSettingsRepository,
-    SnapshotRepository, StorageError, SubscriptionRepository, SyntheticDnsRepository,
-    migration::migrate,
+    ConnectionDecisionRepository, CredentialCleanupRepository, ExitProbeRepository,
+    LearningConfirmationRepository, LearningRepository, MigrationReport, NetworkProfileRepository,
+    OutboundRepository, PolicyRepository, ProviderRepository, RetentionRepository,
+    RoutingSettingsRepository, SnapshotRepository, StorageError, SubscriptionRepository,
+    SyntheticDnsRepository, migration::migrate,
 };
 
 #[derive(Debug)]
@@ -129,6 +129,11 @@ impl PolicyDatabase {
     #[must_use]
     pub fn subscriptions(&mut self) -> SubscriptionRepository<'_> {
         SubscriptionRepository::new(&mut self.connection)
+    }
+
+    #[must_use]
+    pub fn credential_cleanup(&mut self) -> CredentialCleanupRepository<'_> {
+        CredentialCleanupRepository::new(&mut self.connection)
     }
 
     #[must_use]

@@ -9,10 +9,10 @@ use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::common::v1::ComponentKind;
 use nonproxy_proto::control::v1::{
     ApplyPolicySnapshotRequest, CapabilityName, ConfirmLearningCandidatesRequest, DefaultRouteKind,
-    DeleteNetworkProfileRequest, DiagnosticRedactionLevel, ExitProbeRouteKind,
-    ExportDiagnosticsRequest, GetActivePolicySnapshotRequest, GetCapabilitiesRequest,
-    GetSystemStatusRequest, ImportConfigurationRequest, LearningObservationKind,
-    LearningResourceType, LearningSessionKind, ListExitProbesRequest,
+    DeleteNetworkProfileRequest, DeleteSubscriptionSourceRequest, DiagnosticRedactionLevel,
+    ExitProbeRouteKind, ExportDiagnosticsRequest, GetActivePolicySnapshotRequest,
+    GetCapabilitiesRequest, GetSystemStatusRequest, ImportConfigurationRequest,
+    LearningObservationKind, LearningResourceType, LearningSessionKind, ListExitProbesRequest,
     ListLearningCandidatesRequest, ListNetworkProfilesRequest, ListOutboundsRequest,
     OperationContext, OutboundKind as ProtoOutboundKind, RecordLearningObservationRequest,
     RollbackPolicySnapshotRequest, SetDefaultRouteRequest, StartLearningSessionRequest,
@@ -101,6 +101,23 @@ async fn subscription_mutation_requires_authentication_before_network_access() {
 
     let Err(status) = result else {
         panic!("错误令牌必须在发起订阅网络请求前被拒绝");
+    };
+    assert_eq!(status.code(), Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn subscription_delete_requires_authentication_before_reading_state() {
+    let service = service([7; 32]);
+    let result = service
+        .delete_subscription_source(Request::new(DeleteSubscriptionSourceRequest {
+            context: Some(context([8; 32], "delete-subscription")),
+            source_id: "office".to_owned(),
+            expected_revision: 1,
+        }))
+        .await;
+
+    let Err(status) = result else {
+        panic!("错误令牌必须在读取订阅删除状态前被拒绝");
     };
     assert_eq!(status.code(), Code::PermissionDenied);
 }
@@ -797,6 +814,25 @@ async fn authenticated_import_stores_secret_outside_database() {
         panic!("导入出口必须只保存凭据引用");
     };
     assert!(credentials.contains(reference));
+    let first_reference = reference.to_owned();
+
+    let replaced = service
+        .import_configuration(Request::new(import_request_with_password(false, "rotated")))
+        .await
+        .unwrap_or_else(|error| panic!("出口凭据轮换 RPC 失败: {error}"))
+        .into_inner();
+    assert!(replaced.error.is_none());
+    let replaced_outbounds = gateway
+        .list_outbounds()
+        .await
+        .unwrap_or_else(|error| panic!("轮换后出口读取失败: {error}"));
+    let replaced_reference = replaced_outbounds[0]
+        .credential()
+        .map(nonproxy_storage::CredentialReference::item_reference)
+        .unwrap_or_else(|| panic!("轮换后出口缺少凭据引用"));
+    assert_ne!(replaced_reference, first_reference);
+    assert!(credentials.contains(replaced_reference));
+    assert!(!credentials.contains(&first_reference));
 
     let saved = gateway
         .save_policy(proxy_site_policy("primary"), None)
@@ -1269,21 +1305,27 @@ fn context(token: [u8; 32], operation_id: &str) -> OperationContext {
 }
 
 fn import_request(validate_only: bool) -> ImportConfigurationRequest {
+    import_request_with_password(validate_only, "private")
+}
+
+fn import_request_with_password(validate_only: bool, password: &str) -> ImportConfigurationRequest {
     ImportConfigurationRequest {
         context: Some(context([7; 32], "import-outbound")),
         format: "nonproxy-json-v1".to_owned(),
-        configuration: br#"{
+        configuration: format!(
+            r#"{{
             "version": 1,
-            "outbounds": [{
+            "outbounds": [{{
                 "id": "primary",
                 "kind": "socks5",
                 "host": "127.0.0.1",
                 "port": 1080,
                 "username": "alice",
-                "password": "private"
-            }]
-        }"#
-        .to_vec(),
+                "password": "{password}"
+            }}]
+        }}"#
+        )
+        .into_bytes(),
         validate_only,
     }
 }

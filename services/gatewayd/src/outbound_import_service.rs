@@ -8,7 +8,12 @@ use zeroize::Zeroizing;
 
 use crate::{
     Gateway, GatewayError,
-    credential_store::{CredentialStore, delete_credentials, store_credentials},
+    clock::unix_time_ms,
+    credential_cleanup_service::{
+        CredentialCleanupOutcome, cleanup_queued_references, queue_and_cleanup_references,
+        store_credentials_with_cleanup,
+    },
+    credential_store::CredentialStore,
     outbound_import::{OutboundImportError, prepare},
 };
 
@@ -49,32 +54,54 @@ pub async fn import(
         };
     }
 
-    let new_references =
-        match store_credentials(Arc::clone(&credential_store), prepared.credentials).await {
-            Ok(value) => value,
-            Err(failure) => {
-                return credential_failure(
-                    "代理凭据写入失败，出口配置没有改变。",
-                    failure.cleanup_failures(),
-                );
-            }
-        };
-    if let Err(error) = gateway.save_outbounds(prepared.outbounds).await {
-        let cleanup_failures =
-            delete_credentials(Arc::clone(&credential_store), new_references).await;
+    let now_unix_ms = match unix_time_ms() {
+        Ok(value) => value,
+        Err(error) => return gateway_failure(error),
+    };
+
+    let new_references = match store_credentials_with_cleanup(
+        gateway,
+        Arc::clone(&credential_store),
+        prepared.credentials,
+        now_unix_ms,
+    )
+    .await
+    {
+        Ok(value) => value,
+        Err(cleanup) => {
+            return credential_failure("代理凭据写入失败，出口配置没有改变。", cleanup);
+        }
+    };
+    let stale = prepared
+        .replaced_credential_references
+        .into_iter()
+        .filter(|reference| !new_references.contains(reference))
+        .collect::<Vec<_>>();
+    if let Err(error) = gateway
+        .save_imported_outbounds(prepared.outbounds, stale.clone(), now_unix_ms)
+        .await
+    {
+        let cleanup_failures = queue_and_cleanup_references(
+            gateway,
+            Arc::clone(&credential_store),
+            new_references,
+            now_unix_ms,
+        )
+        .await;
         let mut response = gateway_failure(error);
         append_cleanup_warning(&mut response, cleanup_failures);
         return response;
     }
 
     let mut warnings = prepared.warnings;
-    let stale = prepared
-        .replaced_credential_references
-        .into_iter()
-        .filter(|reference| !new_references.contains(reference))
-        .collect();
-    let cleanup_failures = delete_credentials(credential_store, stale).await;
-    append_warning(&mut warnings, cleanup_failures);
+    let cleanup_failures = cleanup_queued_references(
+        gateway,
+        credential_store,
+        stale.into_iter().map(|reference| (reference, 0)).collect(),
+        now_unix_ms,
+    )
+    .await;
+    append_warning(&mut warnings, cleanup_failures, true);
     ImportConfigurationResponse {
         import_id: prepared.import_id,
         outbounds: summaries,
@@ -97,9 +124,12 @@ fn import_failure(error: &OutboundImportError) -> ImportConfigurationResponse {
     response
 }
 
-fn credential_failure(message: &str, cleanup_failures: usize) -> ImportConfigurationResponse {
+fn credential_failure(
+    message: &str,
+    cleanup: CredentialCleanupOutcome,
+) -> ImportConfigurationResponse {
     let mut response = response_error("NP_CREDENTIAL_STORE_FAILED", message, true);
-    append_cleanup_warning(&mut response, cleanup_failures);
+    append_cleanup_warning(&mut response, cleanup);
     response
 }
 
@@ -121,12 +151,27 @@ fn response_error(code: &str, message: &str, retryable: bool) -> ImportConfigura
     }
 }
 
-fn append_cleanup_warning(response: &mut ImportConfigurationResponse, cleanup_failures: usize) {
-    append_warning(&mut response.warnings, cleanup_failures);
+fn append_cleanup_warning(
+    response: &mut ImportConfigurationResponse,
+    cleanup: CredentialCleanupOutcome,
+) {
+    append_warning(
+        &mut response.warnings,
+        cleanup.failure_count(),
+        cleanup.retry_persisted(),
+    );
 }
 
-fn append_warning(warnings: &mut Vec<String>, cleanup_failures: usize) {
+fn append_warning(
+    warnings: &mut Vec<String>,
+    cleanup_failures: usize,
+    cleanup_retry_persisted: bool,
+) {
     if cleanup_failures > 0 {
-        warnings.push("代理凭据未能全部清理，可在系统凭据库中手动删除未引用项。".to_owned());
+        warnings.push(if cleanup_retry_persisted {
+            "部分旧代理凭据正在等待后台重试清理。".to_owned()
+        } else {
+            "部分代理凭据未能清理，后台重试队列也未能写入。".to_owned()
+        });
     }
 }

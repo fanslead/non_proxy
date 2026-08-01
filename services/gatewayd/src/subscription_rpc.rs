@@ -1,6 +1,7 @@
 use nonproxy_proto::{
     common::v1::{ErrorDetail, PageRequest},
     control::v1::{
+        DeleteSubscriptionSourceRequest, DeleteSubscriptionSourceResponse,
         ListSubscriptionSourcesRequest, ListSubscriptionSourcesResponse,
         RefreshSubscriptionSourceRequest, RefreshSubscriptionSourceResponse,
         SubscriptionMutationResult, SubscriptionSourceSummary, UpsertSubscriptionSourceRequest,
@@ -111,6 +112,40 @@ pub(crate) async fn refresh(
     }
 }
 
+pub(crate) async fn delete(
+    service: &SubscriptionService,
+    request: DeleteSubscriptionSourceRequest,
+) -> DeleteSubscriptionSourceResponse {
+    if request.expected_revision == 0 {
+        return delete_error(&SubscriptionServiceError::Gateway(
+            GatewayError::InvalidContract("删除订阅必须提供 expected_revision"),
+        ));
+    }
+    let now = match unix_time_ms() {
+        Ok(now) => now,
+        Err(error) => {
+            return delete_error(&SubscriptionServiceError::Gateway(error));
+        }
+    };
+    match service
+        .delete_at(request.source_id, request.expected_revision, now)
+        .await
+    {
+        Ok(result) => match u32::try_from(result.outbound_count) {
+            Ok(removed_outbound_count) => DeleteSubscriptionSourceResponse {
+                source_id: result.source_id,
+                removed_outbound_count,
+                warnings: cleanup_warnings(result.cleanup_failures, true),
+                error: None,
+            },
+            Err(_) => delete_error(&SubscriptionServiceError::Gateway(
+                GatewayError::InvalidContract("删除订阅的出口数量超出协议范围"),
+            )),
+        },
+        Err(error) => delete_error(&error),
+    }
+}
+
 async fn mutation_success(
     gateway: &Gateway,
     result: SubscriptionRefreshResult,
@@ -121,7 +156,7 @@ async fn mutation_success(
             Ok(source) => SubscriptionMutationResult {
                 source: Some(source),
                 content_unchanged: result.unchanged,
-                warnings: cleanup_warnings(result.cleanup_failures),
+                warnings: cleanup_warnings(result.cleanup_failures, true),
                 error: None,
             },
             Err(error) => gateway_mutation_error(&error),
@@ -140,11 +175,40 @@ fn mutation_error(error: &SubscriptionServiceError) -> SubscriptionMutationResul
             "credential_cleanup_failures".to_owned(),
             error.cleanup_failures().to_string(),
         );
+        metadata.insert(
+            "credential_cleanup_retry_persisted".to_owned(),
+            error.cleanup_retry_persisted().to_string(),
+        );
     }
     SubscriptionMutationResult {
         source: None,
         content_unchanged: false,
-        warnings: cleanup_warnings(error.cleanup_failures()),
+        warnings: cleanup_warnings(error.cleanup_failures(), error.cleanup_retry_persisted()),
+        error: Some(ErrorDetail {
+            code: error.code().to_owned(),
+            message: error.to_string(),
+            retryable: error.retryable(),
+            metadata,
+        }),
+    }
+}
+
+fn delete_error(error: &SubscriptionServiceError) -> DeleteSubscriptionSourceResponse {
+    let mut metadata = std::collections::HashMap::new();
+    if error.cleanup_failures() > 0 {
+        metadata.insert(
+            "credential_cleanup_failures".to_owned(),
+            error.cleanup_failures().to_string(),
+        );
+        metadata.insert(
+            "credential_cleanup_retry_persisted".to_owned(),
+            error.cleanup_retry_persisted().to_string(),
+        );
+    }
+    DeleteSubscriptionSourceResponse {
+        source_id: String::new(),
+        removed_outbound_count: 0,
+        warnings: cleanup_warnings(error.cleanup_failures(), error.cleanup_retry_persisted()),
         error: Some(ErrorDetail {
             code: error.code().to_owned(),
             message: error.to_string(),
@@ -211,11 +275,13 @@ fn refresh_interval_seconds(
     Ok(seconds)
 }
 
-fn cleanup_warnings(cleanup_failures: usize) -> Vec<String> {
+fn cleanup_warnings(cleanup_failures: usize, cleanup_retry_persisted: bool) -> Vec<String> {
     if cleanup_failures == 0 {
         Vec::new()
+    } else if cleanup_retry_persisted {
+        vec!["部分旧订阅凭据正在等待后台重试清理。".to_owned()]
     } else {
-        vec!["部分旧订阅凭据未能清理，可在系统凭据库中手动删除未引用项。".to_owned()]
+        vec!["部分订阅凭据未能清理，后台重试队列也未能写入。".to_owned()]
     }
 }
 

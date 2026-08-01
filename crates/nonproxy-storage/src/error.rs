@@ -61,6 +61,8 @@ pub enum StorageError {
     ExitProbeReplayMismatch,
     #[error("凭据引用无效")]
     CredentialReferenceInvalid,
+    #[error("凭据清理队列状态无效")]
+    CredentialCleanupInvalid,
     #[error("订阅源配置无效")]
     SubscriptionInvalid,
     #[error("订阅源修订冲突")]
@@ -71,6 +73,8 @@ pub enum StorageError {
     SubscriptionOwnershipConflict,
     #[error("默认代理出口仍依赖已从订阅移除的节点")]
     SubscriptionDefaultOutboundRemoved,
+    #[error("订阅出口仍被策略或出口组引用")]
+    SubscriptionOutboundInUse,
     #[error("网络画像修订冲突")]
     NetworkProfileRevisionConflict,
     #[error("网络画像指纹已被其他配置档使用")]
@@ -157,6 +161,7 @@ impl StorageError {
             Self::ExitProbeInvalid => "NP_STORAGE_EXIT_PROBE_INVALID",
             Self::ExitProbeReplayMismatch => "NP_STORAGE_EXIT_PROBE_REPLAY_MISMATCH",
             Self::CredentialReferenceInvalid => "NP_STORAGE_CREDENTIAL_REFERENCE_INVALID",
+            Self::CredentialCleanupInvalid => "NP_STORAGE_CREDENTIAL_CLEANUP_INVALID",
             Self::SubscriptionInvalid => "NP_STORAGE_SUBSCRIPTION_INVALID",
             Self::SubscriptionRevisionConflict => "NP_STORAGE_SUBSCRIPTION_REVISION_CONFLICT",
             Self::SubscriptionGenerationConflict => "NP_STORAGE_SUBSCRIPTION_GENERATION_CONFLICT",
@@ -164,6 +169,7 @@ impl StorageError {
             Self::SubscriptionDefaultOutboundRemoved => {
                 "NP_STORAGE_SUBSCRIPTION_DEFAULT_OUTBOUND_REMOVED"
             }
+            Self::SubscriptionOutboundInUse => "NP_STORAGE_SUBSCRIPTION_OUTBOUND_IN_USE",
             Self::NetworkProfileRevisionConflict => "NP_STORAGE_NETWORK_PROFILE_REVISION_CONFLICT",
             Self::NetworkProfileFingerprintConflict => {
                 "NP_STORAGE_NETWORK_PROFILE_FINGERPRINT_CONFLICT"

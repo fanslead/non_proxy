@@ -230,6 +230,52 @@ fn outbound_batch_rolls_back_every_item_on_revision_conflict() {
 }
 
 #[test]
+fn imported_outbound_and_replaced_credential_cleanup_commit_atomically() {
+    let mut database = PolicyDatabase::open_in_memory(1_000)
+        .unwrap_or_else(|error| panic!("导入清理测试数据库打开失败: {error}"));
+    let initial = outbound(1);
+    database
+        .outbounds()
+        .save(&initial, None, 1_100)
+        .unwrap_or_else(|error| panic!("导入清理初始出口保存失败: {error}"));
+    let updated = outbound(2);
+    database
+        .outbounds()
+        .save_batch_with_credential_cleanup(
+            &[(updated.clone(), Some(1))],
+            vec!["keychain:retired".to_owned()],
+            1_200,
+        )
+        .unwrap_or_else(|error| panic!("导入与清理队列原子保存失败: {error}"));
+    assert!(matches!(
+        database.outbounds().get(updated.id()),
+        Ok(Some(value)) if value == updated
+    ));
+    assert!(matches!(
+        database.credential_cleanup().due(1_200, 100).as_deref(),
+        Ok([entry]) if entry.reference() == "keychain:retired"
+    ));
+
+    let conflict = outbound(3);
+    assert!(matches!(
+        database.outbounds().save_batch_with_credential_cleanup(
+            &[(conflict, Some(99))],
+            vec!["keychain:must-not-queue".to_owned()],
+            1_300,
+        ),
+        Err(StorageError::OutboundRevisionConflict)
+    ));
+    assert!(
+        database
+            .credential_cleanup()
+            .due(1_300, 100)
+            .unwrap_or_else(|error| panic!("导入回滚后清理队列读取失败: {error}"))
+            .iter()
+            .all(|entry| entry.reference() != "keychain:must-not-queue")
+    );
+}
+
+#[test]
 fn active_default_outbound_cannot_be_disabled_or_limited_to_tcp() {
     let database = PolicyDatabase::open_in_memory(1_000);
     let Ok(mut database) = database else {

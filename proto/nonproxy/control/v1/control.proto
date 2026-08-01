@@ -24,6 +24,7 @@ service ControlService {
   rpc ListSubscriptionSources(ListSubscriptionSourcesRequest) returns (ListSubscriptionSourcesResponse);
   rpc UpsertSubscriptionSource(UpsertSubscriptionSourceRequest) returns (UpsertSubscriptionSourceResponse);
   rpc RefreshSubscriptionSource(RefreshSubscriptionSourceRequest) returns (RefreshSubscriptionSourceResponse);
+  rpc DeleteSubscriptionSource(DeleteSubscriptionSourceRequest) returns (DeleteSubscriptionSourceResponse);
   rpc ListConnectionDecisions(ListConnectionDecisionsRequest) returns (ListConnectionDecisionsResponse);
   rpc ListExitProbes(ListExitProbesRequest) returns (ListExitProbesResponse);
   rpc ImportConfiguration(ImportConfigurationRequest) returns (ImportConfigurationResponse);
@@ -400,6 +401,21 @@ message RefreshSubscriptionSourceRequest {
 
 message RefreshSubscriptionSourceResponse {
   SubscriptionMutationResult result = 1;
+}
+
+// DeleteSubscriptionSourceRequest 原子删除订阅源及未被引用的全部所属出口。
+message DeleteSubscriptionSourceRequest {
+  OperationContext context = 1;
+  string source_id = 2;
+  uint64 expected_revision = 3;
+}
+
+// DeleteSubscriptionSourceResponse 不返回任何已删除凭据引用。
+message DeleteSubscriptionSourceResponse {
+  string source_id = 1;
+  uint32 removed_outbound_count = 2;
+  repeated string warnings = 3;
+  nonproxy.common.v1.ErrorDetail error = 4;
 }
 
 // ConnectionDecisionSummary 是不含 URL 路径、查询参数和秘密的连接活动证据。

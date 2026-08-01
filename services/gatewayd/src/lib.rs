@@ -4,6 +4,7 @@ mod control_mapping;
 mod control_rpc_helpers;
 mod control_rpc_service;
 mod control_service;
+mod credential_cleanup_service;
 mod credential_store;
 mod database_executor;
 #[cfg(any(test, windows))]
@@ -69,6 +70,9 @@ mod session_capability;
 mod snapshot_builder;
 mod snapshot_payload;
 mod snapshot_types;
+mod subscription_delete_service;
+#[cfg(test)]
+mod subscription_delete_tests;
 mod subscription_fetcher;
 mod subscription_gateway;
 mod subscription_prepare;
@@ -77,6 +81,7 @@ mod subscription_scheduler;
 #[cfg(test)]
 mod subscription_scheduler_tests;
 mod subscription_service;
+mod subscription_service_configuration;
 mod subscription_service_helpers;
 #[cfg(test)]
 mod subscription_service_tests;

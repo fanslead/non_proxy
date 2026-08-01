@@ -16,15 +16,20 @@ pub(crate) struct CredentialWrite {
     pub(crate) secret: Zeroizing<Vec<u8>>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub(crate) struct CredentialWriteFailure {
-    cleanup_failures: usize,
+    failed_references: HashSet<String>,
 }
 
 impl CredentialWriteFailure {
     #[must_use]
-    pub(crate) const fn cleanup_failures(self) -> usize {
-        self.cleanup_failures
+    #[cfg(test)]
+    pub(crate) fn cleanup_failures(&self) -> usize {
+        self.failed_references.len()
+    }
+
+    pub(crate) fn into_failed_references(self) -> HashSet<String> {
+        self.failed_references
     }
 }
 
@@ -45,17 +50,21 @@ pub(crate) async fn store_credentials(
                 .set(&credential.reference, credential.secret.as_slice())
                 .is_err()
             {
-                let cleanup_failures = delete_credentials_sync(store.as_ref(), attempted);
-                return Err(CredentialWriteFailure { cleanup_failures });
+                let (_, failed_references) =
+                    delete_credentials_sync(store.as_ref(), attempted).into_parts();
+                return Err(CredentialWriteFailure { failed_references });
             }
         }
         Ok(attempted)
     });
     match task.await {
         Ok(result) => result,
-        Err(_) => Err(CredentialWriteFailure {
-            cleanup_failures: delete_credentials(cleanup_store, references).await,
-        }),
+        Err(_) => {
+            let (_, failed_references) = delete_credentials(cleanup_store, references)
+                .await
+                .into_parts();
+            Err(CredentialWriteFailure { failed_references })
+        }
     }
 }
 
@@ -71,17 +80,49 @@ pub(crate) async fn load_credential(
 pub(crate) async fn delete_credentials(
     store: Arc<dyn CredentialStore>,
     references: HashSet<String>,
-) -> usize {
-    tokio::task::spawn_blocking(move || delete_credentials_sync(store.as_ref(), references))
+) -> CredentialDeleteResult {
+    let fallback = references.clone();
+    match tokio::task::spawn_blocking(move || delete_credentials_sync(store.as_ref(), references))
         .await
-        .map_or(1, std::convert::identity)
+    {
+        Ok(result) => result,
+        Err(_) => CredentialDeleteResult {
+            succeeded: HashSet::new(),
+            failed: fallback,
+        },
+    }
 }
 
-fn delete_credentials_sync(store: &dyn CredentialStore, references: HashSet<String>) -> usize {
-    references
-        .into_iter()
-        .filter(|reference| store.delete(reference).is_err())
-        .count()
+#[derive(Debug, Default, Eq, PartialEq)]
+pub(crate) struct CredentialDeleteResult {
+    succeeded: HashSet<String>,
+    failed: HashSet<String>,
+}
+
+impl CredentialDeleteResult {
+    #[must_use]
+    pub(crate) fn failure_count(&self) -> usize {
+        self.failed.len()
+    }
+
+    pub(crate) fn into_parts(self) -> (HashSet<String>, HashSet<String>) {
+        (self.succeeded, self.failed)
+    }
+}
+
+fn delete_credentials_sync(
+    store: &dyn CredentialStore,
+    references: HashSet<String>,
+) -> CredentialDeleteResult {
+    let mut result = CredentialDeleteResult::default();
+    for reference in references {
+        if store.delete(&reference).is_ok() {
+            result.succeeded.insert(reference);
+        } else {
+            result.failed.insert(reference);
+        }
+    }
+    result
 }
 
 #[derive(Clone, Default)]
@@ -101,9 +142,10 @@ impl CredentialStore for OsCredentialStore {
     }
 
     fn delete(&self, reference: &str) -> Result<(), CredentialStoreError> {
-        entry(reference)?
-            .delete_credential()
-            .map_err(|_| CredentialStoreError::Operation("删除"))
+        match entry(reference)?.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(_) => Err(CredentialStoreError::Operation("删除")),
+        }
     }
 }
 
@@ -198,10 +240,7 @@ mod tests {
 
         let result = store_credentials(store.clone(), credentials).await;
 
-        assert_eq!(
-            result.map_err(super::CredentialWriteFailure::cleanup_failures),
-            Err(0)
-        );
+        assert_eq!(result.map_err(|failure| failure.cleanup_failures()), Err(0));
         assert!(store.references().is_empty());
     }
 

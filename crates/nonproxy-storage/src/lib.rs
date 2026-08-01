@@ -1,6 +1,7 @@
 mod connection_decision_codec;
 mod connection_decision_repository;
 mod connection_decision_types;
+mod credential_cleanup_repository;
 mod database;
 mod error;
 mod exit_probe_repository;
@@ -21,6 +22,7 @@ mod routing_settings_repository;
 mod snapshot_query;
 mod snapshot_repository;
 mod subscription_codec;
+mod subscription_delete;
 mod subscription_refresh;
 mod subscription_refresh_state;
 mod subscription_repository;
@@ -32,6 +34,7 @@ pub use connection_decision_repository::ConnectionDecisionRepository;
 pub use connection_decision_types::{
     ConnectionDecisionInput, ConnectionDecisionRecord, DecisionEvidence, EvidenceLevel,
 };
+pub use credential_cleanup_repository::{CredentialCleanupEntry, CredentialCleanupRepository};
 pub use database::PolicyDatabase;
 pub use error::StorageError;
 pub use exit_probe_repository::ExitProbeRepository;
@@ -53,8 +56,8 @@ pub use routing_settings_repository::{DefaultRoute, RoutingSettings, RoutingSett
 pub use snapshot_repository::SnapshotRepository;
 pub use subscription_repository::SubscriptionRepository;
 pub use subscription_types::{
-    MAXIMUM_REFRESH_INTERVAL_SECONDS, MINIMUM_REFRESH_INTERVAL_SECONDS, SubscriptionNode,
-    SubscriptionNodeOwnership, SubscriptionRefreshCommit, SubscriptionSource,
+    MAXIMUM_REFRESH_INTERVAL_SECONDS, MINIMUM_REFRESH_INTERVAL_SECONDS, SubscriptionDeleteCommit,
+    SubscriptionNode, SubscriptionNodeOwnership, SubscriptionRefreshCommit, SubscriptionSource,
 };
 pub use synthetic_dns_repository::{
     SYNTHETIC_BINDING_RETENTION_MS, SyntheticDnsBinding, SyntheticDnsRepository,

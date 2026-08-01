@@ -1,6 +1,6 @@
 use nonproxy_storage::{
-    OutboundReference, SubscriptionNode, SubscriptionNodeOwnership, SubscriptionRefreshCommit,
-    SubscriptionSource,
+    CredentialCleanupEntry, OutboundReference, SubscriptionDeleteCommit, SubscriptionNode,
+    SubscriptionNodeOwnership, SubscriptionRefreshCommit, SubscriptionSource,
 };
 
 use crate::{Gateway, GatewayError};
@@ -36,6 +36,81 @@ impl Gateway {
     ) -> Result<Vec<SubscriptionSource>, GatewayError> {
         self.database
             .run(move |database| Ok(database.subscriptions().due(now_unix_ms, limit)?))
+            .await
+    }
+
+    pub(crate) async fn delete_subscription_source(
+        &self,
+        source_id: String,
+        expected_revision: u64,
+        deleted_at_unix_ms: u64,
+    ) -> Result<SubscriptionDeleteCommit, GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        self.database
+            .run(move |database| {
+                Ok(database.subscriptions().delete(
+                    &source_id,
+                    expected_revision,
+                    deleted_at_unix_ms,
+                )?)
+            })
+            .await
+    }
+
+    pub(crate) async fn due_credential_cleanup(
+        &self,
+        now_unix_ms: u64,
+        limit: u32,
+    ) -> Result<Vec<CredentialCleanupEntry>, GatewayError> {
+        self.database
+            .run(move |database| Ok(database.credential_cleanup().due(now_unix_ms, limit)?))
+            .await
+    }
+
+    pub(crate) async fn enqueue_credential_cleanup(
+        &self,
+        references: Vec<String>,
+        now_unix_ms: u64,
+    ) -> Result<(), GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        self.database
+            .run(move |database| {
+                database
+                    .credential_cleanup()
+                    .enqueue(references, now_unix_ms)?;
+                Ok(())
+            })
+            .await
+    }
+
+    pub(crate) async fn complete_credential_cleanup(
+        &self,
+        references: Vec<String>,
+    ) -> Result<(), GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        self.database
+            .run(move |database| {
+                database.credential_cleanup().complete(&references)?;
+                Ok(())
+            })
+            .await
+    }
+
+    pub(crate) async fn record_credential_cleanup_failures(
+        &self,
+        failures: Vec<(String, u64)>,
+        attempted_at_unix_ms: u64,
+    ) -> Result<(), GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        self.database
+            .run(move |database| {
+                database.credential_cleanup().record_failures(
+                    &failures,
+                    "NP_CREDENTIAL_STORE_FAILED",
+                    attempted_at_unix_ms,
+                )?;
+                Ok(())
+            })
             .await
     }
 

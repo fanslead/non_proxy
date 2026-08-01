@@ -365,6 +365,16 @@ impl ControlService for ControlRpcService {
         ))
     }
 
+    async fn delete_subscription_source(
+        &self,
+        request: Request<control_proto::DeleteSubscriptionSourceRequest>,
+    ) -> Result<Response<control_proto::DeleteSubscriptionSourceResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            subscription_rpc::delete(&self.subscription_service, request.into_inner()).await,
+        ))
+    }
+
     async fn list_connection_decisions(
         &self,
         request: Request<control_proto::ListConnectionDecisionsRequest>,
