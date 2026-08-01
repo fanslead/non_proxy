@@ -1953,6 +1953,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "nonproxy-subscription"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "rcgen",
+ "rustls",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-rustls",
+ "url",
+ "webpki-roots",
+ "zeroize",
+]
+
+[[package]]
 name = "nonproxy-windows-identity"
 version = "0.1.0"
 dependencies = [

@@ -1400,6 +1400,18 @@ Shadowsocks 查询参数（包括 SIP003 plugin）、路径、缺失认证、未
 不远程拉取或定时刷新，也不管理节点删除/重命名生命周期；它也不等同于 VMess、VLESS、
 Trojan、WireGuard、OpenVPN、SIP003 plugin 或其他供应商订阅协议已经支持。
 
+#### 15.2.1 远程订阅获取边界
+
+`nonproxy-subscription` 已建立远程获取的独立安全核心，但尚未开放控制 RPC 或桌面入口。
+URL 的 path、query 和 hostname 均按秘密处理；只接受 HTTPS，DNS 解析后若包含任一私网、
+环回、链路本地、保留或文档地址则整次拒绝，实际 TCP 只连接同一批已验证公网
+`SocketAddr`。客户端不读取环境或系统代理，使用 WebPKI TLS，拒绝重定向与压缩，只接受
+`200 OK`，响应和整个请求分别限制为 256 KiB 与 15 秒。完整决策见
+[ADR-0038](ADR/0038-fetch-remote-subscriptions-over-pinned-public-https.md)。
+
+在订阅源 URL/Token 进入系统凭据库、预览与应用绑定、刷新并发、节点归属及删除语义完成
+前，UI 不得把该核心描述成“订阅管理已完成”。
+
 macOS 桌面端还可通过 ABI v7 原生桥只读调用 `SCDynamicStoreCopyProxies`，发现系统
 当前明确启用的 SOCKS、HTTP 与 HTTPS 代理主机和端口。发现层不读取凭据、PAC 内容
 或排除列表，不扫描端口或枚举任意监听进程；相同协议与端点先去重，再转换成

@@ -89,6 +89,7 @@ TCP/DNS/UDP/QUIC 验收使用
 - [Windows Adapter 命名管道 ADR](docs/ADR/0035-connect-windows-adapter-host-over-named-pipes.md)
 - [嵌入式 Shadowsocks 出口 ADR](docs/ADR/0036-embed-shadowsocks-as-modern-proxy-outbound.md)
 - [Shadowsocks 订阅内容导入 ADR](docs/ADR/0037-import-shadowsocks-subscription-payloads.md)
+- [远程订阅安全获取 ADR](docs/ADR/0038-fetch-remote-subscriptions-over-pinned-public-https.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链
