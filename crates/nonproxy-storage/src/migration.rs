@@ -31,6 +31,8 @@ const NETWORK_PROFILE_CATALOG: &str =
     include_str!("../../../migrations/V0011__network_profile_catalog.sql");
 const CONNECTION_DECISION_APP_IDENTITY: &str =
     include_str!("../../../migrations/V0012__connection_decision_app_identity.sql");
+const SUBSCRIPTION_SOURCES: &str =
+    include_str!("../../../migrations/V0013__subscription_sources.sql");
 
 struct Migration {
     version: i64,
@@ -98,6 +100,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 12,
         name: "connection_decision_app_identity",
         sql: CONNECTION_DECISION_APP_IDENTITY,
+    },
+    Migration {
+        version: 13,
+        name: "subscription_sources",
+        sql: SUBSCRIPTION_SOURCES,
     },
 ];
 

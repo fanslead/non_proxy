@@ -90,6 +90,7 @@ TCP/DNS/UDP/QUIC 验收使用
 - [嵌入式 Shadowsocks 出口 ADR](docs/ADR/0036-embed-shadowsocks-as-modern-proxy-outbound.md)
 - [Shadowsocks 订阅内容导入 ADR](docs/ADR/0037-import-shadowsocks-subscription-payloads.md)
 - [远程订阅安全获取 ADR](docs/ADR/0038-fetch-remote-subscriptions-over-pinned-public-https.md)
+- [远程订阅状态与节点归属 ADR](docs/ADR/0039-own-remote-subscription-state-and-outbounds.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链

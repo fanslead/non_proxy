@@ -20,6 +20,10 @@ mod retention;
 mod routing_settings_repository;
 mod snapshot_query;
 mod snapshot_repository;
+mod subscription_codec;
+mod subscription_refresh;
+mod subscription_repository;
+mod subscription_types;
 mod synthetic_dns_repository;
 mod types;
 
@@ -46,6 +50,11 @@ pub use provider_repository::ProviderRepository;
 pub use retention::{DEFAULT_DETAIL_RETENTION_MS, RetentionRepository, RetentionResult};
 pub use routing_settings_repository::{DefaultRoute, RoutingSettings, RoutingSettingsRepository};
 pub use snapshot_repository::SnapshotRepository;
+pub use subscription_repository::SubscriptionRepository;
+pub use subscription_types::{
+    MAXIMUM_REFRESH_INTERVAL_SECONDS, MINIMUM_REFRESH_INTERVAL_SECONDS, SubscriptionNode,
+    SubscriptionNodeOwnership, SubscriptionRefreshCommit, SubscriptionSource,
+};
 pub use synthetic_dns_repository::{
     SYNTHETIC_BINDING_RETENTION_MS, SyntheticDnsBinding, SyntheticDnsRepository,
 };

@@ -1412,6 +1412,25 @@ URL 的 path、query 和 hostname 均按秘密处理；只接受 HTTPS，DNS 解
 在订阅源 URL/Token 进入系统凭据库、预览与应用绑定、刷新并发、节点归属及删除语义完成
 前，UI 不得把该核心描述成“订阅管理已完成”。
 
+#### 15.2.2 订阅权威状态与节点归属
+
+V0013 通过 `subscription_source` 持久化不含秘密的源配置、乐观 revision、内容 generation、
+到期时间、连续失败、稳定错误码、最近成功哈希和节点数；订阅地址只以
+`subscription_url` 系统凭据引用及版本出现。`subscription_outbound` 记录订阅内稳定
+`node_key`、全局唯一出口标识、最新出现代数和是否仍存在，不允许订阅刷新接管手工出口或
+其他订阅的节点。
+
+成功刷新使用单个 IMMEDIATE 事务同时校验源 revision、内容 generation 与每个出口
+revision，保存新一代全部节点，再禁用并标记缺失节点，最后推进源状态。失败记录也绑定同一组
+源 revision 与 generation，因此用户换地址或改配置后，仍在途的旧请求不能覆盖节点或污染新
+源的失败状态。若缺失节点仍是默认出口，整次事务回滚；普通策略引用的缺失节点保留元数据但
+数据面按 disabled 安全失败。存储层返回被替换的旧凭据引用，供 gateway 在权威提交后清理。
+完整取舍见
+[ADR-0039](ADR/0039-own-remote-subscription-state-and-outbounds.md)。
+
+本层尚未写入订阅 URL 凭据、调用远程获取核心、生成订阅命名空间节点、开放控制 RPC 或启动
+刷新调度器；这些边界完成前，仍不能宣称自动订阅管理可用。
+
 macOS 桌面端还可通过 ABI v7 原生桥只读调用 `SCDynamicStoreCopyProxies`，发现系统
 当前明确启用的 SOCKS、HTTP 与 HTTPS 代理主机和端口。发现层不读取凭据、PAC 内容
 或排除列表，不扫描端口或枚举任意监听进程；相同协议与端点先去重，再转换成

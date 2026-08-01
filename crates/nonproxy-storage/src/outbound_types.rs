@@ -46,6 +46,7 @@ pub enum CredentialKind {
     BearerToken,
     ClientCertificate,
     PrivateKey,
+    SubscriptionUrl,
 }
 
 impl CredentialKind {
@@ -55,6 +56,7 @@ impl CredentialKind {
             Self::BearerToken => "bearer_token",
             Self::ClientCertificate => "client_certificate",
             Self::PrivateKey => "private_key",
+            Self::SubscriptionUrl => "subscription_url",
         }
     }
 
@@ -64,6 +66,7 @@ impl CredentialKind {
             "bearer_token" => Ok(Self::BearerToken),
             "client_certificate" => Ok(Self::ClientCertificate),
             "private_key" => Ok(Self::PrivateKey),
+            "subscription_url" => Ok(Self::SubscriptionUrl),
             _ => Err(StorageError::CorruptData {
                 field: "outbound.credential_kind",
             }),

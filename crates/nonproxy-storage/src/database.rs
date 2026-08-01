@@ -10,7 +10,8 @@ use crate::{
     ConnectionDecisionRepository, ExitProbeRepository, LearningConfirmationRepository,
     LearningRepository, MigrationReport, NetworkProfileRepository, OutboundRepository,
     PolicyRepository, ProviderRepository, RetentionRepository, RoutingSettingsRepository,
-    SnapshotRepository, StorageError, SyntheticDnsRepository, migration::migrate,
+    SnapshotRepository, StorageError, SubscriptionRepository, SyntheticDnsRepository,
+    migration::migrate,
 };
 
 #[derive(Debug)]
@@ -123,6 +124,11 @@ impl PolicyDatabase {
     #[must_use]
     pub fn synthetic_dns(&mut self) -> SyntheticDnsRepository<'_> {
         SyntheticDnsRepository::new(&mut self.connection)
+    }
+
+    #[must_use]
+    pub fn subscriptions(&mut self) -> SubscriptionRepository<'_> {
+        SubscriptionRepository::new(&mut self.connection)
     }
 
     #[must_use]

@@ -97,7 +97,7 @@ impl<'connection> OutboundRepository<'connection> {
     }
 }
 
-fn validate_default_outbound(
+pub(crate) fn validate_default_outbound(
     transaction: &Transaction<'_>,
     outbounds: &[(OutboundReference, Option<u64>)],
 ) -> Result<(), StorageError> {
@@ -122,7 +122,7 @@ fn validate_default_outbound(
     Ok(())
 }
 
-fn save_outbound(
+pub(crate) fn save_outbound(
     transaction: &Transaction<'_>,
     outbound: &OutboundReference,
     updated_at_unix_ms: u64,
@@ -245,7 +245,7 @@ fn decode_outbound(id: OutboundId, raw: RawOutbound) -> Result<OutboundReference
     Ok(outbound)
 }
 
-fn validate_revision(
+pub(crate) fn validate_revision(
     transaction: &Transaction<'_>,
     outbound: &OutboundReference,
     expected_current_revision: Option<u64>,
