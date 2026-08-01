@@ -28,6 +28,8 @@ pub enum FlowServiceError {
     CredentialTask,
     #[error("代理连接失败: {0}")]
     Outbound(#[from] OutboundError),
+    #[error("代理加密路径认证失败")]
+    OutboundAuthentication,
     #[error("网关状态读取失败: {0}")]
     Gateway(#[from] GatewayError),
     #[error("数据面发送通道已关闭")]
@@ -54,6 +56,7 @@ impl FlowServiceError {
             Self::OutboundInvalid => "NP_FLOW_OUTBOUND_INVALID",
             Self::Credential(_) | Self::CredentialTask => "NP_FLOW_CREDENTIAL_UNAVAILABLE",
             Self::Outbound(_) => "NP_FLOW_OUTBOUND_CONNECT_FAILED",
+            Self::OutboundAuthentication => "NP_FLOW_OUTBOUND_AUTHENTICATION_FAILED",
             Self::Gateway(_) => "NP_FLOW_GATEWAY_UNAVAILABLE",
             Self::ChannelClosed | Self::WriterTask => "NP_FLOW_CHANNEL_CLOSED",
             Self::PeerClosed => "NP_FLOW_PEER_CLOSED",

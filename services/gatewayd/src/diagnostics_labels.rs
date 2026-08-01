@@ -74,6 +74,7 @@ pub(crate) const fn outbound_kind(value: OutboundKind) -> &'static str {
     match value {
         OutboundKind::HttpConnect => "http_connect",
         OutboundKind::Socks5 => "socks5",
+        OutboundKind::Shadowsocks => "shadowsocks",
         OutboundKind::Adapter => "adapter",
     }
 }

@@ -8,6 +8,7 @@ use crate::StorageError;
 pub enum OutboundKind {
     HttpConnect,
     Socks5,
+    Shadowsocks,
     Adapter,
 }
 
@@ -16,6 +17,7 @@ impl OutboundKind {
         match self {
             Self::HttpConnect => "http_connect",
             Self::Socks5 => "socks5",
+            Self::Shadowsocks => "shadowsocks",
             Self::Adapter => "adapter",
         }
     }
@@ -24,11 +26,17 @@ impl OutboundKind {
         match value {
             "http_connect" => Ok(Self::HttpConnect),
             "socks5" => Ok(Self::Socks5),
+            "shadowsocks" => Ok(Self::Shadowsocks),
             "adapter" => Ok(Self::Adapter),
             _ => Err(StorageError::CorruptData {
                 field: "outbound.kind",
             }),
         }
+    }
+
+    #[must_use]
+    pub const fn supports_default_route(self) -> bool {
+        matches!(self, Self::Socks5 | Self::Shadowsocks)
     }
 }
 
@@ -143,12 +151,17 @@ impl OutboundReference {
     ) -> Result<Self, StorageError> {
         let endpoint_host = endpoint_host.map(normalize_endpoint).transpose()?;
         let endpoint_shape_valid = match kind {
-            OutboundKind::HttpConnect | OutboundKind::Socks5 => {
+            OutboundKind::HttpConnect | OutboundKind::Socks5 | OutboundKind::Shadowsocks => {
                 endpoint_host.is_some() && endpoint_port.is_some_and(|port| port > 0)
             }
             OutboundKind::Adapter => endpoint_host.is_none() && endpoint_port.is_none(),
         };
-        if !endpoint_shape_valid || revision == 0 {
+        let credential_shape_valid = !matches!(kind, OutboundKind::Shadowsocks)
+            || matches!(
+                credential.as_ref(),
+                Some(value) if value.kind() == CredentialKind::Password
+            );
+        if !endpoint_shape_valid || !credential_shape_valid || revision == 0 {
             return Err(StorageError::OutboundInvalid);
         }
         Ok(Self {

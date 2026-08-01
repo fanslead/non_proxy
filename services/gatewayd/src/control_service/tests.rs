@@ -14,11 +14,11 @@ use nonproxy_proto::control::v1::{
     GetSystemStatusRequest, ImportConfigurationRequest, LearningObservationKind,
     LearningResourceType, LearningSessionKind, ListExitProbesRequest,
     ListLearningCandidatesRequest, ListNetworkProfilesRequest, ListOutboundsRequest,
-    OperationContext, RecordLearningObservationRequest, RollbackPolicySnapshotRequest,
-    SetDefaultRouteRequest, StartLearningSessionRequest, StopLearningSessionRequest,
-    TestOutboundRequest, UpsertNetworkProfileRequest, UpsertPolicyRequest, VerifyExitRequest,
-    control_service_server::ControlService, set_default_route_request,
-    start_learning_session_request,
+    OperationContext, OutboundKind as ProtoOutboundKind, RecordLearningObservationRequest,
+    RollbackPolicySnapshotRequest, SetDefaultRouteRequest, StartLearningSessionRequest,
+    StopLearningSessionRequest, TestOutboundRequest, UpsertNetworkProfileRequest,
+    UpsertPolicyRequest, VerifyExitRequest, control_service_server::ControlService,
+    set_default_route_request, start_learning_session_request,
 };
 use nonproxy_proto::events::v1::{LearningCandidateKind, RuntimeState, event_envelope};
 use nonproxy_proto::policy::v1::{NetworkFingerprintKind, NetworkProfileSpec};
@@ -838,9 +838,16 @@ async fn standard_uri_import_previews_then_atomically_stores_secret_free_summari
         .into_inner();
 
     assert!(preview.error.is_none());
-    assert_eq!(preview.outbounds.len(), 2);
+    assert_eq!(preview.outbounds.len(), 3);
     assert!(preview.outbounds.iter().all(|value| {
         !value.endpoint_host.contains("alice") && !value.endpoint_host.contains("private")
+    }));
+    assert!(preview.outbounds.iter().any(|value| {
+        value.kind == ProtoOutboundKind::Shadowsocks as i32
+            && value.capabilities.contains(&(CapabilityName::Tcp as i32))
+            && value.capabilities.contains(&(CapabilityName::Udp as i32))
+            && value.capabilities.contains(&(CapabilityName::Ipv4 as i32))
+            && value.capabilities.contains(&(CapabilityName::Ipv6 as i32))
     }));
     assert!(matches!(gateway.list_outbounds().await, Ok(values) if values.is_empty()));
     assert!(credentials.is_empty());
@@ -851,18 +858,18 @@ async fn standard_uri_import_previews_then_atomically_stores_secret_free_summari
         .unwrap_or_else(|error| panic!("标准链接保存 RPC 失败: {error}"))
         .into_inner();
     assert!(imported.error.is_none());
-    assert_eq!(imported.outbounds.len(), 2);
+    assert_eq!(imported.outbounds.len(), 3);
     let stored = gateway
         .list_outbounds()
         .await
         .unwrap_or_else(|error| panic!("标准链接结果读取失败: {error}"));
-    assert_eq!(stored.len(), 2);
+    assert_eq!(stored.len(), 3);
     let references = stored
         .iter()
         .filter_map(nonproxy_storage::OutboundReference::credential)
         .map(nonproxy_storage::CredentialReference::item_reference)
         .collect::<Vec<_>>();
-    assert_eq!(references.len(), 1);
+    assert_eq!(references.len(), 2);
     assert!(references.iter().all(|value| credentials.contains(value)));
 }
 
@@ -1221,7 +1228,8 @@ fn uri_import_request(validate_only: bool) -> ImportConfigurationRequest {
         context: Some(context([7; 32], "import-uri-list")),
         format: "proxy-uri-list-v1".to_owned(),
         configuration: b"socks5://alice:private@proxy.example:1080#Office\n\
-                         http://127.0.0.1:8080#Backup"
+                         http://127.0.0.1:8080#Backup\n\
+                         ss://YWVzLTI1Ni1nY206cHJpdmF0ZQ@ss.example:8388#Modern"
             .to_vec(),
         validate_only,
     }

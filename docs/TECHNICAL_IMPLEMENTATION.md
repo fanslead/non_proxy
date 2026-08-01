@@ -569,7 +569,7 @@ Service 启动 DNS 监听前枚举 IPv4 路由；任何与 `198.18.0.0/15` 重�
 `connect` 与 `send` 分层时存在系统已知丢包问题，因此动态 BFE session 在
 `ALE_FLOW_ESTABLISHED_V4/V6` 关联应用身份，在 `DATAGRAM_DATA_V4/V6` 搬运
 出站数据报。Service 以 PID + App ID + 原始本地/远端地址建立有界会话，执行
-共享策略后使用绑定物理接口的 DIRECT UDP 或 SOCKS5 UDP；回复由 Driver 以
+共享策略后使用绑定物理接口的 DIRECT UDP、SOCKS5 UDP 或 Shadowsocks UDP；回复由 Driver 以
 原元组重注入。HTTP CONNECT 不提供 UDP association。内核队列、用户态
 channel、活动会话、单会话 backlog、总 payload 和空闲时间均有硬上限；启用
 后无法安全搬运的单个数据报 fail-closed 并计数，Service/handle 退出则撤销
@@ -704,7 +704,7 @@ payload      N bytes
 
 首版每条 UDS 连接只承载一个 flow，但帧始终携带 `flow_id`，为后续经过独立压测的多路复用保留兼容空间。`gatewayd` 默认在状态目录创建权限为 `0600` 的 `gatewayd-flow.sock`，可通过 `NONPROXY_FLOW_SOCKET_PATH` 覆盖；覆盖路径仍必须与控制 Socket 同处私有状态目录且不能重名。服务端只在验证首个 OPEN 帧、Provider capability、严格序列、出口启用状态和连接上限后建立真实代理连接。
 
-当前 Rust 数据面实现把每条 UDS 限定为一个 flow、全局最多 2,048 个活跃 flow，并以最多 64 个待写帧的有界队列隔离慢消费者。TCP 支持 HTTP CONNECT 与 SOCKS5、保持 `HALF_CLOSE`；UDP 只允许支持 UDP ASSOCIATE 的 SOCKS5 出口。凭据按引用从系统凭据库临时读取，不进入数据库或日志。Provider 侧代码签名/审计身份校验仍是启用真实 System Extension 前的发布门禁，不能用 `0600` 与 capability token 代替。
+当前 Rust 数据面实现把每条 UDS 限定为一个 flow、全局最多 2,048 个活跃 flow，并以最多 64 个待写帧的有界队列隔离慢消费者。TCP 支持 HTTP CONNECT、SOCKS5 与 Shadowsocks，并保持 `HALF_CLOSE`；UDP 允许 SOCKS5 UDP ASSOCIATE 和 Shadowsocks UDP relay。凭据按引用从系统凭据库临时读取，不进入数据库或日志。Provider 侧代码签名/审计身份校验仍是启用真实 System Extension 前的发布门禁，不能用 `0600` 与 capability token 代替。
 
 macOS Transparent Proxy 在每条 PROXY flow 上使用独立 `NWConnection(.unix)` 连接该数据 Socket。Swift 通道在 OPEN 后才向应用侧继续读取，并分别维护双向序列、256 KiB 初始窗口、16 MiB 窗口上限和 64 帧写队列；TCP 保留应用侧与远端半关闭，UDP 每帧保留自己的目标地址。所有 relay 共享 2,048 flow 和 32 MiB 待处理数据预算，停止 Provider 时统一撤销。仓库冒烟会启动真实 `gatewayd` 和本地 HTTP CONNECT 回显夹具，由 Swift 完成 NPF1 OPEN、窗口、数据确认和 CLOSE；该证据覆盖跨语言 Unix Socket 数据面，但不替代签名 System Extension 的真实设备验收。
 
@@ -1343,8 +1343,9 @@ pub trait OutboundConnector: Send + Sync {
 1. Direct。
 2. Local HTTP CONNECT。
 3. Local SOCKS5。
-4. WireGuard 或选定标准 VPN。
-5. 订阅型代理核心。
+4. Shadowsocks AEAD/AEAD-2022。
+5. WireGuard 或选定标准 VPN。
+6. 订阅型代理核心。
 
 ### 15.1 Failover
 
@@ -1355,7 +1356,7 @@ pub trait OutboundConnector: Send + Sync {
 - 已建立 TCP 不自动迁移。
 - UDP session 根据协议能力决定重建。
 
-### 15.2 标准本地代理导入
+### 15.2 标准代理导入
 
 内部结构化表单使用 `nonproxy-json-v1`；面向普通用户的批量粘贴使用
 `proxy-uri-list-v1`。两种格式共用 256 KiB 请求上限、100 个出口上限、revision
@@ -1381,15 +1382,18 @@ pub trait OutboundConnector: Send + Sync {
 
 导入采用补偿事务：先把新凭据写入 macOS Keychain、Windows Credential Manager 或对应平台安全存储，再在一个 `BEGIN IMMEDIATE` 事务中校验全部 revision 并保存全部出口；数据库失败时删除新凭据，数据库成功后再清理旧凭据。SQLite、审计日志、RPC 响应和出口列表只包含版本化凭据引用，不包含用户名或密码。配置缓冲区在客户端和服务端完成处理后归零。
 
-标准链接导入接受每行一个 `socks5://`、`socks5h://` 或 `http://` URI；缺省端口分别
-使用 1080 和 80。路径、查询参数、未知协议、无主机、畸形百分号编码和不成对凭据
-都被拒绝，错误只报告行号而不回显链接。片段标签会规范化为安全稳定标识，重复标签
-追加确定性序号。桌面端必须先调用 `validate_only` 展示不含凭据的协议、标识和端点，
-并在标识已存在时提示保存将更新对应出口；源文本变化后立即作废预览，只有当前预览
-可以触发明确保存。完整决策见
-[ADR-0011](ADR/0011-import-standard-proxy-uris.md)。这不等同于 Shadowsocks、VMess、
-WireGuard、OpenVPN 或供应商订阅已经支持；这些协议必须在对应 connector/adapter
-真正实现后另行开放。
+标准链接导入接受每行一个 `socks5://`、`socks5h://`、`http://` 或 `ss://` URI。
+SOCKS5/HTTP 缺省端口分别使用 1080 和 80；Shadowsocks 必须显式提供端口，并接受
+SIP002 base64 userinfo、明文百分号编码 userinfo 和旧式整段 base64 三种常见形态。
+Shadowsocks 查询参数（包括 SIP003 plugin）、路径、缺失认证、未知方法、`none`、流加密、
+无主机和畸形编码全部拒绝。所有错误只报告行号而不回显链接。片段标签会规范化为安全
+稳定标识，重复标签追加确定性序号。桌面端必须先调用 `validate_only` 展示不含凭据或
+密钥的协议、标识和端点，并在标识已存在时提示保存将更新对应出口；源文本变化后立即
+作废预览，只有当前预览可以触发明确保存。完整决策见
+[ADR-0011](ADR/0011-import-standard-proxy-uris.md) 和
+[ADR-0036](ADR/0036-embed-shadowsocks-as-modern-proxy-outbound.md)。这不等同于 VMess、
+VLESS、Trojan、WireGuard、OpenVPN、SIP003 plugin 或供应商订阅已经支持；这些协议必须
+在对应 connector/adapter 真正实现后另行开放。
 
 macOS 桌面端还可通过 ABI v7 原生桥只读调用 `SCDynamicStoreCopyProxies`，发现系统
 当前明确启用的 SOCKS、HTTP 与 HTTPS 代理主机和端口。发现层不读取凭据、PAC 内容
@@ -1402,13 +1406,13 @@ macOS 桌面端还可通过 ABI v7 原生桥只读调用 `SCDynamicStoreCopyProx
 身份模块获取当前 SSID、物理网关或接口类型中的最佳脱敏指纹。Swift 回调只返回指纹
 类型、哈希值、权限状态和通用显示建议，原始 SSID 不跨越原生边界。
 
-`SOCKS5` 声明 TCP、UDP、IPv4 和 IPv6 能力；`HTTP CONNECT` 只声明 TCP、IPv4 和 IPv6，并在导入结果中给出 TCP-only 提示。这里只表示协议能力，不表示健康检查已通过；从未探测或结果过期的出口使用 `RUNTIME_STATE_UNSPECIFIED`，桌面端显示“未验证”。
+`SOCKS5` 和 `Shadowsocks` 声明 TCP、UDP、IPv4 和 IPv6 能力；`HTTP CONNECT` 只声明 TCP、IPv4 和 IPv6，并在导入结果中给出 TCP-only 提示。这里只表示协议能力，不表示健康检查已通过；从未探测或结果过期的出口使用 `RUNTIME_STATE_UNSPECIFIED`，桌面端显示“未验证”。
 
 ### 15.3 用户触发的代理握手测试
 
-桌面端每个出口提供独立“测试”操作。RPC 使用会话能力鉴权，并固定发送 5 秒探测超时；网关只接受 1 到 30 秒的合法 protobuf duration。测试目标由服务端固定为 `example.com:443`，客户端不能传入用户正在访问的域名；除与代理协商所需的 CONNECT/SOCKS 握手外，不向目标发送应用层请求、Cookie 或用户数据。
+桌面端每个出口提供独立“测试”操作。RPC 使用会话能力鉴权，并固定发送 5 秒探测超时；网关只接受 1 到 30 秒的合法 protobuf duration。测试目标由服务端固定为 `example.com:443`，客户端不能传入用户正在访问的域名；探测只执行协议协商以及 Shadowsocks 所需的公共 TLS 认证，不发送 HTTP 请求、Cookie 或用户数据。
 
-网关复用数据面的当前出口加载器和系统凭据引用，实际完成 HTTP CONNECT 或 SOCKS5 TCP 握手。成功结果记录完整握手耗时；失败只返回稳定错误码和去敏提示，不回传连接器内部错误、用户名、密码、凭据引用或原始配置。
+网关复用数据面的当前出口加载器和系统凭据引用，实际完成 HTTP CONNECT、SOCKS5 或 Shadowsocks TCP 路径。Shadowsocks 建立客户端流本身是单向的，错误密钥可能暂时没有本地错误，因此还必须经该加密流对 `example.com:443` 完成 WebPKI TLS 握手后才能标记 `READY`；不发送 HTTP 请求、Cookie 或用户载荷。TLS 失败返回稳定的 `NP_FLOW_OUTBOUND_AUTHENTICATION_FAILED`。成功结果记录完整认证路径耗时；失败只返回稳定错误码和去敏提示，不回传连接器内部错误、用户名、密码、密钥、凭据引用或原始配置。
 
 健康观察保存在进程内的有界注册表中，并同时绑定 `outbound_id` 与配置 revision。配置 revision 变化后旧结果立即失效；观察超过 60 秒后恢复为“未验证”。`OutboundSummary` 返回 `health`、`last_checked_at` 和 `latency`，macOS 与 Windows 共享桌面层使用同一映射。`READY` 若缺少时间或延迟属于无效控制契约，客户端不得据此开放默认代理操作。
 
@@ -1417,7 +1421,7 @@ macOS 桌面端还可通过 ABI v7 原生桥只读调用 `SCDynamicStoreCopyProx
 - 实际用户连接命中了哪条策略；
 - DIRECT 是否绕开第三方 VPN；
 - PROXY 与 DIRECT 的公网出口是否不同；
-- UDP、QUIC、DNS 或指定用户目标已经可用。
+- UDP、QUIC、DNS 或指定用户目标已经可用；Shadowsocks 的 TLS 成功也不证明其 UDP relay 已验收。
 
 这些结论必须由决策证据、接口路径和自有出口探针联合验证，不能由本健康状态替代。
 
@@ -1511,8 +1515,8 @@ Service 一并恢复。任何平台都不能先切服务端密钥。
 Provider ACK、实际规则命中、物理接口路径或公网出口证据。
 
 HTTP CONNECT 只具备 TCP 能力，在完整网关捕获 TCP/UDP 的配置下不能作为全局
-默认出口；共享桌面端会禁用其“设为默认”操作并显示“不支持全局默认”。SOCKS5
-只有同时声明 TCP、UDP、IPv4 和 IPv6 且处于启用状态时才显示可选。用户仍可把
+默认出口；共享桌面端会禁用其“设为默认”操作并显示“不支持全局默认”。SOCKS5 与
+Shadowsocks 只有同时声明 TCP、UDP、IPv4 和 IPv6 且处于启用状态时才显示可选。用户仍可把
 这些出口用于能力匹配的显式代理规则。
 
 完整门禁、失败原子性与回滚边界见

@@ -275,15 +275,16 @@ public sealed partial class GatewayOutboundService : IOutboundService
                 => "代理配置无效，请检查标识、地址、端口和凭据。",
             "NP_OUTBOUND_IMPORT_DUPLICATE_ID" => "同一次导入不能包含重复的代理标识。",
             "NP_OUTBOUND_IMPORT_URI_INVALID" =>
-                "代理链接无效；请每行粘贴一个 SOCKS5 或 HTTP 代理链接。",
+                "代理链接无效；请每行粘贴一个 SOCKS5、HTTP 或 Shadowsocks 代理链接。",
             "NP_OUTBOUND_IMPORT_URI_SCHEME_UNSUPPORTED" =>
-                "当前只支持 socks5://、socks5h:// 和 http:// 代理链接。",
+                "当前只支持 socks5://、socks5h://、http:// 和 ss:// 代理链接。",
             "NP_OUTBOUND_IMPORT_URI_CREDENTIAL_INVALID" =>
-                "代理链接中的账号和密码必须同时提供，并使用有效的百分号编码。",
-            "NP_OUTBOUND_CREDENTIAL_INVALID" => "代理账号和密码必须同时填写且符合长度限制。",
+                "代理链接中的认证信息或加密密钥格式无效。",
+            "NP_OUTBOUND_CREDENTIAL_INVALID" =>
+                "代理账号密码或 Shadowsocks 加密方法与密钥无效。",
             "NP_OUTBOUND_REVISION_EXHAUSTED" => "代理配置修订号已耗尽，请更换配置标识。",
             "NP_OUTBOUND_REVISION_CONFLICT" => "代理配置已被其他操作修改，请刷新后重试。",
-            "NP_CREDENTIAL_STORE_FAILED" => "系统凭据库暂时无法保存代理账号和密码。",
+            "NP_CREDENTIAL_STORE_FAILED" => "系统凭据库暂时无法保存代理凭据或加密密钥。",
             "NP_STORAGE_FAILURE" => "代理配置存储暂时不可用。",
             _ => "控制服务没有接受本次代理配置。",
         };
@@ -298,7 +299,9 @@ public sealed partial class GatewayOutboundService : IOutboundService
             "NP_FLOW_OUTBOUND_UNSUPPORTED" => "当前代理类型暂不支持内置握手测试。",
             "NP_FLOW_OUTBOUND_INVALID" => "代理配置不完整，请重新保存。",
             "NP_FLOW_CREDENTIAL_UNAVAILABLE"
-                => "无法从系统凭据库读取代理账号密码。",
+                => "无法从系统凭据库读取代理凭据或加密密钥。",
+            "NP_FLOW_OUTBOUND_AUTHENTICATION_FAILED"
+                => "代理认证失败，请检查 Shadowsocks 加密方法、密钥和服务端配置。",
             "NP_OUTBOUND_TEST_TIMEOUT"
                 => "代理握手超时，请检查地址、端口和网络状态。",
             "NP_FLOW_OUTBOUND_CONNECT_FAILED" or "NP_FLOW_IO_FAILED"

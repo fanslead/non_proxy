@@ -166,6 +166,11 @@ Apple 文档明确说明 DNS Proxy 可以接管系统 DNS 查询：
 - WireGuard 可优先评估 MIT 许可的 WireGuardKit：
   [WireGuard Apple 官方镜像](https://github.com/WireGuard/wireguard-apple)
 
+当前仓库已经以 MIT 许可的 `shadowsocks-rust` 嵌入首个现代代理出口，覆盖 TCP、UDP、
+`ss://` 链接导入、系统凭据隔离、默认路由和固定公共目标认证测试。范围只包括六种
+AEAD/AEAD-2022 方法，不包括 SIP003 plugin、订阅、VMess/VLESS、Trojan、Hysteria 2、
+TUIC、WireGuard、OpenVPN 或 OpenConnect；这些仍按独立协议核心和系统验收推进。
+
 ## 4. 三种运行模式
 
 ### 4.1 完整网关模式
@@ -895,6 +900,8 @@ IPv4/IPv6：IPv4
 - 默认全局 PROXY，用户选择应用/网站 DIRECT。
 - Safari、Chrome、Edge。
 - HTTP、SOCKS、WireGuard，加一组主流订阅协议。
+- 首个现代协议已经选择 Shadowsocks；正式范围仍需补 WireGuard 或另一种标准 VPN，
+  以及一组经过许可证审查的订阅协议。
 - Clash/Mihomo、Surge、sing-box 三类适配器。
 - 本地优先，不做账号和云同步。
 - 不首发隔离胶囊、企业 MDM 管理和 Windows。

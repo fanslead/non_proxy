@@ -69,6 +69,51 @@ fn outbound_round_trip_keeps_only_credential_reference_metadata() {
 }
 
 #[test]
+fn shadowsocks_requires_a_password_reference_and_round_trips() {
+    let id = OutboundId::new("modern-proxy")
+        .unwrap_or_else(|error| panic!("Shadowsocks 出口标识创建失败: {error}"));
+    assert!(matches!(
+        OutboundReference::new(
+            id.clone(),
+            OutboundKind::Shadowsocks,
+            Some("ss.example"),
+            Some(8_388),
+            None,
+            1,
+        ),
+        Err(StorageError::OutboundInvalid)
+    ));
+    let credential = CredentialReference::new(
+        "keychain:modern-proxy",
+        CredentialKind::Password,
+        "Shadowsocks 密钥",
+        1,
+    )
+    .unwrap_or_else(|error| panic!("Shadowsocks 凭据引用创建失败: {error}"));
+    let outbound = OutboundReference::new(
+        id,
+        OutboundKind::Shadowsocks,
+        Some("SS.Example."),
+        Some(8_388),
+        Some(credential),
+        1,
+    )
+    .unwrap_or_else(|error| panic!("Shadowsocks 出口创建失败: {error}"));
+    let mut database = PolicyDatabase::open_in_memory(1_000)
+        .unwrap_or_else(|error| panic!("测试数据库打开失败: {error}"));
+    database
+        .outbounds()
+        .save(&outbound, None, 1_100)
+        .unwrap_or_else(|error| panic!("Shadowsocks 出口保存失败: {error}"));
+
+    assert!(matches!(
+        database.outbounds().get(outbound.id()),
+        Ok(Some(value)) if value == outbound
+            && value.endpoint_host() == Some("ss.example")
+    ));
+}
+
+#[test]
 fn secret_bearing_uri_is_rejected_as_an_endpoint() {
     let id = match OutboundId::new("unsafe") {
         Ok(value) => value,

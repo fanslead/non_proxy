@@ -115,7 +115,7 @@ fn validate_default_outbound(
     };
     if outbounds.iter().any(|(outbound, _)| {
         outbound.id().as_str() == default_outbound_id
-            && (!outbound.enabled() || outbound.kind() != OutboundKind::Socks5)
+            && (!outbound.enabled() || !outbound.kind().supports_default_route())
     }) {
         return Err(StorageError::DefaultOutboundUnavailable);
     }

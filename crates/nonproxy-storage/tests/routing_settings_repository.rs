@@ -2,7 +2,8 @@ mod support;
 
 use nonproxy_model::OutboundId;
 use nonproxy_storage::{
-    DefaultRoute, OutboundKind, OutboundReference, PolicyDatabase, StorageError,
+    CredentialKind, CredentialReference, DefaultRoute, OutboundKind, OutboundReference,
+    PolicyDatabase, StorageError,
 };
 use support::artifact;
 
@@ -70,6 +71,44 @@ fn proxy_route_and_snapshot_are_staged_atomically() {
         database.snapshots().pending(),
         Ok(Some(record)) if record.artifact() == &snapshot
     ));
+}
+
+#[test]
+fn shadowsocks_can_be_selected_as_the_complete_default_route() {
+    let mut database = PolicyDatabase::open_in_memory(1_000)
+        .unwrap_or_else(|error| panic!("测试数据库打开失败: {error}"));
+    let id = OutboundId::new("modern-default")
+        .unwrap_or_else(|error| panic!("Shadowsocks 出口标识创建失败: {error}"));
+    let credential = CredentialReference::new(
+        "keychain:modern-default",
+        CredentialKind::Password,
+        "Shadowsocks 密钥",
+        1,
+    )
+    .unwrap_or_else(|error| panic!("Shadowsocks 凭据引用创建失败: {error}"));
+    let outbound = OutboundReference::new(
+        id,
+        OutboundKind::Shadowsocks,
+        Some("ss.example"),
+        Some(8_388),
+        Some(credential),
+        1,
+    )
+    .unwrap_or_else(|error| panic!("Shadowsocks 出口创建失败: {error}"));
+    database
+        .outbounds()
+        .save(&outbound, None, 1_100)
+        .unwrap_or_else(|error| panic!("Shadowsocks 出口保存失败: {error}"));
+    let snapshot =
+        artifact(1, 7).unwrap_or_else(|error| panic!("Shadowsocks 默认路由快照创建失败: {error}"));
+    let route = DefaultRoute::Proxy(outbound.id().clone());
+
+    let settings = database
+        .routing_settings()
+        .set_and_stage(&route, 1, &snapshot, 1_200)
+        .unwrap_or_else(|error| panic!("Shadowsocks 默认路由选择失败: {error}"));
+
+    assert_eq!(settings.route(), &route);
 }
 
 #[test]

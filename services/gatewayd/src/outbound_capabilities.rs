@@ -9,7 +9,7 @@ pub(crate) fn for_configured_outbounds(
     for outbound in outbounds.iter().filter(|value| value.enabled()) {
         let outbound_capabilities = match outbound.kind() {
             OutboundKind::HttpConnect => OutboundCapabilities::new(true, false, true, true),
-            OutboundKind::Socks5 => OutboundCapabilities::full(),
+            OutboundKind::Socks5 | OutboundKind::Shadowsocks => OutboundCapabilities::full(),
             OutboundKind::Adapter => continue,
         };
         capabilities = capabilities.with_outbound(outbound.id().clone(), outbound_capabilities);

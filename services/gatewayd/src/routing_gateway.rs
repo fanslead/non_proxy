@@ -1,8 +1,6 @@
 use nonproxy_model::{DecisionSpec, FailureMode, RouteAction};
 use nonproxy_proto::events::v1::RuntimeState;
-use nonproxy_storage::{
-    DefaultRoute, OutboundKind, OutboundReference, RoutingSettings, StorageError,
-};
+use nonproxy_storage::{DefaultRoute, OutboundReference, RoutingSettings, StorageError};
 
 use crate::{
     Gateway, GatewayError, PublishedSnapshot,
@@ -127,7 +125,7 @@ impl Gateway {
         let Some(outbound) = outbound else {
             return Err(StorageError::DefaultOutboundUnavailable.into());
         };
-        if !outbound.enabled() || outbound.kind() != OutboundKind::Socks5 {
+        if !outbound.enabled() || !outbound.kind().supports_default_route() {
             return Err(StorageError::DefaultOutboundUnavailable.into());
         }
         if !matches!(

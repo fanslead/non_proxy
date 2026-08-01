@@ -69,6 +69,7 @@ public sealed class GatewayOutboundUriImportServiceTests
                 TestContext.Current.CancellationToken));
 
         Assert.Contains("socks5://", error.UserMessage, StringComparison.Ordinal);
+        Assert.Contains("ss://", error.UserMessage, StringComparison.Ordinal);
         Assert.Contains("第 2 行", error.UserMessage, StringComparison.Ordinal);
         Assert.DoesNotContain("alice", error.UserMessage, StringComparison.Ordinal);
         Assert.DoesNotContain("private", error.UserMessage, StringComparison.Ordinal);

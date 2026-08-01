@@ -44,8 +44,11 @@ mod outbound_catalog_gateway;
 mod outbound_health;
 mod outbound_import;
 mod outbound_import_service;
+#[cfg(test)]
+mod outbound_import_tests;
 mod outbound_import_uri;
 mod outbound_probe;
+mod outbound_probe_tls;
 mod policy_catalog_gateway;
 mod proto_policy;
 mod provider_decision_rpc;

@@ -63,6 +63,57 @@ public sealed class GatewayOutboundServiceTests
     }
 
     [Fact]
+    public async Task ListMapsShadowsocksCapabilitiesAndActions()
+    {
+        var checkedAt = DateTimeOffset.Parse(
+            "2026-07-31T02:03:04Z",
+            CultureInfo.InvariantCulture);
+        var client = new StubControlRpcClient
+        {
+            OutboundsResponse = new ListOutboundsResponse
+            {
+                Page = new PageResponse(),
+                RoutingRevision = 4,
+                Outbounds =
+                {
+                    new OutboundSummary
+                    {
+                        Id = "modern-proxy",
+                        DisplayName = "Modern proxy",
+                        Kind = OutboundKind.Shadowsocks,
+                        EndpointHost = "ss.example",
+                        EndpointPort = 8388,
+                        Health = NonProxy.Events.V1.RuntimeState.Ready,
+                        Enabled = true,
+                        Capabilities =
+                        {
+                            CapabilityName.Tcp,
+                            CapabilityName.Udp,
+                            CapabilityName.Ipv4,
+                            CapabilityName.Ipv6,
+                        },
+                        LastCheckedAt = Timestamp.FromDateTimeOffset(checkedAt),
+                        Latency = Duration.FromTimeSpan(TimeSpan.FromMilliseconds(51)),
+                    },
+                },
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var catalog = await service.ListAsync(
+            TestContext.Current.CancellationToken);
+        var item = Assert.Single(catalog.Items);
+
+        Assert.Equal("Shadowsocks", item.Kind);
+        Assert.Equal("ss.example:8388", item.Endpoint);
+        Assert.True(item.SupportsDefaultRoute);
+        Assert.True(item.IsHandshakeVerified);
+        Assert.True(item.CanVerifyExit);
+        Assert.Equal(TimeSpan.FromMilliseconds(51), item.Latency);
+        Assert.Equal(checkedAt, item.LastCheckedAt);
+    }
+
+    [Fact]
     public async Task ListRejectsReadyHealthWithoutCompleteObservationEvidence()
     {
         var client = new StubControlRpcClient
@@ -504,6 +555,33 @@ public sealed class GatewayOutboundServiceTests
         Assert.Null(result.Latency);
         Assert.Contains("认证信息", result.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("公网出口", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TestMapsShadowsocksAuthenticationFailureWithoutEchoingSecrets()
+    {
+        var client = new StubControlRpcClient
+        {
+            TestOutboundResponse = new TestOutboundResponse
+            {
+                Error = new ErrorDetail
+                {
+                    Code = "NP_FLOW_OUTBOUND_AUTHENTICATION_FAILED",
+                    Message = "server said private-key-is-invalid",
+                    Retryable = true,
+                },
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var result = await service.TestAsync(
+            "modern-proxy",
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.Healthy);
+        Assert.Contains("Shadowsocks", result.Message, StringComparison.Ordinal);
+        Assert.Contains("加密方法", result.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("private-key", result.Message, StringComparison.Ordinal);
     }
 
     [Fact]

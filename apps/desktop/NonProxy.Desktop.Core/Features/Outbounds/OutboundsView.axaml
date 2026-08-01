@@ -31,7 +31,7 @@
                         <TextBlock Theme="{StaticResource NpSectionTitle}"
                                    Text="自动发现或粘贴代理链接（推荐）" />
                         <TextBlock Theme="{StaticResource NpMutedText}"
-                                   Text="每行粘贴一个 socks5://、socks5h:// 或 http:// 链接。先检查识别结果，再明确保存；预览和列表始终隐藏账号与密码。"
+                                   Text="每行粘贴一个 socks5://、socks5h://、http:// 或 ss:// 链接。先检查识别结果，再明确保存；预览和列表始终隐藏账号、密码与加密密钥。"
                                    TextWrapping="Wrap" />
                     </StackPanel>
                     <Grid ColumnDefinitions="Auto,*"
@@ -56,7 +56,7 @@
                              MinHeight="104"
                              Text="{Binding UriImportText}"
                              TextWrapping="Wrap"
-                             PlaceholderText="socks5://user:password@proxy.example:1080#office"
+                             PlaceholderText="ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@proxy.example:8388#office"
                              AutomationProperties.Name="标准代理链接列表" />
                     <StackPanel Orientation="Horizontal"
                                 Spacing="10">
@@ -108,7 +108,7 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <TextBlock Theme="{StaticResource NpMutedText}"
-                                       Text="账号和密码不会出现在预览中；保存后只保留系统凭据引用。"
+                                       Text="账号、密码和加密密钥不会出现在预览中；保存后只保留系统凭据引用。"
                                        TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>

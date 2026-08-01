@@ -110,6 +110,7 @@ public nonisolated enum Nonproxy_Control_V1_OutboundKind: SwiftProtobuf.Enum, Sw
   case wireguard // = 4
   case openvpn // = 5
   case externalAdapter // = 6
+  case shadowsocks // = 7
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -125,6 +126,7 @@ public nonisolated enum Nonproxy_Control_V1_OutboundKind: SwiftProtobuf.Enum, Sw
     case 4: self = .wireguard
     case 5: self = .openvpn
     case 6: self = .externalAdapter
+    case 7: self = .shadowsocks
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -138,6 +140,7 @@ public nonisolated enum Nonproxy_Control_V1_OutboundKind: SwiftProtobuf.Enum, Sw
     case .wireguard: return 4
     case .openvpn: return 5
     case .externalAdapter: return 6
+    case .shadowsocks: return 7
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -151,6 +154,7 @@ public nonisolated enum Nonproxy_Control_V1_OutboundKind: SwiftProtobuf.Enum, Sw
     .wireguard,
     .openvpn,
     .externalAdapter,
+    .shadowsocks,
   ]
 
 }
@@ -2680,7 +2684,7 @@ nonisolated extension Nonproxy_Control_V1_CapabilityName: SwiftProtobuf._ProtoNa
 }
 
 nonisolated extension Nonproxy_Control_V1_OutboundKind: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OUTBOUND_KIND_UNSPECIFIED\0\u{1}OUTBOUND_KIND_DIRECT\0\u{1}OUTBOUND_KIND_HTTP_CONNECT\0\u{1}OUTBOUND_KIND_SOCKS5\0\u{1}OUTBOUND_KIND_WIREGUARD\0\u{1}OUTBOUND_KIND_OPENVPN\0\u{1}OUTBOUND_KIND_EXTERNAL_ADAPTER\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OUTBOUND_KIND_UNSPECIFIED\0\u{1}OUTBOUND_KIND_DIRECT\0\u{1}OUTBOUND_KIND_HTTP_CONNECT\0\u{1}OUTBOUND_KIND_SOCKS5\0\u{1}OUTBOUND_KIND_WIREGUARD\0\u{1}OUTBOUND_KIND_OPENVPN\0\u{1}OUTBOUND_KIND_EXTERNAL_ADAPTER\0\u{1}OUTBOUND_KIND_SHADOWSOCKS\0")
 }
 
 nonisolated extension Nonproxy_Control_V1_DefaultRouteKind: SwiftProtobuf._ProtoNameProviding {

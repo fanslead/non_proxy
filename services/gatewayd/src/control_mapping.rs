@@ -113,6 +113,15 @@ pub fn outbound_summary(
                 CapabilityName::Ipv6 as i32,
             ],
         ),
+        OutboundKind::Shadowsocks => (
+            ProtoOutboundKind::Shadowsocks,
+            vec![
+                CapabilityName::Tcp as i32,
+                CapabilityName::Udp as i32,
+                CapabilityName::Ipv4 as i32,
+                CapabilityName::Ipv6 as i32,
+            ],
+        ),
         OutboundKind::Adapter => (ProtoOutboundKind::ExternalAdapter, Vec::new()),
     };
     OutboundSummary {

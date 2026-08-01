@@ -1,19 +1,19 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
-use nonproxy_flow_protocol::FlowEndpoint;
-use nonproxy_model::OutboundId;
-use nonproxy_proto::{
-    common::v1::ErrorDetail,
-    control::v1::{TestOutboundRequest, TestOutboundResponse},
-    events::v1::RuntimeState,
-};
-
 use crate::{
     Gateway,
     clock::unix_time_ms,
     control_mapping,
     credential_store::CredentialStore,
     flow_server::{FlowServiceError, outbound_factory::load_connector},
+    outbound_probe_tls::authenticate_tls_path,
+};
+use nonproxy_flow_protocol::FlowEndpoint;
+use nonproxy_model::OutboundId;
+use nonproxy_proto::{
+    common::v1::ErrorDetail,
+    control::v1::{TestOutboundRequest, TestOutboundResponse},
+    events::v1::RuntimeState,
 };
 
 const DEFAULT_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
@@ -33,7 +33,11 @@ pub async fn run(
         let credentials = credential_store;
         async move {
             let connector = load_connector(&gateway, credentials, &outbound_id).await?;
-            connector.connect_tcp(&target).await?;
+            let requires_authenticated_path = connector.requires_authenticated_tls_probe();
+            let stream = connector.connect_tcp(&target).await?;
+            if requires_authenticated_path {
+                authenticate_tls_path(stream, PROBE_TARGET_HOST).await?;
+            }
             Ok(())
         }
     })
@@ -163,7 +167,10 @@ fn flow_detail(error: &FlowServiceError) -> ErrorDetail {
         FlowServiceError::OutboundUnsupported => "当前出口类型暂不支持内置握手测试。",
         FlowServiceError::OutboundInvalid => "代理出口配置不完整，请重新保存配置。",
         FlowServiceError::Credential(_) | FlowServiceError::CredentialTask => {
-            "系统凭据库无法读取该代理的账号密码。"
+            "系统凭据库无法读取该代理的凭据或加密密钥。"
+        }
+        FlowServiceError::OutboundAuthentication => {
+            "代理加密路径认证失败，请检查加密方法、密钥和服务端配置。"
         }
         FlowServiceError::Outbound(_) | FlowServiceError::Io(_) => {
             "代理握手失败，请检查地址、端口、认证信息和代理服务状态。"
@@ -176,6 +183,7 @@ fn flow_detail(error: &FlowServiceError) -> ErrorDetail {
         FlowServiceError::SystemSnapshotPending
             | FlowServiceError::Io(_)
             | FlowServiceError::Outbound(_)
+            | FlowServiceError::OutboundAuthentication
             | FlowServiceError::Gateway(_)
             | FlowServiceError::CredentialTask
     );
@@ -220,7 +228,7 @@ mod tests {
     use nonproxy_proto::{control::v1::TestOutboundRequest, events::v1::RuntimeState};
     use nonproxy_storage::{OutboundKind, OutboundReference, PolicyDatabase};
 
-    use super::{probe_timeout, run_with_probe};
+    use super::{flow_detail, probe_timeout, run_with_probe};
     use crate::{Gateway, flow_server::FlowServiceError};
 
     #[tokio::test]
@@ -327,6 +335,16 @@ mod tests {
             Ok(Some(value)) if value.state == RuntimeState::Failed
                 && value.latency_ms.is_none()
         ));
+    }
+
+    #[test]
+    fn authenticated_path_failure_has_a_stable_retryable_error_without_secrets() {
+        let detail = flow_detail(&FlowServiceError::OutboundAuthentication);
+
+        assert_eq!(detail.code, "NP_FLOW_OUTBOUND_AUTHENTICATION_FAILED");
+        assert!(detail.retryable);
+        assert!(detail.message.contains("加密路径认证失败"));
+        assert!(!detail.message.contains("private"));
     }
 
     async fn gateway_with_outbound() -> Gateway {

@@ -124,7 +124,9 @@ internal static class OutboundContractMapper
     private static bool CanVerifyExit(OutboundSummary outbound)
     {
         return outbound.Enabled
-            && outbound.Kind is OutboundKind.HttpConnect or OutboundKind.Socks5;
+            && outbound.Kind is OutboundKind.HttpConnect
+                or OutboundKind.Socks5
+                or OutboundKind.Shadowsocks;
     }
 
     internal static NonProxy.Common.V1.IpFamily ToIpFamily(IPAddress address)
@@ -151,6 +153,7 @@ internal static class OutboundContractMapper
             OutboundKind.Wireguard => "WireGuard",
             OutboundKind.Openvpn => "OpenVPN",
             OutboundKind.ExternalAdapter => "外部适配器",
+            OutboundKind.Shadowsocks => "Shadowsocks",
             _ => "未知",
         };
     }

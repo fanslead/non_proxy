@@ -111,6 +111,16 @@ public sealed class OutboundsViewTests
             Assert.Equal(
                 "自动发现当前系统 SOCKS 或 HTTP 代理",
                 AutomationProperties.GetName(discoveryAction));
+            var explanatoryText = view
+                .GetLogicalDescendants()
+                .OfType<TextBlock>()
+                .Select(text => text.Text)
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .ToArray();
+            Assert.Contains(
+                explanatoryText,
+                text => text!.Contains("ss://", StringComparison.Ordinal)
+                    && text.Contains("加密密钥", StringComparison.Ordinal));
 
             var uriInput = view.FindControl<TextBox>("ProxyUriImportText");
             var uriPreview = view.FindControl<Border>("ProxyUriImportPreview");

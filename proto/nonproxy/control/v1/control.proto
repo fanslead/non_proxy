@@ -67,6 +67,7 @@ enum OutboundKind {
   OUTBOUND_KIND_WIREGUARD = 4;
   OUTBOUND_KIND_OPENVPN = 5;
   OUTBOUND_KIND_EXTERNAL_ADAPTER = 6;
+  OUTBOUND_KIND_SHADOWSOCKS = 7;
 }
 
 // DefaultRouteKind 表示未命中用户规则时采用的基础路由。

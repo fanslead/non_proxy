@@ -167,10 +167,11 @@ fn update_route(
                 |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
             )
             .optional()?;
-        if !matches!(
-            outbound,
-            Some((1, kind)) if kind == OutboundKind::Socks5.as_str()
-        ) {
+        let available = match outbound {
+            Some((1, kind)) => OutboundKind::parse(&kind)?.supports_default_route(),
+            _ => false,
+        };
+        if !available {
             return Err(StorageError::DefaultOutboundUnavailable);
         }
     }

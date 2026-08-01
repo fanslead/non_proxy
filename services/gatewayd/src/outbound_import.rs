@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use nonproxy_model::OutboundId;
+use nonproxy_outbound::ShadowsocksCredentials;
 use nonproxy_storage::{CredentialKind, CredentialReference, OutboundKind, OutboundReference};
 use serde::Deserialize;
 use thiserror::Error;
@@ -39,6 +40,7 @@ pub(crate) struct RawOutbound {
     pub kind: RawOutboundKind,
     pub host: String,
     pub port: u16,
+    pub method: Option<String>,
     pub username: Option<String>,
     pub password: Option<String>,
     #[serde(default = "enabled_by_default")]
@@ -50,6 +52,14 @@ pub(crate) struct RawOutbound {
 pub(crate) enum RawOutboundKind {
     HttpConnect,
     Socks5,
+    Shadowsocks,
+}
+
+struct RawCredential {
+    kind: RawOutboundKind,
+    method: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
 }
 
 pub fn prepare(
@@ -93,8 +103,12 @@ pub fn prepare(
             &id,
             revision,
             &import_id,
-            raw.username,
-            raw.password,
+            RawCredential {
+                kind: raw.kind,
+                method: raw.method,
+                username: raw.username,
+                password: raw.password,
+            },
             &mut credentials,
         )?;
         if let Some(reference) = current
@@ -109,6 +123,7 @@ pub fn prepare(
                 OutboundKind::HttpConnect
             }
             RawOutboundKind::Socks5 => OutboundKind::Socks5,
+            RawOutboundKind::Shadowsocks => OutboundKind::Shadowsocks,
         };
         let mut outbound = OutboundReference::new(
             id,
@@ -150,6 +165,39 @@ fn prepare_credential(
     id: &OutboundId,
     revision: u64,
     import_id: &str,
+    raw: RawCredential,
+    credentials: &mut Vec<PreparedCredential>,
+) -> Result<Option<CredentialReference>, OutboundImportError> {
+    match raw.kind {
+        RawOutboundKind::Shadowsocks => prepare_shadowsocks_credential(
+            id,
+            revision,
+            import_id,
+            raw.method,
+            raw.username,
+            raw.password,
+            credentials,
+        ),
+        RawOutboundKind::HttpConnect | RawOutboundKind::Socks5 => {
+            if raw.method.is_some() {
+                return Err(OutboundImportError::Invalid);
+            }
+            prepare_proxy_credential(
+                id,
+                revision,
+                import_id,
+                raw.username,
+                raw.password,
+                credentials,
+            )
+        }
+    }
+}
+
+fn prepare_proxy_credential(
+    id: &OutboundId,
+    revision: u64,
+    import_id: &str,
     username: Option<String>,
     password: Option<String>,
     credentials: &mut Vec<PreparedCredential>,
@@ -168,14 +216,7 @@ fn prepare_credential(
     {
         return Err(OutboundImportError::CredentialInvalid);
     }
-    let reference = format!("outbound:{}:v{revision}:{import_id}", id.as_str());
-    let metadata = CredentialReference::new(
-        &reference,
-        CredentialKind::Password,
-        format!("{} 代理凭据", id.as_str()),
-        revision,
-    )
-    .map_err(|_| OutboundImportError::CredentialInvalid)?;
+    let (reference, metadata) = credential_reference(id, revision, import_id, "代理凭据")?;
     let mut secret = Zeroizing::new(Vec::with_capacity(2 + username.len() + password.len()));
     secret.push(1);
     secret.push(u8::try_from(username.len()).map_err(|_| OutboundImportError::CredentialInvalid)?);
@@ -183,6 +224,45 @@ fn prepare_credential(
     secret.extend_from_slice(password.as_bytes());
     credentials.push(PreparedCredential { reference, secret });
     Ok(Some(metadata))
+}
+
+fn prepare_shadowsocks_credential(
+    id: &OutboundId,
+    revision: u64,
+    import_id: &str,
+    method: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
+    credentials: &mut Vec<PreparedCredential>,
+) -> Result<Option<CredentialReference>, OutboundImportError> {
+    let (Some(method), None, Some(password)) = (method, username, password) else {
+        return Err(OutboundImportError::ShadowsocksCredential);
+    };
+    let credential = ShadowsocksCredentials::new(&method, password)
+        .map_err(|_| OutboundImportError::ShadowsocksCredential)?;
+    let (reference, metadata) = credential_reference(id, revision, import_id, "Shadowsocks 密钥")?;
+    credentials.push(PreparedCredential {
+        reference,
+        secret: credential.encode(),
+    });
+    Ok(Some(metadata))
+}
+
+fn credential_reference(
+    id: &OutboundId,
+    revision: u64,
+    import_id: &str,
+    label: &str,
+) -> Result<(String, CredentialReference), OutboundImportError> {
+    let reference = format!("outbound:{}:v{revision}:{import_id}", id.as_str());
+    let metadata = CredentialReference::new(
+        &reference,
+        CredentialKind::Password,
+        format!("{} {label}", id.as_str()),
+        revision,
+    )
+    .map_err(|_| OutboundImportError::CredentialInvalid)?;
+    Ok((reference, metadata))
 }
 
 const fn enabled_by_default() -> bool {
@@ -199,9 +279,11 @@ pub enum OutboundImportError {
     CredentialPair,
     #[error("代理凭据为空或超出协议长度")]
     CredentialInvalid,
+    #[error("Shadowsocks 必须提供受支持的 AEAD 加密方法和有效密钥")]
+    ShadowsocksCredential,
     #[error("出口配置修订号已耗尽")]
     RevisionExhausted,
-    #[error("第 {line} 行不是受支持的 SOCKS5 或 HTTP 代理链接")]
+    #[error("第 {line} 行不是受支持的 SOCKS5、HTTP 或 Shadowsocks 代理链接")]
     UriInvalid { line: usize },
     #[error("第 {line} 行的代理链接协议尚不支持")]
     UriSchemeUnsupported { line: usize },
@@ -215,7 +297,9 @@ impl OutboundImportError {
         match self {
             Self::Invalid => "NP_OUTBOUND_IMPORT_INVALID",
             Self::DuplicateId => "NP_OUTBOUND_IMPORT_DUPLICATE_ID",
-            Self::CredentialPair | Self::CredentialInvalid => "NP_OUTBOUND_CREDENTIAL_INVALID",
+            Self::CredentialPair | Self::CredentialInvalid | Self::ShadowsocksCredential => {
+                "NP_OUTBOUND_CREDENTIAL_INVALID"
+            }
             Self::RevisionExhausted => "NP_OUTBOUND_REVISION_EXHAUSTED",
             Self::UriInvalid { .. } => "NP_OUTBOUND_IMPORT_URI_INVALID",
             Self::UriSchemeUnsupported { .. } => "NP_OUTBOUND_IMPORT_URI_SCHEME_UNSUPPORTED",
@@ -231,109 +315,5 @@ impl OutboundImportError {
             | Self::UriCredentialInvalid { line } => Some(*line),
             _ => None,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use nonproxy_model::OutboundId;
-    use nonproxy_storage::{OutboundKind, OutboundReference};
-
-    use super::{IMPORT_FORMAT, URI_LIST_IMPORT_FORMAT, prepare};
-
-    #[test]
-    fn prepares_versioned_credential_without_storing_secret_in_metadata() {
-        let configuration = br#"{
-            "version": 1,
-            "outbounds": [{
-                "id": "primary",
-                "kind": "socks5",
-                "host": "Proxy.Example.com.",
-                "port": 1080,
-                "username": "alice",
-                "password": "private"
-            }]
-        }"#;
-
-        let prepared = match prepare(
-            IMPORT_FORMAT,
-            configuration,
-            "00112233445566778899aabbccddeeff".to_owned(),
-            &[],
-        ) {
-            Ok(value) => value,
-            Err(error) => panic!("出口导入准备失败: {error}"),
-        };
-
-        assert_eq!(prepared.outbounds.len(), 1);
-        assert_eq!(prepared.credentials.len(), 1);
-        let outbound = &prepared.outbounds[0].0;
-        assert_eq!(outbound.endpoint_host(), Some("proxy.example.com"));
-        let reference = outbound
-            .credential()
-            .map(nonproxy_storage::CredentialReference::item_reference);
-        assert!(reference.is_some_and(|value| !value.contains("private")));
-        assert_eq!(
-            prepared.credentials[0].secret.as_slice(),
-            b"\x01\x05aliceprivate"
-        );
-    }
-
-    #[test]
-    fn rejects_unknown_fields_duplicate_ids_and_partial_credentials() {
-        let cases: [&[u8]; 3] = [
-            br#"{"version":1,"extra":true,"outbounds":[]}"#,
-            br#"{"version":1,"outbounds":[
-                {"id":"same","kind":"socks5","host":"a.example","port":1},
-                {"id":"same","kind":"socks5","host":"b.example","port":2}
-            ]}"#,
-            br#"{"version":1,"outbounds":[{
-                "id":"partial","kind":"http_connect",
-                "host":"a.example","port":8080,"username":"alice"
-            }]}"#,
-        ];
-
-        for configuration in cases {
-            assert!(
-                prepare(
-                    IMPORT_FORMAT,
-                    configuration,
-                    "00112233445566778899aabbccddeeff".to_owned(),
-                    &[],
-                )
-                .is_err()
-            );
-        }
-    }
-
-    #[test]
-    fn uri_preview_warns_before_replacing_an_existing_identifier() {
-        let existing = OutboundReference::new(
-            OutboundId::new("office")
-                .unwrap_or_else(|error| panic!("现有出口标识创建失败: {error}")),
-            OutboundKind::Socks5,
-            Some("old.example"),
-            Some(1_080),
-            None,
-            7,
-        )
-        .unwrap_or_else(|error| panic!("现有出口配置创建失败: {error}"));
-
-        let prepared = prepare(
-            URI_LIST_IMPORT_FORMAT,
-            b"socks5://new.example:1080#office",
-            "00112233445566778899aabbccddeeff".to_owned(),
-            &[existing],
-        )
-        .unwrap_or_else(|error| panic!("替换预检失败: {error}"));
-
-        assert_eq!(prepared.outbounds[0].1, Some(7));
-        assert_eq!(prepared.outbounds[0].0.revision(), 8);
-        assert!(
-            prepared
-                .warnings
-                .iter()
-                .any(|value| value.contains("office 已存在") && value.contains("安全更新"))
-        );
     }
 }
