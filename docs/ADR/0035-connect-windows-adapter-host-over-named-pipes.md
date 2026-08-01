@@ -14,13 +14,17 @@ Windows 桌面端复用了客户端协同页面，但 adapter-host 只有 Unix U
 1. Windows adapter-host 仍是独立的按用户低权限进程。状态目录位于当前用户
    `%LOCALAPPDATA%\NonProxy\adapter-host`，会话使用独立的 32 字节
    `adapter.capability`。
-2. gRPC 监听 `\\.\pipe\NonProxy.Adapter.v1`。命名管道实现与 gatewayd 共享受审计的
+2. gRPC 监听 `\\.\pipe\NonProxy.Adapter.<UserSid>`。SID 取自当前进程 token，必须是
+   规范普通用户 SID；Session 0、SYSTEM、LocalService、NetworkService 和服务 SID 均拒绝。桌面端从
+   当前 Windows 用户生成相同端点，多用户同时登录不会争用全机固定管道。命名管道实现与
+   gatewayd 共享受审计的
    `nonproxy-windows-ipc` incoming：首实例独占、拒绝远端客户端、最多 16 个实例、64 项
    accept queue，并限制产品命名空间、名称长度和 SDDL 输入。
 3. 桌面端使用独立 `IAdapterChannelFactory` 和 `FileAdapterCapabilityProvider`。控制面与
    Adapter 只共享通用命名管道客户端实现，不共享端点、令牌或 RPC 服务。
-4. 开发 SDDL 只用于本地控制台调试。正式启动器必须显式下发绑定当前交互用户的 SDDL；
-   缺少安装器/启动器生产安全配置不能当作系统验收证据。
+4. SDDL 由当前 SID 确定性生成，只授予 SYSTEM、Administrators 和该用户完整访问；环境覆盖
+   只有与该精确 SDDL 完全相等时才接受，不能退回 `Interactive Users`。运行身份中的包指纹
+   在 Windows 默认取当前 adapter-host 可执行文件的 SHA-256，供后续升级就绪检查使用。
 5. 平台能力失败关闭：Surge 只在 macOS 宣称支持；Windows sing-box 在没有安全重载实现前
    不宣称 `HOT_RELOAD`；Mihomo 继续使用唯一 loopback controller 的公开 HTTP 重载。
 

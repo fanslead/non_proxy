@@ -1613,7 +1613,9 @@ configuration verify 执行。投影只接受客户端能无损表达的单维 D
 `Contents/Applications/surge-cli` 候选展开，真实存在性、代码来源、版本和活动 profile
 仍由 adapter-host 验证。页面把原生候选校验、配置载入和真实路径分成三段证据，前两段通过
 时仍显示“尚未证明绕过 VPN”。macOS 使用独立 UDS；Windows 复用页面和文件选择接口，并
-通过 `\\.\pipe\NonProxy.Adapter.v1` 与独立 `adapter.capability` 连接按用户宿主。当前仓库
+通过 `\\.\pipe\NonProxy.Adapter.<UserSid>` 与独立 `adapter.capability` 连接按用户宿主。
+Rust 和 C# 使用相同的规范 SID 规则生成端点；Session 0、服务 SID 与 SYSTEM/LocalService/NetworkService
+身份会失败关闭，显式 SDDL 也不得放宽当前用户 DACL。当前仓库
 尚未把 Windows adapter-host 纳入签名发布包和按用户生命周期，因此桌面端即使已完成传输
 接线，也只会在外部宿主真实就绪时连通，不能据此显示“产品可用”或伪成功。完整平台边界见
 [ADR-0035](ADR/0035-connect-windows-adapter-host-over-named-pipes.md)。
@@ -2310,9 +2312,11 @@ Provider 不逐条同步写日志：
 - 命名管道首实例独占、拒绝远程客户端，并通过安装器下发的 SDDL 创建显式 DACL；Service 模式缺少生产 DACL 时拒绝启动。
 - 同一个 `gatewayd` 二进制支持 SCM 生命周期；只有状态目录、能力令牌、运行身份和两条管道全部就绪后才上报 `Running`。
 - Avalonia Windows 宿主使用 `NamedPipeClientStream` 连接认证 gRPC 控制面，继续复用与 macOS 相同的页面、ViewModel 和控制契约。
-- 用户级 `adapter-host` 使用独立的 `NonProxy.Adapter.v1` 命名管道和
+- 用户级 `adapter-host` 使用独立的 `NonProxy.Adapter.<UserSid>` 命名管道和
   `adapter.capability`，复用首实例独占、拒绝远端客户端、有界 accept queue 与显式 SDDL
-  创建语义；桌面端使用独立命名管道 gRPC 客户端，不复用 SYSTEM gateway 会话。Surge
+  创建语义。管道名和 DACL 绑定当前普通用户 SID，拒绝 SYSTEM/服务身份与更宽的 SDDL，
+  因此多个同时登录用户不会争用全机固定管道；运行身份中的包指纹默认取当前 adapter-host
+  可执行文件 SHA-256。桌面端使用独立命名管道 gRPC 客户端，不复用 SYSTEM gateway 会话。Surge
   仅在 macOS 宣称能力，Windows sing-box 不宣称尚无安全实现的 `HOT_RELOAD`，Mihomo
   保留 loopback HTTP 重载能力。
 - x64 与 ARM64 Windows target 都进入编译门禁；这只能证明平台代码可构建，不能替代 SCM、ACL 或真实流量验收。
@@ -2357,8 +2361,8 @@ QUIC 或第三方 VPN filter 顺序正确；Windows UI 在签名 bootstrap 与�
 完成前继续将系统组件标记为不可用。执行门禁见
 [Windows 系统组件与真实网络路径验收](WINDOWS_SYSTEM_ACCEPTANCE.md)。
 
-Windows adapter-host 还缺少签名包内分发、按交互用户启动/退出、升级切换、生产 SDDL
-下发和真实命名管道 RPC 验收；在这些生命周期落地前，命名管道源码与交叉编译只属于 W0
+Windows adapter-host 还缺少签名包内分发、按交互用户启动/退出、升级切换和真实命名管道
+RPC/ACL 验收；在这些生命周期落地前，命名管道源码与交叉编译只属于 W0
 证据。Windows 应用规则投影还需要版本化的精确可执行文件/包身份 selector，不能把现有
 macOS `.app` Bundle 路径约束静默放宽。
 

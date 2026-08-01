@@ -32,7 +32,7 @@ internal static class Program
                 IWindowsExecutablePicker,
                 AvaloniaWindowsExecutablePicker>();
             collection.AddSingleton<IApplicationCatalog, WindowsApplicationCatalog>();
-            collection.AddSingleton(LocalAdapterEndpoint.FromWindowsEnvironment());
+            collection.AddSingleton(WindowsAdapterEndpointFactory.Create());
             collection.AddSingleton<
                 IAdapterChannelFactory,
                 WindowsNamedPipeAdapterChannelFactory>();

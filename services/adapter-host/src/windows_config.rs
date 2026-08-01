@@ -1,45 +1,40 @@
 use std::env;
 
-use nonproxy_windows_ipc::{validate_nonproxy_pipe_name, validate_pipe_sddl};
+use nonproxy_windows_ipc::{
+    adapter_pipe_name_for_user_sid, adapter_pipe_sddl_for_user_sid, current_process_user_sid,
+    validate_nonproxy_pipe_name, validate_pipe_sddl,
+};
 
 use crate::AdapterHostError;
 
 pub const ADAPTER_PIPE_ENVIRONMENT: &str = "NONPROXY_WINDOWS_ADAPTER_PIPE";
 pub const PIPE_SDDL_ENVIRONMENT: &str = "NONPROXY_WINDOWS_ADAPTER_PIPE_SDDL";
-pub const DEFAULT_ADAPTER_PIPE: &str = r"\\.\pipe\NonProxy.Adapter.v1";
-const DEVELOPMENT_PIPE_SDDL: &str = "D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GRGW;;;IU)";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WindowsAdapterTransportConfig {
     pipe: String,
     pipe_sddl: String,
-    production_security: bool,
 }
 
 impl WindowsAdapterTransportConfig {
     pub fn from_process() -> Result<Self, AdapterHostError> {
-        let pipe = environment_text(ADAPTER_PIPE_ENVIRONMENT, DEFAULT_ADAPTER_PIPE)?;
-        let configured_sddl = env::var(PIPE_SDDL_ENVIRONMENT);
-        let (pipe_sddl, production_security) = match configured_sddl {
-            Ok(value) => (value, true),
-            Err(env::VarError::NotPresent) => (DEVELOPMENT_PIPE_SDDL.to_owned(), false),
-            Err(env::VarError::NotUnicode(_)) => return Err(AdapterHostError::Configuration),
-        };
-        Self::new(pipe, pipe_sddl, production_security)
+        let user_sid = current_process_user_sid().map_err(|_| AdapterHostError::Configuration)?;
+        let default_pipe = adapter_pipe_name_for_user_sid(&user_sid)
+            .map_err(|_| AdapterHostError::Configuration)?;
+        let required_sddl = adapter_pipe_sddl_for_user_sid(&user_sid)
+            .map_err(|_| AdapterHostError::Configuration)?;
+        let pipe = environment_text(ADAPTER_PIPE_ENVIRONMENT, &default_pipe)?;
+        let pipe_sddl = environment_text(PIPE_SDDL_ENVIRONMENT, &required_sddl)?;
+        Self::new(pipe, pipe_sddl, &required_sddl)
     }
 
-    fn new(
-        pipe: String,
-        pipe_sddl: String,
-        production_security: bool,
-    ) -> Result<Self, AdapterHostError> {
+    fn new(pipe: String, pipe_sddl: String, required_sddl: &str) -> Result<Self, AdapterHostError> {
         validate_nonproxy_pipe_name(&pipe).map_err(|_| AdapterHostError::Configuration)?;
         validate_pipe_sddl(&pipe_sddl).map_err(|_| AdapterHostError::Configuration)?;
-        Ok(Self {
-            pipe,
-            pipe_sddl,
-            production_security,
-        })
+        if pipe_sddl != required_sddl {
+            return Err(AdapterHostError::Configuration);
+        }
+        Ok(Self { pipe, pipe_sddl })
     }
 
     #[must_use]
@@ -50,12 +45,6 @@ impl WindowsAdapterTransportConfig {
     #[must_use]
     pub fn pipe_sddl(&self) -> &str {
         self.pipe_sddl.as_str()
-    }
-
-    pub fn require_production_security(&self) -> Result<(), AdapterHostError> {
-        self.production_security
-            .then_some(())
-            .ok_or(AdapterHostError::Configuration)
     }
 }
 
@@ -71,36 +60,40 @@ fn environment_text(name: &str, default: &str) -> Result<String, AdapterHostErro
 mod tests {
     use super::WindowsAdapterTransportConfig;
 
+    const USER_SDDL: &str = "D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;S-1-5-21-1000-2000-3000-1001)";
+
     #[test]
     fn accepts_private_product_pipe_and_installer_sddl() {
         let config = WindowsAdapterTransportConfig::new(
             r"\\.\pipe\NonProxy.Custom.Adapter".to_owned(),
-            "D:P(A;;GA;;;SY)(A;;GRGW;;;IU)".to_owned(),
-            true,
+            USER_SDDL.to_owned(),
+            USER_SDDL,
         );
         let Ok(config) = config else {
             panic!("合法 Windows Adapter 传输配置应通过校验: {config:?}");
         };
 
         assert_eq!(config.pipe(), r"\\.\pipe\NonProxy.Custom.Adapter");
-        assert!(config.require_production_security().is_ok());
+        assert_eq!(config.pipe_sddl(), USER_SDDL);
     }
 
     #[test]
-    fn rejects_wrong_namespace_and_unconfigured_production_security() {
+    fn rejects_wrong_namespace_and_broader_sddl() {
         assert!(
             WindowsAdapterTransportConfig::new(
                 r"\\.\pipe\Other.Adapter".to_owned(),
-                "D:P(A;;GA;;;SY)".to_owned(),
-                true,
+                USER_SDDL.to_owned(),
+                USER_SDDL,
             )
             .is_err()
         );
-        let development = WindowsAdapterTransportConfig::new(
-            r"\\.\pipe\NonProxy.Adapter.v1".to_owned(),
-            "D:P(A;;GA;;;SY)".to_owned(),
-            false,
+        assert!(
+            WindowsAdapterTransportConfig::new(
+                r"\\.\pipe\NonProxy.Adapter.v1".to_owned(),
+                "D:P(A;;GA;;;SY)(A;;GRGW;;;IU)".to_owned(),
+                USER_SDDL,
+            )
+            .is_err()
         );
-        assert!(matches!(development, Ok(value) if value.require_production_security().is_err()));
     }
 }

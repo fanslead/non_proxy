@@ -17,7 +17,8 @@
 
 1. `services/adapter-host` 是独立用户级低权限进程。macOS/Unix 监听状态目录内的
    `0600` UDS；活跃套接字阻止第二实例，退出时只删除本进程创建的 inode。Windows 监听
-   独立的 `NonProxy.Adapter.v1` 命名管道，首实例独占、拒绝远端客户端并使用显式 SDDL；
+   独立的 `NonProxy.Adapter.<UserSid>` 命名管道，首实例独占、拒绝远端客户端并使用只授予
+   SYSTEM、Administrators 和当前普通用户的显式 DACL；SYSTEM/服务身份不能启动宿主。
    状态和会话能力保存在当前用户 LocalAppData，而不是 SYSTEM gateway 状态目录。macOS App
    内嵌固定签名 identifier 的独立二进制与 LaunchAgent plist，签名二进制和源模板共同
    形成包指纹；宿主就绪后写入绑定包指纹、PID 和版本的 `0600` 运行身份。
