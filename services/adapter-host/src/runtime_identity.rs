@@ -178,4 +178,7 @@ mod tests {
             .mode();
         assert_eq!(mode & 0o777, 0o600);
     }
+
+    #[cfg(not(unix))]
+    fn assert_private_permissions(_path: &Path) {}
 }
