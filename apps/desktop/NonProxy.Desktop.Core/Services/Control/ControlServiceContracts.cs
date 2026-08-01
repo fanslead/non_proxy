@@ -85,6 +85,25 @@ public interface IOutboundService
         CancellationToken cancellationToken);
 }
 
+public interface ISubscriptionService
+{
+    Task<SubscriptionCatalog> ListAsync(CancellationToken cancellationToken);
+
+    Task<SubscriptionMutation> SaveAsync(
+        SubscriptionDraft draft,
+        CancellationToken cancellationToken);
+
+    Task<SubscriptionMutation> RefreshAsync(
+        string sourceId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+
+    Task<SubscriptionDeletion> DeleteAsync(
+        string sourceId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+}
+
 public interface IActivityService
 {
     Task<IReadOnlyList<ActivityItem>> GetRecentAsync(

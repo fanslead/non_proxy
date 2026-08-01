@@ -135,6 +135,52 @@ public sealed class DisconnectedOutboundService : IOutboundService
     }
 }
 
+public sealed class DisconnectedSubscriptionService : ISubscriptionService
+{
+    public Task<SubscriptionCatalog> ListAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(SubscriptionCatalog.Empty with
+        {
+            CapturedAt = DateTimeOffset.UtcNow,
+        });
+    }
+
+    public Task<SubscriptionMutation> SaveAsync(
+        SubscriptionDraft draft,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+        return Unavailable<SubscriptionMutation>(cancellationToken);
+    }
+
+    public Task<SubscriptionMutation> RefreshAsync(
+        string sourceId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceId);
+        return Unavailable<SubscriptionMutation>(cancellationToken);
+    }
+
+    public Task<SubscriptionDeletion> DeleteAsync(
+        string sourceId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceId);
+        return Unavailable<SubscriptionDeletion>(cancellationToken);
+    }
+
+    private static Task<TResult> Unavailable<TResult>(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new ControlServiceException(
+            "NP_CONTROL_UNAVAILABLE",
+            "控制服务尚未连接，订阅没有发生变化。");
+    }
+}
+
 public sealed class DisconnectedActivityService : IActivityService
 {
     public Task<IReadOnlyList<ActivityItem>> GetRecentAsync(

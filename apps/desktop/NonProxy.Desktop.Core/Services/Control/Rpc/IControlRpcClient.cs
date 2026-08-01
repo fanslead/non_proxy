@@ -51,6 +51,29 @@ public interface IControlRpcClient
         string pageToken,
         CancellationToken cancellationToken);
 
+    Task<ListSubscriptionSourcesResponse> ListSubscriptionSourcesAsync(
+        string pageToken,
+        CancellationToken cancellationToken);
+
+    Task<UpsertSubscriptionSourceResponse> UpsertSubscriptionSourceAsync(
+        string sourceId,
+        string displayName,
+        byte[] endpointUrl,
+        bool enabled,
+        TimeSpan refreshInterval,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+
+    Task<RefreshSubscriptionSourceResponse> RefreshSubscriptionSourceAsync(
+        string sourceId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+
+    Task<DeleteSubscriptionSourceResponse> DeleteSubscriptionSourceAsync(
+        string sourceId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+
     Task<ListNetworkProfilesResponse> ListNetworkProfilesAsync(
         string pageToken,
         CancellationToken cancellationToken);

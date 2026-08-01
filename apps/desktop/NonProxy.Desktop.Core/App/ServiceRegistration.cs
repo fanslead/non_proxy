@@ -87,6 +87,7 @@ public static class ServiceRegistration
         services.AddSingleton<IPolicyService, GatewayPolicyService>();
         services.AddSingleton<INetworkProfileService, GatewayNetworkProfileService>();
         services.AddSingleton<IOutboundService, GatewayOutboundService>();
+        services.AddSingleton<ISubscriptionService, GatewaySubscriptionService>();
         services.AddSingleton<IActivityService, GatewayActivityService>();
         services.AddSingleton<IDiagnosticsService, GatewayDiagnosticsService>();
 

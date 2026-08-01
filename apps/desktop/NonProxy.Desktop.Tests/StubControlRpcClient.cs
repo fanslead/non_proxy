@@ -7,7 +7,7 @@ using ProtoPolicy = NonProxy.Policy.V1.Policy;
 
 namespace NonProxy.Desktop.Tests;
 
-internal sealed class StubControlRpcClient : IControlRpcClient
+internal sealed partial class StubControlRpcClient : IControlRpcClient
 {
     public Queue<ListPoliciesResponse> PoliciesResponses { get; } = new();
 
