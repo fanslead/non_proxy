@@ -13,6 +13,7 @@ use crate::{
     gateway::Gateway,
     provider_service::ProviderRpcService,
     session_capability::SessionCapability,
+    subscription_scheduler::SubscriptionScheduler,
     system_policies::SystemPolicyConfig,
 };
 
@@ -69,6 +70,14 @@ async fn run_with_lifecycle(
     .with_exit_probe_client(exit_probe_client)
     .with_diagnostics_directory(diagnostics_directory);
     #[cfg(any(unix, windows))]
+    let background = BackgroundServices {
+        gateway: gateway.clone(),
+        subscriptions: SubscriptionScheduler::new(
+            gateway.clone(),
+            control.subscription_service.clone(),
+        ),
+    };
+    #[cfg(any(unix, windows))]
     {
         let provider = ProviderRpcService::with_credential_store(
             gateway.clone(),
@@ -85,12 +94,13 @@ async fn run_with_lifecycle(
             let platform = WindowsPlatformDependencies {
                 gateway,
                 credential_store,
+                background,
             };
             serve_platform(config, platform, control, provider, flow, shutdown, ready).await
         }
         #[cfg(unix)]
         {
-            serve_platform(config, gateway, control, provider, flow, shutdown, ready).await
+            serve_platform(config, background, control, provider, flow, shutdown, ready).await
         }
     }
     #[cfg(not(any(unix, windows)))]
@@ -111,19 +121,26 @@ mod windows;
 struct WindowsPlatformDependencies {
     gateway: Gateway,
     credential_store: Arc<dyn CredentialStore>,
+    background: BackgroundServices,
+}
+
+#[cfg(any(unix, windows))]
+struct BackgroundServices {
+    gateway: Gateway,
+    subscriptions: SubscriptionScheduler,
 }
 
 #[cfg(unix)]
 async fn serve_platform(
     config: GatewayConfig,
-    gateway: Gateway,
+    background: BackgroundServices,
     control: ControlRpcService,
     provider: ProviderRpcService,
     flow: FlowConnectionHandler,
     shutdown: impl Future<Output = ()> + Send + 'static,
     ready: Option<tokio::sync::oneshot::Sender<()>>,
 ) -> Result<(), GatewayError> {
-    serve_unix_with_shutdown(config, gateway, control, provider, flow, shutdown, ready).await
+    serve_unix_with_shutdown(config, background, control, provider, flow, shutdown, ready).await
 }
 
 #[cfg(windows)]
@@ -142,7 +159,7 @@ async fn serve_platform(
 #[cfg(unix)]
 async fn serve_unix_with_shutdown(
     config: GatewayConfig,
-    gateway: Gateway,
+    background: BackgroundServices,
     control: ControlRpcService,
     provider: ProviderRpcService,
     flow: FlowConnectionHandler,
@@ -173,32 +190,41 @@ async fn serve_unix_with_shutdown(
         UnixListenerStream::new(flow_listener),
         shutdown_receiver.clone(),
     );
+    let subscription_worker = background.subscriptions.serve(shutdown_receiver.clone());
     let control_server = Server::builder()
         .concurrency_limit_per_connection(64)
         .add_service(control_rpc)
         .add_service(provider_rpc)
         .serve_with_incoming_shutdown(
             incoming,
-            monitor_runtime_events_until_shutdown(shutdown_receiver, gateway),
+            monitor_runtime_events_until_shutdown(shutdown_receiver, background.gateway),
         );
     tokio::pin!(flow_server);
     tokio::pin!(control_server);
+    tokio::pin!(subscription_worker);
     tokio::pin!(shutdown);
     tokio::select! {
         () = &mut shutdown => {
             let _send_result = shutdown_sender.send(true);
-            let (control_result, flow_result) =
-                tokio::join!(&mut control_server, &mut flow_server);
+            let (control_result, flow_result, ()) =
+                tokio::join!(&mut control_server, &mut flow_server, &mut subscription_worker);
             combine_server_results(control_result, flow_result)
         }
         control_result = &mut control_server => {
             let _send_result = shutdown_sender.send(true);
-            let flow_result = flow_server.await;
+            let (flow_result, ()) = tokio::join!(&mut flow_server, &mut subscription_worker);
             combine_server_results(control_result, flow_result)
         }
         flow_result = &mut flow_server => {
             let _send_result = shutdown_sender.send(true);
-            let control_result = control_server.await;
+            let (control_result, ()) =
+                tokio::join!(&mut control_server, &mut subscription_worker);
+            combine_server_results(control_result, flow_result)
+        }
+        () = &mut subscription_worker => {
+            let _send_result = shutdown_sender.send(true);
+            let (control_result, flow_result) =
+                tokio::join!(&mut control_server, &mut flow_server);
             combine_server_results(control_result, flow_result)
         }
     }
@@ -297,6 +323,7 @@ mod tests {
         gateway::Gateway,
         provider_service::ProviderRpcService,
         session_capability::SessionCapability,
+        subscription_scheduler::SubscriptionScheduler,
     };
 
     #[tokio::test]
@@ -336,11 +363,18 @@ mod tests {
         );
         let flow =
             FlowConnectionHandler::new(gateway.clone(), provider_capability, credential_store);
+        let background = super::BackgroundServices {
+            gateway: gateway.clone(),
+            subscriptions: SubscriptionScheduler::new(
+                gateway.clone(),
+                control.subscription_service.clone(),
+            ),
+        };
         let (shutdown_sender, shutdown_receiver) = oneshot::channel();
         let (ready_sender, ready_receiver) = oneshot::channel();
         let server = tokio::spawn(serve_unix_with_shutdown(
             config,
-            gateway,
+            background,
             control,
             provider,
             flow,

@@ -1,6 +1,9 @@
 use std::{
     collections::VecDeque,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -154,6 +157,65 @@ async fn failed_url_reconfiguration_preserves_old_source_and_secret() {
     );
 }
 
+#[tokio::test]
+async fn canceled_rpc_waiter_does_not_cancel_atomic_upsert() {
+    let database = PolicyDatabase::open_in_memory(1_000)
+        .unwrap_or_else(|error| panic!("取消场景测试数据库创建失败: {error}"));
+    let gateway = Gateway::new(database, CompileCapabilities::full());
+    let store: Arc<dyn CredentialStore> = Arc::new(MemoryCredentialStore::default());
+    let fetcher = Arc::new(BlockingFetcher::new(subscription(
+        "cancel-safe.example",
+        "private",
+    )));
+    let service = SubscriptionService::new(gateway.clone(), store, fetcher.clone());
+    let caller = tokio::spawn({
+        let service = service.clone();
+        async move {
+            service
+                .upsert_at(upsert("https://feed.example/cancel-safe", None), 1_000)
+                .await
+        }
+    });
+    fetcher.wait_until_started().await;
+
+    caller.abort();
+    assert!(caller.await.is_err());
+    service.close();
+    let rejected = service
+        .upsert_at(upsert("https://feed.example/rejected", None), 1_001)
+        .await
+        .err()
+        .unwrap_or(SubscriptionServiceError::SourceNotFound);
+    assert_eq!(rejected.code(), "NP_SUBSCRIPTION_SHUTTING_DOWN");
+    let idle = tokio::spawn({
+        let service = service.clone();
+        async move { service.wait_idle().await }
+    });
+    tokio::task::yield_now().await;
+    assert!(!idle.is_finished());
+    fetcher.release();
+    tokio::time::timeout(std::time::Duration::from_secs(1), idle)
+        .await
+        .unwrap_or_else(|error| panic!("等待取消场景任务排空超时: {error}"))
+        .unwrap_or_else(|error| panic!("取消场景排空任务异常: {error}"));
+    tokio::time::timeout(std::time::Duration::from_secs(1), async {
+        loop {
+            if gateway
+                .subscription_source("office".to_owned())
+                .await
+                .ok()
+                .flatten()
+                .is_some()
+            {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap_or_else(|error| panic!("取消调用后后台提交未完成: {error}"));
+}
+
 fn fixture(
     responses: Vec<Result<Vec<u8>, SubscriptionFetchError>>,
 ) -> (Gateway, Arc<MemoryCredentialStore>, SubscriptionService) {
@@ -231,5 +293,51 @@ impl SubscriptionFetcher for FakeFetcher {
             .pop_front()
             .unwrap_or(Err(SubscriptionFetchError::Http))
             .map(Zeroizing::new)
+    }
+}
+
+struct BlockingFetcher {
+    payload: Vec<u8>,
+    started: AtomicBool,
+    release: tokio::sync::Semaphore,
+}
+
+impl BlockingFetcher {
+    fn new(payload: Vec<u8>) -> Self {
+        Self {
+            payload,
+            started: AtomicBool::new(false),
+            release: tokio::sync::Semaphore::new(0),
+        }
+    }
+
+    async fn wait_until_started(&self) {
+        tokio::time::timeout(std::time::Duration::from_secs(1), async {
+            while !self.started.load(Ordering::SeqCst) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap_or_else(|error| panic!("等待取消场景拉取开始超时: {error}"));
+    }
+
+    fn release(&self) {
+        self.release.add_permits(1);
+    }
+}
+
+#[tonic::async_trait]
+impl SubscriptionFetcher for BlockingFetcher {
+    async fn fetch(
+        &self,
+        _endpoint: &SubscriptionEndpoint,
+    ) -> Result<Zeroizing<Vec<u8>>, SubscriptionFetchError> {
+        self.started.store(true, Ordering::SeqCst);
+        self.release
+            .acquire()
+            .await
+            .map_err(|_| SubscriptionFetchError::Http)?
+            .forget();
+        Ok(Zeroizing::new(self.payload.clone()))
     }
 }

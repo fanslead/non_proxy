@@ -44,7 +44,7 @@ pub(super) async fn serve(
         shutdown_receiver.clone(),
         "创建 Windows 数据命名管道",
     )?;
-    let runtime_gateway = platform.gateway.clone();
+    let runtime_gateway = platform.background.gateway;
     let capture = crate::windows_capture::WindowsCapture::start(
         platform.gateway,
         platform.credential_store,
@@ -62,6 +62,10 @@ pub(super) async fn serve(
         .max_decoding_message_size(ControlRpcService::max_message_bytes())
         .max_encoding_message_size(ControlRpcService::max_message_bytes());
     let flow_server = FlowServer::new(flow).serve(flow_incoming, shutdown_receiver.clone());
+    let subscription_worker = platform
+        .background
+        .subscriptions
+        .serve(shutdown_receiver.clone());
     let capture_server = capture.serve();
     let control_server = Server::builder()
         .concurrency_limit_per_connection(64)
@@ -74,33 +78,54 @@ pub(super) async fn serve(
     tokio::pin!(flow_server);
     tokio::pin!(control_server);
     tokio::pin!(capture_server);
+    tokio::pin!(subscription_worker);
     tokio::pin!(shutdown);
     tokio::select! {
         () = &mut shutdown => {
             let _send_result = shutdown_sender.send(true);
-            let (control_result, flow_result, capture_result) =
-                tokio::join!(&mut control_server, &mut flow_server, &mut capture_server);
+            let (control_result, flow_result, capture_result, ()) = tokio::join!(
+                &mut control_server,
+                &mut flow_server,
+                &mut capture_server,
+                &mut subscription_worker,
+            );
             combine_server_results(control_result, flow_result)?;
             capture_result
         }
         control_result = &mut control_server => {
             let _send_result = shutdown_sender.send(true);
-            let (flow_result, capture_result) =
-                tokio::join!(&mut flow_server, &mut capture_server);
+            let (flow_result, capture_result, ()) = tokio::join!(
+                &mut flow_server,
+                &mut capture_server,
+                &mut subscription_worker,
+            );
             combine_server_results(control_result, flow_result)?;
             capture_result
         }
         flow_result = &mut flow_server => {
             let _send_result = shutdown_sender.send(true);
-            let (control_result, capture_result) =
-                tokio::join!(&mut control_server, &mut capture_server);
+            let (control_result, capture_result, ()) = tokio::join!(
+                &mut control_server,
+                &mut capture_server,
+                &mut subscription_worker,
+            );
             combine_server_results(control_result, flow_result)?;
             capture_result
         }
         capture_result = &mut capture_server => {
             let _send_result = shutdown_sender.send(true);
-            let (control_result, flow_result) =
-                tokio::join!(&mut control_server, &mut flow_server);
+            let (control_result, flow_result, ()) = tokio::join!(
+                &mut control_server,
+                &mut flow_server,
+                &mut subscription_worker,
+            );
+            combine_server_results(control_result, flow_result)?;
+            capture_result
+        }
+        () = &mut subscription_worker => {
+            let _send_result = shutdown_sender.send(true);
+            let (control_result, flow_result, capture_result) =
+                tokio::join!(&mut control_server, &mut flow_server, &mut capture_server);
             combine_server_results(control_result, flow_result)?;
             capture_result
         }

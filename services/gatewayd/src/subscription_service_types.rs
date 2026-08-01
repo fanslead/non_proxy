@@ -49,6 +49,10 @@ pub(crate) enum SubscriptionServiceError {
     },
     #[error("订阅源修订号已耗尽")]
     RevisionExhausted,
+    #[error("订阅刷新任务异常终止")]
+    TaskFailed,
+    #[error("订阅服务正在关闭")]
+    TaskClosed,
     #[error("无法生成订阅刷新标识: {0}")]
     Random(String),
     #[error(transparent)]
@@ -68,6 +72,8 @@ impl SubscriptionServiceError {
             Self::CredentialRead | Self::CredentialWrite(_) => "NP_CREDENTIAL_STORE_FAILED",
             Self::Commit { source, .. } | Self::Gateway(source) => source.code(),
             Self::RevisionExhausted => "NP_SUBSCRIPTION_REVISION_EXHAUSTED",
+            Self::TaskFailed => "NP_SUBSCRIPTION_TASK_FAILED",
+            Self::TaskClosed => "NP_SUBSCRIPTION_SHUTTING_DOWN",
             Self::Random(_) => "NP_SUBSCRIPTION_RANDOM_FAILED",
             Self::Storage(error) => error.code(),
         }
@@ -77,7 +83,11 @@ impl SubscriptionServiceError {
     pub(crate) const fn retryable(&self) -> bool {
         match self {
             Self::Fetch(error) => error.retryable(),
-            Self::CredentialRead | Self::CredentialWrite(_) | Self::Random(_) => true,
+            Self::CredentialRead
+            | Self::CredentialWrite(_)
+            | Self::Random(_)
+            | Self::TaskFailed
+            | Self::TaskClosed => true,
             Self::Commit { source, .. } | Self::Gateway(source) => source.retryable(),
             _ => false,
         }

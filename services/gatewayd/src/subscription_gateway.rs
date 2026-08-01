@@ -29,6 +29,16 @@ impl Gateway {
             .await
     }
 
+    pub(crate) async fn due_subscription_sources(
+        &self,
+        now_unix_ms: u64,
+        limit: u32,
+    ) -> Result<Vec<SubscriptionSource>, GatewayError> {
+        self.database
+            .run(move |database| Ok(database.subscriptions().due(now_unix_ms, limit)?))
+            .await
+    }
+
     pub(crate) async fn subscription_state(
         &self,
         source_id: String,

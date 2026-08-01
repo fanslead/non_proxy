@@ -73,10 +73,15 @@ mod subscription_fetcher;
 mod subscription_gateway;
 mod subscription_prepare;
 mod subscription_rpc;
+mod subscription_scheduler;
+#[cfg(test)]
+mod subscription_scheduler_tests;
 mod subscription_service;
+mod subscription_service_helpers;
 #[cfg(test)]
 mod subscription_service_tests;
 mod subscription_service_types;
+mod subscription_task_tracker;
 mod system_policies;
 mod system_rpc;
 mod system_snapshot_gateway;

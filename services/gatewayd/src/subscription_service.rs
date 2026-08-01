@@ -1,11 +1,7 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
-use nonproxy_storage::{
-    CredentialKind, CredentialReference, StorageError, SubscriptionRefreshCommit,
-    SubscriptionSource,
-};
+use nonproxy_storage::{CredentialKind, CredentialReference, StorageError, SubscriptionSource};
 use nonproxy_subscription::SubscriptionEndpoint;
-use sha2::{Digest, Sha256};
 
 use crate::{
     Gateway, GatewayError,
@@ -15,19 +11,22 @@ use crate::{
     subscription_fetcher::SubscriptionFetcher,
     subscription_gateway::SubscriptionState,
     subscription_prepare::prepare_subscription_refresh,
+    subscription_service_helpers::{
+        content_hash, next_failure, next_success, random_refresh_id, refresh_result,
+        stale_credentials,
+    },
     subscription_service_types::{
         SubscriptionRefreshResult, SubscriptionServiceError, SubscriptionUpsert,
     },
+    subscription_task_tracker::SubscriptionTaskTracker,
 };
-
-const FAILURE_RETRY_BASE_MS: u64 = 60 * 1_000;
-const FAILURE_RETRY_MAX_MS: u64 = 30 * 60 * 1_000;
 
 #[derive(Clone)]
 pub(crate) struct SubscriptionService {
     gateway: Gateway,
     credential_store: Arc<dyn CredentialStore>,
     fetcher: Arc<dyn SubscriptionFetcher>,
+    tasks: SubscriptionTaskTracker,
 }
 
 impl SubscriptionService {
@@ -40,10 +39,29 @@ impl SubscriptionService {
             gateway,
             credential_store,
             fetcher,
+            tasks: SubscriptionTaskTracker::new(),
         }
     }
 
     pub(crate) async fn upsert_at(
+        &self,
+        request: SubscriptionUpsert,
+        now_unix_ms: u64,
+    ) -> Result<SubscriptionRefreshResult, SubscriptionServiceError> {
+        let task = self
+            .tasks
+            .start()
+            .ok_or(SubscriptionServiceError::TaskClosed)?;
+        let service = self.clone();
+        tokio::spawn(async move {
+            let _task = task;
+            service.upsert_inner(request, now_unix_ms).await
+        })
+        .await
+        .map_err(|_| SubscriptionServiceError::TaskFailed)?
+    }
+
+    async fn upsert_inner(
         &self,
         request: SubscriptionUpsert,
         now_unix_ms: u64,
@@ -63,7 +81,7 @@ impl SubscriptionService {
         let source = configured_source(&request, state.source.as_ref(), url_reference, revision)?;
         let endpoint = parse_endpoint(request.endpoint_url.as_slice())?;
         let payload = self.fetcher.fetch(&endpoint).await?;
-        let content_hash = hash(payload.as_slice());
+        let content_hash = content_hash(payload.as_slice());
         let prepared = prepare_subscription_refresh(
             &request.source_id,
             payload.as_slice(),
@@ -127,6 +145,35 @@ impl SubscriptionService {
         expected_revision: u64,
         now_unix_ms: u64,
     ) -> Result<SubscriptionRefreshResult, SubscriptionServiceError> {
+        let task = self
+            .tasks
+            .start()
+            .ok_or(SubscriptionServiceError::TaskClosed)?;
+        let service = self.clone();
+        tokio::spawn(async move {
+            let _task = task;
+            service
+                .refresh_inner(source_id, expected_revision, now_unix_ms)
+                .await
+        })
+        .await
+        .map_err(|_| SubscriptionServiceError::TaskFailed)?
+    }
+
+    pub(crate) fn close(&self) {
+        self.tasks.close();
+    }
+
+    pub(crate) async fn wait_idle(&self) {
+        self.tasks.wait_idle().await;
+    }
+
+    async fn refresh_inner(
+        &self,
+        source_id: String,
+        expected_revision: u64,
+        now_unix_ms: u64,
+    ) -> Result<SubscriptionRefreshResult, SubscriptionServiceError> {
         let state = self.gateway.subscription_state(source_id.clone()).await?;
         let source = state
             .source
@@ -156,7 +203,7 @@ impl SubscriptionService {
         .map_err(|_| SubscriptionServiceError::CredentialRead)?;
         let endpoint = parse_endpoint(endpoint_url.as_slice())?;
         let payload = self.fetcher.fetch(&endpoint).await?;
-        let content_hash = hash(payload.as_slice());
+        let content_hash = content_hash(payload.as_slice());
         let next_refresh = next_success(now_unix_ms, source.refresh_interval_seconds());
         if source.content_hash() == Some(content_hash) {
             self.gateway
@@ -169,7 +216,7 @@ impl SubscriptionService {
                     next_refresh,
                 )
                 .await?;
-            return Ok(result(source, source.content_generation(), true, 0));
+            return Ok(refresh_result(source, source.content_generation(), true, 0));
         }
 
         let refresh_id = random_refresh_id()?;
@@ -302,55 +349,4 @@ fn parse_endpoint(value: &[u8]) -> Result<SubscriptionEndpoint, SubscriptionServ
     let value =
         std::str::from_utf8(value).map_err(|_| SubscriptionServiceError::EndpointEncoding)?;
     Ok(SubscriptionEndpoint::parse(value)?)
-}
-
-fn hash(value: &[u8]) -> [u8; 32] {
-    Sha256::digest(value).into()
-}
-
-fn random_refresh_id() -> Result<String, SubscriptionServiceError> {
-    let mut bytes = [0_u8; 16];
-    getrandom::fill(&mut bytes)
-        .map_err(|error| SubscriptionServiceError::Random(error.to_string()))?;
-    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
-}
-
-fn next_success(now: u64, interval_seconds: u32) -> u64 {
-    now.saturating_add(u64::from(interval_seconds) * 1_000)
-}
-
-fn next_failure(now: u64, prior_failures: u32) -> u64 {
-    let shift = prior_failures.min(5);
-    let delay = FAILURE_RETRY_BASE_MS
-        .saturating_mul(1_u64 << shift)
-        .min(FAILURE_RETRY_MAX_MS);
-    now.saturating_add(delay)
-}
-
-fn stale_credentials(
-    old_url: Option<String>,
-    commit: &SubscriptionRefreshCommit,
-    new_references: &HashSet<String>,
-) -> HashSet<String> {
-    old_url
-        .into_iter()
-        .chain(commit.replaced_credential_references().iter().cloned())
-        .filter(|reference| !new_references.contains(reference))
-        .collect()
-}
-
-fn result(
-    source: &SubscriptionSource,
-    generation: u64,
-    unchanged: bool,
-    cleanup_failures: usize,
-) -> SubscriptionRefreshResult {
-    SubscriptionRefreshResult {
-        source_id: source.id().to_owned(),
-        revision: source.revision(),
-        generation,
-        node_count: source.node_count() as usize,
-        unchanged,
-        cleanup_failures,
-    }
 }
