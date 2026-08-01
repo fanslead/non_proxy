@@ -10,7 +10,7 @@ Windows 已接入 SCM Service、受限命名管道、共享 UI、最小 WFP ALE 
 
 Windows DNS 不修改网卡设置：动态 WFP filter 先只把远端 TCP/UDP 53 重定向到随机 loopback listener，系统 resolver 探针通过且活动策略就绪后才启用普通 TCP；探针失效则退回 DNS-only。远端 53 之外的 UDP/QUIC 使用同一最小 Driver 的 ALE flow 身份关联、DATAGRAM_DATA 有界搬运和入站重注入，Service 继续执行 App/域名策略、物理 DIRECT 或 SOCKS5 UDP。
 
-Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名清单绑定、复制后复验、版本化 Service/Driver 安装、失败回滚、默认保留数据的卸载、Driver Verifier 安全门与生命周期证据清单。当前 Rust 单测和 Windows 交叉门禁覆盖用户态与 ABI；WDK 实机结果、Hardware Dev Center 生产签名、SCM/UAC、Driver Verifier 与真实 VPN 路径尚未验收，因此 Windows UI 仍不会把系统组件表述为可用。
+Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名清单绑定、复制后复验、版本化 Service/Driver 安装、失败回滚、默认保留数据的卸载、Driver Verifier 安全门与生命周期证据清单。消费安装使用编译固定证书 SHA-256 的单文件 Bootstrap，原生验证 Authenticode/Driver Catalog，经 UAC 复制到管理员保护 staging 二次验证后再执行事务；不含固定证书或验证失败的构建仍明确不可用。当前 Rust 单测和 Windows 交叉门禁覆盖用户态与 ABI；WDK 实机结果、Hardware Dev Center 生产签名、SCM/UAC、Driver Verifier 与真实 VPN 路径尚未验收，因此 UI 不会把源码或构建结果表述为已安装。
 
 运行概览会按“后台服务 → 透明代理 → DNS 分流 → 网络接管”显示真实分段状态。等待授权时可通过原生桥直接打开 macOS“登录项与扩展”，允许后重新检查；部分安装可执行修复，卸载需要二次确认。诊断页复用同一组分段证据并显示稳定错误码，还可以生成最近 24 小时的严格脱敏本地 JSON；页面会预览内容范围、大小和 SHA-256，文件不包含凭据、代理端点、网络载荷或逐连接样本，也不会自动上传。
 

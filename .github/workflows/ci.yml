@@ -73,8 +73,13 @@ jobs:
           @(
             @{ file = "build"; text = "AdapterHostExecutable" },
             @{ file = "build"; text = "nonproxy-adapter-host.exe" },
+            @{ file = "build"; text = "BootstrapPublishDirectory" },
+            @{ file = "build"; text = "ExpectedPublisherCertificateSha256" },
             @{ file = "sign"; text = "adapter/nonproxy-adapter-host.exe" },
+            @{ file = "sign"; text = "bootstrap/NonProxy.Windows.Bootstrap.exe" },
             @{ file = "verify"; text = "adapter/nonproxy-adapter-host.exe" },
+            @{ file = "verify"; text = "bootstrap/NonProxy.Windows.Bootstrap.exe" },
+            @{ file = "verify"; text = "ConsumerBootstrapManifestSha256" },
             @{ file = "install"; text = "Set-NonProxyAdapterHostTask" },
             @{ file = "install"; text = "Remove-NonProxyAdapterHostTask" },
             @{ file = "install"; text = "Stop-NonProxyAdapterHostProcesses" },

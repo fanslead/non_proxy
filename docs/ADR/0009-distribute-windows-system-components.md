@@ -70,12 +70,16 @@ Driver Verifier 只允许在有快照、可离线恢复的测试机启用。工�
 - 发布包可以离线校验且不会信任自身声明的发布者。
 - 安装、修复、升级回滚和卸载具有同一条可审计入口。
 - x64 与 ARM64 包必须分别构建、签名和验收。
-- PowerShell 目前是工程发行工具，不是最终消费级安装体验。Avalonia UI 只有在
-  固定发布者的签名 bootstrap 完成并通过真实 Windows UAC/SCM 验收后，才能把
-  Windows 系统组件从“不可用”改为可安装。
-- `signtool.exe` 是 Windows SDK 工程工具，不随产品分发。最终签名 bootstrap
-  必须直接使用 `WinVerifyTrust` 与 Catalog Admin API 完成等价校验，并用包外
-  编译固定的发布者身份；不得把 SignTool 复制进消费级安装包。
+- 消费级 `NonProxy.Windows.Bootstrap.exe` 是包含原生运行时的单文件入口，证书
+  SHA-256 同时编译进桌面端和 Bootstrap。桌面端先用 `WinVerifyTrust` 校验该入口；
+  Bootstrap 再校验签名 trust、manifest、全部文件 hash 和发布者，并通过
+  `CryptCATAdminAcquireContext2` + `WINTRUST_CATALOG_INFO` 验证 INF/SYS 属于指定的
+  生产 Driver Catalog。
+- UAC 后先把已验证发布包复制到只允许 Administrators/SYSTEM 的随机 Program Files
+  staging，再次完整验证后才从该受保护副本执行 Windows PowerShell 5.1 生命周期脚本。
+  `signtool.exe` 仍只属于 SDK/WDK 工程验收，不进入消费包，也不参与消费安装。
+- 未编译固定证书、包结构不完整或任一信任检查失败时，Avalonia UI 继续明确显示不可用；
+  只有完整签名发布包才显示可安装。真实 UAC/SCM/Driver 结果仍以 Windows 验收为准。
 - 当前 macOS 开发机不能证明 WDK、生产签名、SCM、重启回滚或第三方 VPN filter
   顺序；这些结果必须按 Windows 验收手册单独取得。
 
@@ -87,4 +91,7 @@ Driver Verifier 只允许在有快照、可离线恢复的测试机启用。工�
 - [Microsoft：DiUninstallDriverW](https://learn.microsoft.com/en-us/windows/win32/api/newdev/nf-newdev-diuninstalldriverw)
 - [Microsoft：Verifying the release signature](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/verifying-the-release-signature)
 - [Microsoft：Installing a catalog file by using SignTool](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/installing-a-catalog-file-by-using-signtool)
+- [Microsoft：WinVerifyTrust](https://learn.microsoft.com/en-us/windows/win32/api/wintrust/nf-wintrust-winverifytrust)
+- [Microsoft：CryptCATAdminAcquireContext2](https://learn.microsoft.com/en-us/windows/win32/api/mscat/nf-mscat-cryptcatadminacquirecontext2)
+- [Microsoft：WINTRUST_CATALOG_INFO](https://learn.microsoft.com/en-us/windows/win32/api/wintrust/ns-wintrust-wintrust_catalog_info)
 - [Microsoft：Driver Verifier](https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/driver-verifier)

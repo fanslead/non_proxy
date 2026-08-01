@@ -20,9 +20,18 @@ Assert-NonProxyWindows
 $root = Resolve-NonProxyExistingPath -Path $PackageRoot -PathType Container
 $thumbprint = ConvertTo-NonProxyThumbprint $CertificateThumbprint
 $certificate = Get-NonProxySigningCertificate -Thumbprint $thumbprint
+$publisherCertificateSha256 = Get-NonProxyCertificateSha256 `
+    -Certificate $certificate
 $signTool = Find-NonProxySignTool
 $manifestPath = Join-Path $root "release-manifest.json"
 $trustPath = Join-Path $root "release-trust.ps1"
+$metadataPath = Join-Path $root "release-metadata.json"
+$metadata = Get-Content -LiteralPath $metadataPath -Raw |
+    ConvertFrom-Json
+if ([string]$metadata.publisherCertificateSha256 -ne
+    $publisherCertificateSha256) {
+    throw "签名证书与发布产物编译固定的证书 SHA-256 不一致。"
+}
 
 foreach ($generated in @($manifestPath, $trustPath)) {
     if (Test-Path -LiteralPath $generated) {
@@ -42,7 +51,8 @@ foreach ($file in $allFiles) {
     $isProductBinary = $relative -in @(
         "desktop/NonProxy.Desktop.Windows.exe",
         "service/nonproxy-gatewayd.exe",
-        "adapter/nonproxy-adapter-host.exe"
+        "adapter/nonproxy-adapter-host.exe",
+        "bootstrap/NonProxy.Windows.Bootstrap.exe"
     ) -or $extension -in @(".msi", ".msix")
     if ($scriptExtensions -contains $extension) {
         $signature = Set-AuthenticodeSignature `
@@ -84,15 +94,13 @@ $entries = foreach ($file in (
         sha256 = Get-NonProxyFileSha256 -Path $file.FullName
     }
 }
-$metadataPath = Join-Path $root "release-metadata.json"
-$metadata = Get-Content -LiteralPath $metadataPath -Raw |
-    ConvertFrom-Json
 $manifest = [ordered]@{
     schemaVersion = 1
     product = $metadata.product
     version = $metadata.version
     architecture = $metadata.architecture
     minimumWindowsBuild = $metadata.minimumWindowsBuild
+    publisherCertificateSha256 = $publisherCertificateSha256
     publisherThumbprintHint = $thumbprint
     signedUtc = [DateTime]::UtcNow.ToString("o")
     files = @($entries)

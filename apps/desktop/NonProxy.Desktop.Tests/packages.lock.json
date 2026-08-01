@@ -378,8 +378,18 @@
       "nonproxy.desktop.windows": {
         "type": "Project",
         "dependencies": {
-          "NonProxy.Desktop.Core": "[1.0.0, )"
+          "NonProxy.Desktop.Core": "[1.0.0, )",
+          "NonProxy.Windows.Security": "[1.0.0, )"
         }
+      },
+      "nonproxy.windows.bootstrap": {
+        "type": "Project",
+        "dependencies": {
+          "NonProxy.Windows.Security": "[1.0.0, )"
+        }
+      },
+      "nonproxy.windows.security": {
+        "type": "Project"
       },
       "Avalonia": {
         "type": "CentralTransitive",

@@ -11,6 +11,11 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$DesktopPublishDirectory,
     [Parameter(Mandatory = $true)]
+    [string]$BootstrapPublishDirectory,
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern("^[0-9A-Fa-f]{64}$")]
+    [string]$ExpectedPublisherCertificateSha256,
+    [Parameter(Mandatory = $true)]
     [string]$GatewayExecutable,
     [Parameter(Mandatory = $true)]
     [string]$AdapterHostExecutable,
@@ -27,6 +32,8 @@ Import-Module (
 
 $desktopSource = Resolve-NonProxyExistingPath `
     -Path $DesktopPublishDirectory -PathType Container
+$bootstrapSource = Resolve-NonProxyExistingPath `
+    -Path $BootstrapPublishDirectory -PathType Container
 $gatewaySource = Resolve-NonProxyExistingPath `
     -Path $GatewayExecutable -PathType Leaf
 $adapterHostSource = Resolve-NonProxyExistingPath `
@@ -36,6 +43,21 @@ $driverSource = Resolve-NonProxyExistingPath `
 $desktopExecutable = Join-Path $desktopSource "NonProxy.Desktop.Windows.exe"
 if (-not (Test-Path -LiteralPath $desktopExecutable -PathType Leaf)) {
     throw "桌面发布目录缺少 NonProxy.Desktop.Windows.exe。"
+}
+$bootstrapExecutable = Join-Path `
+    $bootstrapSource "NonProxy.Windows.Bootstrap.exe"
+if (-not (Test-Path -LiteralPath $bootstrapExecutable -PathType Leaf)) {
+    throw "Bootstrap 发布目录缺少 NonProxy.Windows.Bootstrap.exe。"
+}
+$publisherCertificateSha256 = $ExpectedPublisherCertificateSha256.ToLowerInvariant()
+foreach ($marker in @(
+    (Join-Path $desktopSource "nonproxy-publisher-certificate-sha256.txt"),
+    (Join-Path $bootstrapSource "nonproxy-publisher-certificate-sha256.txt")
+)) {
+    $compiled = (Get-Content -LiteralPath $marker -Raw).Trim().ToLowerInvariant()
+    if ($compiled -ne $publisherCertificateSha256) {
+        throw "Windows 发布产物没有编译预期的固定发布者证书 SHA-256。"
+    }
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
@@ -52,12 +74,14 @@ if (Test-Path -LiteralPath $packageRoot) {
 }
 
 $desktopDestination = Join-Path $packageRoot "desktop"
+$bootstrapDestination = Join-Path $packageRoot "bootstrap"
 $serviceDestination = Join-Path $packageRoot "service"
 $adapterDestination = Join-Path $packageRoot "adapter"
 $driverDestination = Join-Path $packageRoot "driver"
 $toolsDestination = Join-Path $packageRoot "tools"
 New-Item -ItemType Directory -Force -Path @(
     $desktopDestination,
+    $bootstrapDestination,
     $serviceDestination,
     $adapterDestination,
     $driverDestination,
@@ -66,6 +90,8 @@ New-Item -ItemType Directory -Force -Path @(
 
 Copy-Item -Path (Join-Path $desktopSource "*") `
     -Destination $desktopDestination -Recurse -Force
+Copy-Item -LiteralPath $bootstrapExecutable `
+    -Destination (Join-Path $bootstrapDestination "NonProxy.Windows.Bootstrap.exe")
 Copy-Item -LiteralPath $gatewaySource `
     -Destination (Join-Path $serviceDestination "nonproxy-gatewayd.exe")
 Copy-Item -LiteralPath $adapterHostSource `
@@ -106,6 +132,7 @@ $metadata = [ordered]@{
     version = $Version
     architecture = $Architecture
     minimumWindowsBuild = 18362
+    publisherCertificateSha256 = $publisherCertificateSha256
     createdUtc = [DateTime]::UtcNow.ToString("o")
 }
 $metadata | ConvertTo-Json -Depth 4 |

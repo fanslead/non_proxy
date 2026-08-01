@@ -1,4 +1,4 @@
-#requires -Version 7.4
+#requires -Version 5.1
 
 [CmdletBinding()]
 param(
@@ -9,6 +9,7 @@ param(
     [string]$PackageRoot,
     [Parameter(Mandatory = $true)]
     [string]$ExpectedPublisherThumbprint,
+    [string]$ConsumerBootstrapManifestSha256,
     [string]$ExitProbeEndpoint,
     [string[]]$ExitProbePublicKeys,
     [switch]$ConfirmSystemMutation,
@@ -71,6 +72,7 @@ function Copy-VersionedPayload {
         [void](& (Join-Path $PSScriptRoot "verify-release-package.ps1") `
             -PackageRoot $destination `
             -ExpectedPublisherThumbprint $Package.publisherThumbprint `
+            -ConsumerBootstrapManifestSha256 $Package.manifestSha256 `
             -PassThru)
     } catch {
         if (Test-Path -LiteralPath $staging) {
@@ -274,6 +276,7 @@ function Uninstall-SystemComponents {
 $package = & (Join-Path $PSScriptRoot "verify-release-package.ps1") `
     -PackageRoot $PackageRoot `
     -ExpectedPublisherThumbprint $ExpectedPublisherThumbprint `
+    -ConsumerBootstrapManifestSha256 $ConsumerBootstrapManifestSha256 `
     -PassThru
 
 if ($Action -eq "Query") {

@@ -19,6 +19,15 @@ internal static class Program
         using var services = ServiceRegistration.BuildProvider(collection =>
         {
             collection.AddSingleton<IPlatformInformation, WindowsPlatformInformation>();
+            collection.AddSingleton<
+                IWindowsBootstrapPackageLocator,
+                WindowsBootstrapPackageLocator>();
+            collection.AddSingleton<
+                IWindowsBootstrapProcessRunner,
+                WindowsBootstrapProcessRunner>();
+            collection.AddSingleton<
+                IWindowsComponentBootstrap,
+                WindowsComponentBootstrap>();
             collection.AddSingleton<ISystemComponentInstaller, WindowsSystemComponentInstaller>();
             collection.AddSingleton<
                 IWindowsApplicationDiscovery,

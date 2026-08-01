@@ -1,4 +1,4 @@
-#requires -Version 7.4
+#requires -Version 5.1
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = "Stop"
@@ -68,6 +68,21 @@ function Get-NonProxyFileSha256 {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+function Get-NonProxyCertificateSha256 {
+    param(
+        [Parameter(Mandatory = $true)]
+        [Security.Cryptography.X509Certificates.X509Certificate2]$Certificate
+    )
+
+    $algorithm = [Security.Cryptography.SHA256]::Create()
+    try {
+        $hash = $algorithm.ComputeHash($Certificate.RawData)
+        return ([BitConverter]::ToString($hash) -replace "-", "").ToLowerInvariant()
+    } finally {
+        $algorithm.Dispose()
+    }
+}
+
 function Resolve-NonProxyExistingPath {
     param(
         [Parameter(Mandatory = $true)]
@@ -98,7 +113,11 @@ function Resolve-NonProxyPackagePath {
         $RelativePath.StartsWith("/")) {
         throw "发布包相对路径无效：$RelativePath"
     }
-    $root = [IO.Path]::GetFullPath($PackageRoot).TrimEnd(
+    $root = [IO.Path]::GetFullPath($PackageRoot)
+    if ($root -eq [IO.Path]::GetPathRoot($root)) {
+        throw "发布包根目录不能是磁盘根目录。"
+    }
+    $root = $root.TrimEnd(
         [IO.Path]::DirectorySeparatorChar,
         [IO.Path]::AltDirectorySeparatorChar)
     $candidate = [IO.Path]::GetFullPath(
@@ -128,6 +147,44 @@ function Get-NonProxySignerThumbprint {
         throw "Authenticode 签名无效：$Path（$($signature.Status)）"
     }
     return ConvertTo-NonProxyThumbprint $signature.SignerCertificate.Thumbprint
+}
+
+function Get-NonProxySignerCertificateSha256 {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $signature = Get-AuthenticodeSignature -LiteralPath $Path
+    if ($signature.Status -ne [Management.Automation.SignatureStatus]::Valid -or
+        $null -eq $signature.SignerCertificate) {
+        throw "Authenticode 签名无效：$Path（$($signature.Status)）"
+    }
+    return Get-NonProxyCertificateSha256 `
+        -Certificate $signature.SignerCertificate
+}
+
+function Get-NonProxyPackageRelativePath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PackageRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $root = [IO.Path]::GetFullPath($PackageRoot)
+    if ($root -eq [IO.Path]::GetPathRoot($root)) {
+        throw "发布包根目录不能是磁盘根目录。"
+    }
+    $root = $root.TrimEnd("\")
+    $resolved = [IO.Path]::GetFullPath($Path)
+    $prefix = $root + "\"
+    if (-not $resolved.StartsWith(
+        $prefix,
+        [StringComparison]::OrdinalIgnoreCase)) {
+        throw "发布文件不属于包根目录：$Path"
+    }
+    return $resolved.Substring($prefix.Length).Replace("\", "/")
 }
 
 function Assert-NonProxyAuthenticodeSignature {
@@ -232,8 +289,11 @@ Export-ModuleMember -Function @(
     "Assert-NonProxyWindows",
     "ConvertTo-NonProxyThumbprint",
     "Find-NonProxySignTool",
+    "Get-NonProxyCertificateSha256",
     "Get-NonProxyFileSha256",
+    "Get-NonProxyPackageRelativePath",
     "Get-NonProxyServiceSnapshot",
+    "Get-NonProxySignerCertificateSha256",
     "Get-NonProxySignerThumbprint",
     "Get-NonProxySigningCertificate",
     "Invoke-NonProxyExternal",

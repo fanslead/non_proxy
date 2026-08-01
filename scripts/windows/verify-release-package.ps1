@@ -1,4 +1,4 @@
-#requires -Version 7.4
+#requires -Version 5.1
 
 [CmdletBinding()]
 param(
@@ -6,6 +6,7 @@ param(
     [string]$PackageRoot,
     [Parameter(Mandatory = $true)]
     [string]$ExpectedPublisherThumbprint,
+    [string]$ConsumerBootstrapManifestSha256,
     [switch]$PassThru
 )
 
@@ -42,10 +43,25 @@ $manifestHash = Get-NonProxyFileSha256 -Path $manifestPath
 if ($manifestHash -ne $match.Groups[1].Value) {
     throw "发布清单哈希与已签名信任文件不匹配。"
 }
+if (-not [string]::IsNullOrWhiteSpace($ConsumerBootstrapManifestSha256) -and
+    ($ConsumerBootstrapManifestSha256 -notmatch "^[0-9a-f]{64}$" -or
+        $ConsumerBootstrapManifestSha256 -ne $manifestHash)) {
+    throw "消费安装 Bootstrap 验证的发布清单哈希不匹配。"
+}
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 if ($manifest.schemaVersion -ne 1 -or $manifest.product -ne "NonProxy") {
     throw "发布清单版本或产品标识不受支持。"
+}
+$publisherCertificateSha256 = Get-NonProxySignerCertificateSha256 `
+    -Path $trustPath
+if ([string]$manifest.publisherCertificateSha256 -notmatch "^[0-9a-f]{64}$" -or
+    [string]$manifest.publisherCertificateSha256 -ne
+        $publisherCertificateSha256) {
+    throw "发布清单固定证书 SHA-256 与签名者不一致。"
+}
+if ([string]$manifest.publisherThumbprintHint -ne $expected) {
+    throw "发布清单证书指纹提示与外部固定发布者不一致。"
 }
 if ($manifest.architecture -notin @("x64", "arm64")) {
     throw "发布清单架构无效。"
@@ -81,7 +97,8 @@ $scriptExtensions = @(".ps1", ".psm1", ".psd1")
 $publisherSignedPaths = @(
     "desktop/NonProxy.Desktop.Windows.exe",
     "service/nonproxy-gatewayd.exe",
-    "adapter/nonproxy-adapter-host.exe"
+    "adapter/nonproxy-adapter-host.exe",
+    "bootstrap/NonProxy.Windows.Bootstrap.exe"
 )
 foreach ($entry in $manifest.files) {
     $relative = [string]$entry.path
@@ -122,21 +139,25 @@ foreach ($actual in (
     if ($actual.FullName -in @($manifestPath, $trustPath)) {
         continue
     }
-    $relative = [IO.Path]::GetRelativePath($root, $actual.FullName).Replace("\", "/")
+    $relative = Get-NonProxyPackageRelativePath `
+        -PackageRoot $root `
+        -Path $actual.FullName
     if (-not $expectedFiles.Contains($relative)) {
         throw "发布包包含清单外文件：$relative"
     }
 }
 
-$signTool = Find-NonProxySignTool
-$driverCatalog = Join-Path $root "driver/NonProxyWfp.cat"
-foreach ($driverFile in @(
-    (Join-Path $root "driver/NonProxyWfp.inf"),
-    (Join-Path $root "driver/NonProxyWfp.sys")
-)) {
-    Invoke-NonProxyExternal -FilePath $signTool -Arguments @(
-        "verify", "/kp", "/c", $driverCatalog, $driverFile
-    ) | Out-Null
+if ([string]::IsNullOrWhiteSpace($ConsumerBootstrapManifestSha256)) {
+    $signTool = Find-NonProxySignTool
+    $driverCatalog = Join-Path $root "driver/NonProxyWfp.cat"
+    foreach ($driverFile in @(
+        (Join-Path $root "driver/NonProxyWfp.inf"),
+        (Join-Path $root "driver/NonProxyWfp.sys")
+    )) {
+        Invoke-NonProxyExternal -FilePath $signTool -Arguments @(
+            "verify", "/kp", "/c", $driverCatalog, $driverFile
+        ) | Out-Null
+    }
 }
 
 $result = [ordered]@{
@@ -146,6 +167,7 @@ $result = [ordered]@{
     architecture = [string]$manifest.architecture
     minimumWindowsBuild = [int]$manifest.minimumWindowsBuild
     publisherThumbprint = $expected
+    publisherCertificateSha256 = $publisherCertificateSha256
     packageRoot = $root
     manifestSha256 = $manifestHash
 }

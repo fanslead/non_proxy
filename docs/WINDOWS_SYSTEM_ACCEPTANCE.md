@@ -46,9 +46,17 @@ WDK 产物、Service 显示 Running 或策略显示 DIRECT，都不能单独代�
 发布 UI 和 Service 后，组装一个全新的空目录：
 
 ```powershell
+$publisherCertificateSha256 = "<代码签名证书原文 SHA-256，64 位小写十六进制>"
+
 dotnet publish .\apps\desktop\NonProxy.Desktop.Windows\NonProxy.Desktop.Windows.csproj `
   -c Release -f net10.0-windows10.0.26100.0 -r win-x64 --self-contained true `
+  -p:NonProxyWindowsPublisherCertificateSha256=$publisherCertificateSha256 `
   -o .\.artifacts\desktop\win-x64
+dotnet publish .\platform\windows\NonProxy.Windows.Bootstrap\NonProxy.Windows.Bootstrap.csproj `
+  -c Release -f net10.0-windows10.0.26100.0 -r win-x64 --self-contained true `
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+  -p:NonProxyWindowsPublisherCertificateSha256=$publisherCertificateSha256 `
+  -o .\.artifacts\bootstrap\win-x64
 cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-gatewayd
 cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-adapter-host
 
@@ -56,6 +64,8 @@ cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-adapter-host
   -Version 0.1.0 `
   -Architecture x64 `
   -DesktopPublishDirectory .\.artifacts\desktop\win-x64 `
+  -BootstrapPublishDirectory .\.artifacts\bootstrap\win-x64 `
+  -ExpectedPublisherCertificateSha256 $publisherCertificateSha256 `
   -GatewayExecutable .\target\x86_64-pc-windows-msvc\release\nonproxy-gatewayd.exe `
   -AdapterHostExecutable .\target\x86_64-pc-windows-msvc\release\nonproxy-adapter-host.exe `
   -DriverDirectory .\.artifacts\hardware-center\x64
@@ -85,11 +95,11 @@ cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-adapter-host
 固定指纹必须来自构建配置、企业发布清单或另一条受控渠道，不能复制包内提示值
 作为唯一信任依据。
 
-这些 PowerShell 命令属于装有 SDK/WDK 的工程验收环境。Microsoft 不允许把
-`signtool.exe` 当普通产品依赖重新分发；消费级安装 bootstrap 必须改用
-`WinVerifyTrust`/Catalog Admin API 做等价验证。该 bootstrap 尚未落地，所以
-当前 Windows 系统组件安装 UI 保持“不可用”是有意的安全门，而不是遗漏一个启动 PowerShell
-的按钮。
+这些签名 PowerShell 命令属于装有 SDK/WDK 的工程验收环境。Microsoft 不允许把
+`signtool.exe` 当普通产品依赖重新分发。消费级单文件 Bootstrap 已直接使用
+`WinVerifyTrust`、`CryptCATAdminAcquireContext2` 和 `WINTRUST_CATALOG_INFO` 做等价验证，
+并把发布者证书 SHA-256 编译进桌面端和 Bootstrap；签名包有效时 UI 可发起 UAC 安装。
+未设置编译固定证书、包不完整或验证失败时仍保持“不可用”。
 
 ## 4. 系统生命周期验收
 
@@ -238,10 +248,9 @@ DIRECT 包出现在物理接口且不先进入第三方 VPN；仅比较公网 IP
 
 当前开发环境不是 Windows，尚未执行原生 Win32/打包应用目录、WinTrust、PFN/package SID、
 PublisherId 与 WFP 身份联合验收、WDK C 构建、Hardware Dev Center 签名、SCM/UAC、
-Driver Verifier 或真实 VPN W4 验收。
-Avalonia Windows 宿主因此继续
-把系统组件显示为不可用；在签名 bootstrap 和上述 W2～W4 证据完成前不得改成
-“可安装”或“已确认直连”。
+Driver Verifier 或真实 VPN W4 验收。Windows UI 已接入签名单文件 Bootstrap：普通用户查询
+只读状态，安装/修复/卸载使用系统 UAC；状态只采信 Bootstrap 返回的 Service、Driver 和
+Adapter 任务快照。这不等于 W2～W4 已通过，未取得真实证据前不得写成“已验收直连”。
 
 MSIX/UWP 包目录、ALE package SID 与 PublisherId 已有 W0 源码和交叉编译证据，但没有真实
 Windows 验收结果；不得用文件名、展示名、普通路径、桌面目录成功或单元测试替代包身份证据。

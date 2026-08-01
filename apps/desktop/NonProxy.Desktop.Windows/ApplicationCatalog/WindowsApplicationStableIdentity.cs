@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-
 namespace NonProxy.Desktop.Windows.ApplicationCatalog;
 
 internal static class WindowsApplicationStableIdentity
@@ -41,13 +39,6 @@ internal static class WindowsApplicationStableIdentity
         return value.Any(char.IsControl) || HasUnpairedSurrogate(value)
             ? null
             : value;
-    }
-
-    public static string? SignerIdentity(ReadOnlySpan<byte> certificate)
-    {
-        return certificate.IsEmpty
-            ? null
-            : $"cert-sha256:{Convert.ToHexString(SHA256.HashData(certificate)).ToLowerInvariant()}";
     }
 
     private static bool HasUnpairedSurrogate(string value)

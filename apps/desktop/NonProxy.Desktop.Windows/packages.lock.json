@@ -200,6 +200,9 @@
           "NonProxy.Contracts": "[1.0.0, )"
         }
       },
+      "nonproxy.windows.security": {
+        "type": "Project"
+      },
       "Avalonia": {
         "type": "CentralTransitive",
         "requested": "[12.1.1, )",
@@ -551,6 +554,9 @@
           "Microsoft.Extensions.DependencyInjection": "[10.0.10, )",
           "NonProxy.Contracts": "[1.0.0, )"
         }
+      },
+      "nonproxy.windows.security": {
+        "type": "Project"
       },
       "Avalonia": {
         "type": "CentralTransitive",

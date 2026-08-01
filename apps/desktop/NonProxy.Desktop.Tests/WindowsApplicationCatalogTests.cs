@@ -20,9 +20,6 @@ public sealed class WindowsApplicationCatalogTests
         Assert.Null(WindowsApplicationStableIdentity.Decode([1]));
         Assert.Null(WindowsApplicationStableIdentity.Decode(
             [0x61, 0x00, 0x00, 0x00, 0x62, 0x00]));
-        Assert.Equal(
-            "cert-sha256:039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
-            WindowsApplicationStableIdentity.SignerIdentity([1, 2, 3]));
         Assert.Null(WindowsApplicationStableIdentity.Decode([0x00, 0xd8]));
     }
 

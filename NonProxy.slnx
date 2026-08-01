@@ -7,4 +7,8 @@
     <Project Path="apps/desktop/NonProxy.Desktop.Tests/NonProxy.Desktop.Tests.csproj" />
     <Project Path="apps/desktop/NonProxy.Desktop.Windows/NonProxy.Desktop.Windows.csproj" />
   </Folder>
+  <Folder Name="/platform/windows/">
+    <Project Path="platform/windows/NonProxy.Windows.Bootstrap/NonProxy.Windows.Bootstrap.csproj" />
+    <Project Path="platform/windows/NonProxy.Windows.Security/NonProxy.Windows.Security.csproj" />
+  </Folder>
 </Solution>

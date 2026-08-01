@@ -1728,8 +1728,14 @@ apps/desktop/
 │   └── SystemExtensionController.cs
 └── NonProxy.Desktop.Windows/
     ├── Program.cs
-    └── WindowsPlatformServices.cs
+    ├── WindowsSystemComponentInstaller.cs
+    ├── WindowsBootstrapPackageLocator.cs
+    └── WindowsBootstrapProcessRunner.cs
 ```
+
+Windows 安装信任代码独立位于 `platform/windows/NonProxy.Windows.Security`，单文件 UAC
+入口位于 `platform/windows/NonProxy.Windows.Bootstrap`；共享 UI 不直接引用 WinTrust、Catalog
+句柄、注册表或提权进程。
 
 每个 Feature 可以包含：
 
@@ -2350,6 +2356,10 @@ Windows 发行源码已经提供：
   BFE 依赖和 `DiInstallDriverW`/`DiUninstallDriverW` 生命周期；
 - 外部固定发布者指纹、已签名信任文件绑定的 SHA-256 清单、清单外文件/
   重解析点/架构/最低系统版本拒绝，以及 INF/SYS `/kp /c` Catalog 成员校验；
+- 编译固定证书 SHA-256 的 self-contained single-file Bootstrap；桌面先验证 Bootstrap，
+  Bootstrap 再以 `WinVerifyTrust` 和 Catalog Admin API 校验完整包，UAC 后复制到
+  Administrators/SYSTEM 独占的 Program Files staging 并二次验证，再调用系统内置
+  Windows PowerShell 5.1 执行签名生命周期脚本；
 - 复制到 `%ProgramFiles%` 后复验、每次安装新版本目录、SCM Service 环境与
   ACL、旧 Driver/Service 回切、默认保留数据的卸载和不自动重启语义；
 - 固定发布者签名的 adapter-host、空 UserId 的任意 Users group 登录任务、Limited token、
@@ -2360,8 +2370,8 @@ Windows 发行源码已经提供：
 尚未完成的是 Hardware Dev Center 生产签名、真实 WDK/SCM/UAC 运行、
 Driver Verifier 和真实 VPN 共存路径验收。明文 DNS、UDP/QUIC 源码、发行工具
 和交叉构建不能证明真实系统 resolver、connected UDP/`sendto`、反向元组、
-QUIC 或第三方 VPN filter 顺序正确；Windows UI 在签名 bootstrap 与系统验收
-完成前继续将系统组件标记为不可用。执行门禁见
+QUIC 或第三方 VPN filter 顺序正确；Windows UI 已能从完整签名包发起安装，但只有
+Bootstrap 权威查询返回 Installed 才显示就绪，不能以源码/交叉构建代替系统验收。执行门禁见
 [Windows 系统组件与真实网络路径验收](WINDOWS_SYSTEM_ACCEPTANCE.md)。
 
 Windows adapter-host 的签名分发、按用户登录任务、桌面即时启动、滚动升级切换和卸载源码
