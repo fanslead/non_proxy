@@ -280,6 +280,10 @@ public sealed partial class GatewayOutboundService : IOutboundService
                 "当前只支持 socks5://、socks5h://、http:// 和 ss:// 代理链接。",
             "NP_OUTBOUND_IMPORT_URI_CREDENTIAL_INVALID" =>
                 "代理链接中的认证信息或加密密钥格式无效。",
+            "NP_OUTBOUND_SUBSCRIPTION_ENCODING_INVALID" =>
+                "订阅内容不是有效的 Base64 文本，请复制订阅返回的完整内容。",
+            "NP_OUTBOUND_SUBSCRIPTION_CONTENT_INVALID" =>
+                "当前订阅导入只支持 Shadowsocks 节点。",
             "NP_OUTBOUND_CREDENTIAL_INVALID" =>
                 "代理账号密码或 Shadowsocks 加密方法与密钥无效。",
             "NP_OUTBOUND_REVISION_EXHAUSTED" => "代理配置修订号已耗尽，请更换配置标识。",

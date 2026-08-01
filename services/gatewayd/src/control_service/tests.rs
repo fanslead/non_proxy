@@ -900,6 +900,44 @@ async fn standard_uri_import_reports_only_the_safe_failing_line() {
 }
 
 #[tokio::test]
+async fn shadowsocks_subscription_previews_then_stores_credentials_outside_sqlite() {
+    let database = PolicyDatabase::open_in_memory(1)
+        .unwrap_or_else(|error| panic!("订阅导入测试数据库打开失败: {error}"));
+    let gateway = Gateway::new(database, CompileCapabilities::full());
+    let credentials = Arc::new(MemoryCredentialStore::default());
+    let service = ControlRpcService::with_credential_store(
+        gateway.clone(),
+        SessionCapability::from_token([7; 32]),
+        credentials.clone(),
+    );
+
+    let preview = service
+        .import_configuration(Request::new(subscription_import_request(true)))
+        .await
+        .unwrap_or_else(|error| panic!("订阅预检 RPC 失败: {error}"))
+        .into_inner();
+    assert!(preview.error.is_none());
+    assert_eq!(preview.outbounds.len(), 1);
+    assert!(matches!(gateway.list_outbounds().await, Ok(values) if values.is_empty()));
+    assert!(credentials.is_empty());
+
+    let imported = service
+        .import_configuration(Request::new(subscription_import_request(false)))
+        .await
+        .unwrap_or_else(|error| panic!("订阅保存 RPC 失败: {error}"))
+        .into_inner();
+    assert!(imported.error.is_none());
+    let stored = gateway
+        .list_outbounds()
+        .await
+        .unwrap_or_else(|error| panic!("订阅保存结果读取失败: {error}"));
+    let reference = stored[0]
+        .credential()
+        .map(nonproxy_storage::CredentialReference::item_reference);
+    assert!(reference.is_some_and(|value| credentials.contains(value)));
+}
+
+#[tokio::test]
 async fn site_learning_rpc_is_bounded_tab_scoped_and_evented() {
     let database = PolicyDatabase::open_in_memory(1);
     let Ok(database) = database else {
@@ -1230,6 +1268,16 @@ fn uri_import_request(validate_only: bool) -> ImportConfigurationRequest {
         configuration: b"socks5://alice:private@proxy.example:1080#Office\n\
                          http://127.0.0.1:8080#Backup\n\
                          ss://YWVzLTI1Ni1nY206cHJpdmF0ZQ@ss.example:8388#Modern"
+            .to_vec(),
+        validate_only,
+    }
+}
+
+fn subscription_import_request(validate_only: bool) -> ImportConfigurationRequest {
+    ImportConfigurationRequest {
+        context: Some(context([7; 32], "import-subscription")),
+        format: "shadowsocks-subscription-v1".to_owned(),
+        configuration: b"c3M6Ly9ZV1Z6TFRJMU5pMW5ZMjA2Y0hKcGRtRjBaUUBzcy5leGFtcGxlOjgzODgjTW9kZXJu"
             .to_vec(),
         validate_only,
     }

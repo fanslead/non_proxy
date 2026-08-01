@@ -41,8 +41,9 @@ Shadowsocks TCP 客户端在创建加密流时主要向服务端写入，错误�
    代理握手语义。
 7. 桌面端显示明确的 `Shadowsocks` 协议标签、`ss://` 粘贴提示、默认路由和签名出口
    操作；不把 Shadowsocks 塞入只面向本地 SOCKS5/HTTP 监听端口的手动表单。
-8. 本决策不实现订阅、SIP003 plugin、VMess/VLESS、Trojan、Hysteria 2、TUIC、
-   WireGuard、OpenVPN、OpenConnect 或与任意第三方 VPN 同时运行的兼容保证。
+8. Base64 Shadowsocks 订阅内容的离线导入由 ADR-0037 追加；本决策不实现订阅源 URL、
+   远程刷新、SIP003 plugin、VMess/VLESS、Trojan、Hysteria 2、TUIC、WireGuard、
+   OpenVPN、OpenConnect 或与任意第三方 VPN 同时运行的兼容保证。
 
 ## 后果
 

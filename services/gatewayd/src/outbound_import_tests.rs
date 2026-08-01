@@ -2,7 +2,9 @@ use nonproxy_model::OutboundId;
 use nonproxy_outbound::ShadowsocksCredentials;
 use nonproxy_storage::{OutboundKind, OutboundReference};
 
-use crate::outbound_import::{IMPORT_FORMAT, URI_LIST_IMPORT_FORMAT, prepare};
+use crate::outbound_import::{
+    IMPORT_FORMAT, SHADOWSOCKS_SUBSCRIPTION_IMPORT_FORMAT, URI_LIST_IMPORT_FORMAT, prepare,
+};
 
 #[test]
 fn prepares_versioned_credential_without_storing_secret_in_metadata() {
@@ -140,4 +142,20 @@ fn uri_preview_warns_before_replacing_an_existing_identifier() {
             .iter()
             .any(|value| value.contains("office 已存在") && value.contains("安全更新"))
     );
+}
+
+#[test]
+fn subscription_payload_prepares_only_shadowsocks_nodes() {
+    let prepared = prepare(
+        SHADOWSOCKS_SUBSCRIPTION_IMPORT_FORMAT,
+        b"c3M6Ly9ZV1Z6TFRJMU5pMW5ZMjA2Y0hKcGRtRjBaUUBzcy5leGFtcGxlOjgzODgjTW9kZXJu",
+        "00112233445566778899aabbccddeeff".to_owned(),
+        &[],
+    )
+    .unwrap_or_else(|error| panic!("Shadowsocks 订阅准备失败: {error}"));
+
+    let outbound = &prepared.outbounds[0].0;
+    assert_eq!(outbound.id().as_str(), "modern");
+    assert_eq!(outbound.kind(), OutboundKind::Shadowsocks);
+    assert_eq!(prepared.credentials.len(), 1);
 }

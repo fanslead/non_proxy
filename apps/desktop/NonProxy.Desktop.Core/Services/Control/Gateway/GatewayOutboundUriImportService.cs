@@ -6,6 +6,7 @@ namespace NonProxy.Desktop.Core.Services.Control.Gateway;
 public sealed partial class GatewayOutboundService
 {
     private const string ProxyUriListFormat = "proxy-uri-list-v1";
+    private const string ShadowsocksSubscriptionFormat = "shadowsocks-subscription-v1";
     private const int MaximumUriListBytes = 256 * 1024;
 
     public Task<OutboundImportResult> PreviewUriListAsync(
@@ -41,7 +42,7 @@ public sealed partial class GatewayOutboundService
         try
         {
             response = await _client.ImportConfigurationAsync(
-                ProxyUriListFormat,
+                SelectImportFormat(uriList),
                 configuration,
                 validateOnly,
                 cancellationToken);
@@ -68,6 +69,14 @@ public sealed partial class GatewayOutboundService
             response.ImportId,
             response.Outbounds.Select(OutboundContractMapper.ToItem).ToArray(),
             response.Warnings.ToArray());
+    }
+
+    private static string SelectImportFormat(string value)
+    {
+        var source = value.AsSpan().TrimStart();
+        return source.IndexOf("://", StringComparison.Ordinal) >= 0
+                ? ProxyUriListFormat
+                : ShadowsocksSubscriptionFormat;
     }
 
     private static string UriImportErrorMessage(

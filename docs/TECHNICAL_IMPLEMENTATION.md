@@ -1359,7 +1359,8 @@ pub trait OutboundConnector: Send + Sync {
 ### 15.2 标准代理导入
 
 内部结构化表单使用 `nonproxy-json-v1`；面向普通用户的批量粘贴使用
-`proxy-uri-list-v1`。两种格式共用 256 KiB 请求上限、100 个出口上限、revision
+`proxy-uri-list-v1`；常见 Shadowsocks Base64 订阅响应使用
+`shadowsocks-subscription-v1`。三种格式共用 256 KiB 请求上限、100 个出口上限、revision
 检查、凭据隔离和补偿事务。JSON 的未知字段、重复标识和不完整凭据对均被拒绝。
 桌面端不要求普通用户编写 JSON，而是把手动表单转换为内部契约：
 
@@ -1389,11 +1390,15 @@ Shadowsocks 查询参数（包括 SIP003 plugin）、路径、缺失认证、未
 无主机和畸形编码全部拒绝。所有错误只报告行号而不回显链接。片段标签会规范化为安全
 稳定标识，重复标签追加确定性序号。桌面端必须先调用 `validate_only` 展示不含凭据或
 密钥的协议、标识和端点，并在标识已存在时提示保存将更新对应出口；源文本变化后立即
-作废预览，只有当前预览可以触发明确保存。完整决策见
+作废预览，只有当前预览可以触发明确保存。Base64 订阅内容接受 Standard/URL-safe、带或
+不带 padding 以及 ASCII 换行，但只解码一层且解码后仍受 256 KiB、100 个节点上限；内容
+必须全部是 `ss://`，混入其他协议时整批拒绝。桌面只根据输入是否包含 URI 分隔符选择显式
+导入格式，真正解析和协议白名单始终由 `gatewayd` 完成。完整决策见
 [ADR-0011](ADR/0011-import-standard-proxy-uris.md) 和
-[ADR-0036](ADR/0036-embed-shadowsocks-as-modern-proxy-outbound.md)。这不等同于 VMess、
-VLESS、Trojan、WireGuard、OpenVPN、SIP003 plugin 或供应商订阅已经支持；这些协议必须
-在对应 connector/adapter 真正实现后另行开放。
+[ADR-0036](ADR/0036-embed-shadowsocks-as-modern-proxy-outbound.md) 以及
+[ADR-0037](ADR/0037-import-shadowsocks-subscription-payloads.md)。本能力不保存订阅源 URL，
+不远程拉取或定时刷新，也不管理节点删除/重命名生命周期；它也不等同于 VMess、VLESS、
+Trojan、WireGuard、OpenVPN、SIP003 plugin 或其他供应商订阅协议已经支持。
 
 macOS 桌面端还可通过 ABI v7 原生桥只读调用 `SCDynamicStoreCopyProxies`，发现系统
 当前明确启用的 SOCKS、HTTP 与 HTTPS 代理主机和端口。发现层不读取凭据、PAC 内容

@@ -49,6 +49,7 @@ mod outbound_import_tests;
 mod outbound_import_uri;
 mod outbound_probe;
 mod outbound_probe_tls;
+mod outbound_subscription;
 mod policy_catalog_gateway;
 mod proto_policy;
 mod provider_decision_rpc;

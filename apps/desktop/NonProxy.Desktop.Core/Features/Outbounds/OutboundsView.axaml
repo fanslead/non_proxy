@@ -29,9 +29,9 @@
                 <StackPanel Spacing="14">
                     <StackPanel Spacing="4">
                         <TextBlock Theme="{StaticResource NpSectionTitle}"
-                                   Text="自动发现或粘贴代理链接（推荐）" />
+                                   Text="自动发现、粘贴代理链接或订阅内容（推荐）" />
                         <TextBlock Theme="{StaticResource NpMutedText}"
-                                   Text="每行粘贴一个 socks5://、socks5h://、http:// 或 ss:// 链接。先检查识别结果，再明确保存；预览和列表始终隐藏账号、密码与加密密钥。"
+                                   Text="可每行粘贴一个 socks5://、socks5h://、http:// 或 ss:// 链接，也可直接粘贴 Shadowsocks 订阅返回的 Base64 内容。先检查识别结果，再明确保存；预览和列表始终隐藏账号、密码与加密密钥。"
                                    TextWrapping="Wrap" />
                     </StackPanel>
                     <Grid ColumnDefinitions="Auto,*"
@@ -57,17 +57,17 @@
                              Text="{Binding UriImportText}"
                              TextWrapping="Wrap"
                              PlaceholderText="ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ@proxy.example:8388#office"
-                             AutomationProperties.Name="标准代理链接列表" />
+                             AutomationProperties.Name="标准代理链接或 Shadowsocks 订阅内容" />
                     <StackPanel Orientation="Horizontal"
                                 Spacing="10">
                         <Button Theme="{StaticResource NpSecondaryButton}"
                                 Command="{Binding PreviewUriImportCommand}"
-                                Content="检查链接"
-                                AutomationProperties.Name="检查代理链接但不保存" />
+                                Content="检查内容"
+                                AutomationProperties.Name="检查代理链接或订阅内容但不保存" />
                         <Button Theme="{StaticResource NpPrimaryButton}"
                                 Command="{Binding SaveUriImportCommand}"
                                 Content="保存检查结果"
-                                AutomationProperties.Name="保存已检查的代理链接" />
+                                AutomationProperties.Name="保存已检查的代理链接或订阅内容" />
                     </StackPanel>
                     <TextBlock Theme="{StaticResource NpMutedText}"
                                Text="{Binding UriImportMessage}"

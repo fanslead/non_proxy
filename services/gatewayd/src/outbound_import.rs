@@ -9,6 +9,7 @@ use zeroize::Zeroizing;
 
 pub const IMPORT_FORMAT: &str = "nonproxy-json-v1";
 pub const URI_LIST_IMPORT_FORMAT: &str = "proxy-uri-list-v1";
+pub const SHADOWSOCKS_SUBSCRIPTION_IMPORT_FORMAT: &str = "shadowsocks-subscription-v1";
 pub const MAX_IMPORT_BYTES: usize = 256 * 1024;
 const MAX_OUTBOUNDS: usize = 100;
 const MAX_CREDENTIAL_FIELD_BYTES: usize = 255;
@@ -74,6 +75,9 @@ pub fn prepare(
     let raw_outbounds = match format {
         IMPORT_FORMAT => parse_json(configuration)?,
         URI_LIST_IMPORT_FORMAT => crate::outbound_import_uri::parse(configuration)?,
+        SHADOWSOCKS_SUBSCRIPTION_IMPORT_FORMAT => {
+            crate::outbound_subscription::parse(configuration)?
+        }
         _ => return Err(OutboundImportError::Invalid),
     };
     let existing = current
@@ -289,6 +293,10 @@ pub enum OutboundImportError {
     UriSchemeUnsupported { line: usize },
     #[error("第 {line} 行的账号或密码编码无效")]
     UriCredentialInvalid { line: usize },
+    #[error("订阅内容不是有效的 Base64 编码")]
+    SubscriptionEncoding,
+    #[error("订阅内容只允许包含 Shadowsocks 节点")]
+    SubscriptionContent,
 }
 
 impl OutboundImportError {
@@ -304,6 +312,8 @@ impl OutboundImportError {
             Self::UriInvalid { .. } => "NP_OUTBOUND_IMPORT_URI_INVALID",
             Self::UriSchemeUnsupported { .. } => "NP_OUTBOUND_IMPORT_URI_SCHEME_UNSUPPORTED",
             Self::UriCredentialInvalid { .. } => "NP_OUTBOUND_IMPORT_URI_CREDENTIAL_INVALID",
+            Self::SubscriptionEncoding => "NP_OUTBOUND_SUBSCRIPTION_ENCODING_INVALID",
+            Self::SubscriptionContent => "NP_OUTBOUND_SUBSCRIPTION_CONTENT_INVALID",
         }
     }
 

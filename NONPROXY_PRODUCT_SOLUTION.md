@@ -167,9 +167,10 @@ Apple 文档明确说明 DNS Proxy 可以接管系统 DNS 查询：
   [WireGuard Apple 官方镜像](https://github.com/WireGuard/wireguard-apple)
 
 当前仓库已经以 MIT 许可的 `shadowsocks-rust` 嵌入首个现代代理出口，覆盖 TCP、UDP、
-`ss://` 链接导入、系统凭据隔离、默认路由和固定公共目标认证测试。范围只包括六种
-AEAD/AEAD-2022 方法，不包括 SIP003 plugin、订阅、VMess/VLESS、Trojan、Hysteria 2、
-TUIC、WireGuard、OpenVPN 或 OpenConnect；这些仍按独立协议核心和系统验收推进。
+`ss://` 链接导入、Base64 Shadowsocks 订阅内容导入、系统凭据隔离、默认路由和固定公共
+目标认证测试。范围只包括六种 AEAD/AEAD-2022 方法，不包括 SIP003 plugin、订阅源 URL
+持久化与远程刷新、VMess/VLESS、Trojan、Hysteria 2、TUIC、WireGuard、OpenVPN 或
+OpenConnect；这些仍按独立协议核心、订阅生命周期和系统验收推进。
 
 ## 4. 三种运行模式
 
