@@ -69,6 +69,14 @@ mod session_capability;
 mod snapshot_builder;
 mod snapshot_payload;
 mod snapshot_types;
+mod subscription_fetcher;
+mod subscription_gateway;
+mod subscription_prepare;
+mod subscription_rpc;
+mod subscription_service;
+#[cfg(test)]
+mod subscription_service_tests;
+mod subscription_service_types;
 mod system_policies;
 mod system_rpc;
 mod system_snapshot_gateway;

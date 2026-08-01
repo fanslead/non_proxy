@@ -7,6 +7,8 @@ use serde::Deserialize;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
+use crate::credential_store::CredentialWrite;
+
 pub const IMPORT_FORMAT: &str = "nonproxy-json-v1";
 pub const URI_LIST_IMPORT_FORMAT: &str = "proxy-uri-list-v1";
 pub const SHADOWSOCKS_SUBSCRIPTION_IMPORT_FORMAT: &str = "shadowsocks-subscription-v1";
@@ -17,14 +19,9 @@ const MAX_CREDENTIAL_FIELD_BYTES: usize = 255;
 pub struct PreparedImport {
     pub import_id: String,
     pub outbounds: Vec<(OutboundReference, Option<u64>)>,
-    pub credentials: Vec<PreparedCredential>,
+    pub credentials: Vec<CredentialWrite>,
     pub replaced_credential_references: Vec<String>,
     pub warnings: Vec<String>,
-}
-
-pub struct PreparedCredential {
-    pub reference: String,
-    pub secret: Zeroizing<Vec<u8>>,
 }
 
 #[derive(Deserialize)]
@@ -170,7 +167,7 @@ fn prepare_credential(
     revision: u64,
     import_id: &str,
     raw: RawCredential,
-    credentials: &mut Vec<PreparedCredential>,
+    credentials: &mut Vec<CredentialWrite>,
 ) -> Result<Option<CredentialReference>, OutboundImportError> {
     match raw.kind {
         RawOutboundKind::Shadowsocks => prepare_shadowsocks_credential(
@@ -204,7 +201,7 @@ fn prepare_proxy_credential(
     import_id: &str,
     username: Option<String>,
     password: Option<String>,
-    credentials: &mut Vec<PreparedCredential>,
+    credentials: &mut Vec<CredentialWrite>,
 ) -> Result<Option<CredentialReference>, OutboundImportError> {
     let (username, password) = match (username, password) {
         (None, None) => return Ok(None),
@@ -226,7 +223,7 @@ fn prepare_proxy_credential(
     secret.push(u8::try_from(username.len()).map_err(|_| OutboundImportError::CredentialInvalid)?);
     secret.extend_from_slice(username.as_bytes());
     secret.extend_from_slice(password.as_bytes());
-    credentials.push(PreparedCredential { reference, secret });
+    credentials.push(CredentialWrite { reference, secret });
     Ok(Some(metadata))
 }
 
@@ -237,7 +234,7 @@ fn prepare_shadowsocks_credential(
     method: Option<String>,
     username: Option<String>,
     password: Option<String>,
-    credentials: &mut Vec<PreparedCredential>,
+    credentials: &mut Vec<CredentialWrite>,
 ) -> Result<Option<CredentialReference>, OutboundImportError> {
     let (Some(method), None, Some(password)) = (method, username, password) else {
         return Err(OutboundImportError::ShadowsocksCredential);
@@ -245,7 +242,7 @@ fn prepare_shadowsocks_credential(
     let credential = ShadowsocksCredentials::new(&method, password)
         .map_err(|_| OutboundImportError::ShadowsocksCredential)?;
     let (reference, metadata) = credential_reference(id, revision, import_id, "Shadowsocks 密钥")?;
-    credentials.push(PreparedCredential {
+    credentials.push(CredentialWrite {
         reference,
         secret: credential.encode(),
     });

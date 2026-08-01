@@ -21,6 +21,9 @@ service ControlService {
   rpc ApplyPolicySnapshot(ApplyPolicySnapshotRequest) returns (ApplyPolicySnapshotResponse);
   rpc RollbackPolicySnapshot(RollbackPolicySnapshotRequest) returns (RollbackPolicySnapshotResponse);
   rpc ListOutbounds(ListOutboundsRequest) returns (ListOutboundsResponse);
+  rpc ListSubscriptionSources(ListSubscriptionSourcesRequest) returns (ListSubscriptionSourcesResponse);
+  rpc UpsertSubscriptionSource(UpsertSubscriptionSourceRequest) returns (UpsertSubscriptionSourceResponse);
+  rpc RefreshSubscriptionSource(RefreshSubscriptionSourceRequest) returns (RefreshSubscriptionSourceResponse);
   rpc ListConnectionDecisions(ListConnectionDecisionsRequest) returns (ListConnectionDecisionsResponse);
   rpc ListExitProbes(ListExitProbesRequest) returns (ListExitProbesResponse);
   rpc ImportConfiguration(ImportConfigurationRequest) returns (ImportConfigurationResponse);
@@ -340,6 +343,63 @@ message ListOutboundsResponse {
   repeated OutboundSummary outbounds = 1;
   nonproxy.common.v1.PageResponse page = 2;
   uint64 routing_revision = 3;
+}
+
+// SubscriptionSourceSummary 返回不含订阅 URL、凭据引用和响应正文的安全摘要。
+message SubscriptionSourceSummary {
+  string id = 1;
+  string display_name = 2;
+  bool enabled = 3;
+  google.protobuf.Duration refresh_interval = 4;
+  uint64 revision = 5;
+  uint64 content_generation = 6;
+  uint32 consecutive_failures = 7;
+  google.protobuf.Timestamp next_refresh_at = 8;
+  google.protobuf.Timestamp last_attempted_at = 9;
+  google.protobuf.Timestamp last_succeeded_at = 10;
+  string last_error_code = 11;
+  uint32 node_count = 12;
+}
+
+message ListSubscriptionSourcesRequest {
+  nonproxy.common.v1.PageRequest page = 1;
+}
+
+message ListSubscriptionSourcesResponse {
+  repeated SubscriptionSourceSummary sources = 1;
+  nonproxy.common.v1.PageResponse page = 2;
+}
+
+// UpsertSubscriptionSourceRequest 的 endpoint_url 只允许 HTTPS，服务端不得记录或持久化明文。
+message UpsertSubscriptionSourceRequest {
+  OperationContext context = 1;
+  string source_id = 2;
+  string display_name = 3;
+  bytes endpoint_url = 4;
+  bool enabled = 5;
+  google.protobuf.Duration refresh_interval = 6;
+  uint64 expected_revision = 7;
+}
+
+message SubscriptionMutationResult {
+  SubscriptionSourceSummary source = 1;
+  bool content_unchanged = 2;
+  repeated string warnings = 3;
+  nonproxy.common.v1.ErrorDetail error = 4;
+}
+
+message UpsertSubscriptionSourceResponse {
+  SubscriptionMutationResult result = 1;
+}
+
+message RefreshSubscriptionSourceRequest {
+  OperationContext context = 1;
+  string source_id = 2;
+  uint64 expected_revision = 3;
+}
+
+message RefreshSubscriptionSourceResponse {
+  SubscriptionMutationResult result = 1;
 }
 
 // ConnectionDecisionSummary 是不含 URL 路径、查询参数和秘密的连接活动证据。

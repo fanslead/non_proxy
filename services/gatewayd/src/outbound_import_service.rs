@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use nonproxy_proto::{
     common::v1::ErrorDetail,
@@ -8,8 +8,8 @@ use zeroize::Zeroizing;
 
 use crate::{
     Gateway, GatewayError,
-    credential_store::CredentialStore,
-    outbound_import::{OutboundImportError, PreparedCredential, prepare},
+    credential_store::{CredentialStore, delete_credentials, store_credentials},
+    outbound_import::{OutboundImportError, prepare},
 };
 
 pub async fn import(
@@ -50,12 +50,12 @@ pub async fn import(
     }
 
     let new_references =
-        match store_new_credentials(Arc::clone(&credential_store), prepared.credentials).await {
+        match store_credentials(Arc::clone(&credential_store), prepared.credentials).await {
             Ok(value) => value,
-            Err(cleanup_failures) => {
+            Err(failure) => {
                 return credential_failure(
                     "代理凭据写入失败，出口配置没有改变。",
-                    cleanup_failures,
+                    failure.cleanup_failures(),
                 );
             }
         };
@@ -81,42 +81,6 @@ pub async fn import(
         warnings,
         error: None,
     }
-}
-
-async fn store_new_credentials(
-    store: Arc<dyn CredentialStore>,
-    credentials: Vec<PreparedCredential>,
-) -> Result<HashSet<String>, usize> {
-    let task = tokio::task::spawn_blocking(move || {
-        let mut stored: HashSet<String> = HashSet::new();
-        for credential in credentials {
-            if store
-                .set(&credential.reference, credential.secret.as_slice())
-                .is_err()
-            {
-                let cleanup_failures = stored
-                    .iter()
-                    .filter(|reference| store.delete(reference).is_err())
-                    .count();
-                return Err(cleanup_failures);
-            }
-            stored.insert(credential.reference);
-        }
-        Ok(stored)
-    })
-    .await;
-    task.unwrap_or(Err(1))
-}
-
-async fn delete_credentials(store: Arc<dyn CredentialStore>, references: HashSet<String>) -> usize {
-    let task = tokio::task::spawn_blocking(move || {
-        references
-            .into_iter()
-            .filter(|reference| store.delete(reference).is_err())
-            .count()
-    })
-    .await;
-    task.unwrap_or(1)
 }
 
 fn new_import_id() -> Result<String, GatewayError> {
@@ -164,78 +128,5 @@ fn append_cleanup_warning(response: &mut ImportConfigurationResponse, cleanup_fa
 fn append_warning(warnings: &mut Vec<String>, cleanup_failures: usize) {
     if cleanup_failures > 0 {
         warnings.push("代理凭据未能全部清理，可在系统凭据库中手动删除未引用项。".to_owned());
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{
-        collections::HashSet,
-        sync::{Arc, Mutex},
-    };
-
-    use zeroize::Zeroizing;
-
-    use super::store_new_credentials;
-    use crate::{
-        credential_store::{CredentialStore, CredentialStoreError},
-        outbound_import::PreparedCredential,
-    };
-
-    #[tokio::test]
-    async fn partial_credential_write_removes_every_successful_predecessor() {
-        let store = Arc::new(FailingCredentialStore::default());
-        let credentials = vec![credential("first", b"one"), credential("failure", b"two")];
-
-        let result = store_new_credentials(store.clone(), credentials).await;
-
-        assert_eq!(result, Err(0));
-        assert!(store.references().is_empty());
-    }
-
-    fn credential(reference: &str, secret: &[u8]) -> PreparedCredential {
-        PreparedCredential {
-            reference: reference.to_owned(),
-            secret: Zeroizing::new(secret.to_vec()),
-        }
-    }
-
-    #[derive(Default)]
-    struct FailingCredentialStore {
-        references: Mutex<HashSet<String>>,
-    }
-
-    impl FailingCredentialStore {
-        fn references(&self) -> HashSet<String> {
-            self.references
-                .lock()
-                .map(|values| values.clone())
-                .unwrap_or_default()
-        }
-    }
-
-    impl CredentialStore for FailingCredentialStore {
-        fn set(&self, reference: &str, _secret: &[u8]) -> Result<(), CredentialStoreError> {
-            if reference == "failure" {
-                return Err(CredentialStoreError::Operation("测试写入"));
-            }
-            self.references
-                .lock()
-                .map_err(|_| CredentialStoreError::Operation("测试锁定"))?
-                .insert(reference.to_owned());
-            Ok(())
-        }
-
-        fn get(&self, _reference: &str) -> Result<Vec<u8>, CredentialStoreError> {
-            Err(CredentialStoreError::Operation("测试读取"))
-        }
-
-        fn delete(&self, reference: &str) -> Result<(), CredentialStoreError> {
-            self.references
-                .lock()
-                .map_err(|_| CredentialStoreError::Operation("测试锁定"))?
-                .remove(reference);
-            Ok(())
-        }
     }
 }

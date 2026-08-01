@@ -1402,15 +1402,16 @@ Trojan、WireGuard、OpenVPN、SIP003 plugin 或其他供应商订阅协议已�
 
 #### 15.2.1 远程订阅获取边界
 
-`nonproxy-subscription` 已建立远程获取的独立安全核心，但尚未开放控制 RPC 或桌面入口。
+`nonproxy-subscription` 提供远程获取的独立安全核心，`gatewayd` 通过安全摘要控制 RPC 开放
+订阅源列表、创建/更新和手动刷新；桌面入口与后台调度尚未开放。
 URL 的 path、query 和 hostname 均按秘密处理；只接受 HTTPS，DNS 解析后若包含任一私网、
 环回、链路本地、保留或文档地址则整次拒绝，实际 TCP 只连接同一批已验证公网
 `SocketAddr`。客户端不读取环境或系统代理，使用 WebPKI TLS，拒绝重定向与压缩，只接受
 `200 OK`，响应和整个请求分别限制为 256 KiB 与 15 秒。完整决策见
 [ADR-0038](ADR/0038-fetch-remote-subscriptions-over-pinned-public-https.md)。
 
-在订阅源 URL/Token 进入系统凭据库、预览与应用绑定、刷新并发、节点归属及删除语义完成
-前，UI 不得把该核心描述成“订阅管理已完成”。
+订阅源 URL/Token 已只进入系统凭据库，刷新并发和节点归属已由 gatewayd 编排；删除语义、
+后台调度和桌面交互完成前，UI 仍不得把该能力描述成“自动订阅管理已完成”。
 
 #### 15.2.2 订阅权威状态与节点归属
 
@@ -1433,8 +1434,14 @@ revision，保存新一代全部节点，再禁用并标记缺失节点，最后
 获取到与当前哈希一致的内容时使用 `record_unchanged`，只清除失败状态并推进下次刷新时间，
 不重写出口、不递增 generation，也不制造新的节点凭据。
 
-本层尚未写入订阅 URL 凭据、调用远程获取核心、生成订阅命名空间节点、开放控制 RPC 或启动
-刷新调度器；这些边界完成前，仍不能宣称自动订阅管理可用。
+gatewayd 已按 [ADR-0040](ADR/0040-orchestrate-subscription-refresh-with-compensation.md) 写入
+版本化 URL/节点凭据、调用安全获取核心、按规范化主机/端口/加密方法生成稳定节点身份，并
+开放不含秘密的列表、创建/更新与手动刷新 RPC。写入顺序固定为“新凭据 → SQLite CAS → 旧
+凭据清理”；数据库失败会补偿本次新凭据，事后清理失败只返回显式告警。响应内容哈希不变时
+不改写出口或凭据，失败刷新按 revision/generation 写回稳定错误码和有界指数退避。
+
+本层尚未启动后台刷新调度器，也未实现删除语义和桌面管理页；这些边界完成前，仍不能宣称
+自动订阅管理可用。
 
 macOS 桌面端还可通过 ABI v7 原生桥只读调用 `SCDynamicStoreCopyProxies`，发现系统
 当前明确启用的 SOCKS、HTTP 与 HTTPS 代理主机和端口。发现层不读取凭据、PAC 内容

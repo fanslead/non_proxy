@@ -1804,6 +1804,7 @@ dependencies = [
  "nonproxy-policy-compiler",
  "nonproxy-proto",
  "nonproxy-storage",
+ "nonproxy-subscription",
  "nonproxy-windows-identity",
  "nonproxy-windows-ipc",
  "nonproxy-windows-network",

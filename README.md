@@ -4,7 +4,7 @@ NonProxy 是一个本地优先的跨平台智能分流网关。用户选择应�
 
 当前状态：按 `docs/TECHNICAL_IMPLEMENTATION.md` 实施中。仓库内的构建通过不代表 macOS System Extension、Windows WFP 或真实网络路径已经验收。
 
-共享基础已经覆盖版本化契约、Rust 策略/编译器/SQLite 权威存储、认证本地控制面、Avalonia 工作区、SOCKS5/HTTP CONNECT/Shadowsocks 出口、系统凭据库和有背压的 NPF1 TCP/UDP 数据通道。网络出口页既能只读发现 macOS 当前公开的系统 SOCKS/HTTP 代理，也支持逐行粘贴 SOCKS5、HTTP、`ss://` 标准代理链接或 Shadowsocks Base64 订阅内容；三种入口都先显示不含账号、密码或加密密钥的识别预览，再由用户明确批量保存，秘密只进入系统凭据库。Shadowsocks 当前只开放六种 AEAD/AEAD-2022 方法，不接受 `none`、流加密和 SIP003 plugin；订阅源 URL、远程刷新与节点生命周期管理尚未开放。用户可在共享桌面端选择默认代理；只有当前配置在 60 秒内通过代理握手后，服务端才允许把它设为默认，其中 Shadowsocks 还必须通过固定公共目标的 WebPKI TLS 握手，避免错误密钥被误判为可用。默认路由配置、乐观 revision 与待确认快照在同一事务发布，未命中规则的流量使用快照中的 fail-closed 默认代理，回滚也会恢复历史默认路由。独立出口探针已经具备 HTTPS + Ed25519 签名回执、最多四把公钥的零停机轮换、固定安装信任、DIRECT/PROXY 网关编排、Provider EXIT 越级拒绝、不可变有界回执存储、共享桌面端触发/展示、Linux 生产部署与安全密钥管理工具；真实公网双路径仍需在正式环境验收。浏览器学习链路包含 Safari/Chromium 正确入口、标签页隔离、临时站点权限、候选审核和幂等规则确认；macOS 已具备真实 Transparent/DNS Provider、物理 DIRECT、代理出口、同时绑定固定代码签名标识与正式 TeamIdentifier 的 gatewayd 防回环系统规则、System Extension Bundle、LaunchAgent 生命周期与打包冒烟；旧快照会在 Provider 启动前原子升级，回滚也会重建当前系统规则，当前保护快照激活前 gatewayd 不会建立代理上游连接。临时签名只能提供不带 TeamIdentifier 的开发身份，交叉构建和夹具回显也只属于仓库证据；正式签名、系统授权与真实 VPN 共存仍需独立验收。
+共享基础已经覆盖版本化契约、Rust 策略/编译器/SQLite 权威存储、认证本地控制面、Avalonia 工作区、SOCKS5/HTTP CONNECT/Shadowsocks 出口、系统凭据库和有背压的 NPF1 TCP/UDP 数据通道。网络出口页既能只读发现 macOS 当前公开的系统 SOCKS/HTTP 代理，也支持逐行粘贴 SOCKS5、HTTP、`ss://` 标准代理链接或 Shadowsocks Base64 订阅内容；三种入口都先显示不含账号、密码或加密密钥的识别预览，再由用户明确批量保存，秘密只进入系统凭据库。Shadowsocks 当前只开放六种 AEAD/AEAD-2022 方法，不接受 `none`、流加密和 SIP003 plugin。gatewayd 已开放不返回 URL/Token 的远程订阅列表、创建/更新和手动刷新 RPC，具备稳定节点身份、失败退避及凭据补偿；后台调度、删除语义和桌面管理页尚未开放。用户可在共享桌面端选择默认代理；只有当前配置在 60 秒内通过代理握手后，服务端才允许把它设为默认，其中 Shadowsocks 还必须通过固定公共目标的 WebPKI TLS 握手，避免错误密钥被误判为可用。默认路由配置、乐观 revision 与待确认快照在同一事务发布，未命中规则的流量使用快照中的 fail-closed 默认代理，回滚也会恢复历史默认路由。独立出口探针已经具备 HTTPS + Ed25519 签名回执、最多四把公钥的零停机轮换、固定安装信任、DIRECT/PROXY 网关编排、Provider EXIT 越级拒绝、不可变有界回执存储、共享桌面端触发/展示、Linux 生产部署与安全密钥管理工具；真实公网双路径仍需在正式环境验收。浏览器学习链路包含 Safari/Chromium 正确入口、标签页隔离、临时站点权限、候选审核和幂等规则确认；macOS 已具备真实 Transparent/DNS Provider、物理 DIRECT、代理出口、同时绑定固定代码签名标识与正式 TeamIdentifier 的 gatewayd 防回环系统规则、System Extension Bundle、LaunchAgent 生命周期与打包冒烟；旧快照会在 Provider 启动前原子升级，回滚也会重建当前系统规则，当前保护快照激活前 gatewayd 不会建立代理上游连接。临时签名只能提供不带 TeamIdentifier 的开发身份，交叉构建和夹具回显也只属于仓库证据；正式签名、系统授权与真实 VPN 共存仍需独立验收。
 
 Windows 已接入 SCM Service、受限命名管道、共享 UI、最小 WFP ALE Connect Redirect Driver、动态 BFE session、版本化 IOCTL/context ABI、redirect records 和用户态 TCP DIRECT/PROXY/BLOCK。DIRECT TCP/DNS 会实时选择可信物理接口并设置 `IP_UNICAST_IF`/`IPV6_UNICAST_IF`；没有物理路径时明确失败。域名身份运行时会在确认 `198.18.0.0/15` 无路由冲突后分配可恢复的 IPv4/安装级 ULA 合成地址，由 WFP TCP 代理反查域名并重新物理解域或保留给远端代理。
 
@@ -91,6 +91,7 @@ TCP/DNS/UDP/QUIC 验收使用
 - [Shadowsocks 订阅内容导入 ADR](docs/ADR/0037-import-shadowsocks-subscription-payloads.md)
 - [远程订阅安全获取 ADR](docs/ADR/0038-fetch-remote-subscriptions-over-pinned-public-https.md)
 - [远程订阅状态与节点归属 ADR](docs/ADR/0039-own-remote-subscription-state-and-outbounds.md)
+- [订阅刷新凭据补偿与并发编排 ADR](docs/ADR/0040-orchestrate-subscription-refresh-with-compensation.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链

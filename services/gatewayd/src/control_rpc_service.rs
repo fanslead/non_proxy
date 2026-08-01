@@ -4,6 +4,9 @@ use std::{path::PathBuf, sync::Arc};
 use crate::credential_store::OsCredentialStore;
 use crate::{Gateway, credential_store::CredentialStore, session_capability::SessionCapability};
 use nonproxy_exit_probe::ExitProbeClient;
+use nonproxy_subscription::SubscriptionClient;
+
+use crate::subscription_service::SubscriptionService;
 
 const MAX_RPC_MESSAGE_BYTES: usize = 4 * 1024 * 1024;
 
@@ -12,6 +15,7 @@ pub struct ControlRpcService {
     pub(crate) gateway: Gateway,
     pub(crate) session: SessionCapability,
     pub(crate) credential_store: Arc<dyn CredentialStore>,
+    pub(crate) subscription_service: SubscriptionService,
     pub(crate) exit_probe_client: Option<ExitProbeClient>,
     pub(crate) diagnostics_directory: Option<PathBuf>,
 }
@@ -20,10 +24,16 @@ impl ControlRpcService {
     #[cfg(test)]
     #[must_use]
     pub fn new(gateway: Gateway, session: SessionCapability) -> Self {
+        let credential_store: Arc<dyn CredentialStore> = Arc::new(OsCredentialStore);
         Self {
+            subscription_service: SubscriptionService::new(
+                gateway.clone(),
+                Arc::clone(&credential_store),
+                Arc::new(SubscriptionClient::new()),
+            ),
             gateway,
             session,
-            credential_store: Arc::new(OsCredentialStore),
+            credential_store,
             exit_probe_client: None,
             diagnostics_directory: None,
         }
@@ -35,6 +45,11 @@ impl ControlRpcService {
         credential_store: Arc<dyn CredentialStore>,
     ) -> Self {
         Self {
+            subscription_service: SubscriptionService::new(
+                gateway.clone(),
+                Arc::clone(&credential_store),
+                Arc::new(SubscriptionClient::new()),
+            ),
             gateway,
             session,
             credential_store,

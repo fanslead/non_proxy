@@ -17,8 +17,9 @@ use nonproxy_proto::control::v1::{
     OperationContext, OutboundKind as ProtoOutboundKind, RecordLearningObservationRequest,
     RollbackPolicySnapshotRequest, SetDefaultRouteRequest, StartLearningSessionRequest,
     StopLearningSessionRequest, TestOutboundRequest, UpsertNetworkProfileRequest,
-    UpsertPolicyRequest, VerifyExitRequest, control_service_server::ControlService,
-    set_default_route_request, start_learning_session_request,
+    UpsertPolicyRequest, UpsertSubscriptionSourceRequest, VerifyExitRequest,
+    control_service_server::ControlService, set_default_route_request,
+    start_learning_session_request,
 };
 use nonproxy_proto::events::v1::{LearningCandidateKind, RuntimeState, event_envelope};
 use nonproxy_proto::policy::v1::{NetworkFingerprintKind, NetworkProfileSpec};
@@ -74,6 +75,32 @@ async fn mutation_requires_the_exact_session_capability() {
 
     let Err(status) = result else {
         panic!("错误令牌必须被拒绝");
+    };
+    assert_eq!(status.code(), Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn subscription_mutation_requires_authentication_before_network_access() {
+    let service = service([7; 32]);
+    let request = UpsertSubscriptionSourceRequest {
+        context: Some(context([8; 32], "save-subscription")),
+        source_id: "office".to_owned(),
+        display_name: "办公室订阅".to_owned(),
+        endpoint_url: b"https://127.0.0.1/private".to_vec(),
+        enabled: true,
+        refresh_interval: Some(prost_types::Duration {
+            seconds: 15 * 60,
+            nanos: 0,
+        }),
+        expected_revision: 0,
+    };
+
+    let result = service
+        .upsert_subscription_source(Request::new(request))
+        .await;
+
+    let Err(status) = result else {
+        panic!("错误令牌必须在发起订阅网络请求前被拒绝");
     };
     assert_eq!(status.code(), Code::PermissionDenied);
 }

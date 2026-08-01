@@ -20,6 +20,7 @@ nonproxy-policy = { path = "../../crates/nonproxy-policy" }
 nonproxy-policy-compiler = { path = "../../crates/nonproxy-policy-compiler" }
 nonproxy-proto = { path = "../../crates/nonproxy-proto" }
 nonproxy-storage = { path = "../../crates/nonproxy-storage" }
+nonproxy-subscription = { path = "../../crates/nonproxy-subscription" }
 nonproxy-windows-ipc = { path = "../../crates/nonproxy-windows-ipc" }
 percent-encoding.workspace = true
 prost.workspace = true

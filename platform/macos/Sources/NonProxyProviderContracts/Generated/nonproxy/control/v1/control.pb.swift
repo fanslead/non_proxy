@@ -1315,6 +1315,267 @@ public nonisolated struct Nonproxy_Control_V1_ListOutboundsResponse: Sendable {
   fileprivate var _page: Nonproxy_Common_V1_PageResponse? = nil
 }
 
+/// SubscriptionSourceSummary 返回不含订阅 URL、凭据引用和响应正文的安全摘要。
+public nonisolated struct Nonproxy_Control_V1_SubscriptionSourceSummary: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: String = String()
+
+  public var displayName: String = String()
+
+  public var enabled: Bool = false
+
+  public var refreshInterval: SwiftProtobuf.Google_Protobuf_Duration {
+    get {_refreshInterval ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_refreshInterval = newValue}
+  }
+  /// Returns true if `refreshInterval` has been explicitly set.
+  public var hasRefreshInterval: Bool {self._refreshInterval != nil}
+  /// Clears the value of `refreshInterval`. Subsequent reads from it will return its default value.
+  public mutating func clearRefreshInterval() {self._refreshInterval = nil}
+
+  public var revision: UInt64 = 0
+
+  public var contentGeneration: UInt64 = 0
+
+  public var consecutiveFailures: UInt32 = 0
+
+  public var nextRefreshAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_nextRefreshAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_nextRefreshAt = newValue}
+  }
+  /// Returns true if `nextRefreshAt` has been explicitly set.
+  public var hasNextRefreshAt: Bool {self._nextRefreshAt != nil}
+  /// Clears the value of `nextRefreshAt`. Subsequent reads from it will return its default value.
+  public mutating func clearNextRefreshAt() {self._nextRefreshAt = nil}
+
+  public var lastAttemptedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_lastAttemptedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_lastAttemptedAt = newValue}
+  }
+  /// Returns true if `lastAttemptedAt` has been explicitly set.
+  public var hasLastAttemptedAt: Bool {self._lastAttemptedAt != nil}
+  /// Clears the value of `lastAttemptedAt`. Subsequent reads from it will return its default value.
+  public mutating func clearLastAttemptedAt() {self._lastAttemptedAt = nil}
+
+  public var lastSucceededAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_lastSucceededAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_lastSucceededAt = newValue}
+  }
+  /// Returns true if `lastSucceededAt` has been explicitly set.
+  public var hasLastSucceededAt: Bool {self._lastSucceededAt != nil}
+  /// Clears the value of `lastSucceededAt`. Subsequent reads from it will return its default value.
+  public mutating func clearLastSucceededAt() {self._lastSucceededAt = nil}
+
+  public var lastErrorCode: String = String()
+
+  public var nodeCount: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _refreshInterval: SwiftProtobuf.Google_Protobuf_Duration? = nil
+  fileprivate var _nextRefreshAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _lastAttemptedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _lastSucceededAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_ListSubscriptionSourcesRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var page: Nonproxy_Common_V1_PageRequest {
+    get {_page ?? Nonproxy_Common_V1_PageRequest()}
+    set {_page = newValue}
+  }
+  /// Returns true if `page` has been explicitly set.
+  public var hasPage: Bool {self._page != nil}
+  /// Clears the value of `page`. Subsequent reads from it will return its default value.
+  public mutating func clearPage() {self._page = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _page: Nonproxy_Common_V1_PageRequest? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_ListSubscriptionSourcesResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var sources: [Nonproxy_Control_V1_SubscriptionSourceSummary] = []
+
+  public var page: Nonproxy_Common_V1_PageResponse {
+    get {_page ?? Nonproxy_Common_V1_PageResponse()}
+    set {_page = newValue}
+  }
+  /// Returns true if `page` has been explicitly set.
+  public var hasPage: Bool {self._page != nil}
+  /// Clears the value of `page`. Subsequent reads from it will return its default value.
+  public mutating func clearPage() {self._page = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _page: Nonproxy_Common_V1_PageResponse? = nil
+}
+
+/// UpsertSubscriptionSourceRequest 的 endpoint_url 只允许 HTTPS，服务端不得记录或持久化明文。
+public nonisolated struct Nonproxy_Control_V1_UpsertSubscriptionSourceRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var sourceID: String = String()
+
+  public var displayName: String = String()
+
+  public var endpointURL: Data = Data()
+
+  public var enabled: Bool = false
+
+  public var refreshInterval: SwiftProtobuf.Google_Protobuf_Duration {
+    get {_refreshInterval ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_refreshInterval = newValue}
+  }
+  /// Returns true if `refreshInterval` has been explicitly set.
+  public var hasRefreshInterval: Bool {self._refreshInterval != nil}
+  /// Clears the value of `refreshInterval`. Subsequent reads from it will return its default value.
+  public mutating func clearRefreshInterval() {self._refreshInterval = nil}
+
+  public var expectedRevision: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+  fileprivate var _refreshInterval: SwiftProtobuf.Google_Protobuf_Duration? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_SubscriptionMutationResult: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var source: Nonproxy_Control_V1_SubscriptionSourceSummary {
+    get {_storage._source ?? Nonproxy_Control_V1_SubscriptionSourceSummary()}
+    set {_uniqueStorage()._source = newValue}
+  }
+  /// Returns true if `source` has been explicitly set.
+  public var hasSource: Bool {_storage._source != nil}
+  /// Clears the value of `source`. Subsequent reads from it will return its default value.
+  public mutating func clearSource() {_uniqueStorage()._source = nil}
+
+  public var contentUnchanged: Bool {
+    get {_storage._contentUnchanged}
+    set {_uniqueStorage()._contentUnchanged = newValue}
+  }
+
+  public var warnings: [String] {
+    get {_storage._warnings}
+    set {_uniqueStorage()._warnings = newValue}
+  }
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_storage._error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_uniqueStorage()._error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {_storage._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {_uniqueStorage()._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+public nonisolated struct Nonproxy_Control_V1_UpsertSubscriptionSourceResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Nonproxy_Control_V1_SubscriptionMutationResult {
+    get {_result ?? Nonproxy_Control_V1_SubscriptionMutationResult()}
+    set {_result = newValue}
+  }
+  /// Returns true if `result` has been explicitly set.
+  public var hasResult: Bool {self._result != nil}
+  /// Clears the value of `result`. Subsequent reads from it will return its default value.
+  public mutating func clearResult() {self._result = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _result: Nonproxy_Control_V1_SubscriptionMutationResult? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_RefreshSubscriptionSourceRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var sourceID: String = String()
+
+  public var expectedRevision: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_RefreshSubscriptionSourceResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Nonproxy_Control_V1_SubscriptionMutationResult {
+    get {_result ?? Nonproxy_Control_V1_SubscriptionMutationResult()}
+    set {_result = newValue}
+  }
+  /// Returns true if `result` has been explicitly set.
+  public var hasResult: Bool {self._result != nil}
+  /// Clears the value of `result`. Subsequent reads from it will return its default value.
+  public mutating func clearResult() {self._result = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _result: Nonproxy_Control_V1_SubscriptionMutationResult? = nil
+}
+
 /// ConnectionDecisionSummary 是不含 URL 路径、查询参数和秘密的连接活动证据。
 public nonisolated struct Nonproxy_Control_V1_ConnectionDecisionSummary: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -3966,6 +4227,435 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundsResponse: SwiftProtobuf.M
     if lhs.outbounds != rhs.outbounds {return false}
     if lhs._page != rhs._page {return false}
     if lhs.routingRevision != rhs.routingRevision {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_SubscriptionSourceSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SubscriptionSourceSummary"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{1}enabled\0\u{3}refresh_interval\0\u{1}revision\0\u{3}content_generation\0\u{3}consecutive_failures\0\u{3}next_refresh_at\0\u{3}last_attempted_at\0\u{3}last_succeeded_at\0\u{3}last_error_code\0\u{3}node_count\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._refreshInterval) }()
+      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.revision) }()
+      case 6: try { try decoder.decodeSingularUInt64Field(value: &self.contentGeneration) }()
+      case 7: try { try decoder.decodeSingularUInt32Field(value: &self.consecutiveFailures) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._nextRefreshAt) }()
+      case 9: try { try decoder.decodeSingularMessageField(value: &self._lastAttemptedAt) }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._lastSucceededAt) }()
+      case 11: try { try decoder.decodeSingularStringField(value: &self.lastErrorCode) }()
+      case 12: try { try decoder.decodeSingularUInt32Field(value: &self.nodeCount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.displayName.isEmpty {
+      try visitor.visitSingularStringField(value: self.displayName, fieldNumber: 2)
+    }
+    if self.enabled != false {
+      try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 3)
+    }
+    try { if let v = self._refreshInterval {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    if self.revision != 0 {
+      try visitor.visitSingularUInt64Field(value: self.revision, fieldNumber: 5)
+    }
+    if self.contentGeneration != 0 {
+      try visitor.visitSingularUInt64Field(value: self.contentGeneration, fieldNumber: 6)
+    }
+    if self.consecutiveFailures != 0 {
+      try visitor.visitSingularUInt32Field(value: self.consecutiveFailures, fieldNumber: 7)
+    }
+    try { if let v = self._nextRefreshAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
+    try { if let v = self._lastAttemptedAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    } }()
+    try { if let v = self._lastSucceededAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    } }()
+    if !self.lastErrorCode.isEmpty {
+      try visitor.visitSingularStringField(value: self.lastErrorCode, fieldNumber: 11)
+    }
+    if self.nodeCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.nodeCount, fieldNumber: 12)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_SubscriptionSourceSummary, rhs: Nonproxy_Control_V1_SubscriptionSourceSummary) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.displayName != rhs.displayName {return false}
+    if lhs.enabled != rhs.enabled {return false}
+    if lhs._refreshInterval != rhs._refreshInterval {return false}
+    if lhs.revision != rhs.revision {return false}
+    if lhs.contentGeneration != rhs.contentGeneration {return false}
+    if lhs.consecutiveFailures != rhs.consecutiveFailures {return false}
+    if lhs._nextRefreshAt != rhs._nextRefreshAt {return false}
+    if lhs._lastAttemptedAt != rhs._lastAttemptedAt {return false}
+    if lhs._lastSucceededAt != rhs._lastSucceededAt {return false}
+    if lhs.lastErrorCode != rhs.lastErrorCode {return false}
+    if lhs.nodeCount != rhs.nodeCount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ListSubscriptionSourcesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListSubscriptionSourcesRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}page\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._page) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._page {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ListSubscriptionSourcesRequest, rhs: Nonproxy_Control_V1_ListSubscriptionSourcesRequest) -> Bool {
+    if lhs._page != rhs._page {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ListSubscriptionSourcesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListSubscriptionSourcesResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sources\0\u{1}page\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.sources) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._page) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.sources.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.sources, fieldNumber: 1)
+    }
+    try { if let v = self._page {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ListSubscriptionSourcesResponse, rhs: Nonproxy_Control_V1_ListSubscriptionSourcesResponse) -> Bool {
+    if lhs.sources != rhs.sources {return false}
+    if lhs._page != rhs._page {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_UpsertSubscriptionSourceRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpsertSubscriptionSourceRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}source_id\0\u{3}display_name\0\u{3}endpoint_url\0\u{1}enabled\0\u{3}refresh_interval\0\u{3}expected_revision\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.sourceID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.endpointURL) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._refreshInterval) }()
+      case 7: try { try decoder.decodeSingularUInt64Field(value: &self.expectedRevision) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.sourceID.isEmpty {
+      try visitor.visitSingularStringField(value: self.sourceID, fieldNumber: 2)
+    }
+    if !self.displayName.isEmpty {
+      try visitor.visitSingularStringField(value: self.displayName, fieldNumber: 3)
+    }
+    if !self.endpointURL.isEmpty {
+      try visitor.visitSingularBytesField(value: self.endpointURL, fieldNumber: 4)
+    }
+    if self.enabled != false {
+      try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 5)
+    }
+    try { if let v = self._refreshInterval {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
+    if self.expectedRevision != 0 {
+      try visitor.visitSingularUInt64Field(value: self.expectedRevision, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_UpsertSubscriptionSourceRequest, rhs: Nonproxy_Control_V1_UpsertSubscriptionSourceRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.sourceID != rhs.sourceID {return false}
+    if lhs.displayName != rhs.displayName {return false}
+    if lhs.endpointURL != rhs.endpointURL {return false}
+    if lhs.enabled != rhs.enabled {return false}
+    if lhs._refreshInterval != rhs._refreshInterval {return false}
+    if lhs.expectedRevision != rhs.expectedRevision {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_SubscriptionMutationResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SubscriptionMutationResult"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}source\0\u{3}content_unchanged\0\u{1}warnings\0\u{1}error\0")
+
+  fileprivate class _StorageClass {
+    var _source: Nonproxy_Control_V1_SubscriptionSourceSummary? = nil
+    var _contentUnchanged: Bool = false
+    var _warnings: [String] = []
+    var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _source = source._source
+      _contentUnchanged = source._contentUnchanged
+      _warnings = source._warnings
+      _error = source._error
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._source) }()
+        case 2: try { try decoder.decodeSingularBoolField(value: &_storage._contentUnchanged) }()
+        case 3: try { try decoder.decodeRepeatedStringField(value: &_storage._warnings) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._error) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._source {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      if _storage._contentUnchanged != false {
+        try visitor.visitSingularBoolField(value: _storage._contentUnchanged, fieldNumber: 2)
+      }
+      if !_storage._warnings.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._warnings, fieldNumber: 3)
+      }
+      try { if let v = _storage._error {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_SubscriptionMutationResult, rhs: Nonproxy_Control_V1_SubscriptionMutationResult) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._source != rhs_storage._source {return false}
+        if _storage._contentUnchanged != rhs_storage._contentUnchanged {return false}
+        if _storage._warnings != rhs_storage._warnings {return false}
+        if _storage._error != rhs_storage._error {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_UpsertSubscriptionSourceResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpsertSubscriptionSourceResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._result {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_UpsertSubscriptionSourceResponse, rhs: Nonproxy_Control_V1_UpsertSubscriptionSourceResponse) -> Bool {
+    if lhs._result != rhs._result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_RefreshSubscriptionSourceRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RefreshSubscriptionSourceRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}source_id\0\u{3}expected_revision\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.sourceID) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.expectedRevision) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.sourceID.isEmpty {
+      try visitor.visitSingularStringField(value: self.sourceID, fieldNumber: 2)
+    }
+    if self.expectedRevision != 0 {
+      try visitor.visitSingularUInt64Field(value: self.expectedRevision, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_RefreshSubscriptionSourceRequest, rhs: Nonproxy_Control_V1_RefreshSubscriptionSourceRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.sourceID != rhs.sourceID {return false}
+    if lhs.expectedRevision != rhs.expectedRevision {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_RefreshSubscriptionSourceResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RefreshSubscriptionSourceResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._result {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_RefreshSubscriptionSourceResponse, rhs: Nonproxy_Control_V1_RefreshSubscriptionSourceResponse) -> Bool {
+    if lhs._result != rhs._result {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -137,6 +137,45 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "ListSubscriptionSources" metadata.
+        public enum ListSubscriptionSources: Sendable {
+            /// Request type for "ListSubscriptionSources".
+            public typealias Input = Nonproxy_Control_V1_ListSubscriptionSourcesRequest
+            /// Response type for "ListSubscriptionSources".
+            public typealias Output = Nonproxy_Control_V1_ListSubscriptionSourcesResponse
+            /// Descriptor for "ListSubscriptionSources".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "ListSubscriptionSources",
+                type: .unary
+            )
+        }
+        /// Namespace for "UpsertSubscriptionSource" metadata.
+        public enum UpsertSubscriptionSource: Sendable {
+            /// Request type for "UpsertSubscriptionSource".
+            public typealias Input = Nonproxy_Control_V1_UpsertSubscriptionSourceRequest
+            /// Response type for "UpsertSubscriptionSource".
+            public typealias Output = Nonproxy_Control_V1_UpsertSubscriptionSourceResponse
+            /// Descriptor for "UpsertSubscriptionSource".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "UpsertSubscriptionSource",
+                type: .unary
+            )
+        }
+        /// Namespace for "RefreshSubscriptionSource" metadata.
+        public enum RefreshSubscriptionSource: Sendable {
+            /// Request type for "RefreshSubscriptionSource".
+            public typealias Input = Nonproxy_Control_V1_RefreshSubscriptionSourceRequest
+            /// Response type for "RefreshSubscriptionSource".
+            public typealias Output = Nonproxy_Control_V1_RefreshSubscriptionSourceResponse
+            /// Descriptor for "RefreshSubscriptionSource".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "RefreshSubscriptionSource",
+                type: .unary
+            )
+        }
         /// Namespace for "ListConnectionDecisions" metadata.
         public enum ListConnectionDecisions: Sendable {
             /// Request type for "ListConnectionDecisions".
@@ -395,6 +434,9 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             ApplyPolicySnapshot.descriptor,
             RollbackPolicySnapshot.descriptor,
             ListOutbounds.descriptor,
+            ListSubscriptionSources.descriptor,
+            UpsertSubscriptionSource.descriptor,
+            RefreshSubscriptionSource.descriptor,
             ListConnectionDecisions.descriptor,
             ListExitProbes.descriptor,
             ImportConfiguration.descriptor,
@@ -606,6 +648,63 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListOutboundsResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListOutboundsResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "ListSubscriptionSources" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ListSubscriptionSourcesRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ListSubscriptionSourcesRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ListSubscriptionSourcesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func listSubscriptionSources<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListSubscriptionSourcesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ListSubscriptionSourcesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListSubscriptionSourcesResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListSubscriptionSourcesResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "UpsertSubscriptionSource" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_UpsertSubscriptionSourceRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_UpsertSubscriptionSourceRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_UpsertSubscriptionSourceResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func upsertSubscriptionSource<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertSubscriptionSourceRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_UpsertSubscriptionSourceRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_UpsertSubscriptionSourceResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertSubscriptionSourceResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "RefreshSubscriptionSource" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_RefreshSubscriptionSourceRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_RefreshSubscriptionSourceRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_RefreshSubscriptionSourceResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func refreshSubscriptionSource<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_RefreshSubscriptionSourceRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_RefreshSubscriptionSourceRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_RefreshSubscriptionSourceResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_RefreshSubscriptionSourceResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "ListConnectionDecisions" method.
@@ -1253,6 +1352,96 @@ extension Nonproxy_Control_V1_ControlService {
             try await self.client.unary(
                 request: request,
                 descriptor: Nonproxy_Control_V1_ControlService.Method.ListOutbounds.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "ListSubscriptionSources" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ListSubscriptionSourcesRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ListSubscriptionSourcesRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ListSubscriptionSourcesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func listSubscriptionSources<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListSubscriptionSourcesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ListSubscriptionSourcesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListSubscriptionSourcesResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListSubscriptionSourcesResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.ListSubscriptionSources.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "UpsertSubscriptionSource" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_UpsertSubscriptionSourceRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_UpsertSubscriptionSourceRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_UpsertSubscriptionSourceResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func upsertSubscriptionSource<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertSubscriptionSourceRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_UpsertSubscriptionSourceRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_UpsertSubscriptionSourceResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertSubscriptionSourceResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.UpsertSubscriptionSource.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "RefreshSubscriptionSource" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_RefreshSubscriptionSourceRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_RefreshSubscriptionSourceRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_RefreshSubscriptionSourceResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func refreshSubscriptionSource<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_RefreshSubscriptionSourceRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_RefreshSubscriptionSourceRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_RefreshSubscriptionSourceResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_RefreshSubscriptionSourceResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.RefreshSubscriptionSource.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -2058,6 +2247,81 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
         )
     }
 
+    /// Call the "ListSubscriptionSources" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_ListSubscriptionSourcesRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listSubscriptionSources<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListSubscriptionSourcesRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListSubscriptionSourcesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.listSubscriptionSources(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_ListSubscriptionSourcesRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_ListSubscriptionSourcesResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "UpsertSubscriptionSource" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_UpsertSubscriptionSourceRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func upsertSubscriptionSource<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertSubscriptionSourceRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertSubscriptionSourceResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.upsertSubscriptionSource(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_UpsertSubscriptionSourceRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_UpsertSubscriptionSourceResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "RefreshSubscriptionSource" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_RefreshSubscriptionSourceRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func refreshSubscriptionSource<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_RefreshSubscriptionSourceRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_RefreshSubscriptionSourceResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.refreshSubscriptionSource(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_RefreshSubscriptionSourceRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_RefreshSubscriptionSourceResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "ListConnectionDecisions" method.
     ///
     /// - Parameters:
@@ -2790,6 +3054,93 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.listOutbounds(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListSubscriptionSources" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listSubscriptionSources<Result>(
+        _ message: Nonproxy_Control_V1_ListSubscriptionSourcesRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListSubscriptionSourcesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_ListSubscriptionSourcesRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.listSubscriptionSources(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "UpsertSubscriptionSource" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func upsertSubscriptionSource<Result>(
+        _ message: Nonproxy_Control_V1_UpsertSubscriptionSourceRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertSubscriptionSourceResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertSubscriptionSourceRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.upsertSubscriptionSource(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "RefreshSubscriptionSource" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func refreshSubscriptionSource<Result>(
+        _ message: Nonproxy_Control_V1_RefreshSubscriptionSourceRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_RefreshSubscriptionSourceResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_RefreshSubscriptionSourceRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.refreshSubscriptionSource(
             request: request,
             options: options,
             onResponse: handleResponse

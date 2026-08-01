@@ -24,7 +24,7 @@ use crate::{
     decision_rpc, diagnostics_export, exit_probe, exit_probe_rpc, learning_rpc,
     network_profile_rpc, outbound_import_service, outbound_probe,
     proto_policy::{policy_from_proto, policy_to_proto},
-    routing_rpc, runtime_override_rpc, system_rpc,
+    routing_rpc, runtime_override_rpc, subscription_rpc, system_rpc,
 };
 
 #[tonic::async_trait]
@@ -324,6 +324,45 @@ impl ControlService for ControlRpcService {
             page: Some(page_response),
             routing_revision: routing.revision(),
         }))
+    }
+
+    async fn list_subscription_sources(
+        &self,
+        request: Request<control_proto::ListSubscriptionSourcesRequest>,
+    ) -> Result<Response<control_proto::ListSubscriptionSourcesResponse>, Status> {
+        Ok(Response::new(
+            subscription_rpc::list(&self.gateway, request.into_inner()).await?,
+        ))
+    }
+
+    async fn upsert_subscription_source(
+        &self,
+        request: Request<control_proto::UpsertSubscriptionSourceRequest>,
+    ) -> Result<Response<control_proto::UpsertSubscriptionSourceResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            subscription_rpc::upsert(
+                &self.subscription_service,
+                &self.gateway,
+                request.into_inner(),
+            )
+            .await,
+        ))
+    }
+
+    async fn refresh_subscription_source(
+        &self,
+        request: Request<control_proto::RefreshSubscriptionSourceRequest>,
+    ) -> Result<Response<control_proto::RefreshSubscriptionSourceResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            subscription_rpc::refresh(
+                &self.subscription_service,
+                &self.gateway,
+                request.into_inner(),
+            )
+            .await,
+        ))
     }
 
     async fn list_connection_decisions(
