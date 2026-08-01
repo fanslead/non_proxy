@@ -134,3 +134,42 @@ jobs:
           path: .artifacts/windows-driver/${{ matrix.platform }}
           if-no-files-found: error
           retention-days: 7
+
+  windows-adapter-host:
+    name: Windows Adapter Host（${{ matrix.architecture }}）
+    runs-on: windows-2022
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x64
+            target: x86_64-pc-windows-msvc
+            lint: true
+          - architecture: ARM64
+            target: aarch64-pc-windows-msvc
+            lint: false
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 固定为 v6.0.2
+
+      - name: 安装固定 Rust 目标
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal --component clippy
+          rustup target add '${{ matrix.target }}' --toolchain 1.97.1
+
+      - name: 编译并检查 Windows Adapter Host
+        shell: pwsh
+        run: |
+          if ('${{ matrix.lint }}' -eq 'true') {
+            cargo +1.97.1 clippy --locked `
+              -p nonproxy-adapter-host `
+              --all-targets `
+              --target '${{ matrix.target }}' `
+              -- -D warnings
+          } else {
+            cargo +1.97.1 check --locked `
+              -p nonproxy-adapter-host `
+              --target '${{ matrix.target }}'
+          }

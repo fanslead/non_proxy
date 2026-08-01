@@ -17,7 +17,7 @@ NonProxy 专属 sidecar；如果直接覆盖文件，应用崩溃、重复 RPC�
 
 1. `nonproxy-adapter-transaction` 作为独立同步内核，由 adapter-host 在阻塞任务边界调用。
    UI、`gatewayd` 和渲染器均不直接写第三方客户端文件。
-2. `prepare` 使用有界 `normalized-policy-v1` 生成候选，读取当前 sidecar 作为备份，并把
+2. `prepare` 使用有界版本化 normalized policy 生成候选，读取当前 sidecar 作为备份，并把
    candidate、backup 和 change manifest 分别写入 owner-only 目录。文件写入和目录项都
    `fsync`；Unix 文件为 `0600`、目录为 `0700`。
 3. operation ID 与 adapter ID 生成稳定 change ID。完全相同的重放返回第一次的过期时间

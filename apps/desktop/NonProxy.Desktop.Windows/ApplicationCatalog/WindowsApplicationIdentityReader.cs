@@ -34,7 +34,11 @@ internal sealed class WindowsApplicationIdentityReader : IWindowsApplicationIden
             signerIdentity,
             null,
             candidate.IsRunning,
-            null,
+            new ApplicationAdapterSelector(
+                1,
+                PlatformKind.Windows,
+                ApplicationAdapterSelectorKind.WindowsExecutable,
+                path),
             false);
     }
 
@@ -58,7 +62,11 @@ internal sealed class WindowsApplicationIdentityReader : IWindowsApplicationIden
             signerIdentity,
             candidate.IdentitySource,
             candidate.IsRunning,
-            null,
+            new ApplicationAdapterSelector(
+                1,
+                PlatformKind.Windows,
+                ApplicationAdapterSelectorKind.WindowsPackageFamily,
+                candidate.IdentitySource),
             false);
     }
 }

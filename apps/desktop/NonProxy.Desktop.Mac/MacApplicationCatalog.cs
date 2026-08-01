@@ -93,7 +93,11 @@ internal sealed class MacApplicationCatalog(
             NormalizeOptional(application.SignerIdentity),
             NormalizeOptional(application.BundleIdentifier),
             application.IsRunning,
-            bundlePath);
+            new ApplicationAdapterSelector(
+                1,
+                PlatformKind.MacOS,
+                ApplicationAdapterSelectorKind.MacOsBundle,
+                bundlePath));
     }
 
     private static string? NormalizeBundlePath(string? value)

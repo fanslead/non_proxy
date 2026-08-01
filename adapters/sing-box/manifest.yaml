@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 adapter_id: sing-box
 client_name: sing-box
 minimum_version: 1.11.0
@@ -8,4 +8,7 @@ capabilities:
   - domain_rule
   - cidr_rule
   - native_candidate_validation
+application_selectors:
+  macos: bundle_prefix
+  windows: exact_executable
 integration_state: authenticated_host_validation

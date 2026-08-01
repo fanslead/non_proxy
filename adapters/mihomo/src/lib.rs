@@ -1,6 +1,7 @@
 use nonproxy_adapter_api::{
     AdapterCapability, AdapterClient, AdapterContractError, AdapterRenderer, AdapterVersion,
-    DomainSelectorKind, NormalizedPolicy, RenderedRules, RuleSelector,
+    ApplicationPathKind, ApplicationSelectorPlatform, DomainSelectorKind, NormalizedPolicy,
+    RenderedRules, RuleSelector,
 };
 
 const MINIMUM_SUPPORTED_VERSION: AdapterVersion = AdapterVersion::new(1, 18, 0);
@@ -37,8 +38,20 @@ impl AdapterRenderer for MihomoRenderer {
         let mut output = String::from("# NonProxy managed classical rule provider.\npayload:\n");
         for rule in &policy.rules {
             let value = match &rule.selector {
-                RuleSelector::Application { bundle_path } => {
-                    format!("PROCESS-PATH-WILDCARD,{bundle_path}*")
+                RuleSelector::Application {
+                    platform: ApplicationSelectorPlatform::Macos,
+                    path_kind: ApplicationPathKind::Bundle,
+                    value,
+                    ..
+                } => format!("PROCESS-PATH-WILDCARD,{value}*"),
+                RuleSelector::Application {
+                    platform: ApplicationSelectorPlatform::Windows,
+                    path_kind: ApplicationPathKind::Executable,
+                    value,
+                    ..
+                } => format!("PROCESS-PATH,{value}"),
+                RuleSelector::Application { .. } => {
+                    return Err(AdapterContractError::SelectorInvalid);
                 }
                 RuleSelector::Domain { match_kind, value } => match match_kind {
                     DomainSelectorKind::Exact => format!("DOMAIN,{value}"),
@@ -68,7 +81,9 @@ impl AdapterRenderer for MihomoRenderer {
 
 #[cfg(test)]
 mod tests {
-    use nonproxy_adapter_api::{AdapterRenderer, AdapterVersion, NormalizedPolicy};
+    use nonproxy_adapter_api::{
+        AdapterContractError, AdapterRenderer, AdapterVersion, NormalizedPolicy,
+    };
 
     use super::MihomoRenderer;
 
@@ -76,9 +91,10 @@ mod tests {
     fn renders_quoted_classical_provider() {
         let policy = NormalizedPolicy::from_json(
             br#"{
-              "format_version":1,"revision":2,"rules":[
+              "format_version":2,"revision":2,"rules":[
                 {"id":"site","action":"direct","selector":{"kind":"domain","match_kind":"exact","value":"api.example.com"}},
-                {"id":"app","action":"direct","selector":{"kind":"application","bundle_path":"/Applications/Worker's App.app"}},
+                {"id":"app","action":"direct","selector":{"kind":"application","selector_version":1,"platform":"macos","path_kind":"bundle","value":"/Applications/Worker's App.app"}},
+                {"id":"windows","action":"direct","selector":{"kind":"application","selector_version":1,"platform":"windows","path_kind":"executable","value":"C:\\Program Files\\Chat\\chat.exe"}},
                 {"id":"v6","action":"direct","selector":{"kind":"cidr","value":"2001:db8::/32"}}
               ]
             }"#,
@@ -92,7 +108,26 @@ mod tests {
 
         assert!(text.starts_with("# NonProxy managed classical rule provider.\npayload:\n"));
         assert!(text.contains("PROCESS-PATH-WILDCARD,/Applications/Worker''s App.app/*"));
+        assert!(text.contains("'PROCESS-PATH,C:\\Program Files\\Chat\\chat.exe'"));
         assert!(text.contains("'DOMAIN,api.example.com'"));
         assert!(text.contains("'IP-CIDR6,2001:db8::/32,no-resolve'"));
+    }
+
+    #[test]
+    fn windows_package_family_is_not_downgraded_to_process_name() {
+        let policy = NormalizedPolicy::from_json(
+            br#"{"format_version":2,"revision":1,"rules":[
+              {"id":"package","action":"direct","selector":{
+                "kind":"application","selector_version":1,"platform":"windows",
+                "path_kind":"package_family","value":"Example.Chat_1234567890abc"
+              }}
+            ]}"#,
+        )
+        .unwrap_or_else(|error| panic!("测试策略无效: {error}"));
+
+        assert_eq!(
+            MihomoRenderer.render(AdapterVersion::new(1, 19, 1), &policy),
+            Err(AdapterContractError::SelectorInvalid)
+        );
     }
 }

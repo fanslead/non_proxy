@@ -266,7 +266,7 @@ mod tests {
     use super::validate_integrated;
 
     const POLICY: &[u8] = br#"{
-      "format_version":1,
+      "format_version":2,
       "revision":1,
       "rules":[{"id":"site","action":"direct","selector":{
         "kind":"domain","match_kind":"suffix","value":"example.com"

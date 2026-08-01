@@ -15,10 +15,11 @@ adapter-host 已能安全生成、验证、写入、重载和恢复第三方客�
    `session.capability`。macOS 端点固定派生自共享状态根目录的 `adapter-host` 私有子目录；
    Windows 使用当前用户 LocalAppData 下的独立状态目录和受限命名管道。Windows 宿主未被
    产品生命周期启动或能力文件未就绪时仍显式不可用。
-2. 同步只读取 `GetActivePolicySnapshot`。投影载荷使用 `normalized-policy-v1`，revision 等于
+2. 同步只读取 `GetActivePolicySnapshot`。投影载荷使用 normalized-policy v2，revision 等于
    活动快照版本，正文另算 SHA-256 后交给 adapter-host 复验。
 3. 只投影能无损表达的单维 DIRECT 规则。应用规则必须由当前平台、稳定签名身份和唯一的
-   已验证 Bundle 路径补全；域名与 CIDR 必须得到客户端版本能力支持。组合匹配、网络配置档、
+   已验证平台选择器补全；macOS 使用 Bundle、Windows Win32 使用精确 `.exe`，Windows 包系列
+   在客户端没有等价字段时阻断。域名与 CIDR 必须得到客户端版本能力支持。组合匹配、网络配置档、
    端口、传输、辅助进程、缺失路径或缺失能力任一出现时，整次同步在 prepare 前失败关闭，
    并返回逐规则 blocker，不生成更宽的替代规则。
 4. 桌面按 detect → capabilities → active snapshot → project → prepare 的顺序编排。prepare
@@ -32,8 +33,8 @@ adapter-host 已能安全生成、验证、写入、重载和恢复第三方客�
 ## 结果
 
 - 草稿漂移和投影降级都不会静默改变第三方客户端流量范围。
-- UI、策略投影、RPC 传输和平台路径发现保持分层；Windows 传输已替换，应用规则仍需独立的
-  精确 Windows selector 投影，不能复用 macOS Bundle 路径。
+- UI、策略投影、RPC 传输和平台路径发现保持分层；Windows 传输与精确可执行文件投影均不
+  复用 macOS Bundle 语义，包系列身份不做有损兼容。
 - prepare 可能在快照漂移时留下未应用的限时恢复材料；它不触碰目标配置，由 adapter-host 的
   既有过期清理回收。
 - 真实请求路径和公网出口证据仍是下一阶段能力，不能由本编排的配置成功推断。

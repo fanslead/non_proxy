@@ -18,7 +18,8 @@ public sealed class AdapterPolicyProjector(IPlatformInformation platform)
         string Id,
         string Kind,
         string Value,
-        string? MatchKind);
+        string? MatchKind,
+        AdapterApplicationProjection? Application = null);
 
     public AdapterPolicyProjection Project(
         GetActivePolicySnapshotResponse snapshot,
@@ -182,10 +183,11 @@ public sealed class AdapterPolicyProjector(IPlatformInformation platform)
                     || string.Equals(
                         application.SignerIdentity,
                         matcher.SignerId,
-                        StringComparison.Ordinal))
-                && IsAdapterBundlePath(application.BundlePath))
-            .Select(application => application.BundlePath!)
-            .Distinct(StringComparer.Ordinal)
+                        StringComparison.Ordinal)))
+            .Select(application => application.AdapterSelector)
+            .Where(selector => selector is not null)
+            .Cast<ApplicationAdapterSelector>()
+            .Distinct(AdapterApplicationSelectorMapper.Comparer)
             .ToArray();
         if (matches.Length != 1)
         {
@@ -199,11 +201,30 @@ public sealed class AdapterPolicyProjector(IPlatformInformation platform)
             return;
         }
 
+        var selector = matches[0];
+        if (!AdapterApplicationSelectorMapper.TryMap(
+                selector,
+                platform.Platform,
+                out var projection))
+        {
+            AddBlocker(
+                policy,
+                blockers,
+                selector.Kind == ApplicationAdapterSelectorKind.WindowsPackageFamily
+                    ? "NP_ADAPTER_WINDOWS_PACKAGE_UNSUPPORTED"
+                    : "NP_ADAPTER_APP_SELECTOR_UNSUPPORTED",
+                selector.Kind == ApplicationAdapterSelectorKind.WindowsPackageFamily
+                    ? "当前第三方客户端不能按 Windows 包系列身份无损匹配；未退化为进程名。"
+                    : "应用目录返回的本机选择器版本或平台不受支持。");
+            return;
+        }
+
         rules.Add(new ProjectedRule(
             policy.Id,
             "application",
-            matches[0],
-            null));
+            projection!.Value,
+            null,
+            projection));
     }
 
     private static void ProjectDomain(
@@ -276,7 +297,7 @@ public sealed class AdapterPolicyProjector(IPlatformInformation platform)
         using (var writer = new Utf8JsonWriter(stream))
         {
             writer.WriteStartObject();
-            writer.WriteNumber("format_version", 1);
+            writer.WriteNumber("format_version", 2);
             writer.WriteNumber("revision", snapshotVersion);
             writer.WriteStartArray("rules");
             foreach (var rule in rules)
@@ -290,9 +311,13 @@ public sealed class AdapterPolicyProjector(IPlatformInformation platform)
                 {
                     writer.WriteString("match_kind", rule.MatchKind);
                 }
-                writer.WriteString(
-                    rule.Kind == "application" ? "bundle_path" : "value",
-                    rule.Value);
+                if (rule.Application is { } application)
+                {
+                    writer.WriteNumber("selector_version", application.Version);
+                    writer.WriteString("platform", application.Platform);
+                    writer.WriteString("path_kind", application.PathKind);
+                }
+                writer.WriteString("value", rule.Value);
                 writer.WriteEndObject();
                 writer.WriteEndObject();
             }
@@ -319,14 +344,6 @@ public sealed class AdapterPolicyProjector(IPlatformInformation platform)
             && value.All(character =>
                 char.IsAsciiLetterOrDigit(character)
                 || character is '.' or '_' or '-');
-    }
-
-    private static bool IsAdapterBundlePath(string? value)
-    {
-        return !string.IsNullOrWhiteSpace(value)
-            && value.EndsWith(".app", StringComparison.Ordinal)
-            && !value.Any(character =>
-                character == ',' || char.IsControl(character));
     }
 
     private static void AddCapabilityBlocker(

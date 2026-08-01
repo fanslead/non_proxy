@@ -1,6 +1,7 @@
 use nonproxy_adapter_api::{
     AdapterCapability, AdapterClient, AdapterContractError, AdapterRenderer, AdapterVersion,
-    DomainSelectorKind, NormalizedPolicy, RenderedRules, RuleSelector,
+    ApplicationPathKind, ApplicationSelectorPlatform, DomainSelectorKind, NormalizedPolicy,
+    RenderedRules, RuleSelector,
 };
 
 const MINIMUM_SUPPORTED_VERSION: AdapterVersion = AdapterVersion::new(5, 0, 0);
@@ -39,11 +40,19 @@ impl AdapterRenderer for SurgeRenderer {
             String::from("# NonProxy managed ruleset. Do not edit this generated file.\n");
         for rule in &policy.rules {
             let line = match &rule.selector {
-                RuleSelector::Application { bundle_path } => {
+                RuleSelector::Application {
+                    platform: ApplicationSelectorPlatform::Macos,
+                    path_kind: ApplicationPathKind::Bundle,
+                    value,
+                    ..
+                } => {
                     if version < APP_BUNDLE_RULE_VERSION {
                         return Err(AdapterContractError::ClientVersionUnsupported);
                     }
-                    format!("PROCESS-NAME,{bundle_path}")
+                    format!("PROCESS-NAME,{value}")
+                }
+                RuleSelector::Application { .. } => {
+                    return Err(AdapterContractError::SelectorInvalid);
                 }
                 RuleSelector::Domain { match_kind, value } => match match_kind {
                     DomainSelectorKind::Exact => format!("DOMAIN,{value}"),
@@ -82,9 +91,9 @@ mod tests {
     fn renders_deterministic_external_ruleset() {
         let policy = NormalizedPolicy::from_json(
             br#"{
-              "format_version":1,"revision":2,"rules":[
+              "format_version":2,"revision":2,"rules":[
                 {"id":"site","action":"direct","selector":{"kind":"domain","match_kind":"suffix","value":"example.com"}},
-                {"id":"app","action":"direct","selector":{"kind":"application","bundle_path":"/Applications/ChatGPT.app"}},
+                {"id":"app","action":"direct","selector":{"kind":"application","selector_version":1,"platform":"macos","path_kind":"bundle","value":"/Applications/ChatGPT.app"}},
                 {"id":"lan","action":"direct","selector":{"kind":"cidr","value":"10.0.0.0/8"}}
               ]
             }"#,
@@ -106,8 +115,8 @@ mod tests {
     #[test]
     fn old_client_refuses_bundle_prefix_rule() {
         let policy = NormalizedPolicy::from_json(
-            br#"{"format_version":1,"revision":1,"rules":[
-              {"id":"app","action":"direct","selector":{"kind":"application","bundle_path":"/Applications/App.app"}}
+            br#"{"format_version":2,"revision":1,"rules":[
+              {"id":"app","action":"direct","selector":{"kind":"application","selector_version":1,"platform":"macos","path_kind":"bundle","value":"/Applications/App.app"}}
             ]}"#,
         )
         .unwrap_or_else(|error| panic!("测试策略无效: {error}"));

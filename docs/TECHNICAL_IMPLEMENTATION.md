@@ -1521,13 +1521,17 @@ HTTP CONNECT 只具备 TCP 能力，在完整网关捕获 TCP/UDP 的配置下�
 ## 16. 第三方客户端适配器
 
 首层适配契约和三个候选渲染器已经落地：`nonproxy-adapter-api` 接受最大 1 MiB、最多
-4096 条规则的 `normalized-policy-v1`，拒绝未知字段、重复 ID、非 DIRECT 动作、非法
-域名/CIDR 和可造成规则注入的路径。它在渲染前规范化并稳定排序，输出记录客户端、
+4096 条规则的版本化 normalized policy，拒绝未知字段、重复 ID、非 DIRECT 动作、非法
+域名/CIDR 和可造成规则注入的路径。v2 应用选择器显式携带 `selector_version`、平台、
+`bundle`/`executable`/`package_family` 路径种类和值；v1 仅保留域名/CIDR 兼容读取，不能
+再用无平台语义的 Bundle 字段创建应用规则。它在渲染前规范化并稳定排序，输出记录客户端、
 格式、规则数和 SHA-256。
 
 `adapters/surge` 生成不含策略名的外部 Ruleset，并只在 Surge Mac 6.0+ 为应用生成
-App Bundle 前缀规则；`adapters/mihomo` 生成 classical provider YAML；
-`adapters/sing-box` 生成 source rule-set version 3，且不猜测用户 direct outbound tag。
+App Bundle 前缀规则；`adapters/mihomo` 对 macOS Bundle 生成前缀规则、对 Windows `.exe`
+生成精确 `PROCESS-PATH`；`adapters/sing-box` 生成 source rule-set version 3，对 Windows
+使用精确 `process_path`，且不猜测用户 direct outbound tag。Windows 包系列身份不会
+降级成进程名或 Android package 字段，而是在桌面投影阶段明确阻断。
 三个 renderer 只生成候选，不触碰真实配置；客户端重载由隔离宿主负责，renderer 不声明
 路径证据。完整格式与许可证
 边界见 [ADR-0019](ADR/0019-generate-versioned-client-rule-sets.md)。
@@ -1598,7 +1602,9 @@ apply 在写文件前先执行不产生目标写入的事务预检，再构造�
 使用私有 UDS，Windows 使用独立命名管道；同步按检测、能力
 读取、活动快照投影、客户端原生 prepare、活动快照版本与内容哈希二次确认、apply/reload、
 configuration verify 执行。投影只接受客户端能无损表达的单维 DIRECT 规则；应用路径必须由
-当前平台的签名应用目录唯一补全。组合、网络、端口、传输、辅助进程、缺失路径或能力会阻断
+当前平台的签名应用目录唯一补全。macOS Bundle 与 Windows 可执行文件使用 v2 中不同的
+选择器种类；第三方客户端官方规则格式不能表达的 Windows 包系列身份会阻断。组合、网络、
+端口、传输、辅助进程、缺失路径或能力会阻断
 整次同步并返回逐规则原因，绝不拆成更宽规则。配置验证失败会立即回滚并重载备份；配置确认
 仍不等同路径或出口确认。完整编排边界见
 [ADR-0028](ADR/0028-orchestrate-adapter-sync-from-the-desktop.md)。
@@ -1664,7 +1670,8 @@ adapters/<name>/
 └── README.md
 ```
 
-`manifest.yaml` 声明支持的客户端版本和能力。
+`manifest.yaml` schema v2 声明支持的客户端版本、能力和分平台应用选择器种类；未声明的
+平台/种类必须失败关闭。
 
 ## 17. Avalonia 桌面 UI
 
@@ -2376,8 +2383,9 @@ Bootstrap 权威查询返回 Installed 才显示就绪，不能以源码/交叉�
 
 Windows adapter-host 的签名分发、按用户登录任务、桌面即时启动、滚动升级切换和卸载源码
 已经落地，但真实 group activation、多用户进程/ACL、登录退出和命名管道 RPC 尚未验收；
-当前证据仍只属于 W0。Windows 应用规则投影还需要版本化的精确可执行文件/包身份 selector，不能把现有
-macOS `.app` Bundle 路径约束静默放宽。
+当前证据仍只属于 W0。Windows 应用规则投影已经使用 normalized-policy v2 的版本化精确
+可执行文件 selector；包系列身份因 Mihomo 与 sing-box 的 Windows 规则格式都没有等价字段而
+明确失败关闭，不会退化为同名进程。真实 Windows 客户端解析、重载与命中仍属于系统验收。
 
 ### 22.1 用户态优先
 

@@ -188,7 +188,9 @@ internal sealed class WindowsApplicationDiscovery(
                 return null;
             }
             var path = Path.GetFullPath(expanded);
-            return File.Exists(path) ? path : null;
+            return IsAdapterExecutablePath(path) && File.Exists(path)
+                ? path
+                : null;
         }
         catch (Exception exception) when (
             exception is ArgumentException
@@ -197,6 +199,24 @@ internal sealed class WindowsApplicationDiscovery(
         {
             return null;
         }
+    }
+
+    private static bool IsAdapterExecutablePath(string value)
+    {
+        return value.Length is >= 7 and <= 4_096
+            && char.IsAsciiLetter(value[0])
+            && value[1] == ':'
+            && value[2] == Path.DirectorySeparatorChar
+            && !value.Contains(Path.AltDirectorySeparatorChar)
+            && !value[2..].Contains(':')
+            && !value.Contains(',')
+            && !value.Contains('*')
+            && !value.Contains('?')
+            && !value.Any(char.IsControl)
+            && !value[3..].Split(Path.DirectorySeparatorChar).Any(segment =>
+                segment is "" or "." or ".."
+                || segment.EndsWith(' ')
+                || segment.EndsWith('.'));
     }
 
     private static string CleanDisplayName(string? value, string path)

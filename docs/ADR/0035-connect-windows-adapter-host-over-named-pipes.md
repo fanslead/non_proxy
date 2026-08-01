@@ -44,8 +44,9 @@ Windows 桌面端复用了客户端协同页面，但 adapter-host 只有 Unix U
 - Windows 发布包、登录任务、桌面即时启动、升级任务切换和卸载源码已接线；真实任务 group
   activation、多用户并行、进程退出、管道 DACL、会话隔离、错误令牌和第三方客户端重载仍需
   Windows 验收。
-- 现有应用规则投影要求 macOS `.app` Bundle 路径。Windows 精确可执行文件或 package
-  selector 必须通过后续版本化契约实现，不能为接通传输而静默扩大规则范围。
+- normalized-policy v2 已提供 Windows 精确可执行文件与包系列身份选择器；Mihomo/sing-box
+  只接受能无损表达的精确 `.exe`，包系列身份明确阻断。真实 Windows 客户端解析、重载和
+  命中仍需系统验收，不能以跨平台单测替代。
 
 ## 后果
 

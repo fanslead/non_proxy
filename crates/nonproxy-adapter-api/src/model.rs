@@ -1,20 +1,22 @@
 use std::{
     collections::BTreeSet,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
-    path::{Component, Path},
     str::FromStr,
 };
 
 use nonproxy_model::DomainName;
 use serde::{Deserialize, Serialize};
 
-use crate::AdapterContractError;
+use crate::{
+    AdapterContractError, ApplicationPathKind, ApplicationSelectorPlatform,
+    application_selector::normalize_application_selector,
+};
 
-const POLICY_FORMAT_VERSION: u32 = 1;
+const LEGACY_POLICY_FORMAT_VERSION: u32 = 1;
+pub(crate) const POLICY_FORMAT_VERSION: u32 = 2;
 const MAXIMUM_POLICY_BYTES: usize = 1024 * 1024;
 const MAXIMUM_RULES: usize = 4_096;
 const MAXIMUM_RULE_ID_BYTES: usize = 128;
-const MAXIMUM_PATH_BYTES: usize = 4_096;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -94,7 +96,10 @@ pub enum DomainSelectorKind {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RuleSelector {
     Application {
-        bundle_path: String,
+        selector_version: u32,
+        platform: ApplicationSelectorPlatform,
+        path_kind: ApplicationPathKind,
+        value: String,
     },
     Domain {
         match_kind: DomainSelectorKind,
@@ -133,7 +138,10 @@ impl NormalizedPolicy {
     }
 
     pub fn validate_and_normalize(&mut self) -> Result<(), AdapterContractError> {
-        if self.format_version != POLICY_FORMAT_VERSION {
+        if !matches!(
+            self.format_version,
+            LEGACY_POLICY_FORMAT_VERSION | POLICY_FORMAT_VERSION
+        ) {
             return Err(AdapterContractError::PolicyVersionUnsupported);
         }
         if self.revision == 0 {
@@ -151,7 +159,7 @@ impl NormalizedPolicy {
             if rule.action != PolicyAction::Direct {
                 return Err(AdapterContractError::ActionUnsupported);
             }
-            normalize_selector(&mut rule.selector)?;
+            normalize_selector(self.format_version, &mut rule.selector)?;
         }
         self.rules.sort_by(|left, right| left.id.cmp(&right.id));
         Ok(())
@@ -178,30 +186,23 @@ fn validate_rule_id(value: &str) -> Result<(), AdapterContractError> {
     Ok(())
 }
 
-fn normalize_selector(selector: &mut RuleSelector) -> Result<(), AdapterContractError> {
+fn normalize_selector(
+    format_version: u32,
+    selector: &mut RuleSelector,
+) -> Result<(), AdapterContractError> {
     match selector {
-        RuleSelector::Application { bundle_path } => {
-            let trimmed = bundle_path.trim_end_matches('/');
-            let path = Path::new(trimmed);
-            if trimmed.is_empty()
-                || trimmed.len() > MAXIMUM_PATH_BYTES
-                || !trimmed.starts_with('/')
-                || !trimmed.ends_with(".app")
-                || trimmed
-                    .split('/')
-                    .any(|component| matches!(component, "." | ".."))
-                || path
-                    .components()
-                    .any(|component| matches!(component, Component::CurDir | Component::ParentDir))
-                || trimmed
-                    .chars()
-                    .any(|character| character.is_control() || matches!(character, ',' | '\0'))
-            {
-                return Err(AdapterContractError::SelectorInvalid);
-            }
-            *bundle_path = format!("{trimmed}/");
-            Ok(())
-        }
+        RuleSelector::Application {
+            selector_version,
+            platform,
+            path_kind,
+            value,
+        } => normalize_application_selector(
+            format_version,
+            *selector_version,
+            *platform,
+            *path_kind,
+            value,
+        ),
         RuleSelector::Domain { value, .. } => {
             let normalized =
                 DomainName::normalize(value).map_err(|_| AdapterContractError::SelectorInvalid)?;
@@ -254,7 +255,7 @@ mod tests {
     #[test]
     fn policy_normalizes_and_sorts_safe_selectors() {
         let mut policy = NormalizedPolicy {
-            format_version: 1,
+            format_version: 2,
             revision: 8,
             rules: vec![
                 NormalizedRule {
@@ -269,7 +270,10 @@ mod tests {
                     id: "app-a".to_owned(),
                     action: PolicyAction::Direct,
                     selector: RuleSelector::Application {
-                        bundle_path: "/Applications/ChatGPT.app".to_owned(),
+                        selector_version: 1,
+                        platform: ApplicationSelectorPlatform::Macos,
+                        path_kind: ApplicationPathKind::Bundle,
+                        value: "/Applications/ChatGPT.app".to_owned(),
                     },
                 },
             ],
@@ -279,8 +283,8 @@ mod tests {
         assert_eq!(policy.rules[0].id, "app-a");
         assert!(matches!(
             &policy.rules[0].selector,
-            RuleSelector::Application { bundle_path }
-                if bundle_path == "/Applications/ChatGPT.app/"
+            RuleSelector::Application { value, .. }
+                if value == "/Applications/ChatGPT.app/"
         ));
         assert!(matches!(
             &policy.rules[1].selector,
@@ -291,10 +295,11 @@ mod tests {
     #[test]
     fn policy_rejects_injection_and_unsupported_action() {
         let injected = br#"{
-            "format_version":1,
+            "format_version":2,
             "revision":1,
             "rules":[{"id":"app","action":"direct","selector":{
-              "kind":"application","bundle_path":"/Applications/App.app/,FINAL,PROXY"
+              "kind":"application","selector_version":1,"platform":"macos",
+              "path_kind":"bundle","value":"/Applications/App.app/,FINAL,PROXY"
             }}]
         }"#;
         let proxy = br#"{
@@ -359,13 +364,82 @@ mod tests {
             "/Applications/./App.app",
         ] {
             let mut policy = NormalizedPolicy {
-                format_version: 1,
+                format_version: 2,
                 revision: 1,
                 rules: vec![NormalizedRule {
                     id: "app".to_owned(),
                     action: PolicyAction::Direct,
                     selector: RuleSelector::Application {
-                        bundle_path: bundle_path.to_owned(),
+                        selector_version: 1,
+                        platform: ApplicationSelectorPlatform::Macos,
+                        path_kind: ApplicationPathKind::Bundle,
+                        value: bundle_path.to_owned(),
+                    },
+                }],
+            };
+
+            assert_eq!(
+                policy.validate_and_normalize(),
+                Err(AdapterContractError::SelectorInvalid)
+            );
+        }
+    }
+
+    #[test]
+    fn windows_executable_is_exact_and_package_family_is_versioned() {
+        let policy = NormalizedPolicy::from_json(
+            br#"{
+              "format_version":2,"revision":1,"rules":[
+                {"id":"exe","action":"direct","selector":{
+                  "kind":"application","selector_version":1,"platform":"windows",
+                  "path_kind":"executable","value":"C:\\Program Files\\Chat\\chat.exe"
+                }},
+                {"id":"package","action":"direct","selector":{
+                  "kind":"application","selector_version":1,"platform":"windows",
+                  "path_kind":"package_family","value":"Example.Chat_1234567890abc"
+                }}
+              ]
+            }"#,
+        )
+        .unwrap_or_else(|error| panic!("Windows 选择器无效: {error}"));
+
+        assert!(matches!(
+            &policy.rules[0].selector,
+            RuleSelector::Application {
+                platform: ApplicationSelectorPlatform::Windows,
+                path_kind: ApplicationPathKind::Executable,
+                value,
+                ..
+            } if value == r"C:\Program Files\Chat\chat.exe"
+        ));
+        assert!(matches!(
+            &policy.rules[1].selector,
+            RuleSelector::Application {
+                path_kind: ApplicationPathKind::PackageFamily,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn windows_selector_rejects_unc_ads_wildcards_and_relative_segments() {
+        for value in [
+            r"\\server\share\chat.exe",
+            r"C:\Apps\chat.exe:stream",
+            r"C:\Apps\*.exe",
+            r"C:\Apps\..\chat.exe",
+        ] {
+            let mut policy = NormalizedPolicy {
+                format_version: 2,
+                revision: 1,
+                rules: vec![NormalizedRule {
+                    id: "app".to_owned(),
+                    action: PolicyAction::Direct,
+                    selector: RuleSelector::Application {
+                        selector_version: 1,
+                        platform: ApplicationSelectorPlatform::Windows,
+                        path_kind: ApplicationPathKind::Executable,
+                        value: value.to_owned(),
                     },
                 }],
             };
@@ -381,13 +455,16 @@ mod tests {
         #[test]
         fn application_path_rejects_every_ascii_control(control in 0_u8..=31) {
             let mut policy = NormalizedPolicy {
-                format_version: 1,
+                format_version: 2,
                 revision: 1,
                 rules: vec![NormalizedRule {
                     id: "app".to_owned(),
                     action: PolicyAction::Direct,
                     selector: RuleSelector::Application {
-                        bundle_path: format!(
+                        selector_version: 1,
+                        platform: ApplicationSelectorPlatform::Macos,
+                        path_kind: ApplicationPathKind::Bundle,
+                        value: format!(
                             "/Applications/Safe{}Name.app",
                             char::from(control)
                         ),

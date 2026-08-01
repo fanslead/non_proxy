@@ -6,7 +6,7 @@ public sealed record ApplicationCatalogEntry(
     string? SignerIdentity,
     string? BundleIdentifier,
     bool IsRunning,
-    string? BundlePath = null,
+    ApplicationAdapterSelector? AdapterSelector = null,
     bool IncludeHelpers = true)
 {
     public string StateLabel => IsRunning ? "正在运行" : "已安装";
@@ -15,6 +15,19 @@ public sealed record ApplicationCatalogEntry(
         ? "由系统应用身份识别"
         : "已校验开发者签名";
 }
+
+public enum ApplicationAdapterSelectorKind
+{
+    MacOsBundle,
+    WindowsExecutable,
+    WindowsPackageFamily,
+}
+
+public sealed record ApplicationAdapterSelector(
+    uint Version,
+    PlatformKind Platform,
+    ApplicationAdapterSelectorKind Kind,
+    string Value);
 
 public sealed record ApplicationCatalogSnapshot(
     IReadOnlyList<ApplicationCatalogEntry> Applications,

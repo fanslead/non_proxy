@@ -135,7 +135,11 @@ public sealed class WindowsApplicationCatalogTests
             $"cert-sha256:{new string('a', 64)}",
             null,
             isRunning,
-            null,
+            new ApplicationAdapterSelector(
+                1,
+                PlatformKind.Windows,
+                ApplicationAdapterSelectorKind.WindowsExecutable,
+                "C:\\Apps\\Office.exe"),
             false);
     }
 

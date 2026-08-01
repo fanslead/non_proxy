@@ -40,7 +40,7 @@ public sealed class AdapterPolicyProjectorTests
             "TEAM123",
             "com.example.office",
             true,
-            "/Applications/Office.app"));
+            MacBundle("/Applications/Office.app")));
 
         var result = Projector().Project(
             snapshot,
@@ -52,7 +52,7 @@ public sealed class AdapterPolicyProjectorTests
         Assert.Equal(SHA256.HashData(result.Payload), result.PayloadHash);
         using var document = JsonDocument.Parse(result.Payload);
         var root = document.RootElement;
-        Assert.Equal(1, root.GetProperty("format_version").GetInt32());
+        Assert.Equal(2, root.GetProperty("format_version").GetInt32());
         Assert.Equal<ulong>(7, root.GetProperty("revision").GetUInt64());
         var rules = root.GetProperty("rules").EnumerateArray().ToArray();
         Assert.Equal(
@@ -60,7 +60,13 @@ public sealed class AdapterPolicyProjectorTests
             rules.Select(rule => rule.GetProperty("id").GetString()!).ToArray());
         Assert.Equal(
             "/Applications/Office.app",
-            rules[0].GetProperty("selector").GetProperty("bundle_path").GetString());
+            rules[0].GetProperty("selector").GetProperty("value").GetString());
+        Assert.Equal(
+            "macos",
+            rules[0].GetProperty("selector").GetProperty("platform").GetString());
+        Assert.Equal(
+            "bundle",
+            rules[0].GetProperty("selector").GetProperty("path_kind").GetString());
         Assert.Equal(
             "10.0.0.0/8",
             rules[1].GetProperty("selector").GetProperty("value").GetString());
@@ -90,7 +96,7 @@ public sealed class AdapterPolicyProjectorTests
                 "TEAM123",
                 null,
                 false,
-                "/Applications/Office.app")),
+                MacBundle("/Applications/Office.app"))),
             AllCapabilities);
 
         Assert.Equal(0, result.RuleCount);
@@ -112,7 +118,7 @@ public sealed class AdapterPolicyProjectorTests
                 "OTHER",
                 null,
                 false,
-                "/Applications/Impostor.app")),
+                MacBundle("/Applications/Impostor.app"))),
             AllCapabilities);
 
         Assert.Empty(JsonDocument.Parse(result.Payload)
@@ -120,6 +126,106 @@ public sealed class AdapterPolicyProjectorTests
         Assert.Equal(
             "NP_ADAPTER_APP_PATH_UNRESOLVED",
             Assert.Single(result.Blockers).Code);
+    }
+
+    [Fact]
+    public void WindowsApplicationUsesVersionedExactExecutableSelector()
+    {
+        var result = new AdapterPolicyProjector(new WindowsPlatform()).Project(
+            Snapshot(ApplicationPolicy(
+                "app-office",
+                @"\device\harddiskvolume4\apps\office.exe",
+                "cert-sha256:trusted",
+                ProtoPlatform.Windows)),
+            Catalog(new ApplicationCatalogEntry(
+                "Office",
+                @"\device\harddiskvolume4\apps\office.exe",
+                "cert-sha256:trusted",
+                null,
+                true,
+                new ApplicationAdapterSelector(
+                    1,
+                    PlatformKind.Windows,
+                    ApplicationAdapterSelectorKind.WindowsExecutable,
+                    @"C:\Program Files\Office\office.exe"),
+                false)),
+            AllCapabilities);
+
+        Assert.Empty(result.Blockers);
+        using var document = JsonDocument.Parse(result.Payload);
+        var selector = document.RootElement.GetProperty("rules")[0]
+            .GetProperty("selector");
+        Assert.Equal(1, selector.GetProperty("selector_version").GetInt32());
+        Assert.Equal("windows", selector.GetProperty("platform").GetString());
+        Assert.Equal("executable", selector.GetProperty("path_kind").GetString());
+        Assert.Equal(
+            @"C:\Program Files\Office\office.exe",
+            selector.GetProperty("value").GetString());
+    }
+
+    [Fact]
+    public void WindowsPackageRuleIsBlockedInsteadOfFallingBackToProcessName()
+    {
+        var result = new AdapterPolicyProjector(new WindowsPlatform()).Project(
+            Snapshot(ApplicationPolicy(
+                "app-store",
+                "package-sid:S-1-15-2-1-2-3-4-5-6-7",
+                "package-publisher-id:8wekyb3d8bbwe",
+                ProtoPlatform.Windows)),
+            Catalog(new ApplicationCatalogEntry(
+                "Store App",
+                "package-sid:S-1-15-2-1-2-3-4-5-6-7",
+                "package-publisher-id:8wekyb3d8bbwe",
+                "Example.Store_8wekyb3d8bbwe",
+                false,
+                new ApplicationAdapterSelector(
+                    1,
+                    PlatformKind.Windows,
+                    ApplicationAdapterSelectorKind.WindowsPackageFamily,
+                    "Example.Store_8wekyb3d8bbwe"),
+                false)),
+            AllCapabilities);
+
+        Assert.Equal(0, result.RuleCount);
+        Assert.Equal(
+            "NP_ADAPTER_WINDOWS_PACKAGE_UNSUPPORTED",
+            Assert.Single(result.Blockers).Code);
+    }
+
+    [Fact]
+    public void WindowsExecutableSelectorRejectsWildcardAndAdsShapes()
+    {
+        foreach (var path in new[]
+        {
+            @"C:\Apps\*.exe",
+            @"C:\Apps\chat.exe:stream",
+        })
+        {
+            var result = new AdapterPolicyProjector(new WindowsPlatform()).Project(
+                Snapshot(ApplicationPolicy(
+                    "app-chat",
+                    @"\device\harddiskvolume4\apps\chat.exe",
+                    "cert-sha256:trusted",
+                    ProtoPlatform.Windows)),
+                Catalog(new ApplicationCatalogEntry(
+                    "Chat",
+                    @"\device\harddiskvolume4\apps\chat.exe",
+                    "cert-sha256:trusted",
+                    null,
+                    false,
+                    new ApplicationAdapterSelector(
+                        1,
+                        PlatformKind.Windows,
+                        ApplicationAdapterSelectorKind.WindowsExecutable,
+                        path),
+                    false)),
+                AllCapabilities);
+
+            Assert.Equal(0, result.RuleCount);
+            Assert.Equal(
+                "NP_ADAPTER_APP_SELECTOR_UNSUPPORTED",
+                Assert.Single(result.Blockers).Code);
+        }
     }
 
     [Fact]
@@ -178,17 +284,27 @@ public sealed class AdapterPolicyProjectorTests
     private static ProtoPolicy ApplicationPolicy(
         string id,
         string stableId,
-        string signerId)
+        string signerId,
+        ProtoPlatform platform = ProtoPlatform.Macos)
     {
         return Policy(id, new PolicyMatch
         {
             App = new AppMatcher
             {
-                Platform = ProtoPlatform.Macos,
+                Platform = platform,
                 StableId = stableId,
                 SignerId = signerId,
             },
         });
+    }
+
+    private static ApplicationAdapterSelector MacBundle(string value)
+    {
+        return new ApplicationAdapterSelector(
+            1,
+            PlatformKind.MacOS,
+            ApplicationAdapterSelectorKind.MacOsBundle,
+            value);
     }
 
     private static ProtoPolicy DomainPolicy(
@@ -241,5 +357,12 @@ public sealed class AdapterPolicyProjectorTests
         public PlatformKind Platform => PlatformKind.MacOS;
 
         public string DisplayName => "macOS";
+    }
+
+    private sealed class WindowsPlatform : IPlatformInformation
+    {
+        public PlatformKind Platform => PlatformKind.Windows;
+
+        public string DisplayName => "Windows";
     }
 }

@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 adapter_id: surge
 client_name: Surge Mac
 minimum_version: 5.0.0
@@ -9,4 +9,6 @@ capabilities:
   - cidr_rule
   - application_rule_since_6_0_0
   - native_candidate_validation
+application_selectors:
+  macos: bundle_prefix
 integration_state: authenticated_host_validation
