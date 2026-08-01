@@ -1428,6 +1428,11 @@ revision，保存新一代全部节点，再禁用并标记缺失节点，最后
 完整取舍见
 [ADR-0039](ADR/0039-own-remote-subscription-state-and-outbounds.md)。
 
+首次创建和订阅地址重配置必须使用 `save_and_apply_refresh`，让源 revision、凭据引用和新一代
+节点共用一个 IMMEDIATE 事务；节点归属或出口 revision 冲突时，源配置也随事务回滚。已有源
+获取到与当前哈希一致的内容时使用 `record_unchanged`，只清除失败状态并推进下次刷新时间，
+不重写出口、不递增 generation，也不制造新的节点凭据。
+
 本层尚未写入订阅 URL 凭据、调用远程获取核心、生成订阅命名空间节点、开放控制 RPC 或启动
 刷新调度器；这些边界完成前，仍不能宣称自动订阅管理可用。
 

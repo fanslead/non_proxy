@@ -304,6 +304,11 @@ impl SubscriptionRefreshCommit {
             retired_outbound_ids: retired,
         }
     }
+
+    pub(crate) fn normalize_replaced_credentials(&mut self) {
+        self.replaced_credential_references.sort();
+        self.replaced_credential_references.dedup();
+    }
 }
 
 fn validate_identifier(value: &str, maximum: usize) -> Result<(), StorageError> {

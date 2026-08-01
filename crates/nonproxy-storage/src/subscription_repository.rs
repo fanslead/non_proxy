@@ -144,7 +144,7 @@ impl<'connection> SubscriptionRepository<'connection> {
     }
 }
 
-fn classify_source_conflict(
+pub(crate) fn classify_source_conflict(
     connection: &Connection,
     source_id: &str,
     expected_source_revision: u64,
@@ -169,7 +169,7 @@ fn classify_source_conflict(
     })
 }
 
-fn save_source(
+pub(crate) fn save_source(
     transaction: &Transaction<'_>,
     source: &SubscriptionSource,
     updated_at_unix_ms: u64,
@@ -234,7 +234,7 @@ fn save_source(
     Ok(())
 }
 
-fn validate_source_revision(
+pub(crate) fn validate_source_revision(
     transaction: &Transaction<'_>,
     source: &SubscriptionSource,
     expected: Option<u64>,

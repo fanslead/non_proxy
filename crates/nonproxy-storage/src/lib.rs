@@ -22,6 +22,7 @@ mod snapshot_query;
 mod snapshot_repository;
 mod subscription_codec;
 mod subscription_refresh;
+mod subscription_refresh_state;
 mod subscription_repository;
 mod subscription_types;
 mod synthetic_dns_repository;

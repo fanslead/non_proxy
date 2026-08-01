@@ -293,6 +293,115 @@ fn stale_fetch_cannot_write_results_or_failures_after_source_reconfiguration() {
     );
 }
 
+#[test]
+fn initial_source_and_nodes_roll_back_together_on_ownership_conflict() {
+    let mut database = database();
+    let conflicting = outbound("subscription-office-a", 1, "manual");
+    database
+        .outbounds()
+        .save(&conflicting, None, 1_000)
+        .unwrap_or_else(|error| panic!("冲突手工出口保存失败: {error}"));
+    let nodes = vec![
+        SubscriptionNode::new("node-a", conflicting, Some(1))
+            .unwrap_or_else(|error| panic!("冲突订阅节点创建失败: {error}")),
+    ];
+
+    assert!(matches!(
+        database.subscriptions().save_and_apply_refresh(
+            &source("office", 1, 1_000),
+            None,
+            0,
+            [5; 32],
+            &nodes,
+            1_100,
+            4_700,
+        ),
+        Err(StorageError::SubscriptionOwnershipConflict)
+    ));
+    assert!(
+        database
+            .subscriptions()
+            .get("office")
+            .unwrap_or_else(|error| panic!("回滚后订阅源读取失败: {error}"))
+            .is_none()
+    );
+    let id = OutboundId::new("subscription-office-a")
+        .unwrap_or_else(|error| panic!("冲突出口标识创建失败: {error}"));
+    assert_eq!(
+        database
+            .outbounds()
+            .get(&id)
+            .unwrap_or_else(|error| panic!("回滚后手工出口读取失败: {error}"))
+            .unwrap_or_else(|| panic!("回滚后手工出口不存在"))
+            .revision(),
+        1
+    );
+}
+
+#[test]
+fn reconfiguration_rolls_back_with_nodes_and_unchanged_refresh_avoids_revision_churn() {
+    let mut database = database_with_source("office");
+    let first = vec![node("node-a", "subscription-office-a", 1, None, "first")];
+    database
+        .subscriptions()
+        .apply_refresh("office", 1, 0, [6; 32], &first, 1_100, 4_700)
+        .unwrap_or_else(|error| panic!("首次订阅刷新失败: {error}"));
+    database
+        .subscriptions()
+        .record_failure("office", 1, 1, "NP_SUBSCRIPTION_TIMEOUT", 1_200, 2_500)
+        .unwrap_or_else(|error| panic!("订阅失败状态保存失败: {error}"));
+    database
+        .subscriptions()
+        .record_unchanged("office", 1, 1, [6; 32], 1_300, 4_900)
+        .unwrap_or_else(|error| panic!("未变化订阅成功状态保存失败: {error}"));
+    let unchanged = database
+        .subscriptions()
+        .get("office")
+        .unwrap_or_else(|error| panic!("未变化订阅源读取失败: {error}"))
+        .unwrap_or_else(|| panic!("未变化订阅源不存在"));
+    assert_eq!(unchanged.content_generation(), 1);
+    assert_eq!(unchanged.consecutive_failures(), 0);
+    assert_eq!(unchanged.last_succeeded_at_unix_ms(), Some(1_300));
+    let updated = unchanged
+        .reconfigured(
+            "新办公室订阅",
+            endpoint_credential("office", 2),
+            true,
+            7_200,
+            2,
+        )
+        .unwrap_or_else(|error| panic!("订阅源重配置失败: {error}"));
+    let stale = vec![node(
+        "node-a",
+        "subscription-office-a",
+        2,
+        Some(9),
+        "second",
+    )];
+
+    assert!(matches!(
+        database.subscriptions().save_and_apply_refresh(
+            &updated,
+            Some(1),
+            1,
+            [7; 32],
+            &stale,
+            1_400,
+            8_600,
+        ),
+        Err(StorageError::OutboundRevisionConflict)
+    ));
+    let preserved = database
+        .subscriptions()
+        .get("office")
+        .unwrap_or_else(|error| panic!("重配置回滚后订阅源读取失败: {error}"))
+        .unwrap_or_else(|| panic!("重配置回滚后订阅源不存在"));
+    assert_eq!(preserved.revision(), 1);
+    assert_eq!(preserved.display_name(), "办公室订阅");
+    assert_eq!(preserved.endpoint_credential().version(), 1);
+    assert_eq!(preserved.content_generation(), 1);
+}
+
 fn database() -> PolicyDatabase {
     PolicyDatabase::open_in_memory(1_000)
         .unwrap_or_else(|error| panic!("订阅测试数据库打开失败: {error}"))
