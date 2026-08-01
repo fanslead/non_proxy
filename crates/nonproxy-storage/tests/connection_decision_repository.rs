@@ -57,6 +57,9 @@ fn decision_batch_is_idempotent_and_lists_newest_first() {
                 && record.action() == RouteAction::Direct
                 && record.interface_name() == Some("en0")
                 && record.application() == "Example Bank"
+                && record.app_signer_id() == Some("TEAM-EXAMPLE")
+                && record.app_parent_stable_id() == Some("com.example.shell")
+                && record.app_helper_group_id() == Some("com.example.bank")
     ));
 }
 
@@ -316,7 +319,10 @@ fn proxy_input(
 
 fn app() -> Result<AppIdentity, StorageError> {
     AppIdentity::new(Platform::MacOs, "com.example.bank")
+        .and_then(|value| value.with_signer_id("TEAM-EXAMPLE"))
         .and_then(|value| value.with_display_name("Example Bank"))
+        .and_then(|value| value.with_parent_stable_id("com.example.shell"))
+        .and_then(|value| value.with_helper_group_id("com.example.bank"))
         .map_err(StorageError::from)
 }
 

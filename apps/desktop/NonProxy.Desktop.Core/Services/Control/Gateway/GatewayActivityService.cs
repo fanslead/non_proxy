@@ -1,6 +1,8 @@
 using NonProxy.Common.V1;
 using NonProxy.Control.V1;
+using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Control.Rpc;
+using ProtoPlatform = NonProxy.Common.V1.Platform;
 
 namespace NonProxy.Desktop.Core.Services.Control.Gateway;
 
@@ -29,6 +31,15 @@ public sealed class GatewayActivityService : IActivityService
     private static ActivityItem Map(ConnectionDecisionSummary value)
     {
         ValidateEvidence(value);
+        var platform = MapPlatform(value.AppPlatform);
+        var stableId = RequiredIdentity(value.AppStableId, "稳定身份");
+        var signerId = OptionalIdentity(value.AppSignerId, "签名身份");
+        var parentStableId = OptionalIdentity(
+            value.AppParentStableId,
+            "父应用身份");
+        var helperGroupId = OptionalIdentity(
+            value.AppHelperGroupId,
+            "辅助进程组身份");
         var action = ActionLabel(value);
         var evidence = EvidenceLabel(value.EvidenceLevel);
         var occurredAt = value.ObservedAt?.ToDateTimeOffset()
@@ -38,7 +49,13 @@ public sealed class GatewayActivityService : IActivityService
         return new ActivityItem(
             checked((long)value.Sequence),
             occurredAt,
-            DisplayApplication(value),
+            platform,
+            stableId,
+            signerId,
+            parentStableId,
+            helperGroupId,
+            value.ReasonCode == "NP_POLICY_SYSTEM_MATCH",
+            DisplayApplication(value, stableId),
             $"{value.Destination} · {value.DestinationPort}",
             action,
             ReasonLabel(value),
@@ -48,11 +65,46 @@ public sealed class GatewayActivityService : IActivityService
             value.SnapshotVersion);
     }
 
-    private static string DisplayApplication(ConnectionDecisionSummary value)
+    private static string DisplayApplication(
+        ConnectionDecisionSummary value,
+        string stableId)
     {
         return string.IsNullOrWhiteSpace(value.AppDisplayName)
-            ? value.AppStableId
-            : value.AppDisplayName;
+            ? stableId
+            : value.AppDisplayName.Trim();
+    }
+
+    private static PlatformKind MapPlatform(ProtoPlatform value)
+    {
+        return value switch
+        {
+            ProtoPlatform.Macos => PlatformKind.MacOS,
+            ProtoPlatform.Windows => PlatformKind.Windows,
+            _ => throw InvalidEvidenceContract("活动记录的应用平台无效。"),
+        };
+    }
+
+    private static string RequiredIdentity(string value, string label)
+    {
+        return OptionalIdentity(value, label)
+            ?? throw InvalidEvidenceContract($"活动记录缺少应用{label}。");
+    }
+
+    private static string? OptionalIdentity(string value, string label)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        if (normalized.Length != value.Length
+            || normalized.Length > 512
+            || normalized.Any(char.IsControl))
+        {
+            throw InvalidEvidenceContract($"活动记录的应用{label}无效。");
+        }
+        return normalized;
     }
 
     private static string ActionLabel(ConnectionDecisionSummary value)

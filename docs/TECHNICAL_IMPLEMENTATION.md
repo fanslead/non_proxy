@@ -1848,6 +1848,15 @@ macOS 原生桥 ABI 约束：
 受限的 `NP_` 稳定码。学习候选仍由持有标签页 capability 的浏览器扩展负责。完整理由见
 [ADR-0018](ADR/0018-use-control-events-as-invalidation-signals.md)。
 
+活动页读取连接决策与策略目录两个权威 RPC，并从认证 Provider 已入库的 `app_platform`、
+`app_stable_id`、`app_signer_id`、`app_parent_stable_id` 和 `app_helper_group_id` 构建证据卡。
+快捷创建应用直连规则只对当前平台、非系统规则、非 `unknown-app`、具有签名身份且不存在同一
+应用作用域规则的记录开放；父身份存在时使用父身份，规则始终携带 signer 约束并包含 Helper。
+旧记录不补造签名，跨平台记录不转换身份，已有 DIRECT/PROXY/BLOCK 规则都必须回到规则页处理。
+用户确认后复用 `UpsertPolicy` 与快照发布流程；`Accepted=true, Applied=false` 保持 pending 文案，
+只有 Provider ACK 后列表状态才会变成 active。完整决策见
+[ADR-0032](ADR/0032-create-signed-app-rules-from-activity.md)。
+
 “网络环境”页的一键直连按以下顺序编排：
 
 1. 用户手势触发平台采集，并按完整指纹匹配已有网络配置档；不以显示名判断网络身份。
@@ -2086,6 +2095,11 @@ schema_migration
 V11 migration 为网络配置档指纹增加唯一索引，并建立独立的
 `network_profile_catalog` generation。保存和删除在同一事务中更新审计记录与目录
 代数；仍被策略引用的档案拒绝删除，重复指纹返回稳定业务错误码。
+
+V12 migration 为 `connection_decision` 追加可空的签名身份、父应用稳定身份和 Helper 组身份。
+新记录从已认证 Provider 的 `AppIdentity` 原样收敛入库并通过 `ListConnectionDecisions` 的追加字段
+返回；三项字段都有长度和空白约束。升级前的历史记录保持 `NULL`，桌面端据此禁用快捷规则，
+不能从显示名或进程名反向伪造签名证据。
 
 学习表通过追加的 V4 migration 从首版预留结构升级，增加权威过期时间、应用平台、随机浏览器上下文、候选确认状态和有界幂等收据。过期在任一学习读写事务开始时惰性结算；停止与观测重放均保持幂等。
 

@@ -1445,6 +1445,21 @@ public nonisolated struct Nonproxy_Control_V1_ConnectionDecisionSummary: @unchec
     set {_uniqueStorage()._failOpenDirect = newValue}
   }
 
+  public var appSignerID: String {
+    get {_storage._appSignerID}
+    set {_uniqueStorage()._appSignerID = newValue}
+  }
+
+  public var appParentStableID: String {
+    get {_storage._appParentStableID}
+    set {_uniqueStorage()._appParentStableID = newValue}
+  }
+
+  public var appHelperGroupID: String {
+    get {_storage._appHelperGroupID}
+    set {_uniqueStorage()._appHelperGroupID = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -3954,7 +3969,7 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundsResponse: SwiftProtobuf.M
 
 nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ConnectionDecisionSummary"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sequence\0\u{3}event_id\0\u{3}observed_at\0\u{3}app_platform\0\u{3}app_stable_id\0\u{3}app_display_name\0\u{1}destination\0\u{3}destination_port\0\u{1}transport\0\u{1}action\0\u{3}failure_mode\0\u{3}matched_policy_id\0\u{3}matched_rule_id\0\u{3}reason_code\0\u{3}evidence_level\0\u{3}interface_name\0\u{3}outbound_id\0\u{3}exit_probe_id\0\u{3}decision_latency\0\u{3}error_code\0\u{3}snapshot_version\0\u{3}provider_id\0\u{3}provider_generation\0\u{3}fail_open_direct\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sequence\0\u{3}event_id\0\u{3}observed_at\0\u{3}app_platform\0\u{3}app_stable_id\0\u{3}app_display_name\0\u{1}destination\0\u{3}destination_port\0\u{1}transport\0\u{1}action\0\u{3}failure_mode\0\u{3}matched_policy_id\0\u{3}matched_rule_id\0\u{3}reason_code\0\u{3}evidence_level\0\u{3}interface_name\0\u{3}outbound_id\0\u{3}exit_probe_id\0\u{3}decision_latency\0\u{3}error_code\0\u{3}snapshot_version\0\u{3}provider_id\0\u{3}provider_generation\0\u{3}fail_open_direct\0\u{3}app_signer_id\0\u{3}app_parent_stable_id\0\u{3}app_helper_group_id\0")
 
   fileprivate class _StorageClass {
     var _sequence: UInt64 = 0
@@ -3981,6 +3996,9 @@ nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtob
     var _providerID: String = String()
     var _providerGeneration: UInt64 = 0
     var _failOpenDirect: Bool = false
+    var _appSignerID: String = String()
+    var _appParentStableID: String = String()
+    var _appHelperGroupID: String = String()
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -4015,6 +4033,9 @@ nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtob
       _providerID = source._providerID
       _providerGeneration = source._providerGeneration
       _failOpenDirect = source._failOpenDirect
+      _appSignerID = source._appSignerID
+      _appParentStableID = source._appParentStableID
+      _appHelperGroupID = source._appHelperGroupID
     }
   }
 
@@ -4057,6 +4078,9 @@ nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtob
         case 22: try { try decoder.decodeSingularStringField(value: &_storage._providerID) }()
         case 23: try { try decoder.decodeSingularUInt64Field(value: &_storage._providerGeneration) }()
         case 24: try { try decoder.decodeSingularBoolField(value: &_storage._failOpenDirect) }()
+        case 25: try { try decoder.decodeSingularStringField(value: &_storage._appSignerID) }()
+        case 26: try { try decoder.decodeSingularStringField(value: &_storage._appParentStableID) }()
+        case 27: try { try decoder.decodeSingularStringField(value: &_storage._appHelperGroupID) }()
         default: break
         }
       }
@@ -4141,6 +4165,15 @@ nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtob
       if _storage._failOpenDirect != false {
         try visitor.visitSingularBoolField(value: _storage._failOpenDirect, fieldNumber: 24)
       }
+      if !_storage._appSignerID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._appSignerID, fieldNumber: 25)
+      }
+      if !_storage._appParentStableID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._appParentStableID, fieldNumber: 26)
+      }
+      if !_storage._appHelperGroupID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._appHelperGroupID, fieldNumber: 27)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -4174,6 +4207,9 @@ nonisolated extension Nonproxy_Control_V1_ConnectionDecisionSummary: SwiftProtob
         if _storage._providerID != rhs_storage._providerID {return false}
         if _storage._providerGeneration != rhs_storage._providerGeneration {return false}
         if _storage._failOpenDirect != rhs_storage._failOpenDirect {return false}
+        if _storage._appSignerID != rhs_storage._appSignerID {return false}
+        if _storage._appParentStableID != rhs_storage._appParentStableID {return false}
+        if _storage._appHelperGroupID != rhs_storage._appHelperGroupID {return false}
         return true
       }
       if !storagesAreEqual {return false}

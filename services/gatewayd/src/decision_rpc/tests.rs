@@ -76,6 +76,9 @@ async fn list_returns_redacted_path_evidence_and_total_count() {
     assert_eq!(decision.evidence_level, EvidenceLevel::Path as i32);
     assert_eq!(decision.interface_name, "en0");
     assert_eq!(decision.provider_generation, 2);
+    assert_eq!(decision.app_signer_id, "TEAM-EXAMPLE");
+    assert_eq!(decision.app_parent_stable_id, "com.example.parent");
+    assert_eq!(decision.app_helper_group_id, "com.example.browser");
     assert!(decision.event_id.ends_with("flow-path"));
 }
 
@@ -86,7 +89,10 @@ fn direct_path_record() -> ProtoDecisionRecord {
             app: Some(AppIdentity {
                 platform: Platform::Macos as i32,
                 stable_id: "com.example.browser".to_owned(),
+                signer_id: "TEAM-EXAMPLE".to_owned(),
                 display_name: "Example Browser".to_owned(),
+                parent_stable_id: "com.example.parent".to_owned(),
+                helper_group_id: "com.example.browser".to_owned(),
                 ..Default::default()
             }),
             destination: Some(Destination {

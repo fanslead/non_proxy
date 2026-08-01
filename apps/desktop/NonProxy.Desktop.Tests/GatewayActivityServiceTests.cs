@@ -17,6 +17,10 @@ public sealed class GatewayActivityServiceTests
                 new DateTimeOffset(2026, 7, 31, 8, 9, 10, TimeSpan.Zero)),
             AppStableId = "com.example.browser",
             AppDisplayName = "Example Browser",
+            AppPlatform = Platform.Macos,
+            AppSignerId = "TEAM-EXAMPLE",
+            AppParentStableId = "com.example.browser",
+            AppHelperGroupId = "com.example.browser",
             Destination = "example.com",
             DestinationPort = 443,
             Action = RouteAction.Direct,
@@ -34,6 +38,13 @@ public sealed class GatewayActivityServiceTests
         Assert.Equal("尚未确认实际数据路径", item.Path);
         Assert.Equal("使用默认路由", item.Reason);
         Assert.Equal("快照 v3", item.SnapshotLabel);
+        Assert.Equal(
+            NonProxy.Desktop.Core.Platform.PlatformKind.MacOS,
+            item.ApplicationPlatform);
+        Assert.Equal("com.example.browser", item.ApplicationStableId);
+        Assert.Equal("TEAM-EXAMPLE", item.ApplicationSignerId);
+        Assert.Equal("com.example.browser", item.ApplicationRuleStableId);
+        Assert.Equal("com.example.browser", item.ApplicationHelperGroupId);
         Assert.Equal(20, client.LastDecisionPageSize);
     }
 
@@ -45,6 +56,7 @@ public sealed class GatewayActivityServiceTests
             Sequence = 2,
             ObservedAt = Timestamp.FromDateTimeOffset(DateTimeOffset.UnixEpoch),
             AppStableId = "app",
+            AppPlatform = Platform.Macos,
             Destination = "api.example.com",
             DestinationPort = 443,
             Action = RouteAction.Proxy,
@@ -82,11 +94,37 @@ public sealed class GatewayActivityServiceTests
                 Sequence = 1,
                 ObservedAt = Timestamp.FromDateTimeOffset(DateTimeOffset.UnixEpoch),
                 AppStableId = "app",
+                AppPlatform = Platform.Macos,
                 Destination = "example.com",
                 DestinationPort = 443,
                 Action = RouteAction.Direct,
                 EvidenceLevel = EvidenceLevel.Path,
                 OutboundId = "proxy",
+            }));
+
+        var error = await Assert.ThrowsAsync<
+            NonProxy.Desktop.Core.Services.Control.ControlServiceException>(
+            () => service.GetRecentAsync(
+                10,
+                TestContext.Current.CancellationToken));
+
+        Assert.Equal("NP_CONTROL_CONTRACT_INVALID", error.Code);
+    }
+
+    [Fact]
+    public async Task MissingApplicationPlatformIsRejectedInsteadOfGuessing()
+    {
+        var service = new GatewayActivityService(ClientWith(
+            new ConnectionDecisionSummary
+            {
+                Sequence = 4,
+                ObservedAt = Timestamp.FromDateTimeOffset(DateTimeOffset.UnixEpoch),
+                AppStableId = "com.example.app",
+                Destination = "example.com",
+                DestinationPort = 443,
+                Action = RouteAction.Direct,
+                EvidenceLevel = EvidenceLevel.Decision,
+                ReasonCode = "NP_POLICY_DEFAULT",
             }));
 
         var error = await Assert.ThrowsAsync<
@@ -107,6 +145,7 @@ public sealed class GatewayActivityServiceTests
                 Sequence = 9,
                 ObservedAt = Timestamp.FromDateTimeOffset(DateTimeOffset.UnixEpoch),
                 AppStableId = "app",
+                AppPlatform = Platform.Macos,
                 Destination = "example.com",
                 DestinationPort = 443,
                 Action = RouteAction.Proxy,

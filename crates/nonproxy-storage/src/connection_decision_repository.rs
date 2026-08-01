@@ -57,6 +57,7 @@ impl<'connection> ConnectionDecisionRepository<'connection> {
         let mut statement = self.connection.prepare(
             "SELECT rowid, event_id, occurred_at_unix_ms, snapshot_version,
                     app_stable_id, app_display_name, app_platform,
+                    app_signer_id, app_parent_stable_id, app_helper_group_id,
                     destination_redacted, transport, destination_port,
                     matched_policy_id, matched_rule_id, decision_action,
                     failure_mode, reason_code, evidence_level, interface_name,
@@ -102,13 +103,14 @@ fn save_or_validate_replay(
              event_id, occurred_at_unix_ms, snapshot_version, app_stable_id,
              destination_redacted, transport, destination_port, matched_policy_id,
              decision_action, reason_code, provider_id, provider_generation,
-             flow_id, app_display_name, app_platform, matched_rule_id,
+             flow_id, app_display_name, app_platform, app_signer_id,
+             app_parent_stable_id, app_helper_group_id, matched_rule_id,
              failure_mode, evidence_level, interface_name, outbound_id,
              exit_probe_id, fail_open_direct, decision_latency_us, error_code
          ) VALUES (
              ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
              ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23,
-             ?24
+             ?24, ?25, ?26, ?27
          )",
         params![
             event_id,
@@ -126,6 +128,9 @@ fn save_or_validate_replay(
             persisted.flow_id,
             persisted.app_display_name,
             platform_code(persisted.app_platform),
+            persisted.app_signer_id,
+            persisted.app_parent_stable_id,
+            persisted.app_helper_group_id,
             persisted.matched_rule_id,
             failure_mode_code(persisted.failure_mode),
             persisted.evidence_level.as_i64(),

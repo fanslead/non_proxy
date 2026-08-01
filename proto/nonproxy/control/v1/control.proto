@@ -367,6 +367,9 @@ message ConnectionDecisionSummary {
   string provider_id = 22;
   uint64 provider_generation = 23;
   bool fail_open_direct = 24;
+  string app_signer_id = 25;
+  string app_parent_stable_id = 26;
+  string app_helper_group_id = 27;
 }
 
 // ListConnectionDecisionsRequest 查询最新的有界连接活动。

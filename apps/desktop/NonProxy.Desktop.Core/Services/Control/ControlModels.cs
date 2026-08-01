@@ -247,6 +247,12 @@ public sealed record OutboundImportResult(
 public sealed record ActivityItem(
     long Sequence,
     DateTimeOffset OccurredAt,
+    PlatformKind ApplicationPlatform,
+    string ApplicationStableId,
+    string? ApplicationSignerId,
+    string? ApplicationParentStableId,
+    string? ApplicationHelperGroupId,
+    bool IsSystemDecision,
     string Application,
     string Destination,
     string Action,
@@ -256,6 +262,12 @@ public sealed record ActivityItem(
     string Error,
     ulong SnapshotVersion)
 {
+    public string ApplicationRuleStableId =>
+        ApplicationParentStableId ?? ApplicationStableId;
+
+    public bool HasSignedApplicationIdentity =>
+        !string.IsNullOrWhiteSpace(ApplicationSignerId);
+
     public string ResultLabel => $"{Action} · {Evidence}";
 
     public string OccurredAtLabel => OccurredAt

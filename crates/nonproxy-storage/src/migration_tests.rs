@@ -78,14 +78,14 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         panic!("V1 数据库升级失败: {upgraded:?}");
     };
     assert_eq!(upgraded.previous_version(), 1);
-    assert_eq!(upgraded.current_version(), 11);
+    assert_eq!(upgraded.current_version(), 12);
     assert_eq!(
         upgraded
             .applied()
             .iter()
             .map(AppliedMigration::version)
             .collect::<Vec<_>>(),
-        vec![2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        vec![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     );
     let generation: i64 = match connection.query_row(
         "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
@@ -190,7 +190,7 @@ fn legacy_learning_rows_upgrade_without_losing_candidates() {
     let Ok(upgraded) = upgraded else {
         panic!("旧学习数据升级失败: {upgraded:?}");
     };
-    assert_eq!(upgraded.current_version(), 11);
+    assert_eq!(upgraded.current_version(), 12);
     let session: (String, String, i64) = match connection.query_row(
         "SELECT browser_context_id, state, expires_at_unix_ms
          FROM learning_session WHERE id = 'legacy-session'",
@@ -305,6 +305,48 @@ fn connection_evidence_migration_enforces_normal_and_fail_open_paths() {
         [],
     );
     assert!(unexplained_fail_open.is_err());
+}
+
+#[test]
+fn legacy_connection_decisions_upgrade_without_fabricating_app_identity() {
+    let mut connection = match Connection::open_in_memory() {
+        Ok(value) => value,
+        Err(error) => panic!("应用身份迁移测试数据库打开失败: {error}"),
+    };
+    if let Err(error) = migrate_with(&mut connection, None, 1_000, &MIGRATIONS[..11]) {
+        panic!("V11 数据库初始化失败: {error}");
+    }
+    if let Err(error) = connection.execute(
+        "INSERT INTO connection_decision(
+             event_id, occurred_at_unix_ms, snapshot_version, app_stable_id,
+             destination_redacted, transport, destination_port,
+             decision_action, reason_code, provider_id, provider_generation,
+             flow_id, evidence_level
+         ) VALUES (
+             'legacy-identity', 1, 1, 'com.example.legacy', 'example.com', 1, 443,
+             1, 'NP_POLICY_DEFAULT', 'legacy', 0, '', 2
+         )",
+        [],
+    ) {
+        panic!("V11 连接记录写入失败: {error}");
+    }
+
+    let upgraded = migrate_with(&mut connection, None, 2_000, MIGRATIONS);
+    let Ok(upgraded) = upgraded else {
+        panic!("V11 连接记录升级失败: {upgraded:?}");
+    };
+    assert_eq!(upgraded.previous_version(), 11);
+    assert_eq!(upgraded.current_version(), 12);
+    let identity: (Option<String>, Option<String>, Option<String>) = match connection.query_row(
+        "SELECT app_signer_id, app_parent_stable_id, app_helper_group_id
+         FROM connection_decision WHERE event_id = 'legacy-identity'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    ) {
+        Ok(value) => value,
+        Err(error) => panic!("升级后应用身份读取失败: {error}"),
+    };
+    assert_eq!(identity, (None, None, None));
 }
 
 #[test]

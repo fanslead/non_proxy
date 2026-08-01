@@ -16,6 +16,11 @@ Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名
 
 共享桌面端已经加入当前网络一键直连：macOS 只在用户点击时采集当前物理网络并在宿主进程内生成隐私安全指纹，原始 SSID 不跨越原生边界；网络档案、网络作用域规则和待确认快照按 revision 编排，明确区分“已保存”“等待确认”和“已激活”。桌面生命周期使用跨平台托盘与原生菜单，关闭窗口只隐藏界面，恢复窗口和“只退出界面”是不同动作；系统/浅色/深色主题采用有界、原子、本地设置。控制事件作为页面失效信号，侧栏会显示订阅连接状态，中断重连后重新读取权威 RPC 快照，不把事件摘要当成本地事实。智能学习的实际入口位于当前浏览器标签页，桌面页不再提供无法关联标签页的伪开始按钮。
 
+活动记录现在保存并展示认证 Provider 解析出的应用签名、父应用与 Helper 归属。只有当前平台
+且签名身份完整的非系统记录才提供“让此应用始终直连”，并在明确确认后创建带 signer 约束、
+包含辅助进程的应用规则；旧记录、身份不足、跨平台和已有规则都会保持只读说明。规则保存后
+继续等待 Provider ACK，页面不会把 pending 误报成已经生效。
+
 运行概览现在持续核对“完整网关”和“客户端协同”两条接入路径，不保存会过期的向导完成状态。完整网关只有在系统组件、默认代理、直连规则和活动数据面同时满足时显示基础就绪；客户端登记仍保持待同步/待路径证据。引导按钮只切换到既有权威页面，不会根据未知的 MDM、Always-On VPN 或第三方 TUN 猜测环境已经兼容。
 
 “全部规则”页可以二次确认后恢复上一份真正生效的配置。恢复点由后台从有效快照历史选取，操作同时绑定当前活动版本并原子恢复当时的默认路由；并发发布会拒绝旧确认，Provider ACK 前只显示等待确认。当前规则草稿不会被回滚操作删除。
@@ -74,6 +79,8 @@ TCP/DNS/UDP/QUIC 验收使用
 - [桌面 Adapter 同步编排 ADR](docs/ADR/0028-orchestrate-adapter-sync-from-the-desktop.md)
 - [权威接入就绪引导 ADR](docs/ADR/0029-guide-setup-with-authoritative-readiness.md)
 - [上一有效快照恢复 ADR](docs/ADR/0030-restore-the-previous-effective-snapshot.md)
+- [有时限运行态路由覆盖 ADR](docs/ADR/0031-time-bounded-runtime-routing-overrides.md)
+- [活动证据创建签名应用规则 ADR](docs/ADR/0032-create-signed-app-rules-from-activity.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链

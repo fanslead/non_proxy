@@ -109,6 +109,9 @@ fn to_proto(record: &ConnectionDecisionRecord) -> Result<ConnectionDecisionSumma
         provider_id: record.provider_id().to_owned(),
         provider_generation: record.provider_generation(),
         fail_open_direct: record.fail_open_direct(),
+        app_signer_id: record.app_signer_id().unwrap_or_default().to_owned(),
+        app_parent_stable_id: record.app_parent_stable_id().unwrap_or_default().to_owned(),
+        app_helper_group_id: record.app_helper_group_id().unwrap_or_default().to_owned(),
     })
 }
 

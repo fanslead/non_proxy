@@ -29,6 +29,8 @@ const EXIT_PROBE_RECEIPTS: &str =
     include_str!("../../../migrations/V0010__exit_probe_receipts.sql");
 const NETWORK_PROFILE_CATALOG: &str =
     include_str!("../../../migrations/V0011__network_profile_catalog.sql");
+const CONNECTION_DECISION_APP_IDENTITY: &str =
+    include_str!("../../../migrations/V0012__connection_decision_app_identity.sql");
 
 struct Migration {
     version: i64,
@@ -91,6 +93,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 11,
         name: "network_profile_catalog",
         sql: NETWORK_PROFILE_CATALOG,
+    },
+    Migration {
+        version: 12,
+        name: "connection_decision_app_identity",
+        sql: CONNECTION_DECISION_APP_IDENTITY,
     },
 ];
 

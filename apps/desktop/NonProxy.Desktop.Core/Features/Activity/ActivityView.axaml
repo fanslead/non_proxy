@@ -1,85 +1,155 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:activity="using:NonProxy.Desktop.Core.Features.Activity"
-             xmlns:control="using:NonProxy.Desktop.Core.Services.Control"
              x:Class="NonProxy.Desktop.Core.Features.Activity.ActivityView"
+             x:Name="Root"
              x:DataType="activity:ActivityViewModel">
     <ScrollViewer>
         <StackPanel Margin="40"
-                    MaxWidth="960"
+                    MaxWidth="1040"
                     Spacing="24">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="20">
                 <StackPanel Spacing="6">
                     <TextBlock Theme="{StaticResource NpPageTitle}"
                                Text="活动记录" />
                     <TextBlock Theme="{StaticResource NpMutedText}"
-                               Text="核对最近连接走了直连、代理还是阻止，以及命中规则的原因。" />
+                               Text="核对最近连接的策略结果、实际路径与判定依据；身份可信的应用可直接建立直连规则。" />
                 </StackPanel>
                 <Button Grid.Column="1"
+                        VerticalAlignment="Center"
                         Theme="{StaticResource NpSecondaryButton}"
                         Command="{Binding RefreshCommand}"
                         Content="刷新"
                         AutomationProperties.Name="刷新活动记录" />
             </Grid>
 
-            <Border Theme="{StaticResource NpCard}">
-                <StackPanel Spacing="14">
-                    <Grid ColumnDefinitions="1.5*,1.7*,1.3*,1.8*,1.7*"
-                          ColumnSpacing="16">
-                        <TextBlock FontWeight="SemiBold"
-                                   Text="应用" />
-                        <TextBlock Grid.Column="1"
-                                   FontWeight="SemiBold"
-                                   Text="目标" />
-                        <TextBlock Grid.Column="2"
-                                   FontWeight="SemiBold"
-                                   Text="结果" />
-                        <TextBlock Grid.Column="3"
-                                   FontWeight="SemiBold"
-                                   Text="路径证据" />
-                        <TextBlock Grid.Column="4"
-                                   FontWeight="SemiBold"
-                                   Text="原因" />
-                    </Grid>
-                    <ItemsControl ItemsSource="{Binding Items}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="control:ActivityItem">
-                                <Grid ColumnDefinitions="1.5*,1.7*,1.3*,1.8*,1.7*"
-                                      ColumnSpacing="16"
-                                      Margin="0,8">
-                                    <StackPanel Spacing="3">
-                                        <TextBlock Text="{Binding Application}"
+            <Border x:Name="ActivityDirectConfirmation"
+                    Theme="{StaticResource NpCard}"
+                    BorderBrush="{DynamicResource NpBrandBrush}"
+                    BorderThickness="2"
+                    IsVisible="{Binding IsDirectConfirmationVisible}">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="24">
+                    <StackPanel Spacing="7">
+                        <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                   Text="{Binding DirectConfirmation.Title}" />
+                        <TextBlock Text="{Binding DirectConfirmation.Detail}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="{Binding DirectConfirmation.ActivationDetail}" />
+                        <TextBlock Foreground="{DynamicResource NpSuccessBrush}"
+                                   Text="{Binding DirectConfirmation.IdentityLabel}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="10">
+                        <Button Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding CancelDirectCommand}"
+                                Content="取消"
+                                AutomationProperties.Name="取消创建活动直连规则" />
+                        <Button x:Name="ConfirmActivityDirectButton"
+                                Theme="{StaticResource NpPrimaryButton}"
+                                Command="{Binding ConfirmDirectCommand}"
+                                Content="确认创建"
+                                AutomationProperties.Name="确认创建活动直连规则" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <TextBlock Theme="{StaticResource NpMutedText}"
+                       Text="{Binding OperationMessage}" />
+            <TextBlock IsVisible="{Binding HasError}"
+                       Foreground="{DynamicResource NpDangerBrush}"
+                       Text="{Binding ErrorMessage}"
+                       TextWrapping="Wrap" />
+
+            <ItemsControl x:Name="ActivityItemsList"
+                          ItemsSource="{Binding Items}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="activity:ActivityRecordViewItem">
+                        <Border Theme="{StaticResource NpCard}"
+                                Margin="0,0,0,12">
+                            <StackPanel Spacing="16">
+                                <Grid ColumnDefinitions="*,Auto"
+                                      ColumnSpacing="18">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock FontSize="17"
+                                                   FontWeight="SemiBold"
+                                                   Text="{Binding Application}"
                                                    TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Theme="{StaticResource NpMutedText}"
-                                                   Text="{Binding OccurredAtLabel}" />
+                                        <StackPanel Orientation="Horizontal"
+                                                    Spacing="6">
+                                            <TextBlock Foreground="{DynamicResource NpBrandBrush}"
+                                                       FontWeight="SemiBold"
+                                                       Text="{Binding ResultLabel}" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       Text="·" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       Text="{Binding OccurredAtLabel}" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       Text="·" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       Text="{Binding IdentityAssuranceLabel}" />
+                                        </StackPanel>
                                     </StackPanel>
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding Destination}"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="2"
-                                               FontWeight="SemiBold"
-                                               Text="{Binding ResultLabel}"
-                                               TextWrapping="Wrap" />
-                                    <TextBlock Grid.Column="3"
-                                               Text="{Binding Path}"
-                                               TextWrapping="Wrap" />
-                                    <StackPanel Grid.Column="4"
-                                                Spacing="3">
+                                    <StackPanel Grid.Column="1"
+                                                VerticalAlignment="Center">
+                                        <Button IsVisible="{Binding CanPrepareDirect}"
+                                                Theme="{StaticResource NpSecondaryButton}"
+                                                Command="{ReflectionBinding DataContext.RequestDirectCommand, ElementName=Root}"
+                                                CommandParameter="{Binding}"
+                                                Content="让此应用始终直连"
+                                                AutomationProperties.Name="准备从活动记录创建应用直连规则" />
+                                        <TextBlock IsVisible="{Binding HasQuickActionStatus}"
+                                                   Theme="{StaticResource NpMutedText}"
+                                                   Text="{Binding QuickActionStatus}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid ColumnDefinitions="1.1*,1.25*,1.65*"
+                                      ColumnSpacing="22">
+                                    <StackPanel Spacing="5">
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   Text="目标" />
+                                        <TextBlock Text="{Binding Destination}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1"
+                                                Spacing="5">
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   Text="实际路径" />
+                                        <TextBlock Text="{Binding Path}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2"
+                                                Spacing="5">
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   Text="判定依据" />
                                         <TextBlock Text="{Binding Reason}"
                                                    TextWrapping="Wrap" />
                                         <TextBlock Theme="{StaticResource NpMutedText}"
                                                    Text="{Binding SnapshotLabel}" />
                                         <TextBlock IsVisible="{Binding HasError}"
+                                                   Foreground="{DynamicResource NpDangerBrush}"
                                                    Text="{Binding Error}"
                                                    TextWrapping="Wrap" />
                                     </StackPanel>
                                 </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock Theme="{StaticResource NpMutedText}"
-                               Text="暂无活动时，不代表网络已停止；也可能是控制服务未连接或历史记录已关闭。" />
-                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Padding="18"
+                    CornerRadius="10"
+                    Background="{DynamicResource NpCanvasBrush}"
+                    IsVisible="{Binding HasNoItems}">
+                <TextBlock Theme="{StaticResource NpMutedText}"
+                           Text="暂无记录并不表示网络已停止；控制服务未连接或尚未收到新连接时也会如此。" />
             </Border>
         </StackPanel>
     </ScrollViewer>

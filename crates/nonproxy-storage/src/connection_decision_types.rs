@@ -229,6 +229,21 @@ impl ConnectionDecisionRecord {
     }
 
     #[must_use]
+    pub fn app_signer_id(&self) -> Option<&str> {
+        self.persisted.app_signer_id.as_deref()
+    }
+
+    #[must_use]
+    pub fn app_parent_stable_id(&self) -> Option<&str> {
+        self.persisted.app_parent_stable_id.as_deref()
+    }
+
+    #[must_use]
+    pub fn app_helper_group_id(&self) -> Option<&str> {
+        self.persisted.app_helper_group_id.as_deref()
+    }
+
+    #[must_use]
     pub fn destination(&self) -> &str {
         &self.persisted.destination_redacted
     }
