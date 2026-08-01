@@ -66,7 +66,9 @@ fn upsert(index: usize) -> SubscriptionUpsert {
     SubscriptionUpsert {
         source_id: format!("source-{index}"),
         display_name: format!("订阅 {index}"),
-        endpoint_url: Zeroizing::new(format!("https://feed.example/{index}").into_bytes()),
+        endpoint_url: Some(Zeroizing::new(
+            format!("https://feed.example/{index}").into_bytes(),
+        )),
         enabled: true,
         refresh_interval_seconds: MINIMUM_REFRESH_INTERVAL_SECONDS,
         expected_revision: None,

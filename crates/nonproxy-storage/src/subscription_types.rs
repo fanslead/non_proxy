@@ -2,6 +2,8 @@ use nonproxy_model::OutboundId;
 
 use crate::{CredentialKind, CredentialReference, OutboundReference, StorageError};
 
+mod subscription_settings;
+
 pub const MINIMUM_REFRESH_INTERVAL_SECONDS: u32 = 15 * 60;
 pub const MAXIMUM_REFRESH_INTERVAL_SECONDS: u32 = 7 * 24 * 60 * 60;
 const MAXIMUM_SUBSCRIPTION_ID_BYTES: usize = 64;

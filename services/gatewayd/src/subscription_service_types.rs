@@ -11,7 +11,7 @@ use crate::{
 pub(crate) struct SubscriptionUpsert {
     pub(crate) source_id: String,
     pub(crate) display_name: String,
-    pub(crate) endpoint_url: Zeroizing<Vec<u8>>,
+    pub(crate) endpoint_url: Option<Zeroizing<Vec<u8>>>,
     pub(crate) enabled: bool,
     pub(crate) refresh_interval_seconds: u32,
     pub(crate) expected_revision: Option<u64>,
@@ -47,6 +47,8 @@ pub(crate) struct SubscriptionRefreshResult {
 pub(crate) enum SubscriptionServiceError {
     #[error("订阅源不存在")]
     SourceNotFound,
+    #[error("创建订阅源时必须提供订阅地址")]
+    EndpointRequired,
     #[error("订阅地址不是 UTF-8 编码")]
     EndpointEncoding,
     #[error(transparent)]
@@ -86,6 +88,7 @@ impl SubscriptionServiceError {
     pub(crate) const fn code(&self) -> &'static str {
         match self {
             Self::SourceNotFound => "NP_SUBSCRIPTION_NOT_FOUND",
+            Self::EndpointRequired => "NP_SUBSCRIPTION_ENDPOINT_REQUIRED",
             Self::EndpointEncoding => "NP_SUBSCRIPTION_ENDPOINT_INVALID",
             Self::Fetch(error) => error.code(),
             Self::Prepare(error) => error.code(),

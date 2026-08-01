@@ -63,7 +63,8 @@ pub(crate) async fn upsert(
                         SubscriptionUpsert {
                             source_id,
                             display_name: request.display_name,
-                            endpoint_url: Zeroizing::new(request.endpoint_url),
+                            endpoint_url: (!request.endpoint_url.is_empty())
+                                .then(|| Zeroizing::new(request.endpoint_url)),
                             enabled: request.enabled,
                             refresh_interval_seconds,
                             expected_revision: (request.expected_revision > 0)

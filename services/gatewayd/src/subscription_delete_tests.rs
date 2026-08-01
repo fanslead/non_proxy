@@ -95,7 +95,7 @@ fn upsert() -> SubscriptionUpsert {
     SubscriptionUpsert {
         source_id: "office".to_owned(),
         display_name: "办公室订阅".to_owned(),
-        endpoint_url: Zeroizing::new(b"https://feed.example/delete".to_vec()),
+        endpoint_url: Some(Zeroizing::new(b"https://feed.example/delete".to_vec())),
         enabled: true,
         refresh_interval_seconds: MINIMUM_REFRESH_INTERVAL_SECONDS,
         expected_revision: None,

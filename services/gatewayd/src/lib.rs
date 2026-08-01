@@ -86,6 +86,7 @@ mod subscription_service_helpers;
 #[cfg(test)]
 mod subscription_service_tests;
 mod subscription_service_types;
+mod subscription_settings_service;
 mod subscription_task_tracker;
 mod system_policies;
 mod system_rpc;

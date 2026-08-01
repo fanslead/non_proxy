@@ -158,6 +158,104 @@ async fn failed_url_reconfiguration_preserves_old_source_and_secret() {
 }
 
 #[tokio::test]
+async fn updates_saved_settings_without_reading_or_replacing_endpoint_secret() {
+    let payload = subscription("settings.example", "private");
+    let (gateway, store, service) = fixture(vec![Ok(payload)]);
+    service
+        .upsert_at(
+            upsert("https://feed.example/settings?token=private", None),
+            1_000,
+        )
+        .await
+        .unwrap_or_else(|error| panic!("订阅设置场景创建失败: {error}"));
+    let before = gateway
+        .subscription_source("office".to_owned())
+        .await
+        .unwrap_or_else(|error| panic!("订阅设置更新前读取失败: {error}"))
+        .unwrap_or_else(|| panic!("订阅设置更新前订阅源不存在"));
+    let endpoint_reference = before.endpoint_credential().item_reference().to_owned();
+
+    let disabled = service
+        .upsert_at(
+            SubscriptionUpsert {
+                source_id: "office".to_owned(),
+                display_name: "办公室主订阅".to_owned(),
+                endpoint_url: None,
+                enabled: false,
+                refresh_interval_seconds: MINIMUM_REFRESH_INTERVAL_SECONDS * 2,
+                expected_revision: Some(1),
+            },
+            2_000,
+        )
+        .await
+        .unwrap_or_else(|error| panic!("不重填地址的订阅设置更新失败: {error}"));
+    let source = gateway
+        .subscription_source("office".to_owned())
+        .await
+        .unwrap_or_else(|error| panic!("订阅设置更新后读取失败: {error}"))
+        .unwrap_or_else(|| panic!("订阅设置更新后订阅源不存在"));
+    assert!(disabled.unchanged);
+    assert_eq!(disabled.revision, 2);
+    assert_eq!(disabled.generation, 1);
+    assert_eq!(source.display_name(), "办公室主订阅");
+    assert!(!source.enabled());
+    assert_eq!(source.refresh_interval_seconds(), 30 * 60);
+    assert_eq!(
+        source.endpoint_credential().item_reference(),
+        endpoint_reference
+    );
+    assert_eq!(
+        store.value(&endpoint_reference).as_deref(),
+        Some(b"https://feed.example/settings?token=private".as_slice())
+    );
+
+    service
+        .upsert_at(
+            SubscriptionUpsert {
+                source_id: "office".to_owned(),
+                display_name: "办公室主订阅".to_owned(),
+                endpoint_url: None,
+                enabled: true,
+                refresh_interval_seconds: MINIMUM_REFRESH_INTERVAL_SECONDS * 2,
+                expected_revision: Some(2),
+            },
+            3_000,
+        )
+        .await
+        .unwrap_or_else(|error| panic!("订阅重新启用失败: {error}"));
+    let reenabled = gateway
+        .subscription_source("office".to_owned())
+        .await
+        .unwrap_or_else(|error| panic!("重新启用后订阅读取失败: {error}"))
+        .unwrap_or_else(|| panic!("重新启用后订阅源不存在"));
+    assert!(reenabled.enabled());
+    assert_eq!(reenabled.next_refresh_at_unix_ms(), 3_000);
+}
+
+#[tokio::test]
+async fn rejects_source_creation_without_an_endpoint() {
+    let (_gateway, _store, service) = fixture(Vec::new());
+
+    let error = service
+        .upsert_at(
+            SubscriptionUpsert {
+                source_id: "office".to_owned(),
+                display_name: "办公室订阅".to_owned(),
+                endpoint_url: None,
+                enabled: true,
+                refresh_interval_seconds: MINIMUM_REFRESH_INTERVAL_SECONDS,
+                expected_revision: None,
+            },
+            1_000,
+        )
+        .await
+        .err()
+        .unwrap_or(SubscriptionServiceError::SourceNotFound);
+
+    assert_eq!(error.code(), "NP_SUBSCRIPTION_ENDPOINT_REQUIRED");
+}
+
+#[tokio::test]
 async fn canceled_rpc_waiter_does_not_cancel_atomic_upsert() {
     let database = PolicyDatabase::open_in_memory(1_000)
         .unwrap_or_else(|error| panic!("取消场景测试数据库创建失败: {error}"));
@@ -233,7 +331,7 @@ fn upsert(endpoint: &str, expected_revision: Option<u64>) -> SubscriptionUpsert 
     SubscriptionUpsert {
         source_id: "office".to_owned(),
         display_name: "办公室订阅".to_owned(),
-        endpoint_url: Zeroizing::new(endpoint.as_bytes().to_vec()),
+        endpoint_url: Some(Zeroizing::new(endpoint.as_bytes().to_vec())),
         enabled: true,
         refresh_interval_seconds: MINIMUM_REFRESH_INTERVAL_SECONDS,
         expected_revision,

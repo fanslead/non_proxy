@@ -10077,6 +10077,7 @@ namespace NonProxy.Control.V1 {
 
   /// <summary>
   /// UpsertSubscriptionSourceRequest 的 endpoint_url 只允许 HTTPS，服务端不得记录或持久化明文。
+  /// 创建或更换地址时必须提供；修改已有订阅的名称、启停或间隔时可留空，表示继续使用已保存的凭据。
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class UpsertSubscriptionSourceRequest : pb::IMessage<UpsertSubscriptionSourceRequest>

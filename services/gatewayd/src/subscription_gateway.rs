@@ -129,6 +129,25 @@ impl Gateway {
             .await
     }
 
+    pub(crate) async fn save_subscription_source(
+        &self,
+        source: SubscriptionSource,
+        expected_revision: u64,
+        updated_at_unix_ms: u64,
+    ) -> Result<(), GatewayError> {
+        let _operation = self.mutation_gate.lock().await;
+        self.database
+            .run(move |database| {
+                database.subscriptions().save(
+                    &source,
+                    Some(expected_revision),
+                    updated_at_unix_ms,
+                )?;
+                Ok(())
+            })
+            .await
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn save_subscription_refresh(
         &self,

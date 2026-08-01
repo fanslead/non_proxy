@@ -24,6 +24,7 @@ use crate::{
         SubscriptionDeleteResult, SubscriptionRefreshResult, SubscriptionServiceError,
         SubscriptionUpsert,
     },
+    subscription_settings_service::update_subscription_settings,
     subscription_task_tracker::SubscriptionTaskTracker,
 };
 
@@ -69,7 +70,7 @@ impl SubscriptionService {
 
     async fn upsert_inner(
         &self,
-        request: SubscriptionUpsert,
+        mut request: SubscriptionUpsert,
         now_unix_ms: u64,
     ) -> Result<SubscriptionRefreshResult, SubscriptionServiceError> {
         let state = self
@@ -77,15 +78,25 @@ impl SubscriptionService {
             .subscription_state(request.source_id.clone())
             .await?;
         validate_expected_revision(state.source.as_ref(), request.expected_revision)?;
-        let refresh_id = random_refresh_id()?;
         let revision = state
             .source
             .as_ref()
             .map_or(Some(1), |source| source.revision().checked_add(1))
             .ok_or(SubscriptionServiceError::RevisionExhausted)?;
+        let Some(endpoint_url) = request.endpoint_url.take() else {
+            return update_subscription_settings(
+                &self.gateway,
+                &request,
+                state.source.as_ref(),
+                revision,
+                now_unix_ms,
+            )
+            .await;
+        };
+        let refresh_id = random_refresh_id()?;
         let url_reference = endpoint_credential(&request.source_id, revision, &refresh_id)?;
         let source = configured_source(&request, state.source.as_ref(), url_reference, revision)?;
-        let endpoint = parse_endpoint(request.endpoint_url.as_slice())?;
+        let endpoint = parse_endpoint(endpoint_url.as_slice())?;
         let payload = self.fetcher.fetch(&endpoint).await?;
         let content_hash = content_hash(payload.as_slice());
         let prepared = prepare_subscription_refresh(
@@ -105,7 +116,7 @@ impl SubscriptionService {
         let mut credentials = prepared.credentials;
         credentials.push(CredentialWrite {
             reference: source.endpoint_credential().item_reference().to_owned(),
-            secret: request.endpoint_url,
+            secret: endpoint_url,
         });
         let new_references = store_credentials_with_cleanup(
             &self.gateway,

@@ -191,6 +191,7 @@ pub(crate) fn save_source(
              enabled = excluded.enabled,
              refresh_interval_seconds = excluded.refresh_interval_seconds,
              revision = excluded.revision,
+             next_refresh_at_unix_ms = excluded.next_refresh_at_unix_ms,
              updated_at_unix_ms = excluded.updated_at_unix_ms",
         params![
             source.id(),
