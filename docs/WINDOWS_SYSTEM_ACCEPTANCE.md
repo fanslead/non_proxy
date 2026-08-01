@@ -50,12 +50,14 @@ dotnet publish .\apps\desktop\NonProxy.Desktop.Windows\NonProxy.Desktop.Windows.
   -c Release -f net10.0-windows10.0.26100.0 -r win-x64 --self-contained true `
   -o .\.artifacts\desktop\win-x64
 cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-gatewayd
+cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-adapter-host
 
 .\scripts\windows\build-release-package.ps1 `
   -Version 0.1.0 `
   -Architecture x64 `
   -DesktopPublishDirectory .\.artifacts\desktop\win-x64 `
   -GatewayExecutable .\target\x86_64-pc-windows-msvc\release\nonproxy-gatewayd.exe `
+  -AdapterHostExecutable .\target\x86_64-pc-windows-msvc\release\nonproxy-adapter-host.exe `
   -DriverDirectory .\.artifacts\hardware-center\x64
 ```
 
@@ -139,8 +141,9 @@ Windows adapter-host 纳入发布生命周期后还必须单独核对：进程�
 LocalSystem 运行；状态目录位于该用户 LocalAppData；`adapter.capability` 仅该用户可读写；
 `NonProxy.Adapter.<UserSid>` 只授予 SYSTEM、Administrators 和该用户并拒绝远端；两个同时
 登录的普通用户使用不同管道，SYSTEM/服务身份无法启动；桌面端携带错误/过期能力令牌时 RPC 被拒绝；
-退出、登录切换、升级和卸载不会留下可被后续用户复用的管道或令牌。当前发布工具尚未分发或
-启动该进程，因此这些仍是未完成的 W2/W3 验收项。
+任务 principal 必须是 `S-1-5-32-545` Group + Limited、触发器必须是空 UserId 的 AtLogOn、
+多实例必须为 Parallel；退出、登录切换、升级和卸载不会留下可被后续用户复用的管道或令牌。
+发布、任务和桌面即时启动源码已存在，但这些仍是未完成的 W2/W3 实机验收项。
 
 ## 5. Driver Verifier
 
@@ -243,9 +246,10 @@ Avalonia Windows 宿主因此继续
 MSIX/UWP 包目录、ALE package SID 与 PublisherId 已有 W0 源码和交叉编译证据，但没有真实
 Windows 验收结果；不得用文件名、展示名、普通路径、桌面目录成功或单元测试替代包身份证据。
 
-Adapter 命名管道服务端、桌面客户端、SID 绑定管道/精确 DACL、独立能力文件路径和平台能力
-降级已有 W0 源码与 x64/ARM64 交叉编译门禁；按用户分发/启动、真实命名管道 RPC/ACL 和第三方客户端
-重载尚未在 Windows 执行，不得据此声明“客户端协同可用”。
+Adapter 命名管道服务端、桌面客户端、SID 绑定管道/精确 DACL、签名包入口、Users group
+登录任务、桌面哈希复验即时启动和平台能力降级已有 W0 源码与 x64/ARM64 交叉编译门禁；
+真实任务、多用户命名管道 RPC/ACL 和第三方客户端重载尚未在 Windows 执行，不得据此声明
+“客户端协同可用”。
 
 ## 8. 官方依据
 

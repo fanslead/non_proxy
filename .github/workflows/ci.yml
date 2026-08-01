@@ -59,6 +59,35 @@ jobs:
             }
           }
 
+      - name: 检查 Adapter Host 发行与登录任务约束
+        shell: pwsh
+        run: |
+          $files = @{
+            build = Get-Content scripts/windows/build-release-package.ps1 -Raw
+            sign = Get-Content scripts/windows/sign-release-package.ps1 -Raw
+            verify = Get-Content scripts/windows/verify-release-package.ps1 -Raw
+            install = Get-Content scripts/windows/install-system-components.ps1 -Raw
+            task = Get-Content scripts/windows/NonProxy.Windows.AdapterHost.psm1 -Raw
+            service = Get-Content scripts/windows/NonProxy.Windows.Service.psm1 -Raw
+          }
+          @(
+            @{ file = "build"; text = "AdapterHostExecutable" },
+            @{ file = "build"; text = "nonproxy-adapter-host.exe" },
+            @{ file = "sign"; text = "adapter/nonproxy-adapter-host.exe" },
+            @{ file = "verify"; text = "adapter/nonproxy-adapter-host.exe" },
+            @{ file = "install"; text = "Set-NonProxyAdapterHostTask" },
+            @{ file = "install"; text = "Remove-NonProxyAdapterHostTask" },
+            @{ file = "install"; text = "Stop-NonProxyAdapterHostProcesses" },
+            @{ file = "service"; text = "S-1-5-32-545" },
+            @{ file = "task"; text = "New-ScheduledTaskTrigger -AtLogOn" },
+            @{ file = "task"; text = "-RunLevel Limited" },
+            @{ file = "task"; text = "-MultipleInstances Parallel" }
+          ) | ForEach-Object {
+            if (-not $files[$_.file].Contains($_.text)) {
+              throw "Adapter Host 发行约束缺失：$($_.file) / $($_.text)"
+            }
+          }
+
   verify:
     name: 验证单体仓库
     runs-on: macos-26

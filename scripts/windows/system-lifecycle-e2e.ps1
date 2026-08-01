@@ -91,6 +91,17 @@ function Write-SystemSnapshot {
             Where-Object { $_.Name -eq "NonProxyWfp" } |
             Select-Object Name, State, StartMode, PathName
     )
+    Write-EvidenceJson "$Prefix-adapter-task.json" @(
+        Get-ScheduledTask -TaskName "NonProxyAdapterHost" `
+            -TaskPath "\" `
+            -ErrorAction SilentlyContinue |
+            Select-Object TaskName, State, Actions, Triggers, Principal, Settings
+    )
+    Write-EvidenceJson "$Prefix-adapter-processes.json" @(
+        Get-CimInstance Win32_Process -Filter `
+            "Name = 'nonproxy-adapter-host.exe'" |
+            Select-Object ProcessId, SessionId, ExecutablePath
+    )
     Write-EvidenceJson "$Prefix-adapters.json" @(
         Get-NetAdapter -IncludeHidden |
             Select-Object Name, InterfaceDescription, InterfaceGuid,

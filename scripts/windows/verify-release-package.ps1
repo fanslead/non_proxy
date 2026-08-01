@@ -80,7 +80,8 @@ $expectedFiles = [Collections.Generic.HashSet[string]]::new(
 $scriptExtensions = @(".ps1", ".psm1", ".psd1")
 $publisherSignedPaths = @(
     "desktop/NonProxy.Desktop.Windows.exe",
-    "service/nonproxy-gatewayd.exe"
+    "service/nonproxy-gatewayd.exe",
+    "adapter/nonproxy-adapter-host.exe"
 )
 foreach ($entry in $manifest.files) {
     $relative = [string]$entry.path

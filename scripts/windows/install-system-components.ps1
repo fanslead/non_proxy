@@ -24,6 +24,8 @@ Import-Module (
     Join-Path $PSScriptRoot "NonProxy.Windows.DriverPackage.psm1") -Force
 Import-Module (
     Join-Path $PSScriptRoot "NonProxy.Windows.Service.psm1") -Force
+Import-Module (
+    Join-Path $PSScriptRoot "NonProxy.Windows.AdapterHost.psm1") -Force
 
 Assert-NonProxyWindows
 if ($Action -notin @("Install", "Repair") -and (
@@ -98,7 +100,9 @@ function Install-SystemComponents {
     $installRoot = Copy-VersionedPayload -Package $Package
     $driverInf = Join-Path $installRoot "driver\NonProxyWfp.inf"
     $gateway = Join-Path $installRoot "service\nonproxy-gatewayd.exe"
+    $adapterHost = Join-Path $installRoot "adapter\nonproxy-adapter-host.exe"
     $gatewayFingerprint = Get-NonProxyFileSha256 -Path $gateway
+    $adapterHostFingerprint = Get-NonProxyFileSha256 -Path $adapterHost
     $requiresReboot = $false
     try {
         Stop-NonProxyProductService -Layout $Layout
@@ -110,6 +114,10 @@ function Install-SystemComponents {
             -Fingerprint $gatewayFingerprint `
             -ExitProbeEndpoint $requestedExitProbe.Endpoint `
             -ExitProbePublicKeys $requestedExitProbe.PublicKeys
+        Set-NonProxyAdapterHostTask `
+            -Layout $Layout `
+            -Executable $adapterHost `
+            -Fingerprint $adapterHostFingerprint
         New-Item -Path $Layout.RegistryPath -Force | Out-Null
         New-ItemProperty -LiteralPath $Layout.RegistryPath `
             -Name InstallRoot -Value $installRoot -PropertyType String -Force |
@@ -123,6 +131,12 @@ function Install-SystemComponents {
         New-ItemProperty -LiteralPath $Layout.RegistryPath `
             -Name PublisherThumbprint -Value $Package.publisherThumbprint `
             -PropertyType String -Force | Out-Null
+        New-ItemProperty -LiteralPath $Layout.RegistryPath `
+            -Name AdapterHostExecutable -Value $adapterHost `
+            -PropertyType String -Force | Out-Null
+        New-ItemProperty -LiteralPath $Layout.RegistryPath `
+            -Name AdapterHostFingerprint -Value $adapterHostFingerprint `
+            -PropertyType String -Force | Out-Null
         if (-not $requiresReboot) {
             Start-Service -Name $Layout.ServiceName
             (Get-Service -Name $Layout.ServiceName).WaitForStatus(
@@ -134,10 +148,15 @@ function Install-SystemComponents {
         $oldRoot = Get-NonProxyInstalledMetadataValue `
             $previous "InstallRoot"
         try {
+            Stop-NonProxyAdapterHostProcesses `
+                -Layout $Layout `
+                -InstallRoot $installRoot
             if (-not [string]::IsNullOrWhiteSpace($oldRoot) -and
                 (Test-Path -LiteralPath $oldRoot)) {
                 $oldInf = Join-Path $oldRoot "driver\NonProxyWfp.inf"
                 $oldGateway = Join-Path $oldRoot "service\nonproxy-gatewayd.exe"
+                $oldAdapterHost = Join-Path `
+                    $oldRoot "adapter\nonproxy-adapter-host.exe"
                 $rollbackNeedsReboot = Install-NonProxyDriverPackage `
                     -InfPath $oldInf
                 Set-NonProxyProductService `
@@ -146,12 +165,23 @@ function Install-SystemComponents {
                     -Fingerprint (Get-NonProxyFileSha256 -Path $oldGateway) `
                     -ExitProbeEndpoint $previousExitProbe.Endpoint `
                     -ExitProbePublicKeys $previousExitProbe.PublicKeys
+                if (Test-Path -LiteralPath $oldAdapterHost -PathType Leaf) {
+                    Set-NonProxyAdapterHostTask `
+                        -Layout $Layout `
+                        -Executable $oldAdapterHost `
+                        -Fingerprint (
+                            Get-NonProxyFileSha256 -Path $oldAdapterHost)
+                } else {
+                    Remove-NonProxyAdapterHostTask -Layout $Layout
+                }
                 New-Item -Path $Layout.RegistryPath -Force | Out-Null
                 foreach ($name in @(
                     "InstallRoot",
                     "Version",
                     "Architecture",
-                    "PublisherThumbprint"
+                    "PublisherThumbprint",
+                    "AdapterHostExecutable",
+                    "AdapterHostFingerprint"
                 )) {
                     $oldValue = Get-NonProxyInstalledMetadataValue `
                         $previous $name
@@ -161,6 +191,11 @@ function Install-SystemComponents {
                             -Value $oldValue `
                             -PropertyType String `
                             -Force | Out-Null
+                    } else {
+                        Remove-ItemProperty `
+                            -LiteralPath $Layout.RegistryPath `
+                            -Name $name `
+                            -ErrorAction SilentlyContinue
                     }
                 }
                 if (-not $rollbackNeedsReboot) {
@@ -169,6 +204,7 @@ function Install-SystemComponents {
                     Write-Warning "旧驱动已恢复，但需要用户安排重启后才能重新启用。"
                 }
             } else {
+                Remove-NonProxyAdapterHostTask -Layout $Layout
                 Remove-NonProxyProductService -Layout $Layout
                 [void](Uninstall-NonProxyDriverPackage -InfPath $driverInf)
             }
@@ -211,6 +247,8 @@ function Uninstall-SystemComponents {
             throw
         }
     }
+    Remove-NonProxyAdapterHostTask -Layout $Layout
+    Stop-NonProxyAdapterHostProcesses -Layout $Layout
     Remove-NonProxyProductService -Layout $Layout
     if ($null -ne $metadata -and
         -not [string]::IsNullOrWhiteSpace($installRoot)) {
@@ -239,7 +277,17 @@ $package = & (Join-Path $PSScriptRoot "verify-release-package.ps1") `
     -PassThru
 
 if ($Action -eq "Query") {
-    (Get-NonProxySystemState -Layout $Layout -PackageTrusted $true) |
+    $metadata = Get-NonProxyInstalledMetadata -Layout $Layout
+    $adapterTask = Get-NonProxyAdapterHostTaskSnapshot `
+        -Layout $Layout `
+        -ExpectedExecutable (
+            Get-NonProxyInstalledMetadataValue $metadata "AdapterHostExecutable") `
+        -ExpectedFingerprint (
+            Get-NonProxyInstalledMetadataValue $metadata "AdapterHostFingerprint")
+    (Get-NonProxySystemState `
+        -Layout $Layout `
+        -PackageTrusted $true `
+        -AdapterTask $adapterTask) |
         ConvertTo-Json -Depth 6 -Compress
     return
 }
@@ -257,7 +305,17 @@ $requiresReboot = if ($Action -eq "Uninstall") {
 } else {
     Install-SystemComponents -Package $package
 }
-$result = Get-NonProxySystemState -Layout $Layout -PackageTrusted $true
+$metadata = Get-NonProxyInstalledMetadata -Layout $Layout
+$adapterTask = Get-NonProxyAdapterHostTaskSnapshot `
+    -Layout $Layout `
+    -ExpectedExecutable (
+        Get-NonProxyInstalledMetadataValue $metadata "AdapterHostExecutable") `
+    -ExpectedFingerprint (
+        Get-NonProxyInstalledMetadataValue $metadata "AdapterHostFingerprint")
+$result = Get-NonProxySystemState `
+    -Layout $Layout `
+    -PackageTrusted $true `
+    -AdapterTask $adapterTask
 $result["action"] = $Action
 $result["requiresReboot"] = $requiresReboot
 if ($requiresReboot) {

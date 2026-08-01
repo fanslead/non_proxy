@@ -5,8 +5,8 @@
 
 ## 背景
 
-NonProxy 的 Windows 数据面包含普通用户桌面应用、LocalSystem Service 和 WFP
-Callout Driver。仅把 `SYS/INF/EXE` 放进压缩包会留下四类风险：
+NonProxy 的 Windows 数据面包含普通用户桌面应用、普通用户 adapter-host、LocalSystem
+Service 和 WFP Callout Driver。仅把 `SYS/INF/EXE` 放进压缩包会留下四类风险：
 
 - 包内 JSON 可以被同时替换，不能自行充当信任根；
 - 用户可写目录中的 Service 二进制容易产生提权和 TOCTOU 风险；
@@ -54,6 +54,10 @@ Hardware ID。
    不自动重启。
 8. 默认卸载保留 `%ProgramData%\NonProxy`。清除用户数据需要第二组显式参数
    和环境开关。
+9. adapter-host 位于同一管理员保护的版本目录并进入固定发布者签名清单。机器级登录任务
+   使用内置 Users group、空用户登录触发器、受限 token 和并行实例；桌面端复验安装注册表、
+   路径、重解析点与 SHA-256 后在当前真实用户会话补齐首次启动。卸载先撤销任务，再精确终止
+   受保护版本目录中的计划任务/桌面补启动实例，最后删除版本载荷。
 
 ### Driver Verifier
 

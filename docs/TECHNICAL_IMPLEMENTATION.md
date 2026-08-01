@@ -1616,8 +1616,9 @@ configuration verify 执行。投影只接受客户端能无损表达的单维 D
 通过 `\\.\pipe\NonProxy.Adapter.<UserSid>` 与独立 `adapter.capability` 连接按用户宿主。
 Rust 和 C# 使用相同的规范 SID 规则生成端点；Session 0、服务 SID 与 SYSTEM/LocalService/NetworkService
 身份会失败关闭，显式 SDDL 也不得放宽当前用户 DACL。当前仓库
-尚未把 Windows adapter-host 纳入签名发布包和按用户生命周期，因此桌面端即使已完成传输
-接线，也只会在外部宿主真实就绪时连通，不能据此显示“产品可用”或伪成功。完整平台边界见
+Windows adapter-host 已进入固定发布者签名包；Users group 登录任务负责每个登录用户的长期
+实例，桌面端只从管理员安装元数据解析并复验受保护路径和 SHA-256 后补齐当前会话即时启动。
+这些源码仍需真实 Windows 任务、ACL 和 RPC 验收，不能据此显示“产品可用”或伪成功。完整平台边界见
 [ADR-0035](ADR/0035-connect-windows-adapter-host-over-named-pipes.md)。
 
 适配器接口：
@@ -1959,8 +1960,8 @@ Windows：
 - `dotnet publish -f net10.0-windows10.0.26100.0` 从 `NonProxy.Desktop.Windows` 生成
   `win-x64`/`win-arm64` self-contained UI；portable `net10.0` 仅供测试，项目会拒绝用它发布。
 - 安装器组合 Avalonia UI、Windows Service、WFP 组件和 Native Messaging Host。
-- adapter-host 是独立按用户低权限进程；受限命名管道和桌面客户端已有源码，正式安装器仍需
-  分发签名二进制、下发面向当前交互用户的精确 SDDL，并实现登录启动、升级和卸载。
+- adapter-host 是独立按用户低权限进程；签名包、受限命名管道、Users group 登录任务、桌面
+  当前会话即时启动、升级任务切换和卸载均已有源码，正式可用仍以真实 Windows 验收为准。
 - 驱动签名与普通应用签名分开验证。
 
 ### 17.9 UI 测试
@@ -2351,6 +2352,8 @@ Windows 发行源码已经提供：
   重解析点/架构/最低系统版本拒绝，以及 INF/SYS `/kp /c` Catalog 成员校验；
 - 复制到 `%ProgramFiles%` 后复验、每次安装新版本目录、SCM Service 环境与
   ACL、旧 Driver/Service 回切、默认保留数据的卸载和不自动重启语义；
+- 固定发布者签名的 adapter-host、空 UserId 的任意 Users group 登录任务、Limited token、
+  多用户 Parallel 实例，以及桌面按管理员元数据/受保护路径/SHA-256 的当前会话即时启动；
 - Driver Verifier 的测试机专用显式开关，以及安装/修复/卸载前后状态、
   Service、Driver、网卡、路由和 SHA-256 证据目录。
 
@@ -2361,9 +2364,9 @@ QUIC 或第三方 VPN filter 顺序正确；Windows UI 在签名 bootstrap 与�
 完成前继续将系统组件标记为不可用。执行门禁见
 [Windows 系统组件与真实网络路径验收](WINDOWS_SYSTEM_ACCEPTANCE.md)。
 
-Windows adapter-host 还缺少签名包内分发、按交互用户启动/退出、升级切换和真实命名管道
-RPC/ACL 验收；在这些生命周期落地前，命名管道源码与交叉编译只属于 W0
-证据。Windows 应用规则投影还需要版本化的精确可执行文件/包身份 selector，不能把现有
+Windows adapter-host 的签名分发、按用户登录任务、桌面即时启动、滚动升级切换和卸载源码
+已经落地，但真实 group activation、多用户进程/ACL、登录退出和命名管道 RPC 尚未验收；
+当前证据仍只属于 W0。Windows 应用规则投影还需要版本化的精确可执行文件/包身份 selector，不能把现有
 macOS `.app` Bundle 路径约束静默放宽。
 
 ### 22.1 用户态优先

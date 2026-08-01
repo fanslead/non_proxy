@@ -13,6 +13,9 @@ function Get-NonProxySystemLayout {
         StateDirectory = Join-Path $env:ProgramData "NonProxy"
         ProgramRoot = Join-Path $env:ProgramFiles "NonProxy\system"
         PipeSddl = "D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GRGW;;;IU)"
+        AdapterTaskName = "NonProxyAdapterHost"
+        AdapterTaskPath = "\"
+        AdapterUsersGroupSid = "S-1-5-32-545"
     }
 }
 
@@ -50,15 +53,24 @@ function Get-NonProxySystemState {
         [Parameter(Mandatory = $true)]
         [pscustomobject]$Layout,
         [Parameter(Mandatory = $true)]
-        [bool]$PackageTrusted
+        [bool]$PackageTrusted,
+        [Parameter(Mandatory = $true)]
+        [object]$AdapterTask
     )
 
     $service = Get-NonProxyServiceSnapshot -Name $Layout.ServiceName
     $driver = Get-NonProxyServiceSnapshot -Name $Layout.DriverName
     $metadata = Get-NonProxyInstalledMetadata -Layout $Layout
     $exitProbe = Get-NonProxyExitProbeServiceConfiguration -Layout $Layout
-    $installed = $service.installed -and $driver.installed
-    $absent = -not $service.installed -and -not $driver.installed
+    $installed = (
+        $service.installed -and
+        $driver.installed -and
+        $AdapterTask.installed -and
+        $AdapterTask.definitionValid)
+    $absent = (
+        -not $service.installed -and
+        -not $driver.installed -and
+        -not $AdapterTask.installed)
     $status = if (
         $installed -and
         $service.status -eq "Running" -and
@@ -70,7 +82,7 @@ function Get-NonProxySystemState {
         "Partial"
     }
     $message = switch ($status) {
-        "Installed" { "Windows Service 与 WFP Driver 已安装并运行。" }
+        "Installed" { "Windows Service、WFP Driver 与用户 Adapter 登录任务已就绪。" }
         "NotInstalled" { "Windows 系统组件尚未安装。" }
         default { "Windows 系统组件仅部分就绪，需要修复。" }
     }
@@ -107,6 +119,16 @@ function Get-NonProxySystemState {
                 name = "WFP Driver"
                 installed = $driver.installed
                 status = $driver.status
+            },
+            [ordered]@{
+                id = "adapter-host"
+                name = "客户端适配服务"
+                installed = $AdapterTask.installed
+                status = if ($AdapterTask.definitionValid) {
+                    $AdapterTask.status
+                } else {
+                    "Invalid"
+                }
             }
         )
     }

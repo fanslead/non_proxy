@@ -15,6 +15,7 @@ internal static class Program
     [SupportedOSPlatform("windows10.0.18362.0")]
     public static void Main(string[] args)
     {
+        _ = WindowsAdapterHostBootstrap.TryStart();
         using var services = ServiceRegistration.BuildProvider(collection =>
         {
             collection.AddSingleton<IPlatformInformation, WindowsPlatformInformation>();

@@ -27,12 +27,23 @@ Windows 桌面端复用了客户端协同页面，但 adapter-host 只有 Unix U
    在 Windows 默认取当前 adapter-host 可执行文件的 SHA-256，供后续升级就绪检查使用。
 5. 平台能力失败关闭：Surge 只在 macOS 宣称支持；Windows sing-box 在没有安全重载实现前
    不宣称 `HOT_RELOAD`；Mihomo 继续使用唯一 loopback controller 的公开 HTTP 重载。
+6. 发布包把 adapter-host 作为固定发布者签名入口纳入清单。管理员安装器登记一个
+   `NonProxyAdapterHost` 登录任务：触发器不指定 `UserId`，principal 使用内置 Users group
+   SID `S-1-5-32-545`、`Group` logon、`Limited` run level，实例策略为 `Parallel`。因此任意
+   普通用户登录时都在自己的交互 token 和 Session 中获得一个宿主，多用户不会共享进程。
+7. 桌面端只从管理员保护的安装注册表读取当前版本目录和 SHA-256，并复验
+   `%ProgramFiles%\NonProxy\system\<version>\adapter\nonproxy-adapter-host.exe` 无重解析点且
+   哈希一致后，以当前真实用户即时启动。它不继承开发用 Adapter 环境覆盖；已有受信旧版本
+   宿主在升级中的当前会话继续服务，任务定义切到新版本后在下次登录自然收敛，避免强杀正在
+   执行的配置事务。卸载会撤销任务并只终止受保护版本目录内的精确 adapter-host 路径，覆盖
+   计划任务和桌面补启动两种实例，不按进程名误杀外部程序。
 
 ## 当前边界
 
 - x64/ARM64 交叉编译与可移植单元测试只能证明 W0 源码边界。
-- Windows 发布包尚未分发 adapter-host，也未实现按用户登录启动、升级切换、退出和卸载；
-  真实管道 DACL、会话隔离、错误令牌和第三方客户端重载仍需 Windows 验收。
+- Windows 发布包、登录任务、桌面即时启动、升级任务切换和卸载源码已接线；真实任务 group
+  activation、多用户并行、进程退出、管道 DACL、会话隔离、错误令牌和第三方客户端重载仍需
+  Windows 验收。
 - 现有应用规则投影要求 macOS `.app` Bundle 路径。Windows 精确可执行文件或 package
   selector 必须通过后续版本化契约实现，不能为接通传输而静默扩大规则范围。
 
@@ -41,3 +52,8 @@ Windows 桌面端复用了客户端协同页面，但 adapter-host 只有 Unix U
 - Windows 页面和宿主具备独立、可认证的本地传输源码，不再依赖 Unix socket。
 - 用户级第三方配置权限不会被并入 SYSTEM gatewayd。
 - 产品仍会在宿主生命周期未就绪时明确失败，不把交叉编译或管道创建等同于可用或已直连。
+
+## 参考
+
+- [Microsoft：ILogonTrigger](https://learn.microsoft.com/windows/win32/api/taskschd/nn-taskschd-ilogontrigger)
+- [Microsoft：Principal.LogonType](https://learn.microsoft.com/windows/win32/taskschd/principal-logontype)

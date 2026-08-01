@@ -13,6 +13,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$GatewayExecutable,
     [Parameter(Mandatory = $true)]
+    [string]$AdapterHostExecutable,
+    [Parameter(Mandatory = $true)]
     [string]$DriverDirectory,
     [string]$OutputDirectory
 )
@@ -27,6 +29,8 @@ $desktopSource = Resolve-NonProxyExistingPath `
     -Path $DesktopPublishDirectory -PathType Container
 $gatewaySource = Resolve-NonProxyExistingPath `
     -Path $GatewayExecutable -PathType Leaf
+$adapterHostSource = Resolve-NonProxyExistingPath `
+    -Path $AdapterHostExecutable -PathType Leaf
 $driverSource = Resolve-NonProxyExistingPath `
     -Path $DriverDirectory -PathType Container
 $desktopExecutable = Join-Path $desktopSource "NonProxy.Desktop.Windows.exe"
@@ -49,11 +53,13 @@ if (Test-Path -LiteralPath $packageRoot) {
 
 $desktopDestination = Join-Path $packageRoot "desktop"
 $serviceDestination = Join-Path $packageRoot "service"
+$adapterDestination = Join-Path $packageRoot "adapter"
 $driverDestination = Join-Path $packageRoot "driver"
 $toolsDestination = Join-Path $packageRoot "tools"
 New-Item -ItemType Directory -Force -Path @(
     $desktopDestination,
     $serviceDestination,
+    $adapterDestination,
     $driverDestination,
     $toolsDestination
 ) | Out-Null
@@ -62,6 +68,8 @@ Copy-Item -Path (Join-Path $desktopSource "*") `
     -Destination $desktopDestination -Recurse -Force
 Copy-Item -LiteralPath $gatewaySource `
     -Destination (Join-Path $serviceDestination "nonproxy-gatewayd.exe")
+Copy-Item -LiteralPath $adapterHostSource `
+    -Destination (Join-Path $adapterDestination "nonproxy-adapter-host.exe")
 
 foreach ($driverName in @(
     "NonProxyWfp.inf",
@@ -77,6 +85,7 @@ foreach ($driverName in @(
 
 foreach ($toolName in @(
     "NonProxy.Windows.Common.psm1",
+    "NonProxy.Windows.AdapterHost.psm1",
     "NonProxy.Windows.DriverPackage.psm1",
     "NonProxy.Windows.Service.psm1",
     "verify-release-package.ps1",

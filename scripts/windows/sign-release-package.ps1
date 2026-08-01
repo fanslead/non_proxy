@@ -41,7 +41,8 @@ foreach ($file in $allFiles) {
         $file.FullName).Replace("\", "/")
     $isProductBinary = $relative -in @(
         "desktop/NonProxy.Desktop.Windows.exe",
-        "service/nonproxy-gatewayd.exe"
+        "service/nonproxy-gatewayd.exe",
+        "adapter/nonproxy-adapter-host.exe"
     ) -or $extension -in @(".msi", ".msix")
     if ($scriptExtensions -contains $extension) {
         $signature = Set-AuthenticodeSignature `

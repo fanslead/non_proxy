@@ -26,7 +26,7 @@ Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名
 
 “全部规则”页可以二次确认后恢复上一份真正生效的配置。恢复点由后台从有效快照历史选取，操作同时绑定当前活动版本并原子恢复当时的默认路由；并发发布会拒绝旧确认，Provider ACK 前只显示等待确认。当前规则草稿不会被回滚操作删除。
 
-第三方客户端协同已覆盖 Surge、Clash/Mihomo 和 sing-box 的显式登记、活动快照无损投影、客户端原生校验、主配置与 sidecar 双文件事务、公开重载、配置确认和失败恢复。共享页面可用系统原生文件选择器选取客户端与当前配置，也保留绝对路径高级回退；所有选择结果仍由隔离 adapter-host 重新验证。页面独立显示候选校验、配置载入和真实路径，当前没有路径级证据时始终提示“尚未证明绕过 VPN”。Windows 源码已接入绑定当前普通用户 SID 的独立 Adapter 命名管道、精确 DACL、会话能力文件和共享页面客户端；多用户同时登录不会争用同一管道，SYSTEM/服务身份启动会失败关闭。Surge 在非 macOS 平台失败关闭，sing-box 在 Windows 不会误报尚无安全实现的热重载，Mihomo 保留 loopback HTTP 重载能力。Windows 按用户打包、登录启动、升级和 ACL 实机验收尚未完成，因此这条源码链路不能表述为产品可用。
+第三方客户端协同已覆盖 Surge、Clash/Mihomo 和 sing-box 的显式登记、活动快照无损投影、客户端原生校验、主配置与 sidecar 双文件事务、公开重载、配置确认和失败恢复。共享页面可用系统原生文件选择器选取客户端与当前配置，也保留绝对路径高级回退；所有选择结果仍由隔离 adapter-host 重新验证。页面独立显示候选校验、配置载入和真实路径，当前没有路径级证据时始终提示“尚未证明绕过 VPN”。Windows 源码已接入绑定当前普通用户 SID 的独立 Adapter 命名管道、精确 DACL、会话能力文件和共享页面客户端；adapter-host 进入固定发布者签名包，由 Users group 登录任务为多用户创建 Limited/Parallel 实例，桌面端按管理员安装元数据、受保护路径和 SHA-256 补齐当前会话即时启动。SYSTEM/服务身份启动会失败关闭，升级中的旧会话继续使用受信旧实例并在下次登录切换。Surge 在非 macOS 平台失败关闭，sing-box 在 Windows 不会误报尚无安全实现的热重载，Mihomo 保留 loopback HTTP 重载能力。真实 Windows 登录任务、ACL、RPC 和第三方客户端实机验收尚未完成，因此这条源码链路不能表述为产品可用。
 
 应用直连页已经在 macOS 与 Windows 共用。Windows 目录从当前用户运行进程和系统注册应用中筛选可信 Win32 `.exe`，也可通过系统文件选择器补充；稳定身份直接来自 `FwpmGetAppIdFromFileName0`，只有通过 Authenticode 信任校验并取得证书 SHA-256 的应用才能创建规则。MSIX/UWP 由当前用户包目录提供 PFN 与 PublisherId，规则稳定身份使用系统派生的 AppContainer package SID。WFP TCP/UDP 会携带 ALE package SID，并按 PID 重新读取 PFN、派生 SID、解析 PublisherId 后等值核对；非空畸形包 SID 不回退为 Win32。Windows 不虚构 Helper 关系；真实 Windows 上的包目录、WinTrust/Catalog 签名、PID 复用与 WFP 命中仍按验收文档取证。
 
