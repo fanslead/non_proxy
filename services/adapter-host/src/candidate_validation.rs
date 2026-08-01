@@ -253,7 +253,7 @@ fn validation_error(error: ProcessExecutionError) -> AdapterHostError {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use std::fs;
 
@@ -273,7 +273,6 @@ mod tests {
       }}]
     }"#;
 
-    #[cfg(unix)]
     #[tokio::test]
     async fn sing_box_validation_requires_a_compiled_output() {
         use std::os::unix::fs::PermissionsExt;
@@ -322,7 +321,6 @@ mod tests {
         assert!(directory.path().join("sing-box.checked").is_file());
     }
 
-    #[cfg(unix)]
     #[tokio::test]
     async fn surge_validation_uses_only_the_selected_bundle_cli_and_candidate() {
         use std::os::unix::fs::PermissionsExt;

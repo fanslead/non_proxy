@@ -3,6 +3,7 @@ using Avalonia;
 using Microsoft.Extensions.DependencyInjection;
 using NonProxy.Desktop.Core.Bootstrap;
 using NonProxy.Desktop.Core.Platform;
+using NonProxy.Desktop.Core.Services.Adapters.Transport;
 using NonProxy.Desktop.Core.Services.Control.Transport;
 using NonProxy.Desktop.Windows.ApplicationCatalog;
 
@@ -31,6 +32,13 @@ internal static class Program
                 IWindowsExecutablePicker,
                 AvaloniaWindowsExecutablePicker>();
             collection.AddSingleton<IApplicationCatalog, WindowsApplicationCatalog>();
+            collection.AddSingleton(LocalAdapterEndpoint.FromWindowsEnvironment());
+            collection.AddSingleton<
+                IAdapterChannelFactory,
+                WindowsNamedPipeAdapterChannelFactory>();
+            collection.AddSingleton<
+                IAdapterCapabilityProvider,
+                FileAdapterCapabilityProvider>();
             collection.AddSingleton(LocalControlEndpoint.FromWindowsEnvironment());
             collection.AddSingleton<
                 IControlChannelFactory,

@@ -14,8 +14,12 @@ use sha2::{Digest, Sha256};
 use tonic::{Response, Status};
 
 use crate::{
-    AdapterHostError, candidate_validation::validate_integrated, capabilities::capabilities,
-    detection::detect, mapping::error_detail, rpc_state::AdapterRpcService,
+    AdapterHostError,
+    candidate_validation::validate_integrated,
+    capabilities::{capabilities, hot_reload_supported},
+    detection::detect,
+    mapping::error_detail,
+    rpc_state::AdapterRpcService,
 };
 
 impl AdapterRpcService {
@@ -111,7 +115,10 @@ impl AdapterRpcService {
         }
         let installation = self.catalog.get(&request.adapter_id)?;
         let detected = detect(installation.client, &installation.executable_path).await?;
-        if !detected.supported() || capabilities(detected.client, detected.version).is_empty() {
+        if !detected.supported()
+            || capabilities(detected.client, detected.version).is_empty()
+            || !hot_reload_supported(detected.client, detected.version)
+        {
             return Err(AdapterHostError::ClientUnsupported);
         }
         let transaction_installation = TransactionInstallation::new(

@@ -4,7 +4,6 @@ use std::{
     task::{Context, Poll},
 };
 
-use nonproxy_windows_ipc::SecureNamedPipeFactory;
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::windows::named_pipe::{NamedPipeServer, ServerOptions},
@@ -13,6 +12,8 @@ use tokio::{
 };
 use tokio_stream::{Stream, wrappers::ReceiverStream};
 use tonic::transport::server::Connected;
+
+use crate::{SecureNamedPipeFactory, validate_nonproxy_pipe_name, validate_pipe_sddl};
 
 const INCOMING_QUEUE_CAPACITY: usize = 64;
 
@@ -72,6 +73,8 @@ impl NamedPipeIncoming {
         maximum_instances: usize,
         shutdown: watch::Receiver<bool>,
     ) -> io::Result<Self> {
+        validate_nonproxy_pipe_name(pipe_name)?;
+        validate_pipe_sddl(pipe_sddl)?;
         if !(1..=254).contains(&maximum_instances) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -81,10 +84,9 @@ impl NamedPipeIncoming {
         let factory = SecureNamedPipeFactory::new(pipe_sddl)?;
         let first = create_instance(&factory, pipe_name, maximum_instances, true)?;
         let (sender, receiver) = mpsc::channel(INCOMING_QUEUE_CAPACITY);
-        let name = pipe_name.to_owned();
         let accept_task = tokio::spawn(accept_loop(
             factory,
-            name,
+            pipe_name.to_owned(),
             maximum_instances,
             first,
             sender,

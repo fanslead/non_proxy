@@ -1474,6 +1474,7 @@ dependencies = [
  "nonproxy-adapter-transaction",
  "nonproxy-local-auth",
  "nonproxy-proto",
+ "nonproxy-windows-ipc",
  "prost-types",
  "serde",
  "serde_json",
@@ -1763,6 +1764,8 @@ name = "nonproxy-windows-ipc"
 version = "0.1.0"
 dependencies = [
  "tokio",
+ "tokio-stream",
+ "tonic",
  "windows-sys 0.61.2",
 ]
 

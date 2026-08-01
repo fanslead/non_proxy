@@ -137,13 +137,12 @@ async fn read_bounded(
     Ok((output, overflow))
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use std::{fs, time::Duration};
 
     use super::{ProcessRequest, run};
 
-    #[cfg(unix)]
     #[tokio::test]
     async fn runner_has_timeout_and_output_bound() {
         use std::os::unix::fs::PermissionsExt;
@@ -169,7 +168,6 @@ mod tests {
         );
     }
 
-    #[cfg(unix)]
     #[tokio::test]
     async fn runner_does_not_wait_for_descendant_holding_output_pipe() {
         use std::os::unix::fs::PermissionsExt;

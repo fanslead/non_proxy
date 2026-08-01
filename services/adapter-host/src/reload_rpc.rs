@@ -6,6 +6,7 @@ use tonic::{Response, Status};
 
 use crate::{
     AdapterHostError,
+    capabilities::hot_reload_supported,
     detection::{DetectedClient, detect},
     mapping::error_detail,
     reload::ReloadPlan,
@@ -245,8 +246,11 @@ impl AdapterRpcService {
             return Err(AdapterHostError::InstallationChanged);
         }
         let detected = detect(registered.client, &registered.executable_path).await?;
-        if detected.version != expected.client_version || !detected.supported() {
+        if detected.version != expected.client_version {
             return Err(AdapterHostError::ClientVersionChanged);
+        }
+        if !detected.supported() || !hot_reload_supported(detected.client, detected.version) {
+            return Err(AdapterHostError::ClientUnsupported);
         }
         Ok(ValidatedChange {
             change: expected,

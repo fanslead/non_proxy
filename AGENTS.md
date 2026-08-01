@@ -122,7 +122,8 @@ cargo test --workspace
 - macOS 与 Windows 桌面 UI 统一使用 Avalonia 12 + .NET 10 LTS。
 - 只在 `NonProxy.Desktop.Core` 维护一套 C#/AXAML 页面、ViewModel、主题和常规 UI 自动化。
 - `NonProxy.Desktop.Mac` 和 `NonProxy.Desktop.Windows` 是薄启动宿主，不得复制页面或产品 ViewModel。
-- Mac 宿主目标为 `net10.0-macos`；Windows 宿主目标为 `net10.0`。
+- Mac 宿主目标为 `net10.0-macos`；Windows 宿主同时保留 portable `net10.0` 测试目标和
+  `net10.0-windows10.0.26100.0` 生产目标，发布必须显式选择后者。
 - 使用 CommunityToolkit.Mvvm，不混用多个 MVVM 框架。
 - View 只负责布局、绑定、动画和纯 UI 生命周期。
 - ViewModel 不访问 SQLite、NetworkExtension、WFP、Keychain、注册表或驱动。

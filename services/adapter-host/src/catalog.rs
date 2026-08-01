@@ -262,7 +262,7 @@ fn validate_direct_target(value: Option<&str>) -> Result<(), AdapterHostError> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use std::fs;
 
@@ -271,7 +271,6 @@ mod tests {
     use super::{CatalogDocument, InstallationCatalog};
     use crate::model::RegisteredInstallation;
 
-    #[cfg(unix)]
     #[test]
     fn legacy_catalog_is_readable_and_next_write_upgrades_the_format() {
         use std::os::unix::fs::PermissionsExt;

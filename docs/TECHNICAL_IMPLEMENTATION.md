@@ -1594,7 +1594,8 @@ apply 在写文件前先执行不产生目标写入的事务预检，再构造�
 本机路径，完整一致性边界见
 [ADR-0027](ADR/0027-project-adapter-rules-from-active-snapshots.md)。
 
-桌面端已通过独立 Adapter UDS 与能力文件接入宿主，不复用 gatewayd 会话。同步按检测、能力
+桌面端已通过独立 Adapter 本地传输与能力文件接入宿主，不复用 gatewayd 会话。macOS/Unix
+使用私有 UDS，Windows 使用独立命名管道；同步按检测、能力
 读取、活动快照投影、客户端原生 prepare、活动快照版本与内容哈希二次确认、apply/reload、
 configuration verify 执行。投影只接受客户端能无损表达的单维 DIRECT 规则；应用路径必须由
 当前平台的签名应用目录唯一补全。组合、网络、端口、传输、辅助进程、缺失路径或能力会阻断
@@ -1602,15 +1603,20 @@ configuration verify 执行。投影只接受客户端能无损表达的单维 D
 仍不等同路径或出口确认。完整编排边界见
 [ADR-0028](ADR/0028-orchestrate-adapter-sync-from-the-desktop.md)。
 `scripts/smoke/adapter-desktop-e2e.sh` 会启动隔离的 Rust adapter-host，再由真实 C# 客户端经
-独立 UDS 和能力文件读取空登记目录，防止两侧生成契约、认证或传输接线漂移。
+独立 UDS 和能力文件读取空登记目录，防止两侧生成契约、认证或传输接线漂移。Windows
+命名管道实现进入 x64/ARM64 交叉编译门禁；真实 Windows 管道 DACL、会话隔离与客户端 RPC
+仍需系统验收。
 
 共享 Avalonia “客户端协同”页负责显式登记和同步，不承载配置解析或事务逻辑。用户可通过
 系统原生文件选择器选择客户端/可执行文件和当前主配置；选择器返回的本地路径仍是不受信
 输入，允许手动粘贴只作为选择器不可用时的高级回退。Surge `.app` 选择只做确定性的
 `Contents/Applications/surge-cli` 候选展开，真实存在性、代码来源、版本和活动 profile
 仍由 adapter-host 验证。页面把原生候选校验、配置载入和真实路径分成三段证据，前两段通过
-时仍显示“尚未证明绕过 VPN”。macOS 使用独立 UDS；Windows 复用页面和文件选择接口，但
-命名管道 Adapter 传输落地前保持 `NP_ADAPTER_UNAVAILABLE`，不能显示伪成功。
+时仍显示“尚未证明绕过 VPN”。macOS 使用独立 UDS；Windows 复用页面和文件选择接口，并
+通过 `\\.\pipe\NonProxy.Adapter.v1` 与独立 `adapter.capability` 连接按用户宿主。当前仓库
+尚未把 Windows adapter-host 纳入签名发布包和按用户生命周期，因此桌面端即使已完成传输
+接线，也只会在外部宿主真实就绪时连通，不能据此显示“产品可用”或伪成功。完整平台边界见
+[ADR-0035](ADR/0035-connect-windows-adapter-host-over-named-pipes.md)。
 
 适配器接口：
 
@@ -1951,6 +1957,8 @@ Windows：
 - `dotnet publish -f net10.0-windows10.0.26100.0` 从 `NonProxy.Desktop.Windows` 生成
   `win-x64`/`win-arm64` self-contained UI；portable `net10.0` 仅供测试，项目会拒绝用它发布。
 - 安装器组合 Avalonia UI、Windows Service、WFP 组件和 Native Messaging Host。
+- adapter-host 是独立按用户低权限进程；受限命名管道和桌面客户端已有源码，正式安装器仍需
+  分发签名二进制、下发面向当前交互用户的精确 SDDL，并实现登录启动、升级和卸载。
 - 驱动签名与普通应用签名分开验证。
 
 ### 17.9 UI 测试
@@ -2302,6 +2310,11 @@ Provider 不逐条同步写日志：
 - 命名管道首实例独占、拒绝远程客户端，并通过安装器下发的 SDDL 创建显式 DACL；Service 模式缺少生产 DACL 时拒绝启动。
 - 同一个 `gatewayd` 二进制支持 SCM 生命周期；只有状态目录、能力令牌、运行身份和两条管道全部就绪后才上报 `Running`。
 - Avalonia Windows 宿主使用 `NamedPipeClientStream` 连接认证 gRPC 控制面，继续复用与 macOS 相同的页面、ViewModel 和控制契约。
+- 用户级 `adapter-host` 使用独立的 `NonProxy.Adapter.v1` 命名管道和
+  `adapter.capability`，复用首实例独占、拒绝远端客户端、有界 accept queue 与显式 SDDL
+  创建语义；桌面端使用独立命名管道 gRPC 客户端，不复用 SYSTEM gateway 会话。Surge
+  仅在 macOS 宣称能力，Windows sing-box 不宣称尚无安全实现的 `HOT_RELOAD`，Mihomo
+  保留 loopback HTTP 重载能力。
 - x64 与 ARM64 Windows target 都进入编译门禁；这只能证明平台代码可构建，不能替代 SCM、ACL 或真实流量验收。
 
 当前 Windows 数据面源码也已经具备：
@@ -2343,6 +2356,11 @@ Driver Verifier 和真实 VPN 共存路径验收。明文 DNS、UDP/QUIC 源码�
 QUIC 或第三方 VPN filter 顺序正确；Windows UI 在签名 bootstrap 与系统验收
 完成前继续将系统组件标记为不可用。执行门禁见
 [Windows 系统组件与真实网络路径验收](WINDOWS_SYSTEM_ACCEPTANCE.md)。
+
+Windows adapter-host 还缺少签名包内分发、按交互用户启动/退出、升级切换、生产 SDDL
+下发和真实命名管道 RPC 验收；在这些生命周期落地前，命名管道源码与交叉编译只属于 W0
+证据。Windows 应用规则投影还需要版本化的精确可执行文件/包身份 selector，不能把现有
+macOS `.app` Bundle 路径约束静默放宽。
 
 ### 22.1 用户态优先
 

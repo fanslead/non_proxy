@@ -7,6 +7,8 @@ use std::{
 use std::os::unix::fs::PermissionsExt;
 
 use crate::AdapterHostError;
+#[cfg(windows)]
+use crate::WindowsAdapterTransportConfig;
 
 const STATE_DIRECTORY_ENVIRONMENT: &str = "NONPROXY_ADAPTER_STATE_DIR";
 const SOCKET_PATH_ENVIRONMENT: &str = "NONPROXY_ADAPTER_SOCKET_PATH";
@@ -22,6 +24,8 @@ pub struct AdapterHostConfig {
     state_directory: PathBuf,
     socket_path: PathBuf,
     bundle_fingerprint: String,
+    #[cfg(windows)]
+    windows_transport: WindowsAdapterTransportConfig,
 }
 
 impl AdapterHostConfig {
@@ -66,6 +70,8 @@ impl AdapterHostConfig {
             state_directory,
             socket_path,
             bundle_fingerprint,
+            #[cfg(windows)]
+            windows_transport: WindowsAdapterTransportConfig::from_process()?,
         })
     }
 
@@ -112,6 +118,12 @@ impl AdapterHostConfig {
     pub const fn capability_file_name(&self) -> &'static str {
         CAPABILITY_FILE_NAME
     }
+
+    #[cfg(windows)]
+    #[must_use]
+    pub fn windows_transport(&self) -> &WindowsAdapterTransportConfig {
+        &self.windows_transport
+    }
 }
 
 fn validate_bundle_fingerprint(value: String) -> Result<String, AdapterHostError> {
@@ -140,7 +152,13 @@ fn default_state_directory() -> Result<PathBuf, AdapterHostError> {
     Ok(PathBuf::from(home).join(MACOS_STATE_PATH))
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
+fn default_state_directory() -> Result<PathBuf, AdapterHostError> {
+    let local_app_data = env::var_os("LOCALAPPDATA").ok_or(AdapterHostError::Configuration)?;
+    Ok(PathBuf::from(local_app_data).join("NonProxy/adapter-host"))
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn default_state_directory() -> Result<PathBuf, AdapterHostError> {
     let home = env::var_os("HOME").ok_or(AdapterHostError::Configuration)?;
     Ok(PathBuf::from(home).join(".nonproxy/adapter-host"))

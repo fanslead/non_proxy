@@ -135,6 +135,12 @@ Remove-Item Env:\NONPROXY_ALLOW_WINDOWS_SYSTEM_MUTATION
 - 卸载后网络恢复，用户规则默认仍在 `%ProgramData%\NonProxy`；
 - 需要重启时 UI/工具只提示，不强制重启。
 
+Windows adapter-host 纳入发布生命周期后还必须单独核对：进程以当前交互用户而非
+LocalSystem 运行；状态目录位于该用户 LocalAppData；`adapter.capability` 仅该用户可读写；
+`NonProxy.Adapter.v1` 拒绝远端和其他普通用户；桌面端携带错误/过期能力令牌时 RPC 被拒绝；
+退出、登录切换、升级和卸载不会留下可被后续用户复用的管道或令牌。当前发布工具尚未分发或
+启动该进程，因此这些仍是未完成的 W2/W3 验收项。
+
 ## 5. Driver Verifier
 
 先创建 VM 快照并准备离线恢复。启用前确认被测 Driver 已安装：
@@ -235,6 +241,10 @@ Avalonia Windows 宿主因此继续
 
 MSIX/UWP 包目录、ALE package SID 与 PublisherId 已有 W0 源码和交叉编译证据，但没有真实
 Windows 验收结果；不得用文件名、展示名、普通路径、桌面目录成功或单元测试替代包身份证据。
+
+Adapter 命名管道服务端、桌面客户端、独立能力文件路径和平台能力降级已有 W0 源码与
+x64/ARM64 交叉编译门禁；按用户分发/启动、生产 SDDL、真实命名管道 RPC 和第三方客户端
+重载尚未在 Windows 执行，不得据此声明“客户端协同可用”。
 
 ## 8. 官方依据
 

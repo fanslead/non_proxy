@@ -1,5 +1,9 @@
 use std::env;
 
+use nonproxy_windows_ipc::{
+    validate_nonproxy_pipe_name, validate_pipe_sddl as validate_sddl_value,
+};
+
 use crate::GatewayError;
 
 pub const CONTROL_PIPE_ENVIRONMENT: &str = "NONPROXY_WINDOWS_CONTROL_PIPE";
@@ -7,6 +11,7 @@ pub const FLOW_PIPE_ENVIRONMENT: &str = "NONPROXY_WINDOWS_FLOW_PIPE";
 pub const PIPE_SDDL_ENVIRONMENT: &str = "NONPROXY_WINDOWS_PIPE_SDDL";
 pub const DEFAULT_CONTROL_PIPE: &str = r"\\.\pipe\NonProxy.Control.v1";
 pub const DEFAULT_FLOW_PIPE: &str = r"\\.\pipe\NonProxy.Flow.v1";
+#[cfg(test)]
 const PIPE_PREFIX: &str = r"\\.\pipe\NonProxy.";
 const DEVELOPMENT_PIPE_SDDL: &str = "D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GRGW;;;IU)";
 
@@ -91,27 +96,13 @@ fn environment_text(name: &str, default: &str) -> Result<String, GatewayError> {
 }
 
 fn validate_pipe_name(value: &str) -> Result<(), GatewayError> {
-    let suffix = value
-        .strip_prefix(PIPE_PREFIX)
-        .ok_or(GatewayError::InvalidLocalPath(
-            "Windows 命名管道必须位于 NonProxy 本地命名空间",
-        ))?;
-    if suffix.is_empty()
-        || value.len() > 160
-        || !suffix
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
-    {
-        return Err(GatewayError::InvalidLocalPath("Windows 命名管道名称无效"));
-    }
-    Ok(())
+    validate_nonproxy_pipe_name(value)
+        .map_err(|_| GatewayError::InvalidLocalPath("Windows 命名管道名称无效"))
 }
 
 fn validate_sddl(value: &str) -> Result<(), GatewayError> {
-    if value.len() > 1_024 || !value.starts_with("D:") || value.contains('\0') {
-        return Err(GatewayError::InvalidLocalPath("Windows 命名管道 DACL 无效"));
-    }
-    Ok(())
+    validate_sddl_value(value)
+        .map_err(|_| GatewayError::InvalidLocalPath("Windows 命名管道 DACL 无效"))
 }
 
 #[cfg(test)]

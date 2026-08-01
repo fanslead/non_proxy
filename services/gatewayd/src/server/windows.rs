@@ -4,6 +4,7 @@ use nonproxy_proto::{
     control::v1::control_service_server::ControlServiceServer,
     provider::v1::provider_service_server::ProviderServiceServer,
 };
+use nonproxy_windows_ipc::NamedPipeIncoming;
 use tokio::sync::{oneshot, watch};
 use tonic::transport::Server;
 
@@ -16,7 +17,6 @@ use crate::{
     flow_server::{FlowConnectionHandler, FlowServer},
     provider_service::ProviderRpcService,
     runtime_identity::RuntimeIdentityGuard,
-    windows_pipe::NamedPipeIncoming,
 };
 
 pub(super) async fn serve(

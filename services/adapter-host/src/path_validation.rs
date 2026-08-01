@@ -91,13 +91,12 @@ fn validate_path_shape(path: &Path, reject_rule_delimiter: bool) -> Result<(), A
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use std::fs;
 
     use super::{canonical_main_configuration, canonical_managed_path, validate_integration_paths};
 
-    #[cfg(unix)]
     #[test]
     fn main_configuration_symlinks_and_outside_sidecars_are_rejected() {
         use std::os::unix::fs::symlink;

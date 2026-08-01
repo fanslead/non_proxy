@@ -19,8 +19,12 @@ mod runtime_identity;
 mod server;
 #[cfg(unix)]
 mod unix_socket;
+#[cfg(windows)]
+mod windows_config;
 
 pub use config::AdapterHostConfig;
 pub use error::AdapterHostError;
 pub use rpc_state::AdapterRpcService;
 pub use server::{run, run_with_shutdown};
+#[cfg(windows)]
+pub use windows_config::WindowsAdapterTransportConfig;

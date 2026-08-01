@@ -19,6 +19,7 @@ nonproxy-policy = { path = "../../crates/nonproxy-policy" }
 nonproxy-policy-compiler = { path = "../../crates/nonproxy-policy-compiler" }
 nonproxy-proto = { path = "../../crates/nonproxy-proto" }
 nonproxy-storage = { path = "../../crates/nonproxy-storage" }
+nonproxy-windows-ipc = { path = "../../crates/nonproxy-windows-ipc" }
 percent-encoding.workspace = true
 prost.workspace = true
 prost-types.workspace = true
@@ -34,7 +35,6 @@ url.workspace = true
 zeroize.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-nonproxy-windows-ipc = { path = "../../crates/nonproxy-windows-ipc" }
 nonproxy-windows-identity = { path = "../../crates/nonproxy-windows-identity" }
 nonproxy-windows-network = { path = "../../crates/nonproxy-windows-network" }
 nonproxy-windows-wfp = { path = "../../crates/nonproxy-windows-wfp" }

@@ -7,6 +7,8 @@ publish.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
   "Win32_Security",

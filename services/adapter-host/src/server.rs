@@ -2,10 +2,9 @@ use std::future::Future;
 
 use nonproxy_local_auth::SessionCapability;
 
-use crate::{
-    AdapterHostConfig, AdapterHostError, rpc_state::AdapterRpcService,
-    runtime_identity::RuntimeIdentityGuard,
-};
+#[cfg(any(unix, windows))]
+use crate::runtime_identity::RuntimeIdentityGuard;
+use crate::{AdapterHostConfig, AdapterHostError, rpc_state::AdapterRpcService};
 
 pub async fn run(config: AdapterHostConfig) -> Result<(), AdapterHostError> {
     run_with_shutdown(config, shutdown_signal()).await
@@ -49,7 +48,43 @@ async fn serve_platform(
     Ok(())
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+async fn serve_platform(
+    config: AdapterHostConfig,
+    service: AdapterRpcService,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> Result<(), AdapterHostError> {
+    use nonproxy_proto::adapter::v1::adapter_service_server::AdapterServiceServer;
+    use nonproxy_windows_ipc::NamedPipeIncoming;
+    use tokio::sync::watch;
+    use tonic::transport::Server;
+
+    let (shutdown_sender, shutdown_receiver) = watch::channel(false);
+    let transport = config.windows_transport();
+    let incoming = NamedPipeIncoming::bind(
+        transport.pipe(),
+        transport.pipe_sddl(),
+        16,
+        shutdown_receiver,
+    )
+    .map_err(AdapterHostError::File)?;
+    let _runtime_identity = RuntimeIdentityGuard::create(&config)?;
+    let rpc = AdapterServiceServer::new(service)
+        .max_decoding_message_size(AdapterRpcService::max_message_bytes())
+        .max_encoding_message_size(AdapterRpcService::max_message_bytes());
+    let stop = async move {
+        shutdown.await;
+        let _send_result = shutdown_sender.send(true);
+    };
+    Server::builder()
+        .concurrency_limit_per_connection(16)
+        .add_service(rpc)
+        .serve_with_incoming_shutdown(incoming, stop)
+        .await?;
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
 async fn serve_platform(
     _config: AdapterHostConfig,
     _service: AdapterRpcService,

@@ -21,6 +21,7 @@ nonproxy-adapter-surge = { path = "../../adapters/surge" }
 nonproxy-adapter-transaction = { path = "../../crates/nonproxy-adapter-transaction" }
 nonproxy-local-auth = { path = "../../crates/nonproxy-local-auth" }
 nonproxy-proto = { path = "../../crates/nonproxy-proto" }
+nonproxy-windows-ipc = { path = "../../crates/nonproxy-windows-ipc" }
 prost-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -74,8 +74,6 @@ mod unix_socket;
 mod windows_capture;
 mod windows_config;
 #[cfg(windows)]
-mod windows_pipe;
-#[cfg(windows)]
 mod windows_service;
 
 pub use config::GatewayConfig;

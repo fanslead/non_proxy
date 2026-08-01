@@ -9,7 +9,7 @@ use nonproxy_adapter_api::{AdapterClient, AdapterVersion};
 
 use crate::{
     AdapterHostError,
-    capabilities::capabilities,
+    capabilities::{capabilities, client_supported_on_current_platform},
     path_validation::canonical_executable,
     process_runner::{ProcessExecutionError, ProcessRequest, run},
 };
@@ -34,6 +34,9 @@ pub async fn detect(
     client: AdapterClient,
     executable_path: &Path,
 ) -> Result<DetectedClient, AdapterHostError> {
+    if !client_supported_on_current_platform(client) {
+        return Err(AdapterHostError::ClientUnsupported);
+    }
     let executable_path = canonical_executable(executable_path)?;
     let output = match client {
         AdapterClient::Surge => {
