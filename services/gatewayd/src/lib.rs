@@ -37,13 +37,16 @@ mod learning_gateway;
 mod learning_rpc;
 #[cfg(any(test, windows))]
 mod local_dns_server;
+mod network_profile_gateway;
 mod network_profile_rpc;
 mod outbound_capabilities;
+mod outbound_catalog_gateway;
 mod outbound_health;
 mod outbound_import;
 mod outbound_import_service;
 mod outbound_import_uri;
 mod outbound_probe;
+mod policy_catalog_gateway;
 mod proto_policy;
 mod provider_decision_rpc;
 mod provider_health;

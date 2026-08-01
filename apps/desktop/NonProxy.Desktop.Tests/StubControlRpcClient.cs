@@ -103,6 +103,10 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public ProtoPolicy? LastUpsertedPolicy { get; private set; }
 
+    public ulong LastRollbackSnapshotVersion { get; private set; }
+
+    public ulong LastExpectedActiveSnapshotVersion { get; private set; }
+
     public NetworkProfileSpec? LastUpsertedNetworkProfile { get; private set; }
 
     public string? LastDeletedNetworkProfileId { get; private set; }
@@ -176,9 +180,12 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public Task<RollbackPolicySnapshotResponse> RollBackAsync(
         ulong snapshotVersion,
+        ulong expectedActiveSnapshotVersion,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        LastRollbackSnapshotVersion = snapshotVersion;
+        LastExpectedActiveSnapshotVersion = expectedActiveSnapshotVersion;
         return Task.FromResult(RollbackResponse);
     }
 

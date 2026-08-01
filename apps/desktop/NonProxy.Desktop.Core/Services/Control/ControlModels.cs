@@ -112,7 +112,8 @@ public sealed record PolicyCatalog(
     IReadOnlyList<PolicyListItem> Items,
     ulong? ActiveSnapshotVersion,
     DateTimeOffset CapturedAt,
-    ulong? PendingSnapshotVersion = null)
+    ulong? PendingSnapshotVersion = null,
+    ulong? PreviousEffectiveSnapshotVersion = null)
 {
     public static PolicyCatalog Empty { get; } = new(
         Array.Empty<PolicyListItem>(),

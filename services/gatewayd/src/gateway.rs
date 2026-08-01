@@ -8,12 +8,11 @@ use std::{
 };
 
 use nonproxy_dns::{SyntheticAddressFamily, SyntheticAddressSpace};
-use nonproxy_model::{DomainName, NetworkProfileId, OutboundId, Policy, PolicyId};
+use nonproxy_model::{DomainName, OutboundId, Policy};
 use nonproxy_policy::CompiledPolicySnapshot;
 use nonproxy_policy_compiler::{CompileCapabilities, PolicyCompiler};
 use nonproxy_storage::{
-    NetworkProfileReference, OutboundReference, PolicyDatabase, RoutingSettings, SnapshotRecord,
-    SyntheticDnsBinding,
+    OutboundReference, PolicyDatabase, RoutingSettings, SnapshotRecord, SyntheticDnsBinding,
 };
 use tokio::sync::Mutex;
 
@@ -29,7 +28,6 @@ use crate::{
     provider_requirements,
     routing_gateway::decision_for_route,
     runtime_events::{RuntimeEventPublisher, SystemRuntimeSnapshot},
-    runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, build_runtime_catalog},
     snapshot_builder::{SnapshotBuildIdentity, build_snapshot},
     snapshot_payload,
     snapshot_types::{ProviderSnapshot, PublishedSnapshot},
@@ -233,107 +231,6 @@ impl Gateway {
         self.runtime_events.publish(self, unix_time_ms()?).await
     }
 
-    pub async fn list_policies(&self) -> Result<Vec<Policy>, GatewayError> {
-        self.database
-            .run(|database| Ok(database.policies().list()?))
-            .await
-    }
-
-    pub async fn list_runtime_policies(&self) -> Result<Vec<RuntimePolicyRecord>, GatewayError> {
-        Ok(self.runtime_policy_catalog().await?.records().to_vec())
-    }
-
-    pub async fn runtime_policy_catalog(&self) -> Result<RuntimePolicyCatalog, GatewayError> {
-        self.database
-            .run(|database| {
-                let generation = database.policies().catalog_generation()?;
-                let current = database.policies().list()?;
-                let active = database.snapshots().active()?;
-                let pending = database.snapshots().pending()?;
-                build_runtime_catalog(generation, current, active.as_ref(), pending.as_ref())
-            })
-            .await
-    }
-
-    pub async fn save_policy(
-        &self,
-        policy: Policy,
-        expected_revision: Option<u64>,
-    ) -> Result<Policy, GatewayError> {
-        crate::system_policies::validate_user_mutation(&policy)?;
-        let _operation = self.mutation_gate.lock().await;
-        let now = unix_time_ms()?;
-        self.database
-            .run(move |database| {
-                database.policies().save(&policy, expected_revision, now)?;
-                Ok(policy)
-            })
-            .await
-    }
-
-    pub async fn delete_policy(
-        &self,
-        policy_id: PolicyId,
-        expected_revision: u64,
-    ) -> Result<(), GatewayError> {
-        let _operation = self.mutation_gate.lock().await;
-        let now = unix_time_ms()?;
-        self.database
-            .run(move |database| {
-                database
-                    .policies()
-                    .delete(&policy_id, expected_revision, now)?;
-                Ok(())
-            })
-            .await
-    }
-
-    pub async fn list_network_profiles(
-        &self,
-    ) -> Result<(Vec<NetworkProfileReference>, u64), GatewayError> {
-        self.database
-            .run(|database| {
-                let profiles = database.network_profiles().list()?;
-                let generation = database.network_profiles().catalog_generation()?;
-                Ok((profiles, generation))
-            })
-            .await
-    }
-
-    pub async fn save_network_profile(
-        &self,
-        profile: NetworkProfileReference,
-        expected_revision: Option<u64>,
-    ) -> Result<NetworkProfileReference, GatewayError> {
-        let _operation = self.mutation_gate.lock().await;
-        let now = unix_time_ms()?;
-        self.database
-            .run(move |database| {
-                database
-                    .network_profiles()
-                    .save(&profile, expected_revision, now)?;
-                Ok(profile)
-            })
-            .await
-    }
-
-    pub async fn delete_network_profile(
-        &self,
-        profile_id: NetworkProfileId,
-        expected_revision: u64,
-    ) -> Result<(), GatewayError> {
-        let _operation = self.mutation_gate.lock().await;
-        let now = unix_time_ms()?;
-        self.database
-            .run(move |database| {
-                database
-                    .network_profiles()
-                    .delete(&profile_id, expected_revision, now)?;
-                Ok(())
-            })
-            .await
-    }
-
     pub async fn compile_and_stage(&self) -> Result<PublishedSnapshot, GatewayError> {
         let _operation = self.mutation_gate.lock().await;
         let now = unix_time_ms()?;
@@ -374,37 +271,9 @@ impl Gateway {
     pub async fn stage_rollback(
         &self,
         target_snapshot_version: u64,
+        expected_active_snapshot_version: u64,
     ) -> Result<PublishedSnapshot, GatewayError> {
-        self.stage_rollback_with_route(target_snapshot_version)
-            .await
-    }
-
-    pub async fn list_outbounds(&self) -> Result<Vec<OutboundReference>, GatewayError> {
-        self.database
-            .run(|database| Ok(database.outbounds().list()?))
-            .await
-    }
-
-    pub async fn outbound(
-        &self,
-        outbound_id: OutboundId,
-    ) -> Result<Option<OutboundReference>, GatewayError> {
-        self.database
-            .run(move |database| Ok(database.outbounds().get(&outbound_id)?))
-            .await
-    }
-
-    pub async fn save_outbounds(
-        &self,
-        outbounds: Vec<(OutboundReference, Option<u64>)>,
-    ) -> Result<(), GatewayError> {
-        let _operation = self.mutation_gate.lock().await;
-        let now = unix_time_ms()?;
-        self.database
-            .run(move |database| {
-                database.outbounds().save_batch(&outbounds, now)?;
-                Ok(())
-            })
+        self.stage_rollback_with_route(target_snapshot_version, expected_active_snapshot_version)
             .await
     }
 

@@ -1,4 +1,4 @@
-use rusqlite::{Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, Transaction};
 
 use crate::{
     SnapshotArtifact, SnapshotRecord, SnapshotStatus, StorageError, migration::to_sqlite_u64,
@@ -34,6 +34,45 @@ pub(crate) fn read_snapshot_by_status(
         .query_row([status.as_str()], read_snapshot_row)
         .optional()?;
     raw.map(decode_snapshot).transpose()
+}
+
+pub(crate) fn read_previous_effective_version(
+    connection: &Connection,
+    active_snapshot_version: u64,
+) -> Result<Option<u64>, StorageError> {
+    let value: Option<i64> = connection.query_row(
+        "SELECT MAX(snapshot_version)
+         FROM policy_snapshot
+         WHERE status = 'superseded' AND snapshot_version < ?1",
+        [to_sqlite_u64(active_snapshot_version)?],
+        |row| row.get(0),
+    )?;
+    value
+        .map(|value| decode_u64(value, "policy_snapshot.snapshot_version"))
+        .transpose()
+}
+
+pub(crate) fn ensure_active_snapshot_version(
+    transaction: &Transaction<'_>,
+    expected_active_snapshot_version: u64,
+) -> Result<(), StorageError> {
+    let active: Option<i64> = transaction
+        .query_row(
+            "SELECT snapshot_version
+             FROM policy_snapshot
+             WHERE status = 'active'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let active = active
+        .map(|value| decode_u64(value, "policy_snapshot.snapshot_version"))
+        .transpose()?;
+    let matches = active.is_some_and(|value| value == expected_active_snapshot_version);
+    if !matches {
+        return Err(StorageError::ActiveSnapshotVersionConflict);
+    }
+    Ok(())
 }
 
 type RawSnapshot = (

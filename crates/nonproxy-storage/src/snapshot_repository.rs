@@ -5,7 +5,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 use crate::{
     ProviderAck, ProviderAckState, SnapshotArtifact, SnapshotRecord, SnapshotStatus, StorageError,
     migration::to_sqlite_u64,
-    snapshot_query::{read_snapshot, read_snapshot_by_status},
+    snapshot_query::{read_previous_effective_version, read_snapshot, read_snapshot_by_status},
     types::{validate_error_code, validate_provider_id},
 };
 
@@ -291,6 +291,13 @@ impl<'connection> SnapshotRepository<'connection> {
                 })
             })
             .transpose()
+    }
+
+    pub fn previous_effective_version(
+        &self,
+        active_snapshot_version: u64,
+    ) -> Result<Option<u64>, StorageError> {
+        read_previous_effective_version(self.connection, active_snapshot_version)
     }
 }
 

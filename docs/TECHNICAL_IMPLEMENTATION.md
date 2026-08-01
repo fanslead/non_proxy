@@ -970,6 +970,14 @@ RPC 成功只表示配置已保存且快照进入
 `default_decision`，在同一事务内同步恢复 `routing_settings` 和回滚快照；不允许
 把回滚默认值硬编码为 `DIRECT`，也不允许原样复制历史版本的受保护系统规则。
 
+“恢复上一个配置”的目标由 SQLite 在当前 active 之前的 `superseded` 快照中选取，不使用
+`active_version - 1`，因此 pending 和 rejected 版本不会进入普通用户流程。
+`ListPolicies` 每页同时返回该版本，桌面端与 active、pending 和目录 generation 一起执行
+一致性校验。确认恢复前再次读取目录；RPC 携带 `expected_active_snapshot_version`，并在
+更新 `routing_settings` 之前于同一 `BEGIN IMMEDIATE` 事务校验。活动版本变化时不写路由、
+不写快照。成功响应仍是新的 `PENDING_ACK`，只有 Provider 确认后才是已恢复。完整决策见
+[ADR-0030](ADR/0030-restore-the-previous-effective-snapshot.md)。
+
 当前默认出口不能通过后续导入被改成停用状态或当前完整网关无法承载的 TCP-only
 类型；该批次写入必须整体回滚。普通用户可以点击“恢复默认直连”，该操作使用相同的
 鉴权、revision、编译、pending ACK 和事务边界，不通过直接改 UI 状态实现。

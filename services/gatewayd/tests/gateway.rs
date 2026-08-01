@@ -154,7 +154,21 @@ async fn rollback_restores_the_source_snapshot_default_route() {
     };
     activate(&gateway, direct.snapshot()).await;
 
-    let rollback = gateway.stage_rollback(1).await;
+    let catalog = gateway.runtime_policy_catalog().await;
+    let Ok(catalog) = catalog else {
+        panic!("回滚点目录读取失败: {catalog:?}");
+    };
+    assert_eq!(catalog.previous_effective_snapshot_version(), Some(1));
+
+    let stale = gateway.stage_rollback(1, 1).await;
+    assert!(matches!(
+        stale,
+        Err(GatewayError::Storage(
+            StorageError::ActiveSnapshotVersionConflict
+        ))
+    ));
+
+    let rollback = gateway.stage_rollback(1, 2).await;
     let Ok(rollback) = rollback else {
         panic!("回滚快照暂存失败: {rollback:?}");
     };
@@ -162,8 +176,20 @@ async fn rollback_restores_the_source_snapshot_default_route() {
     let Ok(settings) = settings else {
         panic!("回滚后的默认路由读取失败: {settings:?}");
     };
+    let status = gateway.status().await;
+    let Ok(status) = status else {
+        panic!("回滚后的快照状态读取失败: {status:?}");
+    };
 
     assert_eq!(rollback.artifact().snapshot_version(), 3);
+    assert!(matches!(
+        status.active,
+        Some(record) if record.artifact().snapshot_version() == 2
+    ));
+    assert!(matches!(
+        status.pending,
+        Some(record) if record.artifact().snapshot_version() == 3
+    ));
     assert_eq!(rollback.default_decision().action(), RouteAction::Proxy);
     assert_eq!(
         rollback.default_decision().outbound_id(),

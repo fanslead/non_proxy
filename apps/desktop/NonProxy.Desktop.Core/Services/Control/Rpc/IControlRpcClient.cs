@@ -30,6 +30,7 @@ public interface IControlRpcClient
 
     Task<RollbackPolicySnapshotResponse> RollBackAsync(
         ulong snapshotVersion,
+        ulong expectedActiveSnapshotVersion,
         CancellationToken cancellationToken);
 
     Task<ListOutboundsResponse> ListOutboundsAsync(

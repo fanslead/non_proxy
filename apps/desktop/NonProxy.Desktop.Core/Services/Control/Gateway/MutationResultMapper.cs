@@ -79,6 +79,7 @@ public static class MutationResultMapper
         {
             "NP_POLICY_REVISION_CONFLICT" => "规则已被其他操作修改，请刷新后重试。",
             "NP_SNAPSHOT_ALREADY_PENDING" => "已有快照等待系统组件确认，请稍后再发布。",
+            "NP_SNAPSHOT_ACTIVE_VERSION_CONFLICT" => "当前生效配置已经变化，请刷新后重新确认恢复目标。",
             "NP_POLICY_COMPILE_REJECTED" => "规则之间存在冲突，请检查后重试。",
             "NP_REQUEST_INVALID" => "规则内容无效，请检查输入。",
             "NP_STORAGE_FAILURE" => "规则存储暂时不可用。",

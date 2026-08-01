@@ -4,6 +4,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 use crate::{
     OutboundKind, SnapshotArtifact, StorageError,
     migration::to_sqlite_u64,
+    snapshot_query::ensure_active_snapshot_version,
     snapshot_repository::{
         stage_in_transaction, stage_rebuilt_rollback_in_transaction, stage_rollback_in_transaction,
     },
@@ -90,11 +91,13 @@ impl<'connection> RoutingSettingsRepository<'connection> {
         expected_revision: u64,
         artifact: &SnapshotArtifact,
         source_snapshot_version: u64,
+        expected_active_snapshot_version: u64,
         updated_at_unix_ms: u64,
     ) -> Result<RoutingSettings, StorageError> {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        ensure_active_snapshot_version(&transaction, expected_active_snapshot_version)?;
         let settings = update_route(&transaction, route, expected_revision, updated_at_unix_ms)?;
         stage_rebuilt_rollback_in_transaction(&transaction, artifact, source_snapshot_version)?;
         transaction.commit()?;

@@ -129,6 +129,7 @@ impl Gateway {
     pub(crate) async fn stage_rollback_with_route(
         &self,
         target_snapshot_version: u64,
+        expected_active_snapshot_version: u64,
     ) -> Result<PublishedSnapshot, GatewayError> {
         let _operation = self.mutation_gate.lock().await;
         let now = unix_time_ms()?;
@@ -167,6 +168,7 @@ impl Gateway {
                     revision,
                     published.artifact(),
                     target_snapshot_version,
+                    expected_active_snapshot_version,
                     now,
                 )?;
                 Ok(published)

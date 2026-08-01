@@ -94,21 +94,38 @@ public sealed partial class GrpcControlRpcClient :
 
     public async Task<RollbackPolicySnapshotResponse> RollBackAsync(
         ulong snapshotVersion,
+        ulong expectedActiveSnapshotVersion,
         CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfZero(snapshotVersion);
+        ArgumentOutOfRangeException.ThrowIfZero(expectedActiveSnapshotVersion);
 
         var context = await _contextProvider.CreateAsync(
             "rollback-snapshot",
             cancellationToken);
         return await ExecuteAsync(
             () => Client.RollbackPolicySnapshotAsync(
-                new RollbackPolicySnapshotRequest
-                {
-                    Context = context,
-                    TargetSnapshotVersion = snapshotVersion,
-                },
+                CreateRollbackRequest(
+                    context,
+                    snapshotVersion,
+                    expectedActiveSnapshotVersion),
                 MutationOptions(cancellationToken)).ResponseAsync);
+    }
+
+    internal static RollbackPolicySnapshotRequest CreateRollbackRequest(
+        OperationContext context,
+        ulong snapshotVersion,
+        ulong expectedActiveSnapshotVersion)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentOutOfRangeException.ThrowIfZero(snapshotVersion);
+        ArgumentOutOfRangeException.ThrowIfZero(expectedActiveSnapshotVersion);
+        return new RollbackPolicySnapshotRequest
+        {
+            Context = context,
+            TargetSnapshotVersion = snapshotVersion,
+            ExpectedActiveSnapshotVersion = expectedActiveSnapshotVersion,
+        };
     }
 
     public async Task<ImportConfigurationResponse> ImportConfigurationAsync(

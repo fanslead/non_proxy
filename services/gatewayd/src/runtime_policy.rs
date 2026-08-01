@@ -27,6 +27,7 @@ pub struct RuntimePolicyCatalog {
     generation: u64,
     active_snapshot_version: Option<u64>,
     pending_snapshot_version: Option<u64>,
+    previous_effective_snapshot_version: Option<u64>,
     records: Vec<RuntimePolicyRecord>,
 }
 
@@ -74,6 +75,11 @@ impl RuntimePolicyCatalog {
     }
 
     #[must_use]
+    pub const fn previous_effective_snapshot_version(&self) -> Option<u64> {
+        self.previous_effective_snapshot_version
+    }
+
+    #[must_use]
     pub fn records(&self) -> &[RuntimePolicyRecord] {
         &self.records
     }
@@ -84,6 +90,7 @@ pub(crate) fn build_runtime_catalog(
     current: Vec<Policy>,
     active: Option<&SnapshotRecord>,
     pending: Option<&SnapshotRecord>,
+    previous_effective_snapshot_version: Option<u64>,
 ) -> Result<RuntimePolicyCatalog, GatewayError> {
     let active_snapshot_version = snapshot_version(active);
     let pending_snapshot_version = snapshot_version(pending);
@@ -163,6 +170,7 @@ pub(crate) fn build_runtime_catalog(
         generation,
         active_snapshot_version,
         pending_snapshot_version,
+        previous_effective_snapshot_version,
         records,
     })
 }

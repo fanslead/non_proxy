@@ -152,4 +152,19 @@ public sealed class GrpcControlRpcClientTests
             SetDefaultRouteRequest.RouteOneofCase.Direct,
             request.RouteCase);
     }
+
+    [Fact]
+    public void RollbackBindsTheExpectedActiveSnapshotVersion()
+    {
+        var context = new OperationContext { OperationId = "restore-previous" };
+
+        var request = GrpcControlRpcClient.CreateRollbackRequest(
+            context,
+            7,
+            8);
+
+        Assert.Same(context, request.Context);
+        Assert.Equal(7UL, request.TargetSnapshotVersion);
+        Assert.Equal(8UL, request.ExpectedActiveSnapshotVersion);
+    }
 }

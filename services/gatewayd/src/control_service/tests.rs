@@ -14,9 +14,9 @@ use nonproxy_proto::control::v1::{
     GetSystemStatusRequest, ImportConfigurationRequest, LearningObservationKind,
     LearningResourceType, LearningSessionKind, ListExitProbesRequest,
     ListLearningCandidatesRequest, ListNetworkProfilesRequest, ListOutboundsRequest,
-    OperationContext, RecordLearningObservationRequest, SetDefaultRouteRequest,
-    StartLearningSessionRequest, StopLearningSessionRequest, TestOutboundRequest,
-    UpsertNetworkProfileRequest, UpsertPolicyRequest, VerifyExitRequest,
+    OperationContext, RecordLearningObservationRequest, RollbackPolicySnapshotRequest,
+    SetDefaultRouteRequest, StartLearningSessionRequest, StopLearningSessionRequest,
+    TestOutboundRequest, UpsertNetworkProfileRequest, UpsertPolicyRequest, VerifyExitRequest,
     control_service_server::ControlService, set_default_route_request,
     start_learning_session_request,
 };
@@ -76,6 +76,23 @@ async fn mutation_requires_the_exact_session_capability() {
         panic!("错误令牌必须被拒绝");
     };
     assert_eq!(status.code(), Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn rollback_requires_an_expected_active_snapshot_version() {
+    let service = service([7; 32]);
+    let result = service
+        .rollback_policy_snapshot(Request::new(RollbackPolicySnapshotRequest {
+            context: Some(context([7; 32], "rollback-snapshot")),
+            target_snapshot_version: 1,
+            expected_active_snapshot_version: 0,
+        }))
+        .await;
+
+    assert!(matches!(
+        result,
+        Err(status) if status.code() == Code::InvalidArgument
+    ));
 }
 
 #[tokio::test]

@@ -262,6 +262,7 @@ fn rebuilt_rollback_stages_new_payload_and_tracks_the_source() {
         1,
         &rebuilt,
         1,
+        1,
         1_300,
     );
     let pending = database.snapshots().pending();
@@ -272,4 +273,56 @@ fn rebuilt_rollback_stages_new_payload_and_tracks_the_source() {
         Ok(Some(record))
             if record.artifact() == &rebuilt && record.source_snapshot_version() == Some(1)
     ));
+}
+
+#[test]
+fn rebuilt_rollback_rejects_a_stale_active_snapshot_atomically() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    let source = artifact(1, 1).unwrap_or_else(|error| {
+        panic!("回滚源快照创建失败: {error}");
+    });
+    if let Err(error) = database.snapshots().stage(&source) {
+        panic!("回滚源快照暂存失败: {error}");
+    }
+    let ack = nonproxy_storage::ProviderAck::loaded(
+        "transparent-proxy",
+        1,
+        *source.content_hash(),
+        1_100,
+    )
+    .unwrap_or_else(|error| panic!("回滚源 ACK 创建失败: {error}"));
+    if let Err(error) = database.snapshots().record_ack(1, &ack) {
+        panic!("回滚源 ACK 保存失败: {error}");
+    }
+    if let Err(error) = database
+        .snapshots()
+        .activate(1, &["transparent-proxy".to_owned()], 1_200)
+    {
+        panic!("回滚源快照激活失败: {error}");
+    }
+    let rebuilt = artifact(2, 2).unwrap_or_else(|error| {
+        panic!("重建回滚快照创建失败: {error}");
+    });
+
+    let result = database.routing_settings().set_and_stage_rebuilt_rollback(
+        &DefaultRoute::Direct,
+        1,
+        &rebuilt,
+        1,
+        9,
+        1_300,
+    );
+
+    assert!(matches!(
+        result,
+        Err(StorageError::ActiveSnapshotVersionConflict)
+    ));
+    assert!(matches!(
+        database.routing_settings().get(),
+        Ok(settings) if settings.revision() == 1
+    ));
+    assert!(matches!(database.snapshots().pending(), Ok(None)));
 }

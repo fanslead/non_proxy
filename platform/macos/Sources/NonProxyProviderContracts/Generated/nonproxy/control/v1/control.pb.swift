@@ -710,6 +710,9 @@ public nonisolated struct Nonproxy_Control_V1_ListPoliciesResponse: Sendable {
 
   public var policyCatalogGeneration: UInt64 = 0
 
+  /// previous_effective_snapshot_version 是当前 active 之前最近一次真正生效的快照。
+  public var previousEffectiveSnapshotVersion: UInt64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1067,6 +1070,9 @@ public nonisolated struct Nonproxy_Control_V1_RollbackPolicySnapshotRequest: Sen
   public mutating func clearContext() {self._context = nil}
 
   public var targetSnapshotVersion: UInt64 = 0
+
+  /// expected_active_snapshot_version 防止并发发布后回滚到过时的“上一个配置”。
+  public var expectedActiveSnapshotVersion: UInt64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2823,7 +2829,7 @@ nonisolated extension Nonproxy_Control_V1_ListPoliciesRequest: SwiftProtobuf.Mes
 
 nonisolated extension Nonproxy_Control_V1_ListPoliciesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListPoliciesResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}policies\0\u{1}page\0\u{3}active_snapshot_version\0\u{3}pending_snapshot_version\0\u{3}policy_statuses\0\u{3}policy_catalog_generation\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}policies\0\u{1}page\0\u{3}active_snapshot_version\0\u{3}pending_snapshot_version\0\u{3}policy_statuses\0\u{3}policy_catalog_generation\0\u{3}previous_effective_snapshot_version\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2837,6 +2843,7 @@ nonisolated extension Nonproxy_Control_V1_ListPoliciesResponse: SwiftProtobuf.Me
       case 4: try { try decoder.decodeSingularUInt64Field(value: &self.pendingSnapshotVersion) }()
       case 5: try { try decoder.decodeRepeatedMessageField(value: &self.policyStatuses) }()
       case 6: try { try decoder.decodeSingularUInt64Field(value: &self.policyCatalogGeneration) }()
+      case 7: try { try decoder.decodeSingularUInt64Field(value: &self.previousEffectiveSnapshotVersion) }()
       default: break
       }
     }
@@ -2865,6 +2872,9 @@ nonisolated extension Nonproxy_Control_V1_ListPoliciesResponse: SwiftProtobuf.Me
     if self.policyCatalogGeneration != 0 {
       try visitor.visitSingularUInt64Field(value: self.policyCatalogGeneration, fieldNumber: 6)
     }
+    if self.previousEffectiveSnapshotVersion != 0 {
+      try visitor.visitSingularUInt64Field(value: self.previousEffectiveSnapshotVersion, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2875,6 +2885,7 @@ nonisolated extension Nonproxy_Control_V1_ListPoliciesResponse: SwiftProtobuf.Me
     if lhs.pendingSnapshotVersion != rhs.pendingSnapshotVersion {return false}
     if lhs.policyStatuses != rhs.policyStatuses {return false}
     if lhs.policyCatalogGeneration != rhs.policyCatalogGeneration {return false}
+    if lhs.previousEffectiveSnapshotVersion != rhs.previousEffectiveSnapshotVersion {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3399,7 +3410,7 @@ nonisolated extension Nonproxy_Control_V1_ApplyPolicySnapshotRequest: SwiftProto
 
 nonisolated extension Nonproxy_Control_V1_RollbackPolicySnapshotRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RollbackPolicySnapshotRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}target_snapshot_version\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}target_snapshot_version\0\u{3}expected_active_snapshot_version\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3409,6 +3420,7 @@ nonisolated extension Nonproxy_Control_V1_RollbackPolicySnapshotRequest: SwiftPr
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
       case 2: try { try decoder.decodeSingularUInt64Field(value: &self.targetSnapshotVersion) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.expectedActiveSnapshotVersion) }()
       default: break
       }
     }
@@ -3425,12 +3437,16 @@ nonisolated extension Nonproxy_Control_V1_RollbackPolicySnapshotRequest: SwiftPr
     if self.targetSnapshotVersion != 0 {
       try visitor.visitSingularUInt64Field(value: self.targetSnapshotVersion, fieldNumber: 2)
     }
+    if self.expectedActiveSnapshotVersion != 0 {
+      try visitor.visitSingularUInt64Field(value: self.expectedActiveSnapshotVersion, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Nonproxy_Control_V1_RollbackPolicySnapshotRequest, rhs: Nonproxy_Control_V1_RollbackPolicySnapshotRequest) -> Bool {
     if lhs._context != rhs._context {return false}
     if lhs.targetSnapshotVersion != rhs.targetSnapshotVersion {return false}
+    if lhs.expectedActiveSnapshotVersion != rhs.expectedActiveSnapshotVersion {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

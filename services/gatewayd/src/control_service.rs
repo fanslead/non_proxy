@@ -56,6 +56,7 @@ impl ControlService for ControlRpcService {
         let generation = catalog.generation();
         let active_version = catalog.active_snapshot_version().unwrap_or(0);
         let pending_version = catalog.pending_snapshot_version().unwrap_or(0);
+        let previous_effective_version = catalog.previous_effective_snapshot_version().unwrap_or(0);
         let mut policies = catalog.records().to_vec();
         if !request.include_disabled {
             policies.retain(|record| {
@@ -81,6 +82,7 @@ impl ControlService for ControlRpcService {
                 .map(control_mapping::policy_status)
                 .collect(),
             policy_catalog_generation: generation,
+            previous_effective_snapshot_version: previous_effective_version,
         }))
     }
 
@@ -227,9 +229,15 @@ impl ControlService for ControlRpcService {
         if request.target_snapshot_version == 0 {
             return Err(Status::invalid_argument("回滚目标快照版本无效"));
         }
+        if request.expected_active_snapshot_version == 0 {
+            return Err(Status::invalid_argument("回滚必须提供当前活动快照版本"));
+        }
         let result = match self
             .gateway
-            .stage_rollback(request.target_snapshot_version)
+            .stage_rollback(
+                request.target_snapshot_version,
+                request.expected_active_snapshot_version,
+            )
             .await
         {
             Ok(snapshot) => {

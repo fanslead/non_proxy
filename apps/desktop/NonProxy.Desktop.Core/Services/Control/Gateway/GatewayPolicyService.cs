@@ -102,8 +102,30 @@ public sealed class GatewayPolicyService : IPolicyService
         ulong snapshotVersion,
         CancellationToken cancellationToken)
     {
+        var catalog = await GetCatalogAsync(cancellationToken);
+        if (catalog.PendingSnapshotVersion is not null)
+        {
+            return new ApplyResult(
+                false,
+                false,
+                "NP_SNAPSHOT_ALREADY_PENDING",
+                "已有快照等待系统组件确认，请稍后刷新再恢复。",
+                catalog.PendingSnapshotVersion);
+        }
+        if (catalog.ActiveSnapshotVersion is not { } activeVersion
+            || catalog.PreviousEffectiveSnapshotVersion != snapshotVersion)
+        {
+            return new ApplyResult(
+                false,
+                false,
+                "NP_SNAPSHOT_RESTORE_TARGET_CHANGED",
+                "当前生效配置已经变化，请刷新后重新确认恢复目标。",
+                catalog.ActiveSnapshotVersion);
+        }
+
         var response = await _client.RollBackAsync(
             snapshotVersion,
+            activeVersion,
             cancellationToken);
         if (response.Result?.Error is not null)
         {
@@ -145,6 +167,7 @@ public sealed class GatewayPolicyService : IPolicyService
         var pageToken = string.Empty;
         ulong? activeVersion = null;
         ulong? pendingVersion = null;
+        ulong? previousEffectiveVersion = null;
         ulong? catalogGeneration = null;
         for (var page = 0; page < MaximumPages; page++)
         {
@@ -158,9 +181,12 @@ public sealed class GatewayPolicyService : IPolicyService
                 cancellationToken);
             var responseActive = OptionalVersion(response.ActiveSnapshotVersion);
             var responsePending = OptionalVersion(response.PendingSnapshotVersion);
+            var responsePrevious = OptionalVersion(
+                response.PreviousEffectiveSnapshotVersion);
             if (page > 0
                 && (activeVersion != responseActive
                     || pendingVersion != responsePending
+                    || previousEffectiveVersion != responsePrevious
                     || catalogGeneration != response.PolicyCatalogGeneration))
             {
                 throw new CatalogChangedException();
@@ -168,6 +194,7 @@ public sealed class GatewayPolicyService : IPolicyService
 
             activeVersion = responseActive;
             pendingVersion = responsePending;
+            previousEffectiveVersion = responsePrevious;
             catalogGeneration = response.PolicyCatalogGeneration;
             if (response.PolicyStatuses.Count > 0)
             {
@@ -183,6 +210,11 @@ public sealed class GatewayPolicyService : IPolicyService
             pageToken = response.Page?.NextPageToken ?? string.Empty;
             if (string.IsNullOrEmpty(pageToken))
             {
+                if (previousEffectiveVersion is { } previous
+                    && (activeVersion is not { } active || previous >= active))
+                {
+                    throw InvalidPaging();
+                }
                 if (items.Select(item => item.Id).Distinct(
                         StringComparer.Ordinal).Count() != items.Count)
                 {
@@ -193,7 +225,8 @@ public sealed class GatewayPolicyService : IPolicyService
                     items,
                     activeVersion,
                     DateTimeOffset.UtcNow,
-                    pendingVersion);
+                    pendingVersion,
+                    previousEffectiveVersion);
             }
         }
 

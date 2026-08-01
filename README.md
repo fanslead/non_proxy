@@ -18,6 +18,8 @@ Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名
 
 运行概览现在持续核对“完整网关”和“客户端协同”两条接入路径，不保存会过期的向导完成状态。完整网关只有在系统组件、默认代理、直连规则和活动数据面同时满足时显示基础就绪；客户端登记仍保持待同步/待路径证据。引导按钮只切换到既有权威页面，不会根据未知的 MDM、Always-On VPN 或第三方 TUN 猜测环境已经兼容。
 
+“全部规则”页可以二次确认后恢复上一份真正生效的配置。恢复点由后台从有效快照历史选取，操作同时绑定当前活动版本并原子恢复当时的默认路由；并发发布会拒绝旧确认，Provider ACK 前只显示等待确认。当前规则草稿不会被回滚操作删除。
+
 第三方客户端协同已覆盖 Surge、Clash/Mihomo 和 sing-box 的显式登记、活动快照无损投影、客户端原生校验、主配置与 sidecar 双文件事务、公开重载、配置确认和失败恢复。共享页面可用系统原生文件选择器选取客户端与当前配置，也保留绝对路径高级回退；所有选择结果仍由隔离 adapter-host 重新验证。页面独立显示候选校验、配置载入和真实路径，当前没有路径级证据时始终提示“尚未证明绕过 VPN”。Windows 复用同一页面，但 Adapter 命名管道未接入前保持明确不可用。
 
 正式签名 macOS 包的只读查询、安装、升级、卸载和完整生命周期验收使用 [macOS 系统组件验收手册](docs/MACOS_SYSTEM_ACCEPTANCE.md)。验收命令拒绝临时签名、非 `/Applications` 包和未经显式确认的系统变更，并输出带 SHA-256 清单的独立证据目录。
@@ -71,6 +73,7 @@ TCP/DNS/UDP/QUIC 验收使用
 - [活动快照 Adapter 投影 ADR](docs/ADR/0027-project-adapter-rules-from-active-snapshots.md)
 - [桌面 Adapter 同步编排 ADR](docs/ADR/0028-orchestrate-adapter-sync-from-the-desktop.md)
 - [权威接入就绪引导 ADR](docs/ADR/0029-guide-setup-with-authoritative-readiness.md)
+- [上一有效快照恢复 ADR](docs/ADR/0030-restore-the-previous-effective-snapshot.md)
 - [AI/工程协作规则](AGENTS.md)
 
 ## 本地工具链

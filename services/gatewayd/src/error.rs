@@ -92,6 +92,9 @@ impl GatewayError {
                 | StorageError::ConnectionDecisionReplayMismatch),
             ) => error.code(),
             Self::Storage(StorageError::PendingSnapshotExists) => "NP_SNAPSHOT_ALREADY_PENDING",
+            Self::Storage(StorageError::ActiveSnapshotVersionConflict) => {
+                "NP_SNAPSHOT_ACTIVE_VERSION_CONFLICT"
+            }
             Self::Storage(
                 error @ (StorageError::LearningSessionNotFound
                 | StorageError::ActiveLearningSessionExists

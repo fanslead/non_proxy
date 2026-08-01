@@ -149,6 +149,39 @@ fn latest_version_is_none_then_tracks_highest_staged_snapshot() {
 }
 
 #[test]
+fn previous_effective_version_skips_pending_and_rejected_snapshots() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    activate_single_provider(&mut database, 1, 1, 1_100);
+    activate_single_provider(&mut database, 2, 2, 1_200);
+    let rejected = artifact(3, 3).unwrap_or_else(|error| {
+        panic!("拒绝快照创建失败: {error}");
+    });
+    if let Err(error) = database.snapshots().stage(&rejected) {
+        panic!("拒绝快照暂存失败: {error}");
+    }
+    if let Err(error) = database
+        .snapshots()
+        .reject_pending(3, "NP_TEST_REJECTED", 1_300)
+    {
+        panic!("拒绝快照状态写入失败: {error}");
+    }
+    let pending = artifact(4, 4).unwrap_or_else(|error| {
+        panic!("待确认快照创建失败: {error}");
+    });
+    if let Err(error) = database.snapshots().stage(&pending) {
+        panic!("待确认快照暂存失败: {error}");
+    }
+
+    assert!(matches!(
+        database.snapshots().previous_effective_version(2),
+        Ok(Some(1))
+    ));
+}
+
+#[test]
 fn pending_replacement_is_atomic_and_preserves_the_active_snapshot() {
     let database = PolicyDatabase::open_in_memory(1_000);
     let Ok(mut database) = database else {

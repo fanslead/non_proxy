@@ -77,6 +77,8 @@ pub enum StorageError {
     SnapshotNotFound,
     #[error("策略快照状态不允许当前操作")]
     SnapshotStateConflict,
+    #[error("当前活动策略快照已变化")]
+    ActiveSnapshotVersionConflict,
     #[error("策略快照内容哈希不匹配")]
     SnapshotHashMismatch,
     #[error("策略快照载荷无效")]
@@ -155,6 +157,7 @@ impl StorageError {
             Self::PendingSnapshotExists => "NP_STORAGE_SNAPSHOT_PENDING_EXISTS",
             Self::SnapshotNotFound => "NP_STORAGE_SNAPSHOT_NOT_FOUND",
             Self::SnapshotStateConflict => "NP_STORAGE_SNAPSHOT_STATE_CONFLICT",
+            Self::ActiveSnapshotVersionConflict => "NP_STORAGE_ACTIVE_SNAPSHOT_VERSION_CONFLICT",
             Self::SnapshotHashMismatch => "NP_STORAGE_SNAPSHOT_HASH_MISMATCH",
             Self::SnapshotPayloadInvalid => "NP_STORAGE_SNAPSHOT_PAYLOAD_INVALID",
             Self::ProviderIdInvalid => "NP_STORAGE_PROVIDER_ID_INVALID",

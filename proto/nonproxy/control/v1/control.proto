@@ -191,6 +191,8 @@ message ListPoliciesResponse {
   uint64 pending_snapshot_version = 4;
   repeated PolicyStatus policy_statuses = 5;
   uint64 policy_catalog_generation = 6;
+  // previous_effective_snapshot_version 是当前 active 之前最近一次真正生效的快照。
+  uint64 previous_effective_snapshot_version = 7;
 }
 
 // GetActivePolicySnapshotRequest 请求当前真正执行的不可变策略快照。
@@ -277,6 +279,8 @@ message ApplyPolicySnapshotRequest {
 message RollbackPolicySnapshotRequest {
   OperationContext context = 1;
   uint64 target_snapshot_version = 2;
+  // expected_active_snapshot_version 防止并发发布后回滚到过时的“上一个配置”。
+  uint64 expected_active_snapshot_version = 3;
 }
 
 // PolicyMutationResult 汇总策略写入和快照发布结果。

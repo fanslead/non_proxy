@@ -26,6 +26,55 @@
             </Grid>
 
             <Border Theme="{StaticResource NpCard}">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="16">
+                        <StackPanel Spacing="5">
+                            <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                       Text="恢复上一个配置" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="{Binding RestorePreviousDetail}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button x:Name="RequestRestorePreviousButton"
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding RequestRestorePreviousCommand}"
+                                Content="选择恢复"
+                                IsEnabled="{Binding CanRestorePrevious}"
+                                AutomationProperties.Name="恢复上一个已生效配置" />
+                    </Grid>
+
+                    <Border x:Name="RestorePreviousConfirmation"
+                            Padding="14"
+                            CornerRadius="9"
+                            BorderBrush="{DynamicResource NpWarningBrush}"
+                            BorderThickness="1"
+                            IsVisible="{Binding IsRestoreConfirmationVisible}">
+                        <StackPanel Spacing="10">
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="确认恢复上一个已生效配置？" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="这会创建新的待确认快照，并同时恢复当时的默认路由。当前规则草稿不会被删除；Provider 确认前不能视为已经恢复。"
+                                       TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="10">
+                                <Button Theme="{StaticResource NpSecondaryButton}"
+                                        Command="{Binding ConfirmRestorePreviousCommand}"
+                                        Content="确认恢复"
+                                        AutomationProperties.Name="确认恢复上一个已生效配置" />
+                                <Button Theme="{StaticResource NpSecondaryButton}"
+                                        Command="{Binding CancelRestorePreviousCommand}"
+                                        Content="取消"
+                                        AutomationProperties.Name="取消恢复上一个已生效配置" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}">
                 <StackPanel Spacing="14">
                     <Grid ColumnDefinitions="2*,*,2*,*,*,Auto"
                           ColumnSpacing="12">

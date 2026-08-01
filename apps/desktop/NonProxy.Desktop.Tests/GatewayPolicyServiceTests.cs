@@ -111,6 +111,7 @@ public sealed class GatewayPolicyServiceTests
             {
                 ActiveSnapshotVersion = 10,
                 PendingSnapshotVersion = 11,
+                PreviousEffectiveSnapshotVersion = 9,
                 Page = new PageResponse(),
                 PolicyStatuses =
                 {
@@ -136,6 +137,7 @@ public sealed class GatewayPolicyServiceTests
         Assert.Equal(3UL, item.PendingRevision);
         Assert.Equal(10UL, catalog.ActiveSnapshotVersion);
         Assert.Equal(11UL, catalog.PendingSnapshotVersion);
+        Assert.Equal(9UL, catalog.PreviousEffectiveSnapshotVersion);
     }
 
     [Fact]
@@ -216,6 +218,12 @@ public sealed class GatewayPolicyServiceTests
     {
         var client = new StubControlRpcClient
         {
+            PoliciesResponse = new ListPoliciesResponse
+            {
+                ActiveSnapshotVersion = 100,
+                PreviousEffectiveSnapshotVersion = 99,
+                Page = new PageResponse(),
+            },
             RollbackResponse = new RollbackPolicySnapshotResponse
             {
                 Result = new PolicyMutationResult
@@ -237,6 +245,31 @@ public sealed class GatewayPolicyServiceTests
         Assert.False(result.Accepted);
         Assert.False(result.Applied);
         Assert.Equal("NP_SNAPSHOT_NOT_FOUND", result.Code);
+        Assert.Equal(99UL, client.LastRollbackSnapshotVersion);
+        Assert.Equal(100UL, client.LastExpectedActiveSnapshotVersion);
+    }
+
+    [Fact]
+    public async Task RollbackRefusesAStalePreviousSnapshotBeforeMutation()
+    {
+        var client = new StubControlRpcClient
+        {
+            PoliciesResponse = new ListPoliciesResponse
+            {
+                ActiveSnapshotVersion = 12,
+                PreviousEffectiveSnapshotVersion = 11,
+                Page = new PageResponse(),
+            },
+        };
+        var service = Service(client);
+
+        var result = await service.RollBackAsync(
+            10,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.Accepted);
+        Assert.Equal("NP_SNAPSHOT_RESTORE_TARGET_CHANGED", result.Code);
+        Assert.Equal(0UL, client.LastRollbackSnapshotVersion);
     }
 
     [Fact]
@@ -276,6 +309,44 @@ public sealed class GatewayPolicyServiceTests
     }
 
     [Fact]
+    public async Task CatalogRetriesWhenRollbackPointChangesBetweenPages()
+    {
+        var client = new StubControlRpcClient();
+        client.PoliciesResponses.Enqueue(new ListPoliciesResponse
+        {
+            ActiveSnapshotVersion = 4,
+            PreviousEffectiveSnapshotVersion = 2,
+            PolicyCatalogGeneration = 1,
+            Page = new PageResponse { NextPageToken = "next" },
+            PolicyStatuses =
+            {
+                Status(WebsitePolicy("policy-a", 1)),
+            },
+        });
+        client.PoliciesResponses.Enqueue(new ListPoliciesResponse
+        {
+            ActiveSnapshotVersion = 4,
+            PreviousEffectiveSnapshotVersion = 3,
+            PolicyCatalogGeneration = 1,
+            Page = new PageResponse(),
+        });
+        client.PoliciesResponses.Enqueue(new ListPoliciesResponse
+        {
+            ActiveSnapshotVersion = 4,
+            PreviousEffectiveSnapshotVersion = 3,
+            PolicyCatalogGeneration = 1,
+            Page = new PageResponse(),
+        });
+        var service = Service(client);
+
+        var catalog = await service.GetCatalogAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(3UL, catalog.PreviousEffectiveSnapshotVersion);
+        Assert.Equal(3, client.ListPoliciesCallCount);
+    }
+
+    [Fact]
     public async Task CatalogRejectsDuplicatePolicyAcrossPages()
     {
         var client = new StubControlRpcClient();
@@ -297,6 +368,26 @@ public sealed class GatewayPolicyServiceTests
                 Status(WebsitePolicy("policy-a", 1)),
             },
         });
+        var service = Service(client);
+
+        var error = await Assert.ThrowsAsync<ControlServiceException>(() =>
+            service.GetCatalogAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("NP_CONTROL_PAGING_INVALID", error.Code);
+    }
+
+    [Fact]
+    public async Task CatalogRejectsRollbackPointWithoutANewerActiveSnapshot()
+    {
+        var client = new StubControlRpcClient
+        {
+            PoliciesResponse = new ListPoliciesResponse
+            {
+                ActiveSnapshotVersion = 7,
+                PreviousEffectiveSnapshotVersion = 7,
+                Page = new PageResponse(),
+            },
+        };
         var service = Service(client);
 
         var error = await Assert.ThrowsAsync<ControlServiceException>(() =>
