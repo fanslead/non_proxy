@@ -173,3 +173,13 @@ jobs:
               -p nonproxy-adapter-host `
               --target '${{ matrix.target }}'
           }
+
+      - name: 验证 Windows ACL 与文件事务
+        if: matrix.lint
+        shell: pwsh
+        run: |
+          cargo +1.97.1 test --locked `
+            -p nonproxy-windows-security `
+            -p nonproxy-local-auth `
+            -p nonproxy-adapter-transaction `
+            --target '${{ matrix.target }}'

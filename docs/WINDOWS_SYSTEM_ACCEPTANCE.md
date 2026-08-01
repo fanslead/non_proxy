@@ -148,7 +148,8 @@ Remove-Item Env:\NONPROXY_ALLOW_WINDOWS_SYSTEM_MUTATION
 - 需要重启时 UI/工具只提示，不强制重启。
 
 Windows adapter-host 纳入发布生命周期后还必须单独核对：进程以当前交互用户而非
-LocalSystem 运行；状态目录位于该用户 LocalAppData；`adapter.capability` 仅该用户可读写；
+LocalSystem 运行；状态目录位于该用户 LocalAppData；状态目录与 `adapter.capability` 的
+受保护 DACL 只包含该用户、SYSTEM、Administrators，其他普通用户不可访问；
 `NonProxy.Adapter.<UserSid>` 只授予 SYSTEM、Administrators 和该用户并拒绝远端；两个同时
 登录的普通用户使用不同管道，SYSTEM/服务身份无法启动；桌面端携带错误/过期能力令牌时 RPC 被拒绝；
 任务 principal 必须是 `S-1-5-32-545` Group + Limited、触发器必须是空 UserId 的 AtLogOn、
@@ -257,8 +258,8 @@ Windows 验收结果；不得用文件名、展示名、普通路径、桌面目
 
 Adapter 命名管道服务端、桌面客户端、SID 绑定管道/精确 DACL、签名包入口、Users group
 登录任务、桌面哈希复验即时启动和平台能力降级已有 W0 源码与 x64/ARM64 交叉编译门禁；
-真实任务、多用户命名管道 RPC/ACL 和第三方客户端重载尚未在 Windows 执行，不得据此声明
-“客户端协同可用”。
+x64 CI 另运行状态 DACL 和原子文件事务测试。真实任务、多用户命名管道 RPC/ACL、第三方
+客户端文件占用与重载尚未在 Windows 系统矩阵执行，不得据此声明“客户端协同可用”。
 
 ## 8. 官方依据
 

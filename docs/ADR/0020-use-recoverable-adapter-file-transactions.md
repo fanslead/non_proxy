@@ -26,9 +26,11 @@ NonProxy 专属 sidecar；如果直接覆盖文件，应用崩溃、重复 RPC�
    十分钟准备期限。manifest 不记录规则正文。启动恢复扫描验证所有引用哈希，并清理没有
    manifest 的崩溃孤儿文件；引用文件损坏时拒绝启动事务内核。旧 v1 清单仍可恢复和回滚，
    但缺少版本绑定时 adapter-host 不允许继续应用。
-5. `apply` 只在当前 sidecar 仍等于 prepare 时的备份时执行同目录原子 rename。文件读取在
-   Unix 使用 `O_NOFOLLOW`，大小前后均受 2 MiB 上限约束；符号链接、非普通文件和变化的
-   外部内容均拒绝覆盖。应用后重新读取并核对候选 SHA-256。
+5. `apply` 只在当前 sidecar 仍等于 prepare 时的备份时执行同目录原子替换。Unix 使用
+   `rename` 和 `O_NOFOLLOW`；Windows 对既有文件使用不忽略 ACL 合并错误的 `ReplaceFileW`，
+   对首次创建使用 `MoveFileExW(MOVEFILE_WRITE_THROUGH)`。两端的文件大小前后均受 2 MiB
+   上限约束；符号链接、Windows 重解析点、非普通文件和变化的外部内容均拒绝覆盖。应用后
+   重新读取并核对候选 SHA-256。
 6. `rollback` 只在当前内容仍等于本次候选时恢复原备份；若 prepare 前不存在 sidecar，
    则只删除本次候选。用户或客户端在 apply 后改过文件时保留现场和备份，交由用户选择，
    不强行覆盖。
@@ -41,13 +43,23 @@ NonProxy 专属 sidecar；如果直接覆盖文件，应用崩溃、重复 RPC�
 
 ## 当前平台边界
 
-当前权限和 `O_NOFOLLOW` 约束完成 macOS/Unix 首发路径。Windows 复用领域事务和哈希
-语义，但在正式启用前必须增加 ACL、ReplaceFile/MoveFileEx 语义与命名管道单写者验收。
-该 crate 目前不修改第三方客户端主配置、不执行客户端二进制、不重载客户端，也不提供
-路径证据。
+macOS/Unix 使用 `0700`/`0600` 与 `O_NOFOLLOW`。Windows 状态根、事务子目录、候选、备份、
+manifest、能力令牌和运行身份使用受保护 DACL，只允许当前交互用户、SYSTEM 与
+Administrators；每次设置后重新枚举 ACE 并验证没有额外主体。`ReplaceFileW` 保留既有主配置
+DACL，命名管道首实例独占提供单写者边界。x64 CI 会运行真实 Windows ACL、首次移动、既有
+文件替换和事务恢复测试，ARM64 保留交叉编译门禁；真实多用户、客户端占用文件和异常断电
+仍属于系统验收。该 crate 不提供路径证据。
 
 ## 后果
 
 - 重复、超时和进程重启不会让 adapter-host 盲目覆盖未知内容。
 - 自动回滚与用户外部编辑发生冲突时，优先保留用户现场和恢复材料。
 - service/RPC 层可以独立实现版本检测和客户端原生验证，而不复制文件安全逻辑。
+- Windows ACL、SID 与原子替换集中在 `nonproxy-windows-security`，避免能力文件、运行身份和
+  事务各自维护不一致的 P/Invoke 边界。
+
+## 参考
+
+- [Microsoft：ReplaceFileW](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-replacefilew)
+- [Microsoft：MoveFileExW](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-movefileexw)
+- [Microsoft：SetNamedSecurityInfoW](https://learn.microsoft.com/windows/win32/api/aclapi/nf-aclapi-setnamedsecurityinfow)

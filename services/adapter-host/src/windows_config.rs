@@ -18,14 +18,17 @@ pub struct WindowsAdapterTransportConfig {
 
 impl WindowsAdapterTransportConfig {
     pub fn from_process() -> Result<Self, AdapterHostError> {
+        if env::var_os(ADAPTER_PIPE_ENVIRONMENT).is_some()
+            || env::var_os(PIPE_SDDL_ENVIRONMENT).is_some()
+        {
+            return Err(AdapterHostError::Configuration);
+        }
         let user_sid = current_process_user_sid().map_err(|_| AdapterHostError::Configuration)?;
         let default_pipe = adapter_pipe_name_for_user_sid(&user_sid)
             .map_err(|_| AdapterHostError::Configuration)?;
         let required_sddl = adapter_pipe_sddl_for_user_sid(&user_sid)
             .map_err(|_| AdapterHostError::Configuration)?;
-        let pipe = environment_text(ADAPTER_PIPE_ENVIRONMENT, &default_pipe)?;
-        let pipe_sddl = environment_text(PIPE_SDDL_ENVIRONMENT, &required_sddl)?;
-        Self::new(pipe, pipe_sddl, &required_sddl)
+        Self::new(default_pipe, required_sddl.clone(), &required_sddl)
     }
 
     fn new(pipe: String, pipe_sddl: String, required_sddl: &str) -> Result<Self, AdapterHostError> {
@@ -45,14 +48,6 @@ impl WindowsAdapterTransportConfig {
     #[must_use]
     pub fn pipe_sddl(&self) -> &str {
         self.pipe_sddl.as_str()
-    }
-}
-
-fn environment_text(name: &str, default: &str) -> Result<String, AdapterHostError> {
-    match env::var(name) {
-        Ok(value) => Ok(value),
-        Err(env::VarError::NotPresent) => Ok(default.to_owned()),
-        Err(env::VarError::NotUnicode(_)) => Err(AdapterHostError::Configuration),
     }
 }
 

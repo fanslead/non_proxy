@@ -66,7 +66,7 @@ impl SessionCapability {
             return Err(error);
         }
         if let Err(error) = replace_capability_file(&temporary, &target) {
-            let _cleanup = fs::remove_file(&temporary);
+            cleanup_failed_replacement(&temporary);
             return Err(error);
         }
         sync_directory(state_directory)
@@ -146,7 +146,20 @@ fn replace_capability_file(source: &Path, target: &Path) -> Result<(), LocalAuth
     fs::rename(source, target).map_err(LocalAuthError::File)
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn cleanup_failed_replacement(_path: &Path) {}
+
+#[cfg(not(windows))]
+fn cleanup_failed_replacement(path: &Path) {
+    let _cleanup = fs::remove_file(path);
+}
+
+#[cfg(windows)]
+fn replace_capability_file(source: &Path, target: &Path) -> Result<(), LocalAuthError> {
+    nonproxy_windows_security::replace_file_atomically(source, target).map_err(LocalAuthError::File)
+}
+
+#[cfg(not(any(unix, windows)))]
 fn replace_capability_file(source: &Path, target: &Path) -> Result<(), LocalAuthError> {
     if target.exists() {
         fs::remove_file(target).map_err(LocalAuthError::File)?;

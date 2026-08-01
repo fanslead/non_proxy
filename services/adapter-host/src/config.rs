@@ -38,12 +38,23 @@ pub struct AdapterHostConfig {
 
 impl AdapterHostConfig {
     pub fn from_process() -> Result<Self, AdapterHostError> {
+        #[cfg(windows)]
+        reject_windows_process_overrides()?;
+        #[cfg(windows)]
+        let state_directory = default_state_directory()?;
+        #[cfg(not(windows))]
         let state_directory = env::var_os(STATE_DIRECTORY_ENVIRONMENT)
             .map(PathBuf::from)
             .map_or_else(default_state_directory, Ok)?;
+        #[cfg(windows)]
+        let socket_path = state_directory.join("adapter-host.sock");
+        #[cfg(not(windows))]
         let socket_path = env::var_os(SOCKET_PATH_ENVIRONMENT)
             .map(PathBuf::from)
             .unwrap_or_else(|| state_directory.join("adapter-host.sock"));
+        #[cfg(windows)]
+        let bundle_fingerprint = default_bundle_fingerprint()?;
+        #[cfg(not(windows))]
         let bundle_fingerprint = match env::var(BUNDLE_FINGERPRINT_ENVIRONMENT) {
             Ok(value) => validate_bundle_fingerprint(value)?,
             Err(env::VarError::NotPresent) => default_bundle_fingerprint()?,
@@ -94,6 +105,9 @@ impl AdapterHostConfig {
         #[cfg(unix)]
         fs::set_permissions(&self.state_directory, fs::Permissions::from_mode(0o700))
             .map_err(AdapterHostError::File)?;
+        #[cfg(windows)]
+        nonproxy_windows_security::protect_current_user_directory(&self.state_directory)
+            .map_err(AdapterHostError::File)?;
         Ok(())
     }
 
@@ -134,6 +148,22 @@ impl AdapterHostConfig {
     }
 }
 
+#[cfg(windows)]
+fn reject_windows_process_overrides() -> Result<(), AdapterHostError> {
+    if [
+        STATE_DIRECTORY_ENVIRONMENT,
+        SOCKET_PATH_ENVIRONMENT,
+        BUNDLE_FINGERPRINT_ENVIRONMENT,
+    ]
+    .into_iter()
+    .any(|name| env::var_os(name).is_some())
+    {
+        return Err(AdapterHostError::Configuration);
+    }
+    Ok(())
+}
+
+#[cfg(any(not(windows), test))]
 fn validate_bundle_fingerprint(value: String) -> Result<String, AdapterHostError> {
     if value.len() == 64
         && value

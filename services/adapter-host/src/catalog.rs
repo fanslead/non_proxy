@@ -144,6 +144,13 @@ fn read_catalog(path: &Path) -> Result<BTreeMap<String, RegisteredInstallation>,
 }
 
 fn read_optional_private(path: &Path) -> Result<Option<Vec<u8>>, AdapterHostError> {
+    #[cfg(windows)]
+    match fs::symlink_metadata(path) {
+        Ok(_) => nonproxy_windows_security::validate_regular_file(path)
+            .map_err(|_| AdapterHostError::CatalogCorrupt)?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(AdapterHostError::File(error)),
+    }
     let mut options = OpenOptions::new();
     options.read(true);
     #[cfg(unix)]
@@ -197,13 +204,11 @@ fn write_catalog(
         let _cleanup = fs::remove_file(&temporary);
         return Err(error);
     }
-    if let Err(error) = fs::rename(&temporary, path) {
-        let _cleanup = fs::remove_file(&temporary);
+    if let Err(error) = replace_file(&temporary, path) {
+        cleanup_failed_replacement(&temporary);
         return Err(AdapterHostError::File(error));
     }
-    File::open(parent)
-        .and_then(|directory| directory.sync_all())
-        .map_err(AdapterHostError::File)
+    sync_directory(parent)
 }
 
 fn create_temporary(parent: &Path) -> Result<(PathBuf, File), AdapterHostError> {
@@ -221,7 +226,15 @@ fn create_temporary(parent: &Path) -> Result<(PathBuf, File), AdapterHostError> 
         #[cfg(unix)]
         options.mode(0o600);
         match options.open(&path) {
-            Ok(file) => return Ok((path, file)),
+            Ok(file) => {
+                #[cfg(windows)]
+                if let Err(error) = nonproxy_windows_security::protect_current_user_file(&path) {
+                    drop(file);
+                    let _cleanup = fs::remove_file(&path);
+                    return Err(AdapterHostError::File(error));
+                }
+                return Ok((path, file));
+            }
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
                 collision = Some(error);
             }
@@ -231,6 +244,36 @@ fn create_temporary(parent: &Path) -> Result<(PathBuf, File), AdapterHostError> 
     Err(AdapterHostError::File(collision.unwrap_or_else(|| {
         std::io::Error::other("temporary catalog path allocation exhausted")
     })))
+}
+
+#[cfg(windows)]
+fn replace_file(source: &Path, target: &Path) -> Result<(), std::io::Error> {
+    nonproxy_windows_security::replace_file_atomically(source, target)
+}
+
+#[cfg(not(windows))]
+fn replace_file(source: &Path, target: &Path) -> Result<(), std::io::Error> {
+    fs::rename(source, target)
+}
+
+#[cfg(windows)]
+fn cleanup_failed_replacement(_path: &Path) {}
+
+#[cfg(not(windows))]
+fn cleanup_failed_replacement(path: &Path) {
+    let _cleanup = fs::remove_file(path);
+}
+
+#[cfg(windows)]
+fn sync_directory(_path: &Path) -> Result<(), AdapterHostError> {
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn sync_directory(path: &Path) -> Result<(), AdapterHostError> {
+    File::open(path)
+        .and_then(|directory| directory.sync_all())
+        .map_err(AdapterHostError::File)
 }
 
 pub(crate) fn validate_identifier(value: &str) -> Result<(), AdapterHostError> {

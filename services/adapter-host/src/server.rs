@@ -15,20 +15,29 @@ pub async fn run_with_shutdown(
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), AdapterHostError> {
     config.prepare()?;
+    serve_platform(config, shutdown).await
+}
+
+fn open_authenticated_service(
+    config: &AdapterHostConfig,
+) -> Result<AdapterRpcService, AdapterHostError> {
     let session =
         SessionCapability::create(config.state_directory(), config.capability_file_name())?;
-    let service = AdapterRpcService::open(
+    #[cfg(windows)]
+    nonproxy_windows_security::protect_current_user_file(
+        &config.state_directory().join(config.capability_file_name()),
+    )
+    .map_err(AdapterHostError::File)?;
+    AdapterRpcService::open(
         config.catalog_path(),
         config.transaction_directory(),
         session,
-    )?;
-    serve_platform(config, service, shutdown).await
+    )
 }
 
 #[cfg(unix)]
 async fn serve_platform(
     config: AdapterHostConfig,
-    service: AdapterRpcService,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), AdapterHostError> {
     use nonproxy_proto::adapter::v1::adapter_service_server::AdapterServiceServer;
@@ -36,6 +45,7 @@ async fn serve_platform(
     use tonic::transport::Server;
 
     let (listener, _guard) = crate::unix_socket::bind_private_socket(config.socket_path()).await?;
+    let service = open_authenticated_service(&config)?;
     let _runtime_identity = RuntimeIdentityGuard::create(&config)?;
     let rpc = AdapterServiceServer::new(service)
         .max_decoding_message_size(AdapterRpcService::max_message_bytes())
@@ -51,7 +61,6 @@ async fn serve_platform(
 #[cfg(windows)]
 async fn serve_platform(
     config: AdapterHostConfig,
-    service: AdapterRpcService,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), AdapterHostError> {
     use nonproxy_proto::adapter::v1::adapter_service_server::AdapterServiceServer;
@@ -68,6 +77,7 @@ async fn serve_platform(
         shutdown_receiver,
     )
     .map_err(AdapterHostError::File)?;
+    let service = open_authenticated_service(&config)?;
     let _runtime_identity = RuntimeIdentityGuard::create(&config)?;
     let rpc = AdapterServiceServer::new(service)
         .max_decoding_message_size(AdapterRpcService::max_message_bytes())
@@ -87,7 +97,6 @@ async fn serve_platform(
 #[cfg(not(any(unix, windows)))]
 async fn serve_platform(
     _config: AdapterHostConfig,
-    _service: AdapterRpcService,
     _shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), AdapterHostError> {
     Err(AdapterHostError::Configuration)

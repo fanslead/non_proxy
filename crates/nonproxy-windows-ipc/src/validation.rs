@@ -1,48 +1,23 @@
 use std::io;
 
+use nonproxy_windows_security::validate_interactive_user_sid;
+
 const PIPE_PREFIX: &str = r"\\.\pipe\NonProxy.";
 const MAXIMUM_PIPE_NAME_BYTES: usize = 160;
 const MAXIMUM_SDDL_BYTES: usize = 1_024;
-const MAXIMUM_SID_BYTES: usize = 184;
-const MAXIMUM_SID_IDENTIFIER_AUTHORITY: u64 = 0x0000_FFFF_FFFF_FFFF;
 
 pub fn adapter_pipe_name_for_user_sid(value: &str) -> io::Result<String> {
-    validate_nonproxy_user_sid(value)?;
+    validate_interactive_user_sid(value)?;
     let pipe = format!(r"{PIPE_PREFIX}Adapter.{value}");
     validate_nonproxy_pipe_name(&pipe)?;
     Ok(pipe)
 }
 
 pub fn adapter_pipe_sddl_for_user_sid(value: &str) -> io::Result<String> {
-    validate_nonproxy_user_sid(value)?;
+    validate_interactive_user_sid(value)?;
     let sddl = format!("D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;{value})");
     validate_pipe_sddl(&sddl)?;
     Ok(sddl)
-}
-
-pub fn validate_nonproxy_user_sid(value: &str) -> io::Result<()> {
-    let parts = value.split('-').collect::<Vec<_>>();
-    let structurally_valid = (4..=18).contains(&parts.len())
-        && parts[0] == "S"
-        && parts[1] == "1"
-        && parts[2..].iter().all(|part| {
-            !part.is_empty()
-                && part.bytes().all(|byte| byte.is_ascii_digit())
-                && (part == &"0" || !part.starts_with('0'))
-        })
-        && parts[2]
-            .parse::<u64>()
-            .is_ok_and(|authority| authority <= MAXIMUM_SID_IDENTIFIER_AUTHORITY)
-        && parts[3..].iter().all(|part| part.parse::<u32>().is_ok());
-    let service_identity =
-        matches!(value, "S-1-5-18" | "S-1-5-19" | "S-1-5-20") || value.starts_with("S-1-5-80-");
-    if value.len() > MAXIMUM_SID_BYTES || !structurally_valid || service_identity {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "Windows Adapter 必须绑定普通用户 SID",
-        ));
-    }
-    Ok(())
 }
 
 pub fn validate_nonproxy_pipe_name(value: &str) -> io::Result<()> {
@@ -80,8 +55,9 @@ pub fn validate_pipe_sddl(value: &str) -> io::Result<()> {
 mod tests {
     use super::{
         PIPE_PREFIX, adapter_pipe_name_for_user_sid, adapter_pipe_sddl_for_user_sid,
-        validate_nonproxy_pipe_name, validate_nonproxy_user_sid, validate_pipe_sddl,
+        validate_nonproxy_pipe_name, validate_pipe_sddl,
     };
+    use nonproxy_windows_security::validate_interactive_user_sid;
 
     const USER_SID: &str = "S-1-5-21-1000-2000-3000-1001";
 
@@ -112,7 +88,7 @@ mod tests {
             "S-1-281474976710656-1",
             "S-1-5-4294967296",
         ] {
-            assert!(validate_nonproxy_user_sid(invalid).is_err());
+            assert!(validate_interactive_user_sid(invalid).is_err());
         }
     }
 

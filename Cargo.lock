@@ -1475,6 +1475,7 @@ dependencies = [
  "nonproxy-local-auth",
  "nonproxy-proto",
  "nonproxy-windows-ipc",
+ "nonproxy-windows-security",
  "prost-types",
  "serde",
  "serde_json",
@@ -1534,6 +1535,7 @@ dependencies = [
  "nonproxy-adapter-mihomo",
  "nonproxy-adapter-sing-box",
  "nonproxy-adapter-surge",
+ "nonproxy-windows-security",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -1648,6 +1650,7 @@ name = "nonproxy-local-auth"
 version = "0.1.0"
 dependencies = [
  "getrandom 0.4.3",
+ "nonproxy-windows-security",
  "tempfile",
  "thiserror 2.0.19",
 ]
@@ -1763,6 +1766,7 @@ dependencies = [
 name = "nonproxy-windows-ipc"
 version = "0.1.0"
 dependencies = [
+ "nonproxy-windows-security",
  "tokio",
  "tokio-stream",
  "tonic",
@@ -1776,6 +1780,14 @@ dependencies = [
  "socket2",
  "thiserror 2.0.19",
  "tokio",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "nonproxy-windows-security"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
  "windows-sys 0.61.2",
 ]
 

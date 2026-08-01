@@ -52,8 +52,8 @@ impl RuntimeIdentityGuard {
             let _cleanup_result = fs::remove_file(&temporary_path);
             return Err(error);
         }
-        if let Err(error) = fs::rename(&temporary_path, &path) {
-            let _cleanup_result = fs::remove_file(&temporary_path);
+        if let Err(error) = replace_file(&temporary_path, &path) {
+            cleanup_failed_replacement(&temporary_path);
             return Err(AdapterHostError::File(error));
         }
         Ok(Self { path, content })
@@ -62,6 +62,10 @@ impl RuntimeIdentityGuard {
 
 impl Drop for RuntimeIdentityGuard {
     fn drop(&mut self) {
+        #[cfg(windows)]
+        if nonproxy_windows_security::validate_regular_file(&self.path).is_err() {
+            return;
+        }
         if matches!(fs::read(&self.path), Ok(content) if content == self.content) {
             let _cleanup_result = fs::remove_file(&self.path);
         }
@@ -95,7 +99,32 @@ fn open_private_file(path: &Path) -> Result<File, std::io::Error> {
 
         options.mode(0o600);
     }
-    options.open(path)
+    let file = options.open(path)?;
+    #[cfg(windows)]
+    if let Err(error) = nonproxy_windows_security::protect_current_user_file(path) {
+        drop(file);
+        let _cleanup = fs::remove_file(path);
+        return Err(error);
+    }
+    Ok(file)
+}
+
+#[cfg(windows)]
+fn replace_file(source: &Path, target: &Path) -> Result<(), std::io::Error> {
+    nonproxy_windows_security::replace_file_atomically(source, target)
+}
+
+#[cfg(not(windows))]
+fn replace_file(source: &Path, target: &Path) -> Result<(), std::io::Error> {
+    fs::rename(source, target)
+}
+
+#[cfg(windows)]
+fn cleanup_failed_replacement(_path: &Path) {}
+
+#[cfg(not(windows))]
+fn cleanup_failed_replacement(path: &Path) {
+    let _cleanup = fs::remove_file(path);
 }
 
 fn reject_unsafe_target(path: &Path) -> Result<(), AdapterHostError> {
@@ -103,7 +132,12 @@ fn reject_unsafe_target(path: &Path) -> Result<(), AdapterHostError> {
         Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
             Err(AdapterHostError::Configuration)
         }
-        Ok(_) => Ok(()),
+        Ok(_) => {
+            #[cfg(windows)]
+            nonproxy_windows_security::validate_regular_file(path)
+                .map_err(|_| AdapterHostError::Configuration)?;
+            Ok(())
+        }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(AdapterHostError::File(error)),
     }

@@ -64,6 +64,9 @@ fn validate_target_path(
         .parent()
         .ok_or(AdapterTransactionError::ManagedPathInvalid)?;
     reject_symlink(parent, AdapterTransactionError::ManagedPathInvalid)?;
+    #[cfg(windows)]
+    nonproxy_windows_security::validate_regular_directory(parent)
+        .map_err(|_| AdapterTransactionError::ManagedPathInvalid)?;
     let canonical_parent = parent
         .canonicalize()
         .map_err(|_| AdapterTransactionError::ManagedPathInvalid)?;
@@ -80,7 +83,12 @@ pub(crate) fn validate_managed_file(path: &Path) -> Result<(), AdapterTransactio
         Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
             Err(AdapterTransactionError::ManagedPathInvalid)
         }
-        Ok(_) => Ok(()),
+        Ok(_) => {
+            #[cfg(windows)]
+            nonproxy_windows_security::validate_regular_file(path)
+                .map_err(|_| AdapterTransactionError::ManagedPathInvalid)?;
+            Ok(())
+        }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(_) => Err(AdapterTransactionError::FileTransaction),
     }
@@ -104,7 +112,13 @@ fn restrict_directory(path: &Path) -> Result<(), AdapterTransactionError> {
         .map_err(|_| AdapterTransactionError::FileTransaction)
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn restrict_directory(_path: &Path) -> Result<(), AdapterTransactionError> {
     Ok(())
+}
+
+#[cfg(windows)]
+fn restrict_directory(path: &Path) -> Result<(), AdapterTransactionError> {
+    nonproxy_windows_security::protect_current_user_directory(path)
+        .map_err(|_| AdapterTransactionError::FileTransaction)
 }

@@ -1537,8 +1537,11 @@ App Bundle 前缀规则；`adapters/mihomo` 对 macOS Bundle 生成前缀规则�
 边界见 [ADR-0019](ADR/0019-generate-versioned-client-rule-sets.md)。
 
 候选到托管 sidecar 的文件事务由 `nonproxy-adapter-transaction` 统一实现。准备阶段保存
-owner-only candidate、backup 和带 SHA-256 的持久 change manifest；应用前要求目标仍
-等于原备份，使用同目录原子 rename 后再次验 hash。回滚只覆盖本次候选，遇到客户端或
+私有 candidate、backup 和带 SHA-256 的持久 change manifest；应用前要求目标仍
+等于原备份，使用同目录原子替换后再次验 hash。Windows 安全原语集中在
+`nonproxy-windows-security`：状态目录与私有文件使用仅当前用户、SYSTEM、Administrators
+可访问的受保护 DACL，设置后复验完整 ACE；既有文件使用保留原 DACL 的 `ReplaceFileW`，
+首次创建使用 `MoveFileExW(MOVEFILE_WRITE_THROUGH)`，并拒绝重解析点。回滚只覆盖本次候选，遇到客户端或
 用户外部编辑会保留现场和备份并拒绝盲改。operation ID 重放幂等，启动时验证引用文件并
 清除未引用的崩溃孤儿；过期清理不会删除已应用或发生外部冲突的恢复材料。Unix 读取使用
 `O_NOFOLLOW`，规则文件前后都受 2 MiB 上限约束。当前只提供配置证据，完整事务边界见
@@ -1610,8 +1613,8 @@ configuration verify 执行。投影只接受客户端能无损表达的单维 D
 [ADR-0028](ADR/0028-orchestrate-adapter-sync-from-the-desktop.md)。
 `scripts/smoke/adapter-desktop-e2e.sh` 会启动隔离的 Rust adapter-host，再由真实 C# 客户端经
 独立 UDS 和能力文件读取空登记目录，防止两侧生成契约、认证或传输接线漂移。Windows
-命名管道实现进入 x64/ARM64 交叉编译门禁；真实 Windows 管道 DACL、会话隔离与客户端 RPC
-仍需系统验收。
+命名管道与安全文件 API 进入 x64/ARM64 交叉编译门禁，x64 CI 额外执行 DACL 与事务测试；
+真实多用户管道会话隔离、文件占用和客户端 RPC 仍需系统验收。
 
 共享 Avalonia “客户端协同”页负责显式登记和同步，不承载配置解析或事务逻辑。用户可通过
 系统原生文件选择器选择客户端/可执行文件和当前主配置；选择器返回的本地路径仍是不受信
@@ -1621,10 +1624,13 @@ configuration verify 执行。投影只接受客户端能无损表达的单维 D
 时仍显示“尚未证明绕过 VPN”。macOS 使用独立 UDS；Windows 复用页面和文件选择接口，并
 通过 `\\.\pipe\NonProxy.Adapter.<UserSid>` 与独立 `adapter.capability` 连接按用户宿主。
 Rust 和 C# 使用相同的规范 SID 规则生成端点；Session 0、服务 SID 与 SYSTEM/LocalService/NetworkService
-身份会失败关闭，显式 SDDL 也不得放宽当前用户 DACL。当前仓库
+身份会失败关闭，显式 SDDL 也不得放宽当前用户 DACL。宿主先独占命名管道首实例，再轮换
+能力文件、打开事务状态和发布运行身份，避免登录任务与桌面即时启动竞态破坏存活实例令牌。
+Windows 进程入口拒绝状态目录、Socket、管道、SDDL 和包指纹环境覆盖，只使用当前用户
+LocalAppData、token SID 与自身哈希；测试通过显式构造器注入隔离路径。当前仓库
 Windows adapter-host 已进入固定发布者签名包；Users group 登录任务负责每个登录用户的长期
 实例，桌面端只从管理员安装元数据解析并复验受保护路径和 SHA-256 后补齐当前会话即时启动。
-这些源码仍需真实 Windows 任务、ACL 和 RPC 验收，不能据此显示“产品可用”或伪成功。完整平台边界见
+这些源码仍需真实 Windows 任务、多用户 ACL 隔离和 RPC 验收，不能据此显示“产品可用”或伪成功。完整平台边界见
 [ADR-0035](ADR/0035-connect-windows-adapter-host-over-named-pipes.md)。
 
 适配器接口：
@@ -2333,7 +2339,9 @@ Provider 不逐条同步写日志：
   可执行文件 SHA-256。桌面端使用独立命名管道 gRPC 客户端，不复用 SYSTEM gateway 会话。Surge
   仅在 macOS 宣称能力，Windows sing-box 不宣称尚无安全实现的 `HOT_RELOAD`，Mihomo
   保留 loopback HTTP 重载能力。
-- x64 与 ARM64 Windows target 都进入编译门禁；这只能证明平台代码可构建，不能替代 SCM、ACL 或真实流量验收。
+- x64 与 ARM64 Windows target 都进入编译门禁；x64 CI 还在真实 Windows 文件系统运行状态
+  DACL、首次移动、既有文件替换与事务恢复测试。这些门禁仍不能替代 SCM、登录任务、
+  多用户命名管道隔离、第三方客户端占用或真实流量验收。
 
 当前 Windows 数据面源码也已经具备：
 

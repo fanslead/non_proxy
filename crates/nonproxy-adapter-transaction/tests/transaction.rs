@@ -154,7 +154,7 @@ fn managed_symlink_is_rejected_without_touching_its_target() {
     use std::os::unix::fs::symlink;
 
     let fixture = Fixture::new("symlink");
-    let outside = fixture.root.path().join("outside.rules");
+    let outside = fixture._root.path().join("outside.rules");
     fs::write(&outside, b"outside").unwrap_or_else(|error| panic!("外部规则写入失败: {error}"));
     symlink(&outside, &fixture.managed_path)
         .unwrap_or_else(|error| panic!("测试符号链接创建失败: {error}"));
@@ -822,7 +822,7 @@ fn prepared_configuration_hash(
 }
 
 struct Fixture {
-    root: TempDir,
+    _root: TempDir,
     manager: AdapterTransactionManager,
     installation: AdapterInstallation,
     managed_path: std::path::PathBuf,
@@ -847,7 +847,7 @@ impl Fixture {
             managed_path.clone(),
         );
         Self {
-            root,
+            _root: root,
             manager,
             installation,
             managed_path,

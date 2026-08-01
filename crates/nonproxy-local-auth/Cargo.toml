@@ -9,6 +9,9 @@ publish.workspace = true
 getrandom.workspace = true
 thiserror.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+nonproxy-windows-security = { path = "../nonproxy-windows-security" }
+
 [dev-dependencies]
 tempfile.workspace = true
 

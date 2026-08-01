@@ -60,6 +60,12 @@ pub(crate) fn write_private_new(path: &Path, bytes: &[u8]) -> Result<(), Adapter
             AdapterTransactionError::FileTransaction
         }
     })?;
+    #[cfg(windows)]
+    if let Err(_error) = nonproxy_windows_security::protect_current_user_file(path) {
+        drop(file);
+        let _cleanup = fs::remove_file(path);
+        return Err(AdapterTransactionError::FileTransaction);
+    }
     if let Err(error) = write_and_sync(&mut file, bytes) {
         drop(file);
         let _cleanup = fs::remove_file(path);
@@ -88,8 +94,8 @@ pub(crate) fn replace_atomically(
     let temporary = parent.join(format!(".{file_name}.nonproxy-{change_id}.tmp"));
     remove_managed_file(&temporary)?;
     write_private_new(&temporary, bytes)?;
-    if let Err(_error) = fs::rename(&temporary, path) {
-        let _cleanup = fs::remove_file(&temporary);
+    if let Err(_error) = replace_file(&temporary, path) {
+        cleanup_failed_replacement(&temporary);
         return Err(AdapterTransactionError::FileTransaction);
     }
     sync_directory(parent)
@@ -101,6 +107,7 @@ pub(crate) fn replace_atomically_preserving_permissions(
     change_id: &str,
 ) -> Result<(), AdapterTransactionError> {
     validate_managed_file(path)?;
+    #[cfg(not(windows))]
     let permissions = fs::metadata(path)
         .map_err(|_| AdapterTransactionError::ManagedPathInvalid)?
         .permissions();
@@ -114,16 +121,19 @@ pub(crate) fn replace_atomically_preserving_permissions(
     let temporary = parent.join(format!(".{file_name}.nonproxy-{change_id}.config.tmp"));
     remove_managed_file(&temporary)?;
     write_private_new(&temporary, bytes)?;
+    #[cfg(not(windows))]
     let result = fs::set_permissions(&temporary, permissions)
         .and_then(|()| File::open(&temporary))
         .and_then(|file| file.sync_all())
         .map_err(|_| AdapterTransactionError::FileTransaction);
+    #[cfg(windows)]
+    let result: Result<(), AdapterTransactionError> = Ok(());
     if let Err(error) = result {
         let _cleanup = fs::remove_file(&temporary);
         return Err(error);
     }
-    if let Err(_error) = fs::rename(&temporary, path) {
-        let _cleanup = fs::remove_file(&temporary);
+    if let Err(_error) = replace_file(&temporary, path) {
+        cleanup_failed_replacement(&temporary);
         return Err(AdapterTransactionError::FileTransaction);
     }
     sync_directory(parent)
@@ -166,8 +176,32 @@ fn write_and_sync(file: &mut File, bytes: &[u8]) -> Result<(), AdapterTransactio
         .map_err(|_| AdapterTransactionError::FileTransaction)
 }
 
+#[cfg(not(windows))]
 fn sync_directory(path: &Path) -> Result<(), AdapterTransactionError> {
     File::open(path)
         .and_then(|directory| directory.sync_all())
         .map_err(|_| AdapterTransactionError::FileTransaction)
+}
+
+#[cfg(windows)]
+fn sync_directory(_path: &Path) -> Result<(), AdapterTransactionError> {
+    Ok(())
+}
+
+#[cfg(windows)]
+fn replace_file(source: &Path, target: &Path) -> Result<(), std::io::Error> {
+    nonproxy_windows_security::replace_file_atomically(source, target)
+}
+
+#[cfg(not(windows))]
+fn replace_file(source: &Path, target: &Path) -> Result<(), std::io::Error> {
+    fs::rename(source, target)
+}
+
+#[cfg(windows)]
+fn cleanup_failed_replacement(_path: &Path) {}
+
+#[cfg(not(windows))]
+fn cleanup_failed_replacement(path: &Path) {
+    let _cleanup = fs::remove_file(path);
 }

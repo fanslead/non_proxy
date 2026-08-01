@@ -35,6 +35,9 @@ tokio-stream.workspace = true
 tonic.workspace = true
 zeroize.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+nonproxy-windows-security = { path = "../../crates/nonproxy-windows-security" }
+
 [dev-dependencies]
 tower.workspace = true
 

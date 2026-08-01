@@ -19,12 +19,18 @@ Windows 桌面端复用了客户端协同页面，但 adapter-host 只有 Unix U
    当前 Windows 用户生成相同端点，多用户同时登录不会争用全机固定管道。命名管道实现与
    gatewayd 共享受审计的
    `nonproxy-windows-ipc` incoming：首实例独占、拒绝远端客户端、最多 16 个实例、64 项
-   accept queue，并限制产品命名空间、名称长度和 SDDL 输入。
+   accept queue，并限制产品命名空间、名称长度和 SDDL 输入。宿主必须先取得首管道实例，
+   再轮换能力令牌、打开事务目录和发布运行身份；桌面即时启动与登录任务同时触发时，输掉
+   管道竞争的进程不能改写赢家的令牌。
 3. 桌面端使用独立 `IAdapterChannelFactory` 和 `FileAdapterCapabilityProvider`。控制面与
    Adapter 只共享通用命名管道客户端实现，不共享端点、令牌或 RPC 服务。
 4. SDDL 由当前 SID 确定性生成，只授予 SYSTEM、Administrators 和该用户完整访问；环境覆盖
-   只有与该精确 SDDL 完全相等时才接受，不能退回 `Interactive Users`。运行身份中的包指纹
+   在 Windows 生产入口全部拒绝，不能改写状态根、管道、SDDL 或包指纹，也不能退回
+   `Interactive Users`。运行身份中的包指纹
    在 Windows 默认取当前 adapter-host 可执行文件的 SHA-256，供后续升级就绪检查使用。
+   状态目录、能力文件、运行身份、安装目录与事务材料使用同一组受保护 DACL 并在写入后枚举
+   ACE 复验；重解析点失败关闭。能力轮换、运行身份和安装目录更新不再先删除旧文件，而是经
+   `ReplaceFileW`/`MoveFileExW` 原子切换。
 5. 平台能力失败关闭：Surge 只在 macOS 宣称支持；Windows sing-box 在没有安全重载实现前
    不宣称 `HOT_RELOAD`；Mihomo 继续使用唯一 loopback controller 的公开 HTTP 重载。
 6. 发布包把 adapter-host 作为固定发布者签名入口纳入清单。管理员安装器登记一个
@@ -40,7 +46,8 @@ Windows 桌面端复用了客户端协同页面，但 adapter-host 只有 Unix U
 
 ## 当前边界
 
-- x64/ARM64 交叉编译与可移植单元测试只能证明 W0 源码边界。
+- x64/ARM64 交叉编译验证平台 API 可构建；x64 CI 还会在真实 Windows 文件系统运行 DACL、
+  首次移动、既有替换与事务恢复测试，但仍不能代替多用户和第三方客户端系统验收。
 - Windows 发布包、登录任务、桌面即时启动、升级任务切换和卸载源码已接线；真实任务 group
   activation、多用户并行、进程退出、管道 DACL、会话隔离、错误令牌和第三方客户端重载仍需
   Windows 验收。

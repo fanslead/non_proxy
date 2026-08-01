@@ -12,7 +12,7 @@ use windows_sys::{
     core::PWSTR,
 };
 
-use crate::validate_nonproxy_user_sid;
+use crate::validate_interactive_user_sid;
 
 const MAXIMUM_SID_TEXT_UNITS: usize = 184;
 
@@ -100,17 +100,17 @@ fn sid_to_string(sid: *mut core::ffi::c_void) -> io::Result<String> {
     }
     let text = LocalString { pointer: text };
     let mut length = 0_usize;
-    // SAFETY: ConvertSidToStringSidW 返回 NUL 结尾缓冲区；设置硬上限避免无界扫描。
+    // SAFETY: API 返回 NUL 结尾缓冲区；硬上限避免无界扫描。
     while length <= MAXIMUM_SID_TEXT_UNITS && unsafe { *text.pointer.add(length) } != 0 {
         length += 1;
     }
     if length == 0 || length > MAXIMUM_SID_TEXT_UNITS {
         return Err(io::Error::other("当前进程用户 SID 文本无效"));
     }
-    // SAFETY: 上述扫描已确认前 length 个 UTF-16 单元可读且随后是 NUL。
+    // SAFETY: 已确认前 length 个 UTF-16 单元可读且随后是 NUL。
     let value = String::from_utf16(unsafe { slice::from_raw_parts(text.pointer, length) })
         .map_err(|_| io::Error::other("当前进程用户 SID 不是有效 UTF-16"))?;
-    validate_nonproxy_user_sid(&value)?;
+    validate_interactive_user_sid(&value)?;
     Ok(value)
 }
 
