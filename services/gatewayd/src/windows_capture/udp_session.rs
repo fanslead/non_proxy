@@ -5,7 +5,7 @@ use std::{
 
 use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_model::{ConnectionContext, Destination, FailureMode, RouteAction, Transport};
-use nonproxy_outbound::{Socks5UdpAssociation, SystemTcpDialer};
+use nonproxy_outbound::{OutboundDatagramSession, SystemTcpDialer};
 use nonproxy_policy::{PolicyEngine, PolicyEvaluation};
 use nonproxy_windows_identity::WindowsAppIdentityResolver;
 use nonproxy_windows_network::PhysicalInterfaceCatalog;
@@ -341,7 +341,7 @@ async fn relay_direct(
 }
 
 async fn relay_proxy(
-    association: Socks5UdpAssociation,
+    association: OutboundDatagramSession,
     target: &FlowEndpoint,
     first: PendingUdpPayload,
     incoming: &mut mpsc::Receiver<PendingUdpPayload>,

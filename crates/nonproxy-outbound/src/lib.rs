@@ -1,15 +1,20 @@
 mod connector;
 mod credentials;
+mod datagram;
 mod dialer;
 mod endpoint;
 mod error;
 mod http_connect;
+mod shadowsocks;
+mod shadowsocks_credentials;
 mod socks5;
 mod socks5_udp;
 
 pub use connector::{BoxedProxyStream, ConnectorKind, OutboundConnector};
 pub use credentials::ProxyCredentials;
+pub use datagram::OutboundDatagramSession;
 pub use dialer::{SystemTcpDialer, TcpDialer};
 pub use endpoint::ProxyEndpoint;
 pub use error::OutboundError;
+pub use shadowsocks_credentials::ShadowsocksCredentials;
 pub use socks5_udp::Socks5UdpAssociation;

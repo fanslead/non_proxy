@@ -60,7 +60,7 @@ async fn run_pumps(
     reader: ReadHalf<BoxedFlowTransport>,
     flow_id: FlowId,
     sequence: SequenceTracker,
-    association: Arc<nonproxy_outbound::Socks5UdpAssociation>,
+    association: Arc<nonproxy_outbound::OutboundDatagramSession>,
     client_window: Arc<FlowWindow>,
     sender: FlowFrameSender,
 ) -> Result<(), FlowServiceError> {
@@ -85,7 +85,7 @@ async fn client_to_proxy(
     mut reader: ReadHalf<BoxedFlowTransport>,
     flow_id: FlowId,
     mut sequence: SequenceTracker,
-    association: Arc<nonproxy_outbound::Socks5UdpAssociation>,
+    association: Arc<nonproxy_outbound::OutboundDatagramSession>,
     client_window: Arc<FlowWindow>,
     sender: FlowFrameSender,
 ) -> Result<(), FlowServiceError> {
@@ -127,7 +127,7 @@ async fn client_to_proxy(
 }
 
 async fn proxy_to_client(
-    association: Arc<nonproxy_outbound::Socks5UdpAssociation>,
+    association: Arc<nonproxy_outbound::OutboundDatagramSession>,
     client_window: Arc<FlowWindow>,
     sender: FlowFrameSender,
 ) -> Result<(), FlowServiceError> {

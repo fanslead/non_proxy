@@ -4,8 +4,9 @@ use nonproxy_flow_protocol::FlowEndpoint;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
-    OutboundError, ProxyCredentials, ProxyEndpoint, SystemTcpDialer, TcpDialer,
-    http_connect::HttpConnectConnector, socks5::Socks5Connector, socks5_udp::Socks5UdpAssociation,
+    OutboundDatagramSession, OutboundError, ProxyCredentials, ProxyEndpoint,
+    ShadowsocksCredentials, SystemTcpDialer, TcpDialer, http_connect::HttpConnectConnector,
+    shadowsocks::ShadowsocksConnector, socks5::Socks5Connector,
 };
 
 pub trait ProxyStream: AsyncRead + AsyncWrite + Send + Unpin {}
@@ -23,6 +24,7 @@ pub enum ConnectorKind {
 pub enum OutboundConnector {
     Socks5(Socks5Connector),
     HttpConnect(HttpConnectConnector),
+    Shadowsocks(ShadowsocksConnector),
 }
 
 impl OutboundConnector {
@@ -61,6 +63,28 @@ impl OutboundConnector {
         }
     }
 
+    pub fn shadowsocks(
+        endpoint: ProxyEndpoint,
+        credentials: ShadowsocksCredentials,
+        timeout: Duration,
+    ) -> Self {
+        Self::shadowsocks_with_dialer(endpoint, credentials, timeout, Arc::new(SystemTcpDialer))
+    }
+
+    pub fn shadowsocks_with_dialer(
+        endpoint: ProxyEndpoint,
+        credentials: ShadowsocksCredentials,
+        timeout: Duration,
+        dialer: Arc<dyn TcpDialer>,
+    ) -> Self {
+        Self::Shadowsocks(ShadowsocksConnector::new(
+            endpoint,
+            credentials,
+            timeout,
+            dialer,
+        ))
+    }
+
     pub async fn connect_tcp(
         &self,
         target: &FlowEndpoint,
@@ -68,18 +92,31 @@ impl OutboundConnector {
         match self {
             Self::Socks5(connector) => connector.connect(target).await,
             Self::HttpConnect(connector) => connector.connect(target).await,
+            Self::Shadowsocks(connector) => connector.connect(target).await,
         }
     }
 
-    pub async fn open_udp(&self) -> Result<Socks5UdpAssociation, OutboundError> {
+    pub async fn open_udp(&self) -> Result<OutboundDatagramSession, OutboundError> {
         match self {
-            Self::Socks5(connector) => connector.open_udp().await,
+            Self::Socks5(connector) => connector
+                .open_udp()
+                .await
+                .map(OutboundDatagramSession::Socks5),
             Self::HttpConnect(_) => Err(OutboundError::UdpUnsupported),
+            Self::Shadowsocks(connector) => connector
+                .open_udp()
+                .await
+                .map(OutboundDatagramSession::Shadowsocks),
         }
     }
 
     #[must_use]
     pub const fn supports_udp(&self) -> bool {
-        matches!(self, Self::Socks5(_))
+        matches!(self, Self::Socks5(_) | Self::Shadowsocks(_))
+    }
+
+    #[must_use]
+    pub const fn requires_authenticated_tls_probe(&self) -> bool {
+        matches!(self, Self::Shadowsocks(_))
     }
 }

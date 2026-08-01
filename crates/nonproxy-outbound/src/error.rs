@@ -22,6 +22,10 @@ pub enum OutboundError {
     SocksAuthenticationFailed,
     #[error("SOCKS5 UDP 分片暂不受支持")]
     SocksUdpFragmentUnsupported,
+    #[error("Shadowsocks 加密方法或密钥无效")]
+    ShadowsocksCredentialInvalid,
+    #[error("Shadowsocks 数据报协议处理失败")]
+    ShadowsocksDatagram,
     #[error("SOCKS5 握手失败: {0}")]
     Socks(#[from] tokio_socks::Error),
     #[error("代理网络读写失败: {0}")]

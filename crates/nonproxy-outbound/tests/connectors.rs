@@ -5,7 +5,7 @@ use nonproxy_outbound::{
     ConnectorKind, OutboundConnector, OutboundError, ProxyCredentials, ProxyEndpoint, TcpDialer,
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::{TcpListener, TcpStream, UdpSocket},
     sync::Mutex,
 };
@@ -321,19 +321,28 @@ async fn authenticated_socks5_stream(listener: TcpListener) -> TcpStream {
     stream
 }
 
-async fn echo_five(stream: &mut TcpStream) {
+async fn echo_five<S>(stream: &mut S)
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let mut payload = [0_u8; 5];
     read_exact(stream, &mut payload).await;
     write_all(stream, &payload).await;
 }
 
-async fn read_exact(stream: &mut TcpStream, buffer: &mut [u8]) {
+async fn read_exact<S>(stream: &mut S, buffer: &mut [u8])
+where
+    S: AsyncRead + Unpin,
+{
     if let Err(error) = stream.read_exact(buffer).await {
         panic!("代理 fixture 读取失败: {error}");
     }
 }
 
-async fn write_all(stream: &mut TcpStream, buffer: &[u8]) {
+async fn write_all<S>(stream: &mut S, buffer: &[u8])
+where
+    S: AsyncWrite + Unpin,
+{
     if let Err(error) = stream.write_all(buffer).await {
         panic!("代理 fixture 写入失败: {error}");
     }
