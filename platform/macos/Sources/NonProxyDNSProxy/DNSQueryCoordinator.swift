@@ -83,7 +83,18 @@ public final class DNSQueryCoordinator: Sendable {
         )
         let decisionFinished = DispatchTime.now().uptimeNanoseconds
         let policyContext = evaluation.context
-        let decision = evaluation.decision
+        if case .bypass(let snapshotVersion, _) = evaluation.disposition {
+            return try await resolveSystem(
+                context: context,
+                question: question,
+                network: network,
+                baseProfileID: baseProfileID,
+                snapshotVersion: snapshotVersion
+            )
+        }
+        guard case .decision(let decision) = evaluation.disposition else {
+            throw DNSProxyError.providerUnavailable("DNS 运行态判定无效")
+        }
         let observation = ProviderDecisionObservation(
             flowID: UUID().uuidString.lowercased(),
             context: policyContext,
@@ -158,6 +169,41 @@ public final class DNSQueryCoordinator: Sendable {
         case .refuse:
             throw DNSProxyError.providerUnavailable("DNS 路由计划无效")
         }
+    }
+
+    private func resolveSystem(
+        context: DNSFlowQueryContext,
+        question: DNSQuestion,
+        network: MacNetworkEnvironmentSnapshot,
+        baseProfileID: String,
+        snapshotVersion: UInt64
+    ) async throws -> Data {
+        let upstreams = catalogs.upstreams(for: question.name)
+        guard !upstreams.isEmpty else {
+            throw DNSProxyError.resolverUnavailable(
+                "当前网络没有可用的明文系统 DNS 上游"
+            )
+        }
+        let profileID = network.dnsCachePartitionID(
+            resolverKeys: upstreams.map {
+                "\($0.ipAddress):\($0.port):\($0.scopeID)"
+            }
+        )
+        var request = Nonproxy_Provider_V1_ResolveDnsRequest()
+        request.queryID = UUID().uuidString.lowercased()
+        request.app = protobufIdentity(context.app)
+        request.qname = question.name
+        request.qtype = UInt32(question.type)
+        request.networkProfileID = profileID.isEmpty
+            ? baseProfileID
+            : profileID
+        request.dnsMessage = context.message
+        request.upstreams = upstreams.map(\.protobuf)
+        request.snapshotVersion = snapshotVersion
+        request.requestedRoute = .system
+        let response = try await resolver.resolveDNS(request)
+        try validate(response, request: request, question: question)
+        return response.dnsMessage
     }
 
     private func resolveDirect(
@@ -292,7 +338,7 @@ public final class DNSQueryCoordinator: Sendable {
                 )
             }
         } else if !response.outboundID.isEmpty {
-            throw DNSProxyError.responseInvalid("直连 DNS 响应携带了代理出口")
+            throw DNSProxyError.responseInvalid("非代理 DNS 响应携带了代理出口")
         }
         try DNSMessageParser.validateResponse(
             response.dnsMessage,

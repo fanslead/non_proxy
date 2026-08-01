@@ -5,7 +5,7 @@ use nonproxy_learning::{
 };
 use nonproxy_model::{
     DecisionSpec, DomainMatchKind, DomainMatcher, DomainName, OutboundId, Policy, PolicyId,
-    PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction,
+    PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction, RuntimeOverrideMode,
 };
 use nonproxy_policy_compiler::{CompileCapabilities, CompileError};
 use nonproxy_proto::events::v1::RuntimeState;
@@ -128,6 +128,115 @@ async fn selecting_default_proxy_stages_a_proxy_default_snapshot() {
     assert_eq!(decision.action(), RouteAction::Proxy);
     assert_eq!(decision.outbound_id(), Some(outbound.id()));
     assert_eq!(settings, update.settings().clone());
+}
+
+#[tokio::test]
+async fn runtime_override_is_time_bounded_snapshot_state_and_does_not_mutate_routing_settings() {
+    let gateway = gateway();
+    let too_short = gateway
+        .stage_runtime_override(RuntimeOverrideMode::Direct, None, 999, 1)
+        .await;
+    assert!(matches!(
+        too_short,
+        Err(GatewayError::RuntimeOverrideDurationInvalid)
+    ));
+    let initial = gateway.compile_and_stage().await;
+    let Ok(initial) = initial else {
+        panic!("初始快照暂存失败: {initial:?}");
+    };
+    activate(&gateway, &initial).await;
+    let before = gateway.routing_settings().await;
+    let Ok(before) = before else {
+        panic!("初始路由配置读取失败: {before:?}");
+    };
+
+    let stale = gateway
+        .stage_runtime_override(RuntimeOverrideMode::Direct, None, 300_000, 99)
+        .await;
+    assert!(matches!(
+        stale,
+        Err(GatewayError::Storage(
+            StorageError::ActiveSnapshotVersionConflict
+        ))
+    ));
+    let after_stale = gateway.runtime_override_status().await;
+    assert!(matches!(after_stale, Ok(status) if status.pending_snapshot_version.is_none()));
+
+    let paused = gateway
+        .stage_runtime_override(RuntimeOverrideMode::Paused, None, 300_000, 1)
+        .await;
+    let Ok(paused) = paused else {
+        panic!("暂停覆盖暂存失败: {paused:?}");
+    };
+    let pending = gateway.runtime_override_status().await;
+    let Ok(pending) = pending else {
+        panic!("暂停覆盖状态读取失败: {pending:?}");
+    };
+    assert!(pending.active.is_none());
+    assert_eq!(
+        pending.pending.as_ref().map(|value| value.mode()),
+        Some(RuntimeOverrideMode::Paused)
+    );
+    assert_eq!(pending.active_snapshot_version, Some(1));
+    assert_eq!(pending.pending_snapshot_version, Some(2));
+    assert!(!pending.pending_clears_override);
+    assert_eq!(gateway.routing_settings().await.ok(), Some(before.clone()));
+
+    activate(&gateway, &paused).await;
+    let active = gateway.runtime_override_status().await;
+    let Ok(active) = active else {
+        panic!("活动覆盖状态读取失败: {active:?}");
+    };
+    assert_eq!(
+        active.active.as_ref().map(|value| value.mode()),
+        Some(RuntimeOverrideMode::Paused)
+    );
+    assert_eq!(active.active_snapshot_version, Some(2));
+
+    let clearing = gateway.clear_runtime_override(2).await;
+    let Ok(clearing) = clearing else {
+        panic!("取消覆盖暂存失败: {clearing:?}");
+    };
+    let clearing_status = gateway.runtime_override_status().await;
+    let Ok(clearing_status) = clearing_status else {
+        panic!("取消覆盖状态读取失败: {clearing_status:?}");
+    };
+    assert_eq!(clearing.artifact().snapshot_version(), 3);
+    assert!(clearing_status.active.is_some());
+    assert!(clearing_status.pending.is_none());
+    assert!(clearing_status.pending_clears_override);
+    assert_eq!(gateway.routing_settings().await.ok(), Some(before));
+}
+
+#[tokio::test]
+async fn ordinary_snapshot_publication_carries_the_current_unexpired_override() {
+    let gateway = gateway();
+    let initial = gateway
+        .compile_and_stage()
+        .await
+        .unwrap_or_else(|error| panic!("初始快照暂存失败: {error}"));
+    activate(&gateway, &initial).await;
+    let override_snapshot = gateway
+        .stage_runtime_override(RuntimeOverrideMode::Direct, None, 300_000, 1)
+        .await
+        .unwrap_or_else(|error| panic!("直连覆盖暂存失败: {error}"));
+    activate(&gateway, &override_snapshot).await;
+
+    let ordinary = gateway
+        .compile_and_stage()
+        .await
+        .unwrap_or_else(|error| panic!("普通快照暂存失败: {error}"));
+    let status = gateway
+        .runtime_override_status()
+        .await
+        .unwrap_or_else(|error| panic!("运行态覆盖状态读取失败: {error}"));
+
+    assert_eq!(ordinary.artifact().snapshot_version(), 3);
+    assert_eq!(
+        status.pending.as_ref().map(|value| value.mode()),
+        Some(RuntimeOverrideMode::Direct)
+    );
+    assert_eq!(status.pending_snapshot_version, Some(3));
 }
 
 #[tokio::test]

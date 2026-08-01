@@ -5,7 +5,10 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 use crate::{
     ProviderAck, ProviderAckState, SnapshotArtifact, SnapshotRecord, SnapshotStatus, StorageError,
     migration::to_sqlite_u64,
-    snapshot_query::{read_previous_effective_version, read_snapshot, read_snapshot_by_status},
+    snapshot_query::{
+        ensure_active_snapshot_version, read_previous_effective_version, read_snapshot,
+        read_snapshot_by_status,
+    },
     types::{validate_error_code, validate_provider_id},
 };
 
@@ -22,6 +25,20 @@ impl<'connection> SnapshotRepository<'connection> {
         let transaction = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        stage_in_transaction(&transaction, artifact)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub fn stage_for_active_snapshot(
+        &mut self,
+        artifact: &SnapshotArtifact,
+        expected_active_snapshot_version: u64,
+    ) -> Result<(), StorageError> {
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        ensure_active_snapshot_version(&transaction, expected_active_snapshot_version)?;
         stage_in_transaction(&transaction, artifact)?;
         transaction.commit()?;
         Ok(())

@@ -58,7 +58,11 @@ namespace NonProxy.Policy.V1 {
             "cHJveHkuY29tbW9uLnYxLlJvdXRlQWN0aW9uUgZhY3Rpb24SHwoLb3V0Ym91",
             "bmRfaWQYAiABKAlSCm91dGJvdW5kSWQSQgoMZmFpbHVyZV9tb2RlGAMgASgO",
             "Mh8ubm9ucHJveHkuY29tbW9uLnYxLkZhaWx1cmVNb2RlUgtmYWlsdXJlTW9k",
-            "ZSL5AwoGUG9saWN5Eg4KAmlkGAEgASgJUgJpZBIhCgxkaXNwbGF5X25hbWUY",
+            "ZSKxAQoWUnVudGltZVJvdXRpbmdPdmVycmlkZRI7CgRtb2RlGAEgASgOMicu",
+            "bm9ucHJveHkucG9saWN5LnYxLlJ1bnRpbWVPdmVycmlkZU1vZGVSBG1vZGUS",
+            "HwoLb3V0Ym91bmRfaWQYAiABKAlSCm91dGJvdW5kSWQSOQoKZXhwaXJlc19h",
+            "dBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSCWV4cGlyZXNB",
+            "dCL5AwoGUG9saWN5Eg4KAmlkGAEgASgJUgJpZBIhCgxkaXNwbGF5X25hbWUY",
             "AiABKAlSC2Rpc3BsYXlOYW1lEkUKC3NvdXJjZV9raW5kGAMgASgOMiQubm9u",
             "cHJveHkucG9saWN5LnYxLlBvbGljeVNvdXJjZUtpbmRSCnNvdXJjZUtpbmQS",
             "NQoFbWF0Y2gYBCABKAsyHy5ub25wcm94eS5wb2xpY3kudjEuUG9saWN5TWF0",
@@ -94,7 +98,7 @@ namespace NonProxy.Policy.V1 {
             "LmNvbW1vbi52MS5UcmFuc3BvcnRQcm90b2NvbFIKdHJhbnNwb3J0cxI9Cgtp",
             "cF9mYW1pbGllcxgFIAMoDjIcLm5vbnByb3h5LmNvbW1vbi52MS5JcEZhbWls",
             "eVIKaXBGYW1pbGllcxJICglvdXRib3VuZHMYBiADKAsyKi5ub25wcm94eS5w",
-            "b2xpY3kudjEuT3V0Ym91bmRDYXBhYmlsaXR5U3BlY1IJb3V0Ym91bmRzIucC",
+            "b2xpY3kudjEuT3V0Ym91bmRDYXBhYmlsaXR5U3BlY1IJb3V0Ym91bmRzIr4D",
             "ChVDb21waWxlZFBvbGljeVBheWxvYWQSJQoOZm9ybWF0X3ZlcnNpb24YASAB",
             "KA1SDWZvcm1hdFZlcnNpb24SNgoIcG9saWNpZXMYAiADKAsyGi5ub25wcm94",
             "eS5wb2xpY3kudjEuUG9saWN5Ughwb2xpY2llcxJMCgxjYXBhYmlsaXRpZXMY",
@@ -102,41 +106,46 @@ namespace NonProxy.Policy.V1 {
             "ZXRSDGNhcGFiaWxpdGllcxJLChBkZWZhdWx0X2RlY2lzaW9uGAQgASgLMiAu",
             "bm9ucHJveHkucG9saWN5LnYxLkRlY2lzaW9uU3BlY1IPZGVmYXVsdERlY2lz",
             "aW9uElQKEG5ldHdvcmtfcHJvZmlsZXMYBSADKAsyKS5ub25wcm94eS5wb2xp",
-            "Y3kudjEuTmV0d29ya1Byb2ZpbGVCaW5kaW5nUg9uZXR3b3JrUHJvZmlsZXMi",
-            "5AEKCERlY2lzaW9uEjgKBnJlc3VsdBgBIAEoCzIgLm5vbnByb3h5LnBvbGlj",
-            "eS52MS5EZWNpc2lvblNwZWNSBnJlc3VsdBIqChFtYXRjaGVkX3BvbGljeV9p",
-            "ZBgCIAEoCVIPbWF0Y2hlZFBvbGljeUlkEiYKD21hdGNoZWRfcnVsZV9pZBgD",
-            "IAEoCVINbWF0Y2hlZFJ1bGVJZBIpChBzbmFwc2hvdF92ZXJzaW9uGAQgASgE",
-            "Ug9zbmFwc2hvdFZlcnNpb24SHwoLcmVhc29uX2NvZGUYBSABKAlSCnJlYXNv",
-            "bkNvZGUqtAIKEFBvbGljeVNvdXJjZUtpbmQSIgoeUE9MSUNZX1NPVVJDRV9L",
-            "SU5EX1VOU1BFQ0lGSUVEEAASHQoZUE9MSUNZX1NPVVJDRV9LSU5EX1NZU1RF",
-            "TRABEiYKIlBPTElDWV9TT1VSQ0VfS0lORF9BUFBfREVTVElOQVRJT04QAhIa",
-            "ChZQT0xJQ1lfU09VUkNFX0tJTkRfQVBQEAMSGwoXUE9MSUNZX1NPVVJDRV9L",
-            "SU5EX1NJVEUQBBIeChpQT0xJQ1lfU09VUkNFX0tJTkRfTkVUV09SSxAFEh8K",
-            "G1BPTElDWV9TT1VSQ0VfS0lORF9CVUlMVF9JThAGEhsKF1BPTElDWV9TT1VS",
-            "Q0VfS0lORF9DSURSEAcSHgoaUE9MSUNZX1NPVVJDRV9LSU5EX0FEQVBURVIQ",
-            "CCq9AQoMUG9saWN5T3JpZ2luEh0KGVBPTElDWV9PUklHSU5fVU5TUEVDSUZJ",
-            "RUQQABIYChRQT0xJQ1lfT1JJR0lOX1NZU1RFTRABEhYKElBPTElDWV9PUklH",
-            "SU5fVVNFUhACEiEKHVBPTElDWV9PUklHSU5fU0lHTkVEX0JVSUxUX0lOEAMS",
-            "HgoaUE9MSUNZX09SSUdJTl9TVUJTQ1JJUFRJT04QBBIZChVQT0xJQ1lfT1JJ",
-            "R0lOX0FEQVBURVIQBSqZAQoPRG9tYWluTWF0Y2hLaW5kEiEKHURPTUFJTl9N",
-            "QVRDSF9LSU5EX1VOU1BFQ0lGSUVEEAASGwoXRE9NQUlOX01BVENIX0tJTkRf",
-            "RVhBQ1QQARIcChhET01BSU5fTUFUQ0hfS0lORF9TVUZGSVgQAhIoCiRET01B",
-            "SU5fTUFUQ0hfS0lORF9SRUdJU1RSQUJMRV9ET01BSU4QAyrgAQoNU25hcHNo",
-            "b3RTdGF0ZRIeChpTTkFQU0hPVF9TVEFURV9VTlNQRUNJRklFRBAAEhgKFFNO",
-            "QVBTSE9UX1NUQVRFX0RSQUZUEAESHgoaU05BUFNIT1RfU1RBVEVfUEVORElO",
-            "R19BQ0sQAhIZChVTTkFQU0hPVF9TVEFURV9BQ1RJVkUQAxIbChdTTkFQU0hP",
-            "VF9TVEFURV9SRUpFQ1RFRBAEEh4KGlNOQVBTSE9UX1NUQVRFX1JPTExFRF9C",
-            "QUNLEAUSHQoZU05BUFNIT1RfU1RBVEVfU1VQRVJTRURFRBAGKtQBChZOZXR3",
-            "b3JrRmluZ2VycHJpbnRLaW5kEigKJE5FVFdPUktfRklOR0VSUFJJTlRfS0lO",
-            "RF9VTlNQRUNJRklFRBAAEi0KKU5FVFdPUktfRklOR0VSUFJJTlRfS0lORF9X",
-            "SUZJX1NTSURfU0hBMjU2EAESMwovTkVUV09SS19GSU5HRVJQUklOVF9LSU5E",
-            "X0RFRkFVTFRfR0FURVdBWV9TSEEyNTYQAhIsCihORVRXT1JLX0ZJTkdFUlBS",
-            "SU5UX0tJTkRfSU5URVJGQUNFX0NMQVNTEANCFaoCEk5vblByb3h5LlBvbGlj",
-            "eS5WMWIGcHJvdG8z"));
+            "Y3kudjEuTmV0d29ya1Byb2ZpbGVCaW5kaW5nUg9uZXR3b3JrUHJvZmlsZXMS",
+            "VQoQcnVudGltZV9vdmVycmlkZRgGIAEoCzIqLm5vbnByb3h5LnBvbGljeS52",
+            "MS5SdW50aW1lUm91dGluZ092ZXJyaWRlUg9ydW50aW1lT3ZlcnJpZGUi5AEK",
+            "CERlY2lzaW9uEjgKBnJlc3VsdBgBIAEoCzIgLm5vbnByb3h5LnBvbGljeS52",
+            "MS5EZWNpc2lvblNwZWNSBnJlc3VsdBIqChFtYXRjaGVkX3BvbGljeV9pZBgC",
+            "IAEoCVIPbWF0Y2hlZFBvbGljeUlkEiYKD21hdGNoZWRfcnVsZV9pZBgDIAEo",
+            "CVINbWF0Y2hlZFJ1bGVJZBIpChBzbmFwc2hvdF92ZXJzaW9uGAQgASgEUg9z",
+            "bmFwc2hvdFZlcnNpb24SHwoLcmVhc29uX2NvZGUYBSABKAlSCnJlYXNvbkNv",
+            "ZGUqtAIKEFBvbGljeVNvdXJjZUtpbmQSIgoeUE9MSUNZX1NPVVJDRV9LSU5E",
+            "X1VOU1BFQ0lGSUVEEAASHQoZUE9MSUNZX1NPVVJDRV9LSU5EX1NZU1RFTRAB",
+            "EiYKIlBPTElDWV9TT1VSQ0VfS0lORF9BUFBfREVTVElOQVRJT04QAhIaChZQ",
+            "T0xJQ1lfU09VUkNFX0tJTkRfQVBQEAMSGwoXUE9MSUNZX1NPVVJDRV9LSU5E",
+            "X1NJVEUQBBIeChpQT0xJQ1lfU09VUkNFX0tJTkRfTkVUV09SSxAFEh8KG1BP",
+            "TElDWV9TT1VSQ0VfS0lORF9CVUlMVF9JThAGEhsKF1BPTElDWV9TT1VSQ0Vf",
+            "S0lORF9DSURSEAcSHgoaUE9MSUNZX1NPVVJDRV9LSU5EX0FEQVBURVIQCCq9",
+            "AQoMUG9saWN5T3JpZ2luEh0KGVBPTElDWV9PUklHSU5fVU5TUEVDSUZJRUQQ",
+            "ABIYChRQT0xJQ1lfT1JJR0lOX1NZU1RFTRABEhYKElBPTElDWV9PUklHSU5f",
+            "VVNFUhACEiEKHVBPTElDWV9PUklHSU5fU0lHTkVEX0JVSUxUX0lOEAMSHgoa",
+            "UE9MSUNZX09SSUdJTl9TVUJTQ1JJUFRJT04QBBIZChVQT0xJQ1lfT1JJR0lO",
+            "X0FEQVBURVIQBSqZAQoPRG9tYWluTWF0Y2hLaW5kEiEKHURPTUFJTl9NQVRD",
+            "SF9LSU5EX1VOU1BFQ0lGSUVEEAASGwoXRE9NQUlOX01BVENIX0tJTkRfRVhB",
+            "Q1QQARIcChhET01BSU5fTUFUQ0hfS0lORF9TVUZGSVgQAhIoCiRET01BSU5f",
+            "TUFUQ0hfS0lORF9SRUdJU1RSQUJMRV9ET01BSU4QAyrgAQoNU25hcHNob3RT",
+            "dGF0ZRIeChpTTkFQU0hPVF9TVEFURV9VTlNQRUNJRklFRBAAEhgKFFNOQVBT",
+            "SE9UX1NUQVRFX0RSQUZUEAESHgoaU05BUFNIT1RfU1RBVEVfUEVORElOR19B",
+            "Q0sQAhIZChVTTkFQU0hPVF9TVEFURV9BQ1RJVkUQAxIbChdTTkFQU0hPVF9T",
+            "VEFURV9SRUpFQ1RFRBAEEh4KGlNOQVBTSE9UX1NUQVRFX1JPTExFRF9CQUNL",
+            "EAUSHQoZU05BUFNIT1RfU1RBVEVfU1VQRVJTRURFRBAGKtQBChZOZXR3b3Jr",
+            "RmluZ2VycHJpbnRLaW5kEigKJE5FVFdPUktfRklOR0VSUFJJTlRfS0lORF9V",
+            "TlNQRUNJRklFRBAAEi0KKU5FVFdPUktfRklOR0VSUFJJTlRfS0lORF9XSUZJ",
+            "X1NTSURfU0hBMjU2EAESMwovTkVUV09SS19GSU5HRVJQUklOVF9LSU5EX0RF",
+            "RkFVTFRfR0FURVdBWV9TSEEyNTYQAhIsCihORVRXT1JLX0ZJTkdFUlBSSU5U",
+            "X0tJTkRfSU5URVJGQUNFX0NMQVNTEAMqoQEKE1J1bnRpbWVPdmVycmlkZU1v",
+            "ZGUSJQohUlVOVElNRV9PVkVSUklERV9NT0RFX1VOU1BFQ0lGSUVEEAASIAoc",
+            "UlVOVElNRV9PVkVSUklERV9NT0RFX1BBVVNFRBABEiAKHFJVTlRJTUVfT1ZF",
+            "UlJJREVfTU9ERV9ESVJFQ1QQAhIfChtSVU5USU1FX09WRVJSSURFX01PREVf",
+            "UFJPWFkQA0IVqgISTm9uUHJveHkuUG9saWN5LlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::NonProxy.Common.V1.CommonReflection.Descriptor, },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::NonProxy.Policy.V1.PolicySourceKind), typeof(global::NonProxy.Policy.V1.PolicyOrigin), typeof(global::NonProxy.Policy.V1.DomainMatchKind), typeof(global::NonProxy.Policy.V1.SnapshotState), typeof(global::NonProxy.Policy.V1.NetworkFingerprintKind), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::NonProxy.Policy.V1.PolicySourceKind), typeof(global::NonProxy.Policy.V1.PolicyOrigin), typeof(global::NonProxy.Policy.V1.DomainMatchKind), typeof(global::NonProxy.Policy.V1.SnapshotState), typeof(global::NonProxy.Policy.V1.NetworkFingerprintKind), typeof(global::NonProxy.Policy.V1.RuntimeOverrideMode), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.AppMatcher), global::NonProxy.Policy.V1.AppMatcher.Parser, new[]{ "Platform", "StableId", "SignerId", "IncludeHelpers" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.DomainMatcher), global::NonProxy.Policy.V1.DomainMatcher.Parser, new[]{ "Kind", "AsciiPattern" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CidrMatcher), global::NonProxy.Policy.V1.CidrMatcher.Parser, new[]{ "Network", "PrefixLength" }, null, null, null, null),
@@ -146,13 +155,14 @@ namespace NonProxy.Policy.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.NetworkProfileBinding), global::NonProxy.Policy.V1.NetworkProfileBinding.Parser, new[]{ "Id", "FingerprintKind", "FingerprintValue" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.PolicyMatch), global::NonProxy.Policy.V1.PolicyMatch.Parser, new[]{ "App", "Domain", "Cidr", "Network", "Transports", "Ports" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.DecisionSpec), global::NonProxy.Policy.V1.DecisionSpec.Parser, new[]{ "Action", "OutboundId", "FailureMode" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.RuntimeRoutingOverride), global::NonProxy.Policy.V1.RuntimeRoutingOverride.Parser, new[]{ "Mode", "OutboundId", "ExpiresAt" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.Policy), global::NonProxy.Policy.V1.Policy.Parser, new[]{ "Id", "DisplayName", "SourceKind", "Match", "Decision", "Priority", "Enabled", "Origin", "Revision", "CreatedAt", "UpdatedAt" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.PolicyConflict), global::NonProxy.Policy.V1.PolicyConflict.Parser, new[]{ "Code", "Message", "PolicyIds" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.PolicySnapshotMetadata), global::NonProxy.Policy.V1.PolicySnapshotMetadata.Parser, new[]{ "SchemaVersion", "SnapshotVersion", "ContentHash", "State", "CreatedAt", "PolicyCount" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompiledPolicySnapshot), global::NonProxy.Policy.V1.CompiledPolicySnapshot.Parser, new[]{ "Metadata", "PayloadFormat", "Payload", "DefaultDecision" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.OutboundCapabilitySpec), global::NonProxy.Policy.V1.OutboundCapabilitySpec.Parser, new[]{ "OutboundId", "Transports", "IpFamilies" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompileCapabilitySet), global::NonProxy.Policy.V1.CompileCapabilitySet.Parser, new[]{ "AppMatch", "DomainMatch", "CidrMatch", "Transports", "IpFamilies", "Outbounds" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompiledPolicyPayload), global::NonProxy.Policy.V1.CompiledPolicyPayload.Parser, new[]{ "FormatVersion", "Policies", "Capabilities", "DefaultDecision", "NetworkProfiles" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompiledPolicyPayload), global::NonProxy.Policy.V1.CompiledPolicyPayload.Parser, new[]{ "FormatVersion", "Policies", "Capabilities", "DefaultDecision", "NetworkProfiles", "RuntimeOverride" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.Decision), global::NonProxy.Policy.V1.Decision.Parser, new[]{ "Result", "MatchedPolicyId", "MatchedRuleId", "SnapshotVersion", "ReasonCode" }, null, null, null, null)
           }));
     }
@@ -218,6 +228,16 @@ namespace NonProxy.Policy.V1 {
     [pbr::OriginalName("NETWORK_FINGERPRINT_KIND_WIFI_SSID_SHA256")] WifiSsidSha256 = 1,
     [pbr::OriginalName("NETWORK_FINGERPRINT_KIND_DEFAULT_GATEWAY_SHA256")] DefaultGatewaySha256 = 2,
     [pbr::OriginalName("NETWORK_FINGERPRINT_KIND_INTERFACE_CLASS")] InterfaceClass = 3,
+  }
+
+  /// <summary>
+  /// RuntimeOverrideMode 表示不改写持久默认路由的有时限紧急覆盖。
+  /// </summary>
+  public enum RuntimeOverrideMode {
+    [pbr::OriginalName("RUNTIME_OVERRIDE_MODE_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("RUNTIME_OVERRIDE_MODE_PAUSED")] Paused = 1,
+    [pbr::OriginalName("RUNTIME_OVERRIDE_MODE_DIRECT")] Direct = 2,
+    [pbr::OriginalName("RUNTIME_OVERRIDE_MODE_PROXY")] Proxy = 3,
   }
 
   #endregion
@@ -2752,6 +2772,290 @@ namespace NonProxy.Policy.V1 {
   }
 
   /// <summary>
+  /// RuntimeRoutingOverride 随不可变快照分发，并由数据面在到期时自行停止生效。
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class RuntimeRoutingOverride : pb::IMessage<RuntimeRoutingOverride>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<RuntimeRoutingOverride> _parser = new pb::MessageParser<RuntimeRoutingOverride>(() => new RuntimeRoutingOverride());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<RuntimeRoutingOverride> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[9]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public RuntimeRoutingOverride() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public RuntimeRoutingOverride(RuntimeRoutingOverride other) : this() {
+      mode_ = other.mode_;
+      outboundId_ = other.outboundId_;
+      expiresAt_ = other.expiresAt_ != null ? other.expiresAt_.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public RuntimeRoutingOverride Clone() {
+      return new RuntimeRoutingOverride(this);
+    }
+
+    /// <summary>Field number for the "mode" field.</summary>
+    public const int ModeFieldNumber = 1;
+    private global::NonProxy.Policy.V1.RuntimeOverrideMode mode_ = global::NonProxy.Policy.V1.RuntimeOverrideMode.Unspecified;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::NonProxy.Policy.V1.RuntimeOverrideMode Mode {
+      get { return mode_; }
+      set {
+        mode_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "outbound_id" field.</summary>
+    public const int OutboundIdFieldNumber = 2;
+    private string outboundId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string OutboundId {
+      get { return outboundId_; }
+      set {
+        outboundId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "expires_at" field.</summary>
+    public const int ExpiresAtFieldNumber = 3;
+    private global::Google.Protobuf.WellKnownTypes.Timestamp expiresAt_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Google.Protobuf.WellKnownTypes.Timestamp ExpiresAt {
+      get { return expiresAt_; }
+      set {
+        expiresAt_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as RuntimeRoutingOverride);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(RuntimeRoutingOverride other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Mode != other.Mode) return false;
+      if (OutboundId != other.OutboundId) return false;
+      if (!object.Equals(ExpiresAt, other.ExpiresAt)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (Mode != global::NonProxy.Policy.V1.RuntimeOverrideMode.Unspecified) hash ^= Mode.GetHashCode();
+      if (OutboundId.Length != 0) hash ^= OutboundId.GetHashCode();
+      if (expiresAt_ != null) hash ^= ExpiresAt.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (Mode != global::NonProxy.Policy.V1.RuntimeOverrideMode.Unspecified) {
+        output.WriteRawTag(8);
+        output.WriteEnum((int) Mode);
+      }
+      if (OutboundId.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(OutboundId);
+      }
+      if (expiresAt_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(ExpiresAt);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (Mode != global::NonProxy.Policy.V1.RuntimeOverrideMode.Unspecified) {
+        output.WriteRawTag(8);
+        output.WriteEnum((int) Mode);
+      }
+      if (OutboundId.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(OutboundId);
+      }
+      if (expiresAt_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(ExpiresAt);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (Mode != global::NonProxy.Policy.V1.RuntimeOverrideMode.Unspecified) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Mode);
+      }
+      if (OutboundId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(OutboundId);
+      }
+      if (expiresAt_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(ExpiresAt);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(RuntimeRoutingOverride other) {
+      if (other == null) {
+        return;
+      }
+      if (other.Mode != global::NonProxy.Policy.V1.RuntimeOverrideMode.Unspecified) {
+        Mode = other.Mode;
+      }
+      if (other.OutboundId.Length != 0) {
+        OutboundId = other.OutboundId;
+      }
+      if (other.expiresAt_ != null) {
+        if (expiresAt_ == null) {
+          ExpiresAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
+        }
+        ExpiresAt.MergeFrom(other.ExpiresAt);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 8: {
+            Mode = (global::NonProxy.Policy.V1.RuntimeOverrideMode) input.ReadEnum();
+            break;
+          }
+          case 18: {
+            OutboundId = input.ReadString();
+            break;
+          }
+          case 26: {
+            if (expiresAt_ == null) {
+              ExpiresAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
+            }
+            input.ReadMessage(ExpiresAt);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 8: {
+            Mode = (global::NonProxy.Policy.V1.RuntimeOverrideMode) input.ReadEnum();
+            break;
+          }
+          case 18: {
+            OutboundId = input.ReadString();
+            break;
+          }
+          case 26: {
+            if (expiresAt_ == null) {
+              ExpiresAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
+            }
+            input.ReadMessage(ExpiresAt);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
   /// Policy 是控制面可编辑的权威策略对象。
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -2769,7 +3073,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[9]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[10]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3376,7 +3680,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[10]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[11]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3640,7 +3944,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[11]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[12]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4035,7 +4339,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[12]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[13]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4365,7 +4669,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[13]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[14]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4622,7 +4926,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[14]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[15]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4980,7 +5284,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[15]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[16]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5005,6 +5309,7 @@ namespace NonProxy.Policy.V1 {
       capabilities_ = other.capabilities_ != null ? other.capabilities_.Clone() : null;
       defaultDecision_ = other.defaultDecision_ != null ? other.defaultDecision_.Clone() : null;
       networkProfiles_ = other.networkProfiles_.Clone();
+      runtimeOverride_ = other.runtimeOverride_ != null ? other.runtimeOverride_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -5072,6 +5377,18 @@ namespace NonProxy.Policy.V1 {
       get { return networkProfiles_; }
     }
 
+    /// <summary>Field number for the "runtime_override" field.</summary>
+    public const int RuntimeOverrideFieldNumber = 6;
+    private global::NonProxy.Policy.V1.RuntimeRoutingOverride runtimeOverride_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::NonProxy.Policy.V1.RuntimeRoutingOverride RuntimeOverride {
+      get { return runtimeOverride_; }
+      set {
+        runtimeOverride_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -5092,6 +5409,7 @@ namespace NonProxy.Policy.V1 {
       if (!object.Equals(Capabilities, other.Capabilities)) return false;
       if (!object.Equals(DefaultDecision, other.DefaultDecision)) return false;
       if(!networkProfiles_.Equals(other.networkProfiles_)) return false;
+      if (!object.Equals(RuntimeOverride, other.RuntimeOverride)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -5104,6 +5422,7 @@ namespace NonProxy.Policy.V1 {
       if (capabilities_ != null) hash ^= Capabilities.GetHashCode();
       if (defaultDecision_ != null) hash ^= DefaultDecision.GetHashCode();
       hash ^= networkProfiles_.GetHashCode();
+      if (runtimeOverride_ != null) hash ^= RuntimeOverride.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -5136,6 +5455,10 @@ namespace NonProxy.Policy.V1 {
         output.WriteMessage(DefaultDecision);
       }
       networkProfiles_.WriteTo(output, _repeated_networkProfiles_codec);
+      if (runtimeOverride_ != null) {
+        output.WriteRawTag(50);
+        output.WriteMessage(RuntimeOverride);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -5160,6 +5483,10 @@ namespace NonProxy.Policy.V1 {
         output.WriteMessage(DefaultDecision);
       }
       networkProfiles_.WriteTo(ref output, _repeated_networkProfiles_codec);
+      if (runtimeOverride_ != null) {
+        output.WriteRawTag(50);
+        output.WriteMessage(RuntimeOverride);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -5181,6 +5508,9 @@ namespace NonProxy.Policy.V1 {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(DefaultDecision);
       }
       size += networkProfiles_.CalculateSize(_repeated_networkProfiles_codec);
+      if (runtimeOverride_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(RuntimeOverride);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -5210,6 +5540,12 @@ namespace NonProxy.Policy.V1 {
         DefaultDecision.MergeFrom(other.DefaultDecision);
       }
       networkProfiles_.Add(other.networkProfiles_);
+      if (other.runtimeOverride_ != null) {
+        if (runtimeOverride_ == null) {
+          RuntimeOverride = new global::NonProxy.Policy.V1.RuntimeRoutingOverride();
+        }
+        RuntimeOverride.MergeFrom(other.RuntimeOverride);
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -5253,6 +5589,13 @@ namespace NonProxy.Policy.V1 {
           }
           case 42: {
             networkProfiles_.AddEntriesFrom(input, _repeated_networkProfiles_codec);
+            break;
+          }
+          case 50: {
+            if (runtimeOverride_ == null) {
+              RuntimeOverride = new global::NonProxy.Policy.V1.RuntimeRoutingOverride();
+            }
+            input.ReadMessage(RuntimeOverride);
             break;
           }
         }
@@ -5300,6 +5643,13 @@ namespace NonProxy.Policy.V1 {
             networkProfiles_.AddEntriesFrom(ref input, _repeated_networkProfiles_codec);
             break;
           }
+          case 50: {
+            if (runtimeOverride_ == null) {
+              RuntimeOverride = new global::NonProxy.Policy.V1.RuntimeRoutingOverride();
+            }
+            input.ReadMessage(RuntimeOverride);
+            break;
+          }
         }
       }
     }
@@ -5325,7 +5675,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[16]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[17]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

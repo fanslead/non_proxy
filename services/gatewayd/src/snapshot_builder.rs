@@ -1,4 +1,4 @@
-use nonproxy_model::{DecisionSpec, NetworkProfileBinding, Policy};
+use nonproxy_model::{DecisionSpec, NetworkProfileBinding, Policy, RuntimeRoutingOverride};
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
 use nonproxy_storage::{NetworkProfileReference, OutboundReference, SnapshotArtifact};
 
@@ -23,12 +23,41 @@ impl SnapshotBuildIdentity {
     }
 }
 
+#[derive(Clone)]
+pub(crate) struct SnapshotRoutingState {
+    default_decision: DecisionSpec,
+    runtime_override: Option<RuntimeRoutingOverride>,
+}
+
+impl SnapshotRoutingState {
+    #[must_use]
+    pub(crate) const fn new(
+        default_decision: DecisionSpec,
+        runtime_override: Option<RuntimeRoutingOverride>,
+    ) -> Self {
+        Self {
+            default_decision,
+            runtime_override,
+        }
+    }
+
+    #[must_use]
+    pub(crate) const fn default_decision(&self) -> &DecisionSpec {
+        &self.default_decision
+    }
+
+    #[must_use]
+    pub(crate) const fn runtime_override(&self) -> Option<&RuntimeRoutingOverride> {
+        self.runtime_override.as_ref()
+    }
+}
+
 pub(crate) fn build_snapshot(
     capabilities: CompileCapabilities,
     policies: &[Policy],
     outbounds: &[OutboundReference],
     network_profiles: &[NetworkProfileReference],
-    default_decision: DecisionSpec,
+    routing: SnapshotRoutingState,
     identity: SnapshotBuildIdentity,
     system_policy_config: &SystemPolicyConfig,
 ) -> Result<PublishedSnapshot, GatewayError> {
@@ -41,7 +70,7 @@ pub(crate) fn build_snapshot(
         capabilities,
         policies,
         &network_profiles,
-        default_decision,
+        routing,
         identity,
         system_policy_config,
     )
@@ -51,10 +80,14 @@ pub(crate) fn rebuild_snapshot(
     capabilities: CompileCapabilities,
     policies: &[Policy],
     network_profiles: &[NetworkProfileBinding],
-    default_decision: DecisionSpec,
+    routing: SnapshotRoutingState,
     identity: SnapshotBuildIdentity,
     system_policy_config: &SystemPolicyConfig,
 ) -> Result<PublishedSnapshot, GatewayError> {
+    let SnapshotRoutingState {
+        default_decision,
+        runtime_override,
+    } = routing;
     let policies = system_policies::with_required(policies, system_policy_config)?;
     let compiled = PolicyCompiler::compile(
         CompileRequest::new(
@@ -64,13 +97,15 @@ pub(crate) fn rebuild_snapshot(
             policies.clone(),
             capabilities.clone(),
         )
-        .with_network_profiles(network_profiles.to_vec()),
+        .with_network_profiles(network_profiles.to_vec())
+        .with_runtime_override(runtime_override.clone()),
     )?;
     let payload = snapshot_payload::encode(
         &policies,
         &capabilities,
         &default_decision,
         network_profiles,
+        runtime_override.as_ref(),
     )?;
     let metadata = compiled.metadata();
     let artifact = SnapshotArtifact::new(

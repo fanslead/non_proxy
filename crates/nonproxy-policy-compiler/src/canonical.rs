@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, net::IpAddr};
 use nonproxy_model::{
     AppMatcher, DecisionSpec, DomainMatchKind, FailureMode, IpFamily, NetworkFingerprintKind,
     NetworkProfileBinding, OutboundId, Platform, Policy, PolicyMatch, PolicySourceKind,
-    RouteAction, Transport,
+    RouteAction, RuntimeOverrideMode, RuntimeRoutingOverride, Transport,
 };
 use nonproxy_policy::OutboundCapabilities;
 use sha2::{Digest, Sha256};
@@ -14,6 +14,7 @@ pub(crate) fn content_hash(
     policies: &[&Policy],
     outbounds: &BTreeMap<OutboundId, OutboundCapabilities>,
     network_profiles: Option<&[NetworkProfileBinding]>,
+    runtime_override: Option<Option<&RuntimeRoutingOverride>>,
 ) -> [u8; 32] {
     let mut bytes = Vec::new();
     write_u32(&mut bytes, schema_version);
@@ -46,6 +47,24 @@ pub(crate) fn content_hash(
                 NetworkFingerprintKind::InterfaceClass => 3,
             });
             write_string(&mut bytes, profile.fingerprint().value());
+        }
+    }
+    if let Some(runtime_override) = runtime_override {
+        match runtime_override {
+            Some(value) => {
+                bytes.push(1);
+                bytes.push(match value.mode() {
+                    RuntimeOverrideMode::Paused => 1,
+                    RuntimeOverrideMode::Direct => 2,
+                    RuntimeOverrideMode::Proxy => 3,
+                });
+                write_optional_string(
+                    &mut bytes,
+                    value.outbound_id().map(|outbound| outbound.as_str()),
+                );
+                write_u64(&mut bytes, value.expires_at_unix_ms());
+            }
+            None => bytes.push(0),
         }
     }
     Sha256::digest(bytes).into()

@@ -5,6 +5,7 @@ import NonProxyMacPlatformSupport
 import NonProxyProviderContracts
 import NonProxyProviderCore
 import Synchronization
+import SwiftProtobuf
 import XCTest
 
 final class DNSQueryCoordinatorTests: XCTestCase {
@@ -82,6 +83,41 @@ final class DNSQueryCoordinatorTests: XCTestCase {
         XCTAssertNil(recorded)
         XCTAssertEqual(decisions.records.count, 1)
         XCTAssertEqual(decisions.records[0].evidence.level, .decision)
+    }
+
+    func testPausedOverrideUsesSystemDnsWithoutClaimingPolicyEvidence() async throws {
+        let resolver = RecordingDNSResolver()
+        let decisions = RecordingDecisionSubmitter()
+        let coordinator = DNSQueryCoordinator(
+            runtime: try pausedRuntime(),
+            resolver: resolver,
+            catalogs: DNSResolverCatalogStore(
+                DNSSystemResolverCatalog(
+                    upstreams: [
+                        DNSUpstreamEndpoint(ipAddress: "1.1.1.1"),
+                    ]
+                )
+            ),
+            networkEnvironment: MacNetworkEnvironmentMonitor(
+                initialInterfaceIndex: 7
+            ),
+            decisions: decisions
+        )
+
+        _ = try await coordinator.resolve(
+            DNSFlowQueryContext(
+                message: makeQuery(),
+                app: .unknown,
+                transport: .udp
+            )
+        )
+
+        let request = await resolver.lastRequest
+        XCTAssertEqual(request?.requestedRoute, .system)
+        XCTAssertEqual(request?.snapshotVersion, 42)
+        XCTAssertEqual(request?.directInterfaceIndex, 0)
+        XCTAssertTrue(request?.requestedOutboundID.isEmpty == true)
+        XCTAssertTrue(decisions.records.isEmpty)
     }
 
     func testUsesResolvedNetworkProfileForDnsPolicyDecision() async throws {
@@ -249,6 +285,30 @@ final class DNSQueryCoordinatorTests: XCTestCase {
         decision.outboundID = action == .proxy ? "office" : ""
         var payload = Nonproxy_Policy_V1_CompiledPolicyPayload()
         payload.defaultDecision = decision
+        var metadata = Nonproxy_Policy_V1_PolicySnapshotMetadata()
+        metadata.snapshotVersion = 42
+        var wire = Nonproxy_Policy_V1_CompiledPolicySnapshot()
+        wire.metadata = metadata
+        let runtime = ProviderPolicyRuntime()
+        try runtime.install(
+            VerifiedPolicySnapshot(wireSnapshot: wire, payload: payload)
+        )
+        return runtime
+    }
+
+    private func pausedRuntime() throws -> ProviderPolicyRuntime {
+        var blocked = Nonproxy_Policy_V1_DecisionSpec()
+        blocked.action = .block
+        blocked.failureMode = .closed
+        var runtimeOverride = Nonproxy_Policy_V1_RuntimeRoutingOverride()
+        runtimeOverride.mode = .paused
+        var expiresAt = Google_Protobuf_Timestamp()
+        expiresAt.seconds = 4_102_444_800
+        runtimeOverride.expiresAt = expiresAt
+        var payload = Nonproxy_Policy_V1_CompiledPolicyPayload()
+        payload.formatVersion = 3
+        payload.defaultDecision = blocked
+        payload.runtimeOverride = runtimeOverride
         var metadata = Nonproxy_Policy_V1_PolicySnapshotMetadata()
         metadata.snapshotVersion = 42
         var wire = Nonproxy_Policy_V1_CompiledPolicySnapshot()

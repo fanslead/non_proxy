@@ -3,6 +3,7 @@ using NonProxy.Control.V1;
 using NonProxy.Desktop.Core.Services.Control.Events;
 using NonProxy.Desktop.Core.Services.Control.Rpc;
 using NonProxy.Events.V1;
+using NonProxy.Policy.V1;
 
 namespace NonProxy.Desktop.Tests;
 
@@ -166,5 +167,37 @@ public sealed class GrpcControlRpcClientTests
         Assert.Same(context, request.Context);
         Assert.Equal(7UL, request.TargetSnapshotVersion);
         Assert.Equal(8UL, request.ExpectedActiveSnapshotVersion);
+    }
+
+    [Fact]
+    public void RuntimeOverrideRequestBindsModeDurationOutboundAndActiveVersion()
+    {
+        var context = new OperationContext { OperationId = "force-proxy" };
+
+        var request = GrpcControlRpcClient.CreateSetRuntimeOverrideRequest(
+            context,
+            RuntimeOverrideMode.Proxy,
+            TimeSpan.FromMinutes(5),
+            "office",
+            9);
+
+        Assert.Same(context, request.Context);
+        Assert.Equal(RuntimeOverrideMode.Proxy, request.Mode);
+        Assert.Equal(300, request.Duration.Seconds);
+        Assert.Equal(0, request.Duration.Nanos);
+        Assert.Equal("office", request.OutboundId);
+        Assert.Equal(9UL, request.ExpectedActiveSnapshotVersion);
+    }
+
+    [Fact]
+    public void NonProxyOverrideRejectsAnOutboundId()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            GrpcControlRpcClient.CreateSetRuntimeOverrideRequest(
+                new OperationContext(),
+                RuntimeOverrideMode.Direct,
+                TimeSpan.FromMinutes(5),
+                "office",
+                9));
     }
 }

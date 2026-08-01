@@ -27,6 +27,9 @@ service ControlService {
   rpc TestOutbound(TestOutboundRequest) returns (TestOutboundResponse);
   rpc VerifyExit(VerifyExitRequest) returns (VerifyExitResponse);
   rpc SetDefaultRoute(SetDefaultRouteRequest) returns (SetDefaultRouteResponse);
+  rpc GetRuntimeOverrideStatus(GetRuntimeOverrideStatusRequest) returns (GetRuntimeOverrideStatusResponse);
+  rpc SetRuntimeOverride(SetRuntimeOverrideRequest) returns (SetRuntimeOverrideResponse);
+  rpc ClearRuntimeOverride(ClearRuntimeOverrideRequest) returns (ClearRuntimeOverrideResponse);
   rpc StartLearningSession(StartLearningSessionRequest) returns (StartLearningSessionResponse);
   rpc RecordLearningObservation(RecordLearningObservationRequest) returns (RecordLearningObservationResponse);
   rpc ListLearningCandidates(ListLearningCandidatesRequest) returns (ListLearningCandidatesResponse);
@@ -469,6 +472,41 @@ message SetDefaultRouteResponse {
   uint64 routing_revision = 1;
   nonproxy.policy.v1.PolicySnapshotMetadata snapshot = 2;
   nonproxy.common.v1.ErrorDetail error = 3;
+}
+
+// GetRuntimeOverrideStatusRequest 请求当前及待确认的紧急运行态覆盖。
+message GetRuntimeOverrideStatusRequest {}
+
+// GetRuntimeOverrideStatusResponse 区分 Provider 已确认状态和新的待确认请求。
+message GetRuntimeOverrideStatusResponse {
+  nonproxy.policy.v1.RuntimeRoutingOverride active_override = 1;
+  nonproxy.policy.v1.RuntimeRoutingOverride pending_override = 2;
+  uint64 active_snapshot_version = 3;
+  uint64 pending_snapshot_version = 4;
+  bool pending_clears_override = 5;
+}
+
+// SetRuntimeOverrideRequest 创建有时限覆盖，不改变 routing_settings。
+message SetRuntimeOverrideRequest {
+  OperationContext context = 1;
+  nonproxy.policy.v1.RuntimeOverrideMode mode = 2;
+  google.protobuf.Duration duration = 3;
+  string outbound_id = 4;
+  uint64 expected_active_snapshot_version = 5;
+}
+
+message SetRuntimeOverrideResponse {
+  PolicyMutationResult result = 1;
+}
+
+// ClearRuntimeOverrideRequest 用新快照显式取消尚未到期的覆盖。
+message ClearRuntimeOverrideRequest {
+  OperationContext context = 1;
+  uint64 expected_active_snapshot_version = 2;
+}
+
+message ClearRuntimeOverrideResponse {
+  PolicyMutationResult result = 1;
 }
 
 // StartLearningSessionRequest 启动有时限的学习会话。

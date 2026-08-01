@@ -7,7 +7,9 @@ use nonproxy_storage::{
 use crate::{
     Gateway, GatewayError, PublishedSnapshot,
     clock::unix_time_ms,
-    snapshot_builder::{SnapshotBuildIdentity, build_snapshot, rebuild_snapshot},
+    snapshot_builder::{
+        SnapshotBuildIdentity, SnapshotRoutingState, build_snapshot, rebuild_snapshot,
+    },
     snapshot_payload,
 };
 
@@ -66,6 +68,17 @@ impl Gateway {
                 let outbounds = database.outbounds().list()?;
                 let network_profiles = database.network_profiles().list()?;
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
+                let runtime_override = database
+                    .snapshots()
+                    .active()?
+                    .map(|record| {
+                        snapshot_payload::effective_runtime_override(
+                            record.artifact().payload(),
+                            now,
+                        )
+                    })
+                    .transpose()?
+                    .flatten();
                 let snapshot_version = next_version(current)?;
                 let default_decision = decision_for_route(&route)?;
                 let published = build_snapshot(
@@ -73,7 +86,7 @@ impl Gateway {
                     &policies,
                     &outbounds,
                     &network_profiles,
-                    default_decision,
+                    SnapshotRoutingState::new(default_decision, runtime_override),
                     SnapshotBuildIdentity::new(snapshot_version, now),
                     &system_policy_config,
                 )?;
@@ -138,6 +151,17 @@ impl Gateway {
             .run(move |database| {
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
                 let next = next_version(current)?;
+                let runtime_override = database
+                    .snapshots()
+                    .active()?
+                    .map(|record| {
+                        snapshot_payload::effective_runtime_override(
+                            record.artifact().payload(),
+                            now,
+                        )
+                    })
+                    .transpose()?
+                    .flatten();
                 let source = database
                     .snapshots()
                     .get(target_snapshot_version)?
@@ -159,7 +183,7 @@ impl Gateway {
                     decoded.capabilities,
                     &decoded.policies,
                     &network_profiles,
-                    decoded.default_decision,
+                    SnapshotRoutingState::new(decoded.default_decision, runtime_override),
                     SnapshotBuildIdentity::new(next, now),
                     &system_policy_config,
                 )?;

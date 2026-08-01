@@ -28,7 +28,7 @@ use crate::{
     provider_requirements,
     routing_gateway::decision_for_route,
     runtime_events::{RuntimeEventPublisher, SystemRuntimeSnapshot},
-    snapshot_builder::{SnapshotBuildIdentity, build_snapshot},
+    snapshot_builder::{SnapshotBuildIdentity, SnapshotRoutingState, build_snapshot},
     snapshot_payload,
     snapshot_types::{ProviderSnapshot, PublishedSnapshot},
     system_policies::SystemPolicyConfig,
@@ -249,6 +249,17 @@ impl Gateway {
                 let outbounds = database.outbounds().list()?;
                 let network_profiles = database.network_profiles().list()?;
                 let routing = database.routing_settings().get()?;
+                let runtime_override = database
+                    .snapshots()
+                    .active()?
+                    .map(|record| {
+                        snapshot_payload::effective_runtime_override(
+                            record.artifact().payload(),
+                            now_unix_ms,
+                        )
+                    })
+                    .transpose()?
+                    .flatten();
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
                 let snapshot_version = current
                     .checked_add(1)
@@ -258,7 +269,10 @@ impl Gateway {
                     &policies,
                     &outbounds,
                     &network_profiles,
-                    decision_for_route(routing.route())?,
+                    SnapshotRoutingState::new(
+                        decision_for_route(routing.route())?,
+                        runtime_override,
+                    ),
                     SnapshotBuildIdentity::new(snapshot_version, now_unix_ms),
                     &system_policy_config,
                 )?;

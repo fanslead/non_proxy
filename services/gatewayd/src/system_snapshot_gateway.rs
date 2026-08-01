@@ -5,7 +5,7 @@ use nonproxy_storage::{
 use crate::{
     Gateway, GatewayError,
     clock::unix_time_ms,
-    snapshot_builder::{SnapshotBuildIdentity, rebuild_snapshot},
+    snapshot_builder::{SnapshotBuildIdentity, SnapshotRoutingState, rebuild_snapshot},
     snapshot_payload, system_policies,
 };
 
@@ -55,7 +55,12 @@ impl Gateway {
                     decoded.capabilities,
                     &decoded.policies,
                     &network_profiles,
-                    decoded.default_decision,
+                    SnapshotRoutingState::new(
+                        decoded.default_decision,
+                        decoded
+                            .runtime_override
+                            .filter(|value| value.is_active_at(now)),
+                    ),
                     SnapshotBuildIdentity::new(snapshot_version, now),
                     &system_policy_config,
                 )?;
@@ -339,7 +344,7 @@ mod tests {
             panic!("旧快照编译失败: {compiled:?}");
         };
         let current_payload =
-            snapshot_payload::encode(&policies, &capabilities, &default_decision, &[]);
+            snapshot_payload::encode(&policies, &capabilities, &default_decision, &[], None);
         let Ok(current_payload) = current_payload else {
             panic!("旧快照编码前置失败: {current_payload:?}");
         };

@@ -52,6 +52,35 @@ public sealed class DashboardViewTests
     }
 
     [AvaloniaFact]
+    public void EmergencyControlsRenderWithoutClaimingTheyAreAlreadyApplied()
+    {
+        using var services = TestPlatformServices.Create();
+        var view = new DashboardView
+        {
+            DataContext = services.GetRequiredService<DashboardViewModel>(),
+        };
+        var window = new Window { Content = view };
+
+        try
+        {
+            window.Show();
+
+            Assert.Equal(
+                "正在读取限时运行模式",
+                view.FindControl<TextBlock>("RuntimeOverrideHeadline")?.Text);
+            Assert.Equal(
+                "暂停 5 分钟",
+                view.FindControl<Button>("PauseFiveMinutesButton")?.Content);
+            Assert.False(view.FindControl<Button>("PauseFiveMinutesButton")?.IsEnabled);
+            Assert.False(view.FindControl<Button>("ProxyFiveMinutesButton")?.IsEnabled);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task ApprovalRecoveryControlsAreRenderedFromRealState()
     {
         var installer = new RecordingSystemComponentInstaller

@@ -24,7 +24,7 @@ use crate::{
     clock::unix_time_ms,
     credential_store::CredentialStore,
     decision_event::{DecisionEventReporter, elapsed_micros},
-    dns_policy::{DnsQueryPlan, plan_query},
+    dns_policy::{DnsQueryPlan, plan_query_at},
     dns_service::{DnsResolutionResult, DnsResolutionService, DnsServiceError, WireDnsRequest},
     local_dns_server::{LocalDnsQueryProcessor, LocalDnsServer, ProcessingFuture},
 };
@@ -199,7 +199,7 @@ impl WindowsDnsProcessor {
         };
         let observed_at_unix_ms = unix_time_ms()?;
         let decision_started = Instant::now();
-        let plan = plan_query(&snapshot, &query);
+        let plan = plan_query_at(&snapshot, &query, observed_at_unix_ms);
         let decision_latency_micros = elapsed_micros(decision_started);
         match plan {
             DnsQueryPlan::Synthetic { domain, family } => {
@@ -213,6 +213,10 @@ impl WindowsDnsProcessor {
             DnsQueryPlan::NoData => {
                 synthetic_nodata_response(&wire_query).map_err(DnsServiceError::InvalidQuery)
             }
+            DnsQueryPlan::System { snapshot_version } => self
+                .resolve_system(&query, &wire_query, snapshot_version)
+                .await
+                .map(|result| result.dns_message),
             DnsQueryPlan::Route(route) => {
                 let route = *route;
                 let decision = route.decision;
@@ -338,6 +342,30 @@ impl WindowsDnsProcessor {
                 route: DnsRoute::Proxy(outbound),
                 upstreams: &upstreams,
                 snapshot_version: snapshot.metadata().snapshot_version(),
+                direct_interface_index: None,
+                network_profile: None,
+            })
+            .await
+    }
+
+    async fn resolve_system(
+        &self,
+        query: &ParsedDnsQuery,
+        wire_query: &[u8],
+        snapshot_version: u64,
+    ) -> Result<DnsResolutionResult, DnsServiceError> {
+        let upstreams = self
+            .upstreams
+            .current()
+            .map_err(|error| GatewayError::WindowsDataPlane(error.to_string()))?
+            .all_endpoints();
+        self.resolution
+            .resolve_wire(WireDnsRequest {
+                query,
+                wire_query,
+                route: DnsRoute::System,
+                upstreams: &upstreams,
+                snapshot_version,
                 direct_interface_index: None,
                 network_profile: None,
             })

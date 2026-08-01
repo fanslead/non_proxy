@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 
-use nonproxy_model::{DecisionSpec, NetworkProfileBinding, Policy, RuleId};
+use nonproxy_model::{DecisionSpec, NetworkProfileBinding, Policy, RuleId, RuntimeRoutingOverride};
 use nonproxy_policy::{CompiledPolicySnapshot, CompiledRule, SnapshotMetadata};
 
 use crate::{
@@ -9,6 +9,7 @@ use crate::{
 };
 
 pub const POLICY_SCHEMA_VERSION: u32 = 1;
+pub const MAX_RUNTIME_OVERRIDE_DURATION_MS: u64 = 60 * 60 * 1_000;
 
 #[derive(Clone, Debug)]
 pub struct CompileRequest {
@@ -18,6 +19,7 @@ pub struct CompileRequest {
     policies: Vec<Policy>,
     capabilities: CompileCapabilities,
     network_profiles: Option<Vec<NetworkProfileBinding>>,
+    runtime_override: Option<Option<RuntimeRoutingOverride>>,
 }
 
 impl CompileRequest {
@@ -36,12 +38,22 @@ impl CompileRequest {
             policies,
             capabilities,
             network_profiles: None,
+            runtime_override: None,
         }
     }
 
     #[must_use]
     pub fn with_network_profiles(mut self, network_profiles: Vec<NetworkProfileBinding>) -> Self {
         self.network_profiles = Some(network_profiles);
+        self
+    }
+
+    #[must_use]
+    pub fn with_runtime_override(
+        mut self,
+        runtime_override: Option<RuntimeRoutingOverride>,
+    ) -> Self {
+        self.runtime_override = Some(runtime_override);
         self
     }
 }
@@ -61,6 +73,9 @@ impl PolicyCompiler {
         request
             .capabilities
             .validate_default(&request.default_decision, &mut conflicts);
+        if let Some(runtime_override) = request.runtime_override.as_ref().and_then(Option::as_ref) {
+            validate_runtime_override(&request, runtime_override, &mut conflicts)?;
+        }
         for policy in request.policies.iter().filter(|policy| policy.enabled()) {
             request.capabilities.validate_policy(policy, &mut conflicts);
         }
@@ -83,6 +98,10 @@ impl PolicyCompiler {
             &enabled,
             request.capabilities.outbounds(),
             request.network_profiles.as_deref(),
+            request
+                .runtime_override
+                .as_ref()
+                .map(|value| value.as_ref()),
         );
         let metadata = SnapshotMetadata::new(
             POLICY_SCHEMA_VERSION,
@@ -110,9 +129,33 @@ impl PolicyCompiler {
             request.default_decision,
             request.capabilities.outbounds().clone(),
             network_profiles,
+            request.runtime_override.flatten(),
             rules,
         ))
     }
+}
+
+fn validate_runtime_override(
+    request: &CompileRequest,
+    runtime_override: &RuntimeRoutingOverride,
+    conflicts: &mut Vec<PolicyConflict>,
+) -> Result<(), CompileError> {
+    let expires_at = runtime_override.expires_at_unix_ms();
+    let maximum = request
+        .created_at_unix_ms
+        .checked_add(MAX_RUNTIME_OVERRIDE_DURATION_MS);
+    if expires_at <= request.created_at_unix_ms
+        || maximum.is_none_or(|maximum| expires_at > maximum)
+    {
+        conflicts.push(PolicyConflict::global(
+            "NP_POLICY_RUNTIME_OVERRIDE_EXPIRY_INVALID",
+            "运行态覆盖必须在创建后到期且最长为一小时",
+        ));
+    }
+    if let Some(decision) = runtime_override.decision()? {
+        request.capabilities.validate_default(&decision, conflicts);
+    }
+    Ok(())
 }
 
 fn validate_network_profiles(

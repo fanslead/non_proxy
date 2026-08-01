@@ -168,6 +168,83 @@
                 </StackPanel>
             </Border>
 
+            <Border x:Name="RuntimeOverrideCard"
+                    Theme="{StaticResource NpCard}"
+                    BorderBrush="{DynamicResource NpBrandBrush}">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="16">
+                        <StackPanel Spacing="6">
+                            <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                       Text="限时运行模式" />
+                            <TextBlock x:Name="RuntimeOverrideHeadline"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding RuntimeOverride.Headline}" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="{Binding RuntimeOverride.Detail}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding ClearRuntimeOverrideCommand}"
+                                Content="恢复常规策略"
+                                IsVisible="{Binding RuntimeOverride.CanClear}"
+                                AutomationProperties.Name="取消限时运行模式" />
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="10">
+                        <Button x:Name="PauseFiveMinutesButton"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding RequestPauseCommand}"
+                                Content="暂停 5 分钟"
+                                IsEnabled="{Binding RuntimeOverride.CanRequest}"
+                                AutomationProperties.Name="暂停 NonProxy 五分钟" />
+                        <Button x:Name="DirectFiveMinutesButton"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding RequestDirectOverrideCommand}"
+                                Content="全部直连 5 分钟"
+                                IsEnabled="{Binding RuntimeOverride.CanRequest}"
+                                AutomationProperties.Name="全部直连五分钟" />
+                        <Button x:Name="ProxyFiveMinutesButton"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding RequestProxyOverrideCommand}"
+                                Content="全部代理 5 分钟"
+                                IsEnabled="{Binding RuntimeOverride.CanProxy}"
+                                AutomationProperties.Name="全部代理五分钟" />
+                    </StackPanel>
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               FontSize="12"
+                               Text="暂停会交回当前系统路由；全部直连才使用隔离物理网卡。系统保护规则始终优先。"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="RuntimeOverrideConfirmation"
+                    Theme="{StaticResource NpCard}"
+                    BorderBrush="{DynamicResource NpWarningBrush}"
+                    IsVisible="{Binding IsEmergencyConfirmationVisible}">
+                <StackPanel Spacing="12">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="{Binding EmergencyConfirmation.Title}" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="{Binding EmergencyConfirmation.Detail}"
+                               TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="10">
+                        <Button Theme="{StaticResource NpPrimaryButton}"
+                                Command="{Binding ConfirmRuntimeOverrideCommand}"
+                                Content="确认限时切换"
+                                AutomationProperties.Name="确认限时运行模式" />
+                        <Button Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding CancelRuntimeOverrideCommand}"
+                                Content="取消"
+                                AutomationProperties.Name="取消限时运行模式确认" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <Border x:Name="UninstallConfirmation"
                     Theme="{StaticResource NpCard}"
                     BorderBrush="{DynamicResource NpWarningBrush}"

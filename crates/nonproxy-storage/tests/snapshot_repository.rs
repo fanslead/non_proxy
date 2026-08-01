@@ -149,6 +149,26 @@ fn latest_version_is_none_then_tracks_highest_staged_snapshot() {
 }
 
 #[test]
+fn conditional_stage_rejects_a_stale_active_version_without_pending_state() {
+    let database = PolicyDatabase::open_in_memory(1_000);
+    let Ok(mut database) = database else {
+        panic!("测试数据库打开失败: {database:?}");
+    };
+    activate_single_provider(&mut database, 1, 1, 1_100);
+    let next = artifact(2, 2).unwrap_or_else(|error| {
+        panic!("待发布快照创建失败: {error}");
+    });
+
+    let result = database.snapshots().stage_for_active_snapshot(&next, 9);
+
+    assert!(matches!(
+        result,
+        Err(StorageError::ActiveSnapshotVersionConflict)
+    ));
+    assert!(matches!(database.snapshots().pending(), Ok(None)));
+}
+
+#[test]
 fn previous_effective_version_skips_pending_and_rejected_snapshots() {
     let database = PolicyDatabase::open_in_memory(1_000);
     let Ok(mut database) = database else {

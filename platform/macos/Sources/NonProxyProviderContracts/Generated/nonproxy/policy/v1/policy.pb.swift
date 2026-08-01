@@ -280,6 +280,49 @@ public nonisolated enum Nonproxy_Policy_V1_NetworkFingerprintKind: SwiftProtobuf
 
 }
 
+/// RuntimeOverrideMode 表示不改写持久默认路由的有时限紧急覆盖。
+public nonisolated enum Nonproxy_Policy_V1_RuntimeOverrideMode: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case paused // = 1
+  case direct // = 2
+  case proxy // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .paused
+    case 2: self = .direct
+    case 3: self = .proxy
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .paused: return 1
+    case .direct: return 2
+    case .proxy: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Nonproxy_Policy_V1_RuntimeOverrideMode] = [
+    .unspecified,
+    .paused,
+    .direct,
+    .proxy,
+  ]
+
+}
+
 /// AppMatcher 使用稳定身份和签名约束匹配应用。
 public nonisolated struct Nonproxy_Policy_V1_AppMatcher: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -466,6 +509,32 @@ public nonisolated struct Nonproxy_Policy_V1_DecisionSpec: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+}
+
+/// RuntimeRoutingOverride 随不可变快照分发，并由数据面在到期时自行停止生效。
+public nonisolated struct Nonproxy_Policy_V1_RuntimeRoutingOverride: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var mode: Nonproxy_Policy_V1_RuntimeOverrideMode = .unspecified
+
+  public var outboundID: String = String()
+
+  public var expiresAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_expiresAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_expiresAt = newValue}
+  }
+  /// Returns true if `expiresAt` has been explicitly set.
+  public var hasExpiresAt: Bool {self._expiresAt != nil}
+  /// Clears the value of `expiresAt`. Subsequent reads from it will return its default value.
+  public mutating func clearExpiresAt() {self._expiresAt = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _expiresAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 /// Policy 是控制面可编辑的权威策略对象。
@@ -708,12 +777,22 @@ public nonisolated struct Nonproxy_Policy_V1_CompiledPolicyPayload: Sendable {
 
   public var networkProfiles: [Nonproxy_Policy_V1_NetworkProfileBinding] = []
 
+  public var runtimeOverride: Nonproxy_Policy_V1_RuntimeRoutingOverride {
+    get {_runtimeOverride ?? Nonproxy_Policy_V1_RuntimeRoutingOverride()}
+    set {_runtimeOverride = newValue}
+  }
+  /// Returns true if `runtimeOverride` has been explicitly set.
+  public var hasRuntimeOverride: Bool {self._runtimeOverride != nil}
+  /// Clears the value of `runtimeOverride`. Subsequent reads from it will return its default value.
+  public mutating func clearRuntimeOverride() {self._runtimeOverride = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _capabilities: Nonproxy_Policy_V1_CompileCapabilitySet? = nil
   fileprivate var _defaultDecision: Nonproxy_Policy_V1_DecisionSpec? = nil
+  fileprivate var _runtimeOverride: Nonproxy_Policy_V1_RuntimeRoutingOverride? = nil
 }
 
 /// Decision 描述一次纯策略判定，不等同于路径或出口证据。
@@ -768,6 +847,10 @@ nonisolated extension Nonproxy_Policy_V1_SnapshotState: SwiftProtobuf._ProtoName
 
 nonisolated extension Nonproxy_Policy_V1_NetworkFingerprintKind: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NETWORK_FINGERPRINT_KIND_UNSPECIFIED\0\u{1}NETWORK_FINGERPRINT_KIND_WIFI_SSID_SHA256\0\u{1}NETWORK_FINGERPRINT_KIND_DEFAULT_GATEWAY_SHA256\0\u{1}NETWORK_FINGERPRINT_KIND_INTERFACE_CLASS\0")
+}
+
+nonisolated extension Nonproxy_Policy_V1_RuntimeOverrideMode: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0RUNTIME_OVERRIDE_MODE_UNSPECIFIED\0\u{1}RUNTIME_OVERRIDE_MODE_PAUSED\0\u{1}RUNTIME_OVERRIDE_MODE_DIRECT\0\u{1}RUNTIME_OVERRIDE_MODE_PROXY\0")
 }
 
 nonisolated extension Nonproxy_Policy_V1_AppMatcher: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -1134,6 +1217,50 @@ nonisolated extension Nonproxy_Policy_V1_DecisionSpec: SwiftProtobuf.Message, Sw
     if lhs.action != rhs.action {return false}
     if lhs.outboundID != rhs.outboundID {return false}
     if lhs.failureMode != rhs.failureMode {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Policy_V1_RuntimeRoutingOverride: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RuntimeRoutingOverride"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mode\0\u{3}outbound_id\0\u{3}expires_at\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.mode) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.outboundID) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._expiresAt) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.mode != .unspecified {
+      try visitor.visitSingularEnumField(value: self.mode, fieldNumber: 1)
+    }
+    if !self.outboundID.isEmpty {
+      try visitor.visitSingularStringField(value: self.outboundID, fieldNumber: 2)
+    }
+    try { if let v = self._expiresAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Policy_V1_RuntimeRoutingOverride, rhs: Nonproxy_Policy_V1_RuntimeRoutingOverride) -> Bool {
+    if lhs.mode != rhs.mode {return false}
+    if lhs.outboundID != rhs.outboundID {return false}
+    if lhs._expiresAt != rhs._expiresAt {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1524,7 +1651,7 @@ nonisolated extension Nonproxy_Policy_V1_CompileCapabilitySet: SwiftProtobuf.Mes
 
 nonisolated extension Nonproxy_Policy_V1_CompiledPolicyPayload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompiledPolicyPayload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}format_version\0\u{1}policies\0\u{1}capabilities\0\u{3}default_decision\0\u{3}network_profiles\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}format_version\0\u{1}policies\0\u{1}capabilities\0\u{3}default_decision\0\u{3}network_profiles\0\u{3}runtime_override\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1537,6 +1664,7 @@ nonisolated extension Nonproxy_Policy_V1_CompiledPolicyPayload: SwiftProtobuf.Me
       case 3: try { try decoder.decodeSingularMessageField(value: &self._capabilities) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._defaultDecision) }()
       case 5: try { try decoder.decodeRepeatedMessageField(value: &self.networkProfiles) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._runtimeOverride) }()
       default: break
       }
     }
@@ -1562,6 +1690,9 @@ nonisolated extension Nonproxy_Policy_V1_CompiledPolicyPayload: SwiftProtobuf.Me
     if !self.networkProfiles.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.networkProfiles, fieldNumber: 5)
     }
+    try { if let v = self._runtimeOverride {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1571,6 +1702,7 @@ nonisolated extension Nonproxy_Policy_V1_CompiledPolicyPayload: SwiftProtobuf.Me
     if lhs._capabilities != rhs._capabilities {return false}
     if lhs._defaultDecision != rhs._defaultDecision {return false}
     if lhs.networkProfiles != rhs.networkProfiles {return false}
+    if lhs._runtimeOverride != rhs._runtimeOverride {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

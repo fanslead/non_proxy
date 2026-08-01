@@ -262,7 +262,12 @@ fn input_from_proto(
         policy_context =
             policy_context.with_network_profile(NetworkProfileId::new(context.network_profile_id)?);
     }
-    let expected = PolicyEngine::decide(snapshot, &policy_context);
+    let expected = PolicyEngine::evaluate_at(snapshot, &policy_context, occurred_at_unix_ms)
+        .decision()
+        .cloned()
+        .ok_or(GatewayError::InvalidRequest(
+            "暂停期间的系统旁路流量不应上报策略决策",
+        ))?;
     validate_reported_decision(&reported, &expected)?;
     let evidence = evidence_from_proto(
         record

@@ -82,6 +82,12 @@ pub enum ModelError {
     InvalidNetworkProfileDisplayName,
     #[error("网络配置档修订必须大于零")]
     InvalidNetworkProfileRevision,
+    #[error("运行态覆盖的代理模式必须指定出口")]
+    RuntimeOverrideProxyMissingOutbound,
+    #[error("暂停或直连运行态覆盖不能指定出口")]
+    RuntimeOverrideNonProxyHasOutbound,
+    #[error("运行态覆盖到期时间必须大于零")]
+    RuntimeOverrideExpiryInvalid,
 }
 
 impl ModelError {
@@ -129,6 +135,13 @@ impl ModelError {
             Self::InvalidNetworkFingerprint => "NP_MODEL_NETWORK_FINGERPRINT_INVALID",
             Self::InvalidNetworkProfileDisplayName => "NP_MODEL_NETWORK_PROFILE_NAME_INVALID",
             Self::InvalidNetworkProfileRevision => "NP_MODEL_NETWORK_PROFILE_REVISION_INVALID",
+            Self::RuntimeOverrideProxyMissingOutbound => {
+                "NP_MODEL_RUNTIME_OVERRIDE_PROXY_OUTBOUND_MISSING"
+            }
+            Self::RuntimeOverrideNonProxyHasOutbound => {
+                "NP_MODEL_RUNTIME_OVERRIDE_NON_PROXY_OUTBOUND_PRESENT"
+            }
+            Self::RuntimeOverrideExpiryInvalid => "NP_MODEL_RUNTIME_OVERRIDE_EXPIRY_INVALID",
         }
     }
 }

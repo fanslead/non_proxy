@@ -83,6 +83,7 @@ public static class ServiceRegistration
             GatewayAdapterManagementService>();
         services.AddSingleton<PolicyContractMapper>();
         services.AddSingleton<ISystemStatusService, GatewaySystemStatusService>();
+        services.AddSingleton<IRuntimeOverrideService, GatewayRuntimeOverrideService>();
         services.AddSingleton<IPolicyService, GatewayPolicyService>();
         services.AddSingleton<INetworkProfileService, GatewayNetworkProfileService>();
         services.AddSingleton<IOutboundService, GatewayOutboundService>();

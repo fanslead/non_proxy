@@ -6,6 +6,7 @@ mod error;
 mod ids;
 mod network_profile;
 mod policy;
+mod runtime_override;
 
 pub use app_identity::{AppIdentity, AppMatcher, Platform};
 pub use connection::ConnectionContext;
@@ -22,3 +23,4 @@ pub use policy::{
     NetworkMatcher, Policy, PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind,
     PolicyValidation,
 };
+pub use runtime_override::{RuntimeOverrideMode, RuntimeRoutingOverride};

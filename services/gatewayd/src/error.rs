@@ -25,6 +25,12 @@ pub enum GatewayError {
     InvalidRequest(&'static str),
     #[error("默认代理尚未通过当前配置的新鲜握手测试")]
     DefaultOutboundUnverified,
+    #[error("当前没有可取消的运行态覆盖")]
+    RuntimeOverrideNotActive,
+    #[error("运行态覆盖时长必须在 1 秒到 1 小时之间")]
+    RuntimeOverrideDurationInvalid,
+    #[error("运行态覆盖需要已有活动策略快照")]
+    RuntimeOverrideActiveSnapshotMissing,
     #[error("{0}状态互斥锁已损坏")]
     StateLockPoisoned(&'static str),
     #[error("后台数据库任务失败: {0}")]
@@ -71,6 +77,11 @@ impl GatewayError {
             Self::LocalAuth(LocalAuthError::Random(_)) => "NP_SESSION_TOKEN_FAILED",
             Self::LocalAuth(_) => "NP_LOCAL_PATH_INVALID",
             Self::DefaultOutboundUnverified => "NP_DEFAULT_OUTBOUND_UNVERIFIED",
+            Self::RuntimeOverrideNotActive => "NP_RUNTIME_OVERRIDE_NOT_ACTIVE",
+            Self::RuntimeOverrideDurationInvalid => "NP_RUNTIME_OVERRIDE_DURATION_INVALID",
+            Self::RuntimeOverrideActiveSnapshotMissing => {
+                "NP_RUNTIME_OVERRIDE_ACTIVE_SNAPSHOT_MISSING"
+            }
             Self::Storage(StorageError::PolicyRevisionConflict) => "NP_POLICY_REVISION_CONFLICT",
             Self::Storage(StorageError::OutboundRevisionConflict) => {
                 "NP_OUTBOUND_REVISION_CONFLICT"

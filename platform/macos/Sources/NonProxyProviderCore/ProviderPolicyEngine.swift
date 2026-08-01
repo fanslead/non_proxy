@@ -7,7 +7,45 @@ public enum ProviderPolicyEngine {
         snapshot: VerifiedPolicySnapshot,
         context: PolicyConnectionContext
     ) -> PolicyDecision {
-        for tier in RuleTier.allCases.reversed() {
+        if let system = decideSystem(snapshot: snapshot, context: context) {
+            return system
+        }
+        return decideAfterSystem(snapshot: snapshot, context: context)
+    }
+
+    static func decideSystem(
+        snapshot: VerifiedPolicySnapshot,
+        context: PolicyConnectionContext
+    ) -> PolicyDecision? {
+        bestDecision(snapshot: snapshot, context: context, tier: .system)
+    }
+
+    static func decideAfterSystem(
+        snapshot: VerifiedPolicySnapshot,
+        context: PolicyConnectionContext
+    ) -> PolicyDecision {
+        for tier in RuleTier.allCases.reversed() where tier != .system {
+            if let decision = bestDecision(
+                snapshot: snapshot,
+                context: context,
+                tier: tier
+            ) {
+                return decision
+            }
+        }
+        return PolicyDecision(
+            result: snapshot.payload.defaultDecision,
+            matchedPolicyID: nil,
+            snapshotVersion: snapshot.version,
+            reasonCode: "NP_POLICY_DEFAULT"
+        )
+    }
+
+    private static func bestDecision(
+        snapshot: VerifiedPolicySnapshot,
+        context: PolicyConnectionContext,
+        tier: RuleTier
+    ) -> PolicyDecision? {
             let candidates = snapshot.payload.policies.filter {
                 ruleTier(for: $0) == tier && matches($0.match, context: context)
             }
@@ -20,13 +58,7 @@ public enum ProviderPolicyEngine {
                     reasonCode: tier.reasonCode
                 )
             }
-        }
-        return PolicyDecision(
-            result: snapshot.payload.defaultDecision,
-            matchedPolicyID: nil,
-            snapshotVersion: snapshot.version,
-            reasonCode: "NP_POLICY_DEFAULT"
-        )
+        return nil
     }
 
     private static func matches(

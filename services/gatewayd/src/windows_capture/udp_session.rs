@@ -6,7 +6,7 @@ use std::{
 use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_model::{ConnectionContext, Destination, FailureMode, RouteAction, Transport};
 use nonproxy_outbound::{Socks5UdpAssociation, SystemTcpDialer};
-use nonproxy_policy::PolicyEngine;
+use nonproxy_policy::{PolicyEngine, PolicyEvaluation};
 use nonproxy_windows_network::PhysicalInterfaceCatalog;
 use nonproxy_windows_wfp::{MAX_UDP_PAYLOAD_BYTES, UdpDatagram, UdpInjectionContext};
 use tokio::{
@@ -26,8 +26,11 @@ use crate::{
 };
 
 use super::{
-    direct_dns::WindowsDirectDomainResolver, identity::app_identity_from_bytes,
-    policy_cache::WindowsPolicyCache, udp_direct::connect_direct_udp, udp_driver::UdpInjector,
+    direct_dns::WindowsDirectDomainResolver,
+    identity::app_identity_from_bytes,
+    policy_cache::WindowsPolicyCache,
+    udp_direct::{connect_direct_udp, connect_system_udp},
+    udp_driver::UdpInjector,
 };
 
 const SESSION_IDLE_TIMEOUT: Duration = Duration::from_secs(120);
@@ -76,8 +79,22 @@ pub async fn run_udp_session(
         .ok_or_else(|| GatewayError::WindowsDataPlane("没有可用的活动策略快照".to_owned()))?;
     let observed_at_unix_ms = unix_time_ms()?;
     let decision_started = Instant::now();
-    let decision = PolicyEngine::decide(&snapshot, &context);
+    let evaluation = PolicyEngine::evaluate_at(&snapshot, &context, observed_at_unix_ms);
     let decision_latency_micros = elapsed_micros(decision_started);
+    if let PolicyEvaluation::Bypass { .. } = evaluation {
+        let socket = connect_system_udp(&target, exposed_remote.ip()).await?;
+        return relay_direct(
+            socket,
+            first_payload,
+            &mut incoming,
+            dependencies.injector,
+            injection,
+        )
+        .await;
+    }
+    let PolicyEvaluation::Decision(decision) = evaluation else {
+        unreachable!("旁路判定已提前返回")
+    };
     let observation = DecisionObservation::new(
         "windows-wfp",
         dependencies.policies.provider_generation(),

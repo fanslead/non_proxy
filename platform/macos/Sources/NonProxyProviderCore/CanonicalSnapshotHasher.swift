@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import Network
 import NonProxyProviderContracts
+import SwiftProtobuf
 
 enum CanonicalSnapshotHasher {
     static func hash(
@@ -35,13 +36,25 @@ enum CanonicalSnapshotHasher {
             bytes.appendByte(outbound.ipFamilies.contains(.ipv4) ? 1 : 0)
             bytes.appendByte(outbound.ipFamilies.contains(.ipv6) ? 1 : 0)
         }
-        if payload.formatVersion >= SnapshotValidator.payloadVersion {
+        if payload.formatVersion >= SnapshotValidator.networkProfilePayloadVersion {
             let networkProfiles = payload.networkProfiles.sorted { $0.id < $1.id }
             bytes.appendUInt64(UInt64(networkProfiles.count))
             for profile in networkProfiles {
                 bytes.appendString(profile.id)
                 bytes.appendByte(try fingerprintCode(profile.fingerprintKind))
                 bytes.appendString(profile.fingerprintValue)
+            }
+        }
+        if payload.formatVersion >= SnapshotValidator.payloadVersion {
+            if payload.hasRuntimeOverride {
+                bytes.appendByte(1)
+                bytes.appendByte(try runtimeOverrideCode(payload.runtimeOverride.mode))
+                bytes.appendOptionalString(optional(payload.runtimeOverride.outboundID))
+                bytes.appendUInt64(
+                    try unixMilliseconds(payload.runtimeOverride.expiresAt)
+                )
+            } else {
+                bytes.appendByte(0)
             }
         }
         return Data(SHA256.hash(data: bytes.data))
@@ -190,6 +203,42 @@ enum CanonicalSnapshotHasher {
         default:
             throw ProviderError.invalidSnapshot("网络配置档指纹类型无效")
         }
+    }
+
+    private static func runtimeOverrideCode(
+        _ mode: Nonproxy_Policy_V1_RuntimeOverrideMode
+    ) throws -> UInt8 {
+        switch mode {
+        case .paused:
+            1
+        case .direct:
+            2
+        case .proxy:
+            3
+        default:
+            throw ProviderError.invalidSnapshot("运行态覆盖模式无效")
+        }
+    }
+
+    private static func unixMilliseconds(
+        _ timestamp: Google_Protobuf_Timestamp
+    ) throws -> UInt64 {
+        guard timestamp.seconds >= 0,
+              timestamp.nanos >= 0,
+              timestamp.nanos < 1_000_000_000,
+              timestamp.nanos % 1_000_000 == 0,
+              let seconds = UInt64(exactly: timestamp.seconds)
+        else {
+            throw ProviderError.invalidSnapshot("运行态覆盖到期时间无效")
+        }
+        let (milliseconds, multiplyOverflow) = seconds.multipliedReportingOverflow(by: 1_000)
+        let (total, addOverflow) = milliseconds.addingReportingOverflow(
+            UInt64(timestamp.nanos / 1_000_000)
+        )
+        guard !multiplyOverflow, !addOverflow, total > 0 else {
+            throw ProviderError.invalidSnapshot("运行态覆盖到期时间无效")
+        }
+        return total
     }
 
     private static func optional(_ value: String) -> String? {

@@ -5,6 +5,20 @@ public interface ISystemStatusService
     Task<SystemOverview> GetOverviewAsync(CancellationToken cancellationToken);
 }
 
+public interface IRuntimeOverrideService
+{
+    Task<RuntimeOverrideStatus> GetStatusAsync(
+        CancellationToken cancellationToken);
+
+    Task<ApplyResult> SetAsync(
+        RuntimeOverrideKind kind,
+        string? outboundId,
+        TimeSpan duration,
+        CancellationToken cancellationToken);
+
+    Task<ApplyResult> ClearAsync(CancellationToken cancellationToken);
+}
+
 public interface IPolicyService
 {
     Task<PolicyCatalog> GetCatalogAsync(CancellationToken cancellationToken);

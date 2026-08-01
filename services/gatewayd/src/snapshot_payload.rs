@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use nonproxy_model::{
     DecisionSpec, IpFamily, NetworkFingerprint, NetworkFingerprintKind, NetworkProfileBinding,
-    NetworkProfileId, OutboundId, Policy, Transport,
+    NetworkProfileId, OutboundId, Policy, RuntimeOverrideMode, RuntimeRoutingOverride, Transport,
 };
 use nonproxy_policy::OutboundCapabilities;
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest};
@@ -12,18 +12,22 @@ use nonproxy_proto::{
         CompileCapabilitySet, CompiledPolicyPayload,
         NetworkFingerprintKind as ProtoFingerprintKind,
         NetworkProfileBinding as ProtoProfileBinding, OutboundCapabilitySpec,
+        RuntimeOverrideMode as ProtoRuntimeOverrideMode,
+        RuntimeRoutingOverride as ProtoRuntimeRoutingOverride,
     },
 };
 use prost::Message;
 
 use crate::{
     GatewayError,
+    clock::{timestamp_from_unix_ms, unix_ms_from_timestamp},
     proto_policy::{policy_from_proto, policy_to_proto},
 };
 
 pub const SNAPSHOT_PAYLOAD_FORMAT: &str = "nonproxy.compiled-policy.v1";
 const LEGACY_SNAPSHOT_PAYLOAD_VERSION: u32 = 1;
-const SNAPSHOT_PAYLOAD_VERSION: u32 = 2;
+const NETWORK_PROFILE_SNAPSHOT_PAYLOAD_VERSION: u32 = 2;
+const SNAPSHOT_PAYLOAD_VERSION: u32 = 3;
 
 pub(crate) struct DecodedSnapshotPayload {
     pub policies: Vec<Policy>,
@@ -31,6 +35,8 @@ pub(crate) struct DecodedSnapshotPayload {
     pub default_decision: DecisionSpec,
     pub network_profiles: Vec<NetworkProfileBinding>,
     pub includes_network_profiles: bool,
+    pub runtime_override: Option<RuntimeRoutingOverride>,
+    pub includes_runtime_override: bool,
 }
 
 impl DecodedSnapshotPayload {
@@ -49,10 +55,13 @@ impl DecodedSnapshotPayload {
             self.capabilities,
         );
         if includes_network_profiles {
-            request.with_network_profiles(network_profiles)
-        } else {
-            request
+            let request = request.with_network_profiles(network_profiles);
+            if self.includes_runtime_override {
+                return request.with_runtime_override(self.runtime_override);
+            }
+            return request;
         }
+        request
     }
 }
 
@@ -61,6 +70,7 @@ pub fn encode(
     capabilities: &CompileCapabilities,
     default_decision: &DecisionSpec,
     network_profiles: &[NetworkProfileBinding],
+    runtime_override: Option<&RuntimeRoutingOverride>,
 ) -> Result<Vec<u8>, GatewayError> {
     let mut enabled = policies
         .iter()
@@ -73,6 +83,9 @@ pub fn encode(
         capabilities: Some(capabilities_to_proto(capabilities)),
         default_decision: Some(crate::proto_policy::decision_to_proto(default_decision)),
         network_profiles: sorted_profiles_to_proto(network_profiles),
+        runtime_override: runtime_override
+            .map(runtime_override_to_proto)
+            .transpose()?,
     };
     let mut bytes = Vec::with_capacity(payload.encoded_len());
     payload.encode(&mut bytes)?;
@@ -90,18 +103,36 @@ pub fn decode(
     ))
 }
 
+pub(crate) fn effective_runtime_override(
+    bytes: &[u8],
+    now_unix_ms: u64,
+) -> Result<Option<RuntimeRoutingOverride>, GatewayError> {
+    Ok(decode_versioned(bytes)?
+        .runtime_override
+        .filter(|value| value.is_active_at(now_unix_ms)))
+}
+
 pub(crate) fn decode_versioned(bytes: &[u8]) -> Result<DecodedSnapshotPayload, GatewayError> {
     let payload = CompiledPolicyPayload::decode(bytes)?;
-    if payload.format_version != LEGACY_SNAPSHOT_PAYLOAD_VERSION
-        && payload.format_version != SNAPSHOT_PAYLOAD_VERSION
+    if ![
+        LEGACY_SNAPSHOT_PAYLOAD_VERSION,
+        NETWORK_PROFILE_SNAPSHOT_PAYLOAD_VERSION,
+        SNAPSHOT_PAYLOAD_VERSION,
+    ]
+    .contains(&payload.format_version)
     {
         return Err(GatewayError::InvalidContract("快照载荷版本不受支持"));
     }
-    let includes_network_profiles = payload.format_version == SNAPSHOT_PAYLOAD_VERSION;
+    let includes_network_profiles =
+        payload.format_version >= NETWORK_PROFILE_SNAPSHOT_PAYLOAD_VERSION;
+    let includes_runtime_override = payload.format_version >= SNAPSHOT_PAYLOAD_VERSION;
     if !includes_network_profiles && !payload.network_profiles.is_empty() {
         return Err(GatewayError::InvalidContract(
             "旧版快照不能包含网络配置档目录",
         ));
+    }
+    if !includes_runtime_override && payload.runtime_override.is_some() {
+        return Err(GatewayError::InvalidContract("旧版快照不能包含运行态覆盖"));
     }
     let policies = payload
         .policies
@@ -124,13 +155,60 @@ pub(crate) fn decode_versioned(bytes: &[u8]) -> Result<DecodedSnapshotPayload, G
     } else {
         Vec::new()
     };
+    let runtime_override = payload
+        .runtime_override
+        .map(runtime_override_from_proto)
+        .transpose()?;
     Ok(DecodedSnapshotPayload {
         policies,
         capabilities,
         default_decision,
         network_profiles,
         includes_network_profiles,
+        runtime_override,
+        includes_runtime_override,
     })
+}
+
+pub(crate) fn runtime_override_to_proto(
+    value: &RuntimeRoutingOverride,
+) -> Result<ProtoRuntimeRoutingOverride, GatewayError> {
+    Ok(ProtoRuntimeRoutingOverride {
+        mode: match value.mode() {
+            RuntimeOverrideMode::Paused => ProtoRuntimeOverrideMode::Paused,
+            RuntimeOverrideMode::Direct => ProtoRuntimeOverrideMode::Direct,
+            RuntimeOverrideMode::Proxy => ProtoRuntimeOverrideMode::Proxy,
+        } as i32,
+        outbound_id: value
+            .outbound_id()
+            .map_or_else(String::new, ToString::to_string),
+        expires_at: Some(timestamp_from_unix_ms(value.expires_at_unix_ms())?),
+    })
+}
+
+pub(crate) fn runtime_override_from_proto(
+    value: ProtoRuntimeRoutingOverride,
+) -> Result<RuntimeRoutingOverride, GatewayError> {
+    let mode = match ProtoRuntimeOverrideMode::try_from(value.mode) {
+        Ok(ProtoRuntimeOverrideMode::Paused) => RuntimeOverrideMode::Paused,
+        Ok(ProtoRuntimeOverrideMode::Direct) => RuntimeOverrideMode::Direct,
+        Ok(ProtoRuntimeOverrideMode::Proxy) => RuntimeOverrideMode::Proxy,
+        Ok(ProtoRuntimeOverrideMode::Unspecified) | Err(_) => {
+            return Err(GatewayError::InvalidContract("运行态覆盖模式无效"));
+        }
+    };
+    let outbound_id = if value.outbound_id.is_empty() {
+        None
+    } else {
+        Some(OutboundId::new(value.outbound_id)?)
+    };
+    let expires_at = unix_ms_from_timestamp(
+        value
+            .expires_at
+            .as_ref()
+            .ok_or(GatewayError::InvalidContract("运行态覆盖缺少到期时间"))?,
+    )?;
+    Ok(RuntimeRoutingOverride::new(mode, outbound_id, expires_at)?)
 }
 
 fn sorted_profiles_to_proto(values: &[NetworkProfileBinding]) -> Vec<ProtoProfileBinding> {
@@ -336,7 +414,7 @@ fn validate_unique_policy_ids(policies: &[Policy]) -> Result<(), GatewayError> {
 mod tests {
     use nonproxy_model::{
         DecisionSpec, NetworkFingerprint, NetworkFingerprintKind, NetworkProfileBinding,
-        NetworkProfileId,
+        NetworkProfileId, RuntimeOverrideMode, RuntimeRoutingOverride,
     };
     use nonproxy_policy_compiler::CompileCapabilities;
     use nonproxy_proto::{
@@ -346,7 +424,8 @@ mod tests {
     use prost::Message;
 
     use super::{
-        LEGACY_SNAPSHOT_PAYLOAD_VERSION, SNAPSHOT_PAYLOAD_VERSION, decode, decode_versioned, encode,
+        LEGACY_SNAPSHOT_PAYLOAD_VERSION, NETWORK_PROFILE_SNAPSHOT_PAYLOAD_VERSION,
+        SNAPSHOT_PAYLOAD_VERSION, decode, decode_versioned, effective_runtime_override, encode,
     };
 
     #[test]
@@ -383,18 +462,22 @@ mod tests {
     }
 
     #[test]
-    fn version_two_round_trip_preserves_privacy_safe_network_catalog() {
+    fn version_three_round_trip_preserves_network_catalog_and_runtime_override() {
         let profile = NetworkProfileBinding::new(
             NetworkProfileId::new("office")
                 .unwrap_or_else(|error| panic!("测试网络标识创建失败: {error}")),
             NetworkFingerprint::new(NetworkFingerprintKind::WifiSsidSha256, "a".repeat(64))
                 .unwrap_or_else(|error| panic!("测试网络指纹创建失败: {error}")),
         );
+        let runtime_override =
+            RuntimeRoutingOverride::new(RuntimeOverrideMode::Paused, None, 2_000)
+                .unwrap_or_else(|error| panic!("测试运行态覆盖创建失败: {error}"));
         let bytes = encode(
             &[],
             &CompileCapabilities::full(),
             &DecisionSpec::direct(),
             std::slice::from_ref(&profile),
+            Some(&runtime_override),
         )
         .unwrap_or_else(|error| panic!("网络配置档快照编码失败: {error}"));
 
@@ -403,6 +486,18 @@ mod tests {
 
         assert!(decoded.includes_network_profiles);
         assert_eq!(decoded.network_profiles, vec![profile]);
+        assert!(decoded.includes_runtime_override);
+        assert_eq!(decoded.runtime_override, Some(runtime_override));
+        assert!(
+            effective_runtime_override(&bytes, 1_999)
+                .unwrap_or_else(|error| panic!("有效覆盖读取失败: {error}"))
+                .is_some()
+        );
+        assert!(
+            effective_runtime_override(&bytes, 2_000)
+                .unwrap_or_else(|error| panic!("到期覆盖读取失败: {error}"))
+                .is_none()
+        );
     }
 
     #[test]
@@ -415,6 +510,26 @@ mod tests {
 
         assert!(!decoded.includes_network_profiles);
         assert!(decoded.network_profiles.is_empty());
+    }
+
+    #[test]
+    fn version_two_rejects_runtime_override_field() {
+        let runtime_override =
+            RuntimeRoutingOverride::new(RuntimeOverrideMode::Direct, None, 2_000)
+                .unwrap_or_else(|error| panic!("测试运行态覆盖创建失败: {error}"));
+        let bytes = encode(
+            &[],
+            &CompileCapabilities::full(),
+            &DecisionSpec::direct(),
+            &[],
+            Some(&runtime_override),
+        )
+        .unwrap_or_else(|error| panic!("运行态覆盖快照编码失败: {error}"));
+        let mut payload = CompiledPolicyPayload::decode(bytes.as_slice())
+            .unwrap_or_else(|error| panic!("运行态覆盖快照 fixture 解码失败: {error}"));
+        payload.format_version = NETWORK_PROFILE_SNAPSHOT_PAYLOAD_VERSION;
+
+        assert!(decode_versioned(&payload.encode_to_vec()).is_err());
     }
 
     fn payload(
@@ -438,6 +553,7 @@ mod tests {
                 failure_mode: nonproxy_proto::common::v1::FailureMode::Closed as i32,
             }),
             network_profiles: Vec::new(),
+            runtime_override: None,
         }
     }
 }

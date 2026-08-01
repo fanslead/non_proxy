@@ -1882,6 +1882,159 @@ public nonisolated struct Nonproxy_Control_V1_SetDefaultRouteResponse: Sendable 
   fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
 }
 
+/// GetRuntimeOverrideStatusRequest 请求当前及待确认的紧急运行态覆盖。
+public nonisolated struct Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// GetRuntimeOverrideStatusResponse 区分 Provider 已确认状态和新的待确认请求。
+public nonisolated struct Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var activeOverride: Nonproxy_Policy_V1_RuntimeRoutingOverride {
+    get {_activeOverride ?? Nonproxy_Policy_V1_RuntimeRoutingOverride()}
+    set {_activeOverride = newValue}
+  }
+  /// Returns true if `activeOverride` has been explicitly set.
+  public var hasActiveOverride: Bool {self._activeOverride != nil}
+  /// Clears the value of `activeOverride`. Subsequent reads from it will return its default value.
+  public mutating func clearActiveOverride() {self._activeOverride = nil}
+
+  public var pendingOverride: Nonproxy_Policy_V1_RuntimeRoutingOverride {
+    get {_pendingOverride ?? Nonproxy_Policy_V1_RuntimeRoutingOverride()}
+    set {_pendingOverride = newValue}
+  }
+  /// Returns true if `pendingOverride` has been explicitly set.
+  public var hasPendingOverride: Bool {self._pendingOverride != nil}
+  /// Clears the value of `pendingOverride`. Subsequent reads from it will return its default value.
+  public mutating func clearPendingOverride() {self._pendingOverride = nil}
+
+  public var activeSnapshotVersion: UInt64 = 0
+
+  public var pendingSnapshotVersion: UInt64 = 0
+
+  public var pendingClearsOverride: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _activeOverride: Nonproxy_Policy_V1_RuntimeRoutingOverride? = nil
+  fileprivate var _pendingOverride: Nonproxy_Policy_V1_RuntimeRoutingOverride? = nil
+}
+
+/// SetRuntimeOverrideRequest 创建有时限覆盖，不改变 routing_settings。
+public nonisolated struct Nonproxy_Control_V1_SetRuntimeOverrideRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var mode: Nonproxy_Policy_V1_RuntimeOverrideMode = .unspecified
+
+  public var duration: SwiftProtobuf.Google_Protobuf_Duration {
+    get {_duration ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_duration = newValue}
+  }
+  /// Returns true if `duration` has been explicitly set.
+  public var hasDuration: Bool {self._duration != nil}
+  /// Clears the value of `duration`. Subsequent reads from it will return its default value.
+  public mutating func clearDuration() {self._duration = nil}
+
+  public var outboundID: String = String()
+
+  public var expectedActiveSnapshotVersion: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+  fileprivate var _duration: SwiftProtobuf.Google_Protobuf_Duration? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_SetRuntimeOverrideResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Nonproxy_Control_V1_PolicyMutationResult {
+    get {_result ?? Nonproxy_Control_V1_PolicyMutationResult()}
+    set {_result = newValue}
+  }
+  /// Returns true if `result` has been explicitly set.
+  public var hasResult: Bool {self._result != nil}
+  /// Clears the value of `result`. Subsequent reads from it will return its default value.
+  public mutating func clearResult() {self._result = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _result: Nonproxy_Control_V1_PolicyMutationResult? = nil
+}
+
+/// ClearRuntimeOverrideRequest 用新快照显式取消尚未到期的覆盖。
+public nonisolated struct Nonproxy_Control_V1_ClearRuntimeOverrideRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var expectedActiveSnapshotVersion: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_ClearRuntimeOverrideResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Nonproxy_Control_V1_PolicyMutationResult {
+    get {_result ?? Nonproxy_Control_V1_PolicyMutationResult()}
+    set {_result = newValue}
+  }
+  /// Returns true if `result` has been explicitly set.
+  public var hasResult: Bool {self._result != nil}
+  /// Clears the value of `result`. Subsequent reads from it will return its default value.
+  public mutating func clearResult() {self._result = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _result: Nonproxy_Control_V1_PolicyMutationResult? = nil
+}
+
 /// StartLearningSessionRequest 启动有时限的学习会话。
 public nonisolated struct Nonproxy_Control_V1_StartLearningSessionRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -4675,6 +4828,240 @@ nonisolated extension Nonproxy_Control_V1_SetDefaultRouteResponse: SwiftProtobuf
     if lhs.routingRevision != rhs.routingRevision {return false}
     if lhs._snapshot != rhs._snapshot {return false}
     if lhs._error != rhs._error {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetRuntimeOverrideStatusRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest, rhs: Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetRuntimeOverrideStatusResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}active_override\0\u{3}pending_override\0\u{3}active_snapshot_version\0\u{3}pending_snapshot_version\0\u{3}pending_clears_override\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._activeOverride) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._pendingOverride) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.activeSnapshotVersion) }()
+      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.pendingSnapshotVersion) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.pendingClearsOverride) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._activeOverride {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._pendingOverride {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.activeSnapshotVersion != 0 {
+      try visitor.visitSingularUInt64Field(value: self.activeSnapshotVersion, fieldNumber: 3)
+    }
+    if self.pendingSnapshotVersion != 0 {
+      try visitor.visitSingularUInt64Field(value: self.pendingSnapshotVersion, fieldNumber: 4)
+    }
+    if self.pendingClearsOverride != false {
+      try visitor.visitSingularBoolField(value: self.pendingClearsOverride, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse, rhs: Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse) -> Bool {
+    if lhs._activeOverride != rhs._activeOverride {return false}
+    if lhs._pendingOverride != rhs._pendingOverride {return false}
+    if lhs.activeSnapshotVersion != rhs.activeSnapshotVersion {return false}
+    if lhs.pendingSnapshotVersion != rhs.pendingSnapshotVersion {return false}
+    if lhs.pendingClearsOverride != rhs.pendingClearsOverride {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_SetRuntimeOverrideRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetRuntimeOverrideRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{1}mode\0\u{1}duration\0\u{3}outbound_id\0\u{3}expected_active_snapshot_version\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.mode) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._duration) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.outboundID) }()
+      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.expectedActiveSnapshotVersion) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.mode != .unspecified {
+      try visitor.visitSingularEnumField(value: self.mode, fieldNumber: 2)
+    }
+    try { if let v = self._duration {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    if !self.outboundID.isEmpty {
+      try visitor.visitSingularStringField(value: self.outboundID, fieldNumber: 4)
+    }
+    if self.expectedActiveSnapshotVersion != 0 {
+      try visitor.visitSingularUInt64Field(value: self.expectedActiveSnapshotVersion, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_SetRuntimeOverrideRequest, rhs: Nonproxy_Control_V1_SetRuntimeOverrideRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.mode != rhs.mode {return false}
+    if lhs._duration != rhs._duration {return false}
+    if lhs.outboundID != rhs.outboundID {return false}
+    if lhs.expectedActiveSnapshotVersion != rhs.expectedActiveSnapshotVersion {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_SetRuntimeOverrideResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetRuntimeOverrideResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._result {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_SetRuntimeOverrideResponse, rhs: Nonproxy_Control_V1_SetRuntimeOverrideResponse) -> Bool {
+    if lhs._result != rhs._result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ClearRuntimeOverrideRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ClearRuntimeOverrideRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}expected_active_snapshot_version\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.expectedActiveSnapshotVersion) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.expectedActiveSnapshotVersion != 0 {
+      try visitor.visitSingularUInt64Field(value: self.expectedActiveSnapshotVersion, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ClearRuntimeOverrideRequest, rhs: Nonproxy_Control_V1_ClearRuntimeOverrideRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.expectedActiveSnapshotVersion != rhs.expectedActiveSnapshotVersion {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ClearRuntimeOverrideResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ClearRuntimeOverrideResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._result {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ClearRuntimeOverrideResponse, rhs: Nonproxy_Control_V1_ClearRuntimeOverrideResponse) -> Bool {
+    if lhs._result != rhs._result {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

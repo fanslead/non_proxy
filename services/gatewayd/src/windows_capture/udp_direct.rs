@@ -11,6 +11,7 @@ use nonproxy_windows_network::{
 };
 use socket2::{Domain, Protocol, Socket, Type};
 use tokio::net::UdpSocket;
+use tokio::net::lookup_host;
 
 use crate::GatewayError;
 
@@ -47,6 +48,41 @@ pub async fn connect_direct_udp(
         || "DIRECT UDP 没有可用地址".to_owned(),
         |error| error.to_string(),
     )))
+}
+
+pub async fn connect_system_udp(
+    target: &FlowEndpoint,
+    preferred_family: IpAddr,
+) -> Result<UdpSocket, GatewayError> {
+    let mut addresses = resolve_system(target).await?;
+    addresses.sort_by_key(|address| address.is_ipv4() != preferred_family.is_ipv4());
+    let mut last_error = None;
+    for address in addresses {
+        match UdpSocket::bind(unspecified(address.ip())).await {
+            Ok(socket) => match socket.connect(address).await {
+                Ok(()) => return Ok(socket),
+                Err(error) => last_error = Some(error),
+            },
+            Err(error) => last_error = Some(error),
+        }
+    }
+    Err(GatewayError::WindowsDataPlane(last_error.map_or_else(
+        || "SYSTEM UDP 没有可用地址".to_owned(),
+        |error| error.to_string(),
+    )))
+}
+
+async fn resolve_system(target: &FlowEndpoint) -> Result<Vec<SocketAddr>, GatewayError> {
+    match target {
+        FlowEndpoint::Ip(address) => Ok(vec![*address]),
+        FlowEndpoint::Domain(domain, port) => lookup_host((domain.as_ascii(), *port))
+            .await
+            .map(|addresses| addresses.collect())
+            .map_err(|error| GatewayError::Io {
+                operation: "解析 SYSTEM UDP 目标",
+                source: error,
+            }),
+    }
 }
 
 async fn resolve(

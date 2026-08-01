@@ -107,6 +107,36 @@ enum SnapshotContentValidator {
         )
     }
 
+    static func validateRuntimeOverride(
+        _ runtimeOverride: Nonproxy_Policy_V1_RuntimeRoutingOverride,
+        capabilities: Nonproxy_Policy_V1_CompileCapabilitySet
+    ) throws {
+        var decision = Nonproxy_Policy_V1_DecisionSpec()
+        decision.failureMode = .closed
+        switch runtimeOverride.mode {
+        case .paused, .direct:
+            guard runtimeOverride.outboundID.isEmpty else {
+                throw ProviderError.invalidSnapshot("非代理运行态覆盖不能绑定出口")
+            }
+            guard runtimeOverride.mode == .direct else {
+                return
+            }
+            decision.action = .direct
+        case .proxy:
+            decision.action = .proxy
+            decision.outboundID = runtimeOverride.outboundID
+        default:
+            throw ProviderError.invalidSnapshot("运行态覆盖模式无效")
+        }
+        let availableOutbounds = Set(capabilities.outbounds.map(\.outboundID))
+        try validateDecision(decision, availableOutbounds: availableOutbounds)
+        try validateOutboundCompatibility(
+            decision,
+            matcher: nil,
+            capabilities: capabilities
+        )
+    }
+
     static func isIdentifier(_ value: String) -> Bool {
         !value.isEmpty
             && value.utf8.count <= maximumIdentifierBytes

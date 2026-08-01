@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.Input;
+using NonProxy.Desktop.Core.Features.Dashboard;
+using NonProxy.Desktop.Core.Services.Control;
 using NonProxy.Desktop.Core.Services.Settings;
 
 namespace NonProxy.Desktop.Core.Bootstrap;
@@ -10,6 +12,7 @@ public sealed class DesktopLifetimeController : IDisposable
 {
     private readonly IDesktopSettingsService _settingsService;
     private readonly IDesktopThemeService _themeService;
+    private readonly DashboardViewModel? _dashboard;
     private IClassicDesktopStyleApplicationLifetime? _lifetime;
     private IActivatableLifetime? _activatableLifetime;
     private Window? _window;
@@ -19,10 +22,12 @@ public sealed class DesktopLifetimeController : IDisposable
 
     public DesktopLifetimeController(
         IDesktopSettingsService settingsService,
-        IDesktopThemeService themeService)
+        IDesktopThemeService themeService,
+        DashboardViewModel? dashboard = null)
     {
         _settingsService = settingsService;
         _themeService = themeService;
+        _dashboard = dashboard;
     }
 
     public void Attach(
@@ -54,12 +59,23 @@ public sealed class DesktopLifetimeController : IDisposable
 
         var showCommand = new RelayCommand(ShowWindow);
         var quitCommand = new RelayCommand(QuitInterface);
+        var pauseCommand = new RelayCommand(() => ShowRuntimeOverride(
+            RuntimeOverrideKind.Paused));
+        var directCommand = new RelayCommand(() => ShowRuntimeOverride(
+            RuntimeOverrideKind.Direct));
+        var proxyCommand = new RelayCommand(() => ShowRuntimeOverride(
+            RuntimeOverrideKind.Proxy));
         _trayIcon = new TrayIcon
         {
             Command = showCommand,
             Icon = TrayIconImage.Create(),
             IsVisible = true,
-            Menu = CreateActionMenu(showCommand, quitCommand),
+            Menu = CreateActionMenu(
+                showCommand,
+                pauseCommand,
+                directCommand,
+                proxyCommand,
+                quitCommand),
             ToolTipText = "NonProxy · 直连策略中心",
         };
         TrayIcon.SetIcons(application, new TrayIcons { _trayIcon });
@@ -72,18 +88,31 @@ public sealed class DesktopLifetimeController : IDisposable
                     new NativeMenuItem
                     {
                         Header = "NonProxy",
-                        Menu = CreateActionMenu(showCommand, quitCommand),
+                        Menu = CreateActionMenu(
+                            showCommand,
+                            pauseCommand,
+                            directCommand,
+                            proxyCommand,
+                            quitCommand),
                     },
                 },
             });
         NativeDock.SetMenu(
             application,
-            CreateActionMenu(showCommand, quitCommand));
+            CreateActionMenu(
+                showCommand,
+                pauseCommand,
+                directCommand,
+                proxyCommand,
+                quitCommand));
         _ = ApplySavedThemeAsync();
     }
 
     internal static NativeMenu CreateActionMenu(
         System.Windows.Input.ICommand showCommand,
+        System.Windows.Input.ICommand pauseCommand,
+        System.Windows.Input.ICommand directCommand,
+        System.Windows.Input.ICommand proxyCommand,
         System.Windows.Input.ICommand quitCommand)
     {
         return new NativeMenu
@@ -94,6 +123,22 @@ public sealed class DesktopLifetimeController : IDisposable
                 {
                     Header = "显示 NonProxy",
                     Command = showCommand,
+                },
+                new NativeMenuItemSeparator(),
+                new NativeMenuItem
+                {
+                    Header = "暂停 5 分钟…",
+                    Command = pauseCommand,
+                },
+                new NativeMenuItem
+                {
+                    Header = "全部直连 5 分钟…",
+                    Command = directCommand,
+                },
+                new NativeMenuItem
+                {
+                    Header = "全部代理 5 分钟…",
+                    Command = proxyCommand,
                 },
                 new NativeMenuItemSeparator(),
                 new NativeMenuItem
@@ -197,6 +242,12 @@ public sealed class DesktopLifetimeController : IDisposable
         }
 
         _window.Activate();
+    }
+
+    private void ShowRuntimeOverride(RuntimeOverrideKind kind)
+    {
+        _dashboard?.RequestRuntimeOverride(kind);
+        ShowWindow();
     }
 
     private void QuitInterface()

@@ -78,13 +78,25 @@ public sealed class DesktopExperienceViewTests
     {
         var icon = TrayIconImage.Create();
         var show = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
+        var pause = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
+        var direct = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
+        var proxy = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
         var quit = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
-        var menu = DesktopLifetimeController.CreateActionMenu(show, quit);
+        var menu = DesktopLifetimeController.CreateActionMenu(
+            show,
+            pause,
+            direct,
+            proxy,
+            quit);
 
         Assert.NotNull(icon);
         Assert.Collection(
             menu.Items,
             item => Assert.Equal("显示 NonProxy", Assert.IsType<NativeMenuItem>(item).Header),
+            item => Assert.IsType<NativeMenuItemSeparator>(item),
+            item => Assert.Equal("暂停 5 分钟…", Assert.IsType<NativeMenuItem>(item).Header),
+            item => Assert.Equal("全部直连 5 分钟…", Assert.IsType<NativeMenuItem>(item).Header),
+            item => Assert.Equal("全部代理 5 分钟…", Assert.IsType<NativeMenuItem>(item).Header),
             item => Assert.IsType<NativeMenuItemSeparator>(item),
             item => Assert.Equal(
                 "退出 NonProxy 界面",

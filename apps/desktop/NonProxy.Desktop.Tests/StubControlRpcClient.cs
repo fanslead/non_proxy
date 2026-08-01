@@ -15,6 +15,12 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public GetSystemStatusResponse StatusResponse { get; set; } = new();
 
+    public GetRuntimeOverrideStatusResponse RuntimeOverrideStatusResponse { get; set; } = new();
+
+    public SetRuntimeOverrideResponse SetRuntimeOverrideResponse { get; set; } = new();
+
+    public ClearRuntimeOverrideResponse ClearRuntimeOverrideResponse { get; set; } = new();
+
     public ListPoliciesResponse PoliciesResponse { get; set; } = new()
     {
         Page = new NonProxy.Common.V1.PageResponse(),
@@ -107,6 +113,12 @@ internal sealed class StubControlRpcClient : IControlRpcClient
 
     public ulong LastExpectedActiveSnapshotVersion { get; private set; }
 
+    public RuntimeOverrideMode LastRuntimeOverrideMode { get; private set; }
+
+    public TimeSpan LastRuntimeOverrideDuration { get; private set; }
+
+    public string? LastRuntimeOverrideOutboundId { get; private set; }
+
     public NetworkProfileSpec? LastUpsertedNetworkProfile { get; private set; }
 
     public string? LastDeletedNetworkProfileId { get; private set; }
@@ -122,6 +134,37 @@ internal sealed class StubControlRpcClient : IControlRpcClient
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(StatusResponse);
+    }
+
+    public Task<GetRuntimeOverrideStatusResponse> GetRuntimeOverrideStatusAsync(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(RuntimeOverrideStatusResponse);
+    }
+
+    public Task<SetRuntimeOverrideResponse> SetRuntimeOverrideAsync(
+        RuntimeOverrideMode mode,
+        TimeSpan duration,
+        string? outboundId,
+        ulong expectedActiveSnapshotVersion,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastRuntimeOverrideMode = mode;
+        LastRuntimeOverrideDuration = duration;
+        LastRuntimeOverrideOutboundId = outboundId;
+        LastExpectedActiveSnapshotVersion = expectedActiveSnapshotVersion;
+        return Task.FromResult(SetRuntimeOverrideResponse);
+    }
+
+    public Task<ClearRuntimeOverrideResponse> ClearRuntimeOverrideAsync(
+        ulong expectedActiveSnapshotVersion,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastExpectedActiveSnapshotVersion = expectedActiveSnapshotVersion;
+        return Task.FromResult(ClearRuntimeOverrideResponse);
     }
 
     public Task<ListPoliciesResponse> ListPoliciesAsync(

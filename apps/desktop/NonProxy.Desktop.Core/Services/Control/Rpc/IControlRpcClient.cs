@@ -8,6 +8,20 @@ public interface IControlRpcClient
     Task<GetSystemStatusResponse> GetSystemStatusAsync(
         CancellationToken cancellationToken);
 
+    Task<GetRuntimeOverrideStatusResponse> GetRuntimeOverrideStatusAsync(
+        CancellationToken cancellationToken);
+
+    Task<SetRuntimeOverrideResponse> SetRuntimeOverrideAsync(
+        NonProxy.Policy.V1.RuntimeOverrideMode mode,
+        TimeSpan duration,
+        string? outboundId,
+        ulong expectedActiveSnapshotVersion,
+        CancellationToken cancellationToken);
+
+    Task<ClearRuntimeOverrideResponse> ClearRuntimeOverrideAsync(
+        ulong expectedActiveSnapshotVersion,
+        CancellationToken cancellationToken);
+
     Task<ListPoliciesResponse> ListPoliciesAsync(
         string pageToken,
         CancellationToken cancellationToken);

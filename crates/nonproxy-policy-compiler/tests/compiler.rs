@@ -3,7 +3,7 @@ mod support;
 use nonproxy_model::{
     DecisionSpec, DomainMatchKind, FailureMode, NetworkFingerprint, NetworkFingerprintKind,
     NetworkMatcher, NetworkProfileBinding, NetworkProfileId, OutboundId, PolicySourceKind,
-    RouteAction,
+    RouteAction, RuntimeOverrideMode, RuntimeRoutingOverride,
 };
 use nonproxy_policy_compiler::{
     CompileCapabilities, CompileError, CompileRequest, OutboundCapabilities, PolicyCompiler,
@@ -63,6 +63,15 @@ fn network_policy() -> nonproxy_model::Policy {
         DecisionSpec::direct(),
         0,
     )
+}
+
+fn runtime_override(
+    mode: RuntimeOverrideMode,
+    outbound_id: Option<OutboundId>,
+    expires_at_unix_ms: u64,
+) -> RuntimeRoutingOverride {
+    RuntimeRoutingOverride::new(mode, outbound_id, expires_at_unix_ms)
+        .unwrap_or_else(|error| panic!("运行态覆盖 fixture 创建失败: {error}"))
 }
 
 #[test]
@@ -387,6 +396,97 @@ fn network_profile_catalog_is_authoritative_and_affects_content_hash() {
         first.metadata().content_hash(),
         second.metadata().content_hash()
     );
+}
+
+#[test]
+fn runtime_override_is_bound_into_v3_content_hash() {
+    let legacy_base = CompileRequest::new(
+        1,
+        1_000,
+        DecisionSpec::direct(),
+        Vec::new(),
+        CompileCapabilities::full(),
+    );
+    let version_three_base = legacy_base.clone().with_network_profiles(Vec::new());
+    let legacy = PolicyCompiler::compile(legacy_base);
+    let cleared = PolicyCompiler::compile(version_three_base.clone().with_runtime_override(None));
+    let paused = PolicyCompiler::compile(version_three_base.clone().with_runtime_override(Some(
+        runtime_override(RuntimeOverrideMode::Paused, None, 2_000),
+    )));
+    let later = PolicyCompiler::compile(version_three_base.with_runtime_override(Some(
+        runtime_override(RuntimeOverrideMode::Paused, None, 2_001),
+    )));
+    let (Ok(legacy), Ok(cleared), Ok(paused), Ok(later)) = (legacy, cleared, paused, later) else {
+        panic!("运行态覆盖哈希 fixture 编译失败");
+    };
+
+    assert_ne!(
+        legacy.metadata().content_hash(),
+        cleared.metadata().content_hash()
+    );
+    assert_ne!(
+        cleared.metadata().content_hash(),
+        paused.metadata().content_hash()
+    );
+    assert_ne!(
+        paused.metadata().content_hash(),
+        later.metadata().content_hash()
+    );
+    assert_eq!(
+        paused.metadata().content_hash(),
+        &[
+            0x6d, 0xe2, 0xc8, 0xf8, 0xde, 0xd0, 0xf9, 0x9c, 0x1b, 0x22, 0x9c, 0xaf, 0x35, 0x61,
+            0x3f, 0xb1, 0x03, 0x81, 0xeb, 0x8e, 0x68, 0x0f, 0x8d, 0xa4, 0xdc, 0xd0, 0xd7, 0x0a,
+            0xf1, 0x32, 0x6a, 0xb2,
+        ]
+    );
+    assert_eq!(
+        paused.runtime_override().map(RuntimeRoutingOverride::mode),
+        Some(RuntimeOverrideMode::Paused)
+    );
+}
+
+#[test]
+fn runtime_override_expiry_and_proxy_capability_are_validated() {
+    let expired = PolicyCompiler::compile(
+        CompileRequest::new(
+            1,
+            1_000,
+            DecisionSpec::direct(),
+            Vec::new(),
+            CompileCapabilities::full(),
+        )
+        .with_runtime_override(Some(runtime_override(
+            RuntimeOverrideMode::Direct,
+            None,
+            1_000,
+        ))),
+    );
+    let Err(expired) = expired else {
+        panic!("已到期覆盖不应编译成功");
+    };
+    assert!(conflict_codes(&expired).contains(&"NP_POLICY_RUNTIME_OVERRIDE_EXPIRY_INVALID"));
+
+    let missing_outbound =
+        OutboundId::new("missing").unwrap_or_else(|error| panic!("测试出口标识创建失败: {error}"));
+    let proxy = PolicyCompiler::compile(
+        CompileRequest::new(
+            1,
+            1_000,
+            DecisionSpec::direct(),
+            Vec::new(),
+            CompileCapabilities::full(),
+        )
+        .with_runtime_override(Some(runtime_override(
+            RuntimeOverrideMode::Proxy,
+            Some(missing_outbound),
+            2_000,
+        ))),
+    );
+    let Err(proxy) = proxy else {
+        panic!("缺少能力目录的代理覆盖不应编译成功");
+    };
+    assert!(conflict_codes(&proxy).contains(&"NP_POLICY_OUTBOUND_UNKNOWN"));
 }
 
 proptest! {

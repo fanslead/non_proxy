@@ -982,6 +982,55 @@ RPC 成功只表示配置已保存且快照进入
 类型；该批次写入必须整体回滚。普通用户可以点击“恢复默认直连”，该操作使用相同的
 鉴权、revision、编译、pending ACK 和事务边界，不通过直接改 UI 状态实现。
 
+### 11.6 限时运行态覆盖
+
+暂停、全部直连和全部代理不得修改 `routing_settings`。控制契约提供：
+
+```text
+GetRuntimeOverrideStatus
+SetRuntimeOverride(mode, duration, outbound_id, expected_active_snapshot_version)
+ClearRuntimeOverride(expected_active_snapshot_version)
+```
+
+桌面端固定提交 5 分钟，服务端只接受 1 秒到 1 小时且精确到毫秒的时长。`gatewayd` 在持有
+mutation gate 后读取当前 active 快照，以当前规则、能力、网络配置档和默认 decision 重建
+下一版本，并在同一个 `BEGIN IMMEDIATE` 事务内校验
+`expected_active_snapshot_version` 后写入唯一 pending 快照。该路径不更新
+`routing_settings` revision。已有 pending、活动版本变化、代理出口缺失或能力不足时均原子
+拒绝。
+
+`CompiledPolicyPayload.format_version = 3` 新增可选 `runtime_override`：
+
+```text
+RuntimeRoutingOverride
+  mode: PAUSED | DIRECT | PROXY
+  outbound_id: only for PROXY
+  expires_at: absolute UTC timestamp, millisecond precision
+```
+
+字段存在标记、模式、出口和绝对到期毫秒全部进入跨语言 canonical hash。v1/v2 仍可读取，
+但不得携带该字段。Compiler 要求 `created_at < expires_at <= created_at + 1h`，并验证强制
+代理出口覆盖目标平台所需的 TCP、UDP、IPv4 和 IPv6 能力。Rust 与 Swift 数据面都使用
+`now < expires_at` 的排他边界自行停止覆盖，不能依赖 UI 定时器或网关清理任务。
+
+运行时固定优先级为：
+
+1. 安全系统规则。
+2. 尚未到期的运行态覆盖。
+3. 普通 App、Destination、Network、Built-in 和 Default 规则。
+
+PAUSED 是旁路 disposition，不是 DIRECT decision。macOS Transparent Proxy 对该 disposition
+返回 `false`，让透明流量继续到系统最终目标；DNS Proxy 不能返回 `false` 终止 DNS flow，
+而是向 `gatewayd` 提交 `SYSTEM` DNS 请求且不生成策略决策证据。DIRECT 和 PROXY 生成
+fail-closed 强制 decision。Windows TCP 使用带 redirect records、但不绑定物理网卡的系统
+dialer；Windows UDP 使用未绑定物理接口的系统 socket；DIRECT 仍走单独的物理接口绑定
+路径。旁路流量不允许上报普通策略决策，避免把暂停冒充可验证 DIRECT/PROXY 证据。
+
+设置与取消都返回新的 `PENDING_ACK`。`GetRuntimeOverrideStatus` 分开返回 active、pending、
+active/pending 快照版本以及 `pending_clears_override`；桌面 UI 与托盘只把点击解释为待确认
+请求，Provider ACK 后才显示已生效，并始终展示绝对到期时间。完整决策见
+[ADR-0031](ADR/0031-time-bounded-runtime-routing-overrides.md)。
+
 ## 12. macOS Transparent Proxy 实现
 
 ### 12.1 文件拆分
@@ -1061,16 +1110,17 @@ failed
 2. 解析来源应用身份。
 3. 构造 `ConnectionContext`。
 4. 调用经过跨语言黄金向量验证的 Swift 纯函数策略运行时。
-5. 记录轻量 decision event。
-6. DIRECT：
+5. 若得到 PAUSED 旁路 disposition，返回 `false` 交回系统路由且不生成策略 decision event。
+6. 其余结果记录轻量 decision event。
+7. DIRECT：
    - 返回 `true`。
    - 选择当前首选物理网卡。
    - 使用设置了 `requiredInterface` 且禁止 tunnel/loopback 类型的连接转发。
    - 没有物理网卡或达到有界资源上限时以稳定错误码关闭。
-7. PROXY：
+8. PROXY：
    - 返回 `true`。
    - 建立本地 flow relay。
-8. BLOCK：
+9. BLOCK：
    - 返回 `true` 后用明确错误关闭。
 
 回调必须快速返回；代码签名解析和磁盘 IO 不得阻塞回调线程。身份解析使用缓存和异步预热。
@@ -1140,6 +1190,11 @@ DIRECT 与 PROXY 不共享解析结果缓存，避免：
 DIRECT DNS 请求必须携带当前首选物理网卡索引，`gatewayd` 在 UDP 和
 TCP socket 建连前绑定该网卡。Provider 无法确定物理网卡时返回
 `SERVFAIL`，不得退回未绑定的系统路由或偷偷经过 VPN。
+
+只有限时 PAUSED 覆盖可以明确请求 `SYSTEM` DNS。该请求不携带物理网卡索引，允许沿当前
+系统路由（包括仍启用的 VPN）访问系统 DNS 上游；它与 DIRECT 使用不同的 cache partition，
+也不生成普通策略决策记录。macOS `NEDNSProxyProvider` 拒绝 flow 会终止查询，因此不能用
+`handleNewFlow == false` 实现 DNS 暂停。
 
 ### 13.2 观察映射
 

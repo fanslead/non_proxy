@@ -150,7 +150,9 @@ public final class TransparentProxyProvider:
             )
             let decisionFinished = DispatchTime.now().uptimeNanoseconds
             let context = evaluation.context
-            let decision = evaluation.decision
+            guard case .decision(let decision) = evaluation.disposition else {
+                return false
+            }
             let observation = ProviderDecisionObservation(
                 flowID: UUID().uuidString.lowercased(),
                 context: context,

@@ -57,6 +57,8 @@ mod routing_gateway;
 mod routing_rpc;
 mod runtime_events;
 mod runtime_identity;
+mod runtime_override_gateway;
+mod runtime_override_rpc;
 mod runtime_policy;
 mod server;
 mod session_capability;

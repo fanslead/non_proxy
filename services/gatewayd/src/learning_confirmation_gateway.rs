@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use nonproxy_learning::{ConfirmationId, LearningSessionId};
 use nonproxy_model::{
     DecisionSpec, DomainMatchKind, DomainMatcher, DomainName, Policy, PolicyId, PolicyMatch,
-    PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction,
+    PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction, RuntimeRoutingOverride,
 };
 use nonproxy_storage::{
     DefaultRoute, LearningConfirmationReceipt, LearningPolicySelection, NetworkProfileReference,
@@ -15,7 +15,7 @@ use crate::{
     clock::unix_time_ms,
     outbound_capabilities,
     routing_gateway::decision_for_route,
-    snapshot_builder::{SnapshotBuildIdentity, build_snapshot},
+    snapshot_builder::{SnapshotBuildIdentity, SnapshotRoutingState, build_snapshot},
     snapshot_payload, system_policies,
 };
 
@@ -57,6 +57,7 @@ struct ConfirmationState {
     default_route: DefaultRoute,
     pending: Option<SnapshotRecord>,
     latest_snapshot_version: u64,
+    runtime_override: Option<RuntimeRoutingOverride>,
 }
 
 impl Gateway {
@@ -73,6 +74,17 @@ impl Gateway {
         let state = self
             .database
             .run(move |database| {
+                let active = database.snapshots().active()?;
+                let runtime_override = active
+                    .as_ref()
+                    .map(|record| {
+                        snapshot_payload::effective_runtime_override(
+                            record.artifact().payload(),
+                            now,
+                        )
+                    })
+                    .transpose()?
+                    .flatten();
                 Ok(ConfirmationState {
                     receipt: database.learning_confirmations().get(&lookup_id)?,
                     policies: database.policies().list()?,
@@ -81,6 +93,7 @@ impl Gateway {
                     default_route: database.routing_settings().get()?.route().clone(),
                     pending: database.snapshots().pending()?,
                     latest_snapshot_version: database.snapshots().latest_version()?.unwrap_or(0),
+                    runtime_override,
                 })
             })
             .await?;
@@ -121,7 +134,7 @@ impl Gateway {
             &proposed,
             &state.outbounds,
             &state.network_profiles,
-            default_decision,
+            SnapshotRoutingState::new(default_decision, state.runtime_override.clone()),
             SnapshotBuildIdentity::new(next_snapshot_version, now),
             &self.system_policy_config,
         )?;
@@ -166,7 +179,10 @@ impl Gateway {
                 &state.policies,
                 &state.outbounds,
                 &state.network_profiles,
-                &decision_for_route(&state.default_route)?,
+                SnapshotRoutingState::new(
+                    decision_for_route(&state.default_route)?,
+                    state.runtime_override.clone(),
+                ),
                 self.capabilities().clone(),
                 &self.system_policy_config,
             )? {
@@ -184,7 +200,10 @@ impl Gateway {
             &state.policies,
             &state.outbounds,
             &state.network_profiles,
-            decision_for_route(&state.default_route)?,
+            SnapshotRoutingState::new(
+                decision_for_route(&state.default_route)?,
+                state.runtime_override.clone(),
+            ),
             SnapshotBuildIdentity::new(next_version(state.latest_snapshot_version)?, now_unix_ms),
             &self.system_policy_config,
         )?;
@@ -365,7 +384,7 @@ fn snapshot_contains(
     policies: &[Policy],
     outbounds: &[OutboundReference],
     network_profiles: &[NetworkProfileReference],
-    default_decision: &DecisionSpec,
+    routing: SnapshotRoutingState,
     capabilities: nonproxy_policy_compiler::CompileCapabilities,
     system_policy_config: &system_policies::SystemPolicyConfig,
 ) -> Result<bool, GatewayError> {
@@ -378,8 +397,9 @@ fn snapshot_contains(
     let expected = snapshot_payload::encode(
         &policies,
         &capabilities,
-        default_decision,
+        routing.default_decision(),
         &network_profiles,
+        routing.runtime_override(),
     )?;
     Ok(snapshot.artifact().payload() == expected)
 }

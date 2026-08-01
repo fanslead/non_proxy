@@ -1,6 +1,7 @@
 import Foundation
 import NonProxyProviderContracts
 @testable import NonProxyProviderCore
+import SwiftProtobuf
 import XCTest
 
 final class ProviderPolicyRuntimeTests: XCTestCase {
@@ -61,9 +62,9 @@ final class ProviderPolicyRuntimeTests: XCTestCase {
         )
 
         XCTAssertEqual(evaluation.context.networkProfileID, "office")
-        XCTAssertEqual(evaluation.decision.result.action, .block)
-        XCTAssertEqual(evaluation.decision.matchedPolicyID, "office-direct")
-        XCTAssertEqual(evaluation.decision.reasonCode, "NP_POLICY_NETWORK_MATCH")
+        XCTAssertEqual(evaluation.decision?.result.action, .block)
+        XCTAssertEqual(evaluation.decision?.matchedPolicyID, "office-direct")
+        XCTAssertEqual(evaluation.decision?.reasonCode, "NP_POLICY_NETWORK_MATCH")
 
         let fallback = try runtime.evaluate(
             context: context(),
@@ -75,8 +76,90 @@ final class ProviderPolicyRuntimeTests: XCTestCase {
             ]
         )
         XCTAssertEqual(fallback.context.networkProfileID, "any-wifi")
-        XCTAssertEqual(fallback.decision.result.action, .direct)
-        XCTAssertNil(fallback.decision.matchedPolicyID)
+        XCTAssertEqual(fallback.decision?.result.action, .direct)
+        XCTAssertNil(fallback.decision?.matchedPolicyID)
+    }
+
+    func testPauseBypassesOnlyUntilItsAbsoluteExpiry() throws {
+        let runtime = ProviderPolicyRuntime()
+        try runtime.install(
+            try runtimeOverrideSnapshot(mode: .paused, expiresAtSeconds: 2)
+        )
+
+        let active = try runtime.evaluate(
+            context: context(),
+            at: Date(timeIntervalSince1970: 1.999)
+        )
+        guard case .bypass(let version, let reason) = active.disposition else {
+            return XCTFail("暂停覆盖应返回系统旁路")
+        }
+        XCTAssertEqual(version, 10)
+        XCTAssertEqual(reason, "NP_RUNTIME_OVERRIDE_PAUSED")
+
+        let expired = try runtime.evaluate(
+            context: context(),
+            at: Date(timeIntervalSince1970: 2)
+        )
+        XCTAssertEqual(expired.decision?.result.action, .block)
+        XCTAssertEqual(expired.decision?.reasonCode, "NP_POLICY_DEFAULT")
+    }
+
+    func testDirectAndProxyOverridesProduceFailClosedDecisions() throws {
+        let direct = ProviderPolicyRuntime()
+        try direct.install(
+            try runtimeOverrideSnapshot(mode: .direct, expiresAtSeconds: 2)
+        )
+        let directDecision = try direct.evaluate(
+            context: context(),
+            at: Date(timeIntervalSince1970: 1.5)
+        ).decision
+        XCTAssertEqual(directDecision?.result.action, .direct)
+        XCTAssertEqual(directDecision?.reasonCode, "NP_RUNTIME_OVERRIDE_DIRECT")
+
+        let proxy = ProviderPolicyRuntime()
+        try proxy.install(
+            try runtimeOverrideSnapshot(
+                mode: .proxy,
+                outboundID: "proxy",
+                expiresAtSeconds: 2
+            )
+        )
+        let proxyDecision = try proxy.evaluate(
+            context: context(),
+            at: Date(timeIntervalSince1970: 1.5)
+        ).decision
+        XCTAssertEqual(proxyDecision?.result.action, .proxy)
+        XCTAssertEqual(proxyDecision?.result.outboundID, "proxy")
+        XCTAssertEqual(proxyDecision?.result.failureMode, .closed)
+    }
+
+    func testSystemRuleStillWinsDuringPause() throws {
+        var policy = Nonproxy_Policy_V1_Policy()
+        policy.id = "system-global"
+        policy.displayName = "系统保护"
+        policy.sourceKind = .system
+        policy.match = Nonproxy_Policy_V1_PolicyMatch()
+        var blocked = SnapshotFixtures.directDecision()
+        blocked.action = .block
+        policy.decision = blocked
+        policy.enabled = true
+        policy.origin = .system
+        policy.revision = 1
+        let runtime = ProviderPolicyRuntime()
+        try runtime.install(
+            try runtimeOverrideSnapshot(
+                mode: .paused,
+                expiresAtSeconds: 2,
+                policies: [policy]
+            )
+        )
+
+        let evaluation = try runtime.evaluate(
+            context: context(),
+            at: Date(timeIntervalSince1970: 1.5)
+        )
+        XCTAssertEqual(evaluation.decision?.result.action, .block)
+        XCTAssertEqual(evaluation.decision?.reasonCode, "NP_POLICY_SYSTEM_MATCH")
     }
 
     private func verifiedSnapshot(
@@ -101,6 +184,39 @@ final class ProviderPolicyRuntimeTests: XCTestCase {
                 transport: .tcp,
                 port: 443
             )
+        )
+    }
+
+    private func runtimeOverrideSnapshot(
+        mode: Nonproxy_Policy_V1_RuntimeOverrideMode,
+        outboundID: String = "",
+        expiresAtSeconds: Int64,
+        policies: [Nonproxy_Policy_V1_Policy] = []
+    ) throws -> VerifiedPolicySnapshot {
+        var capabilities = SnapshotFixtures.fullCapabilities()
+        if mode == .proxy {
+            var outbound = Nonproxy_Policy_V1_OutboundCapabilitySpec()
+            outbound.outboundID = outboundID
+            outbound.transports = [.tcp, .udp]
+            outbound.ipFamilies = [.ipv4, .ipv6]
+            capabilities.outbounds = [outbound]
+        }
+        var runtimeOverride = Nonproxy_Policy_V1_RuntimeRoutingOverride()
+        runtimeOverride.mode = mode
+        runtimeOverride.outboundID = outboundID
+        var expiresAt = Google_Protobuf_Timestamp()
+        expiresAt.seconds = expiresAtSeconds
+        runtimeOverride.expiresAt = expiresAt
+        var blocked = SnapshotFixtures.directDecision()
+        blocked.action = .block
+        var payload = SnapshotFixtures.payload(
+            policies: policies,
+            capabilities: capabilities,
+            defaultDecision: blocked
+        )
+        payload.runtimeOverride = runtimeOverride
+        return try SnapshotValidator.validate(
+            SnapshotFixtures.snapshot(payload: payload, version: 10)
         )
     }
 

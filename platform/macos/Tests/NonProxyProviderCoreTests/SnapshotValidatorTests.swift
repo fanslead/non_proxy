@@ -1,6 +1,7 @@
 import Foundation
 import NonProxyProviderContracts
 @testable import NonProxyProviderCore
+import SwiftProtobuf
 import XCTest
 
 final class SnapshotValidatorTests: XCTestCase {
@@ -15,6 +16,7 @@ final class SnapshotValidatorTests: XCTestCase {
 
     func testCanonicalHasherMatchesRustGoldenVector() throws {
         var payload = SnapshotFixtures.payload()
+        payload.formatVersion = SnapshotValidator.networkProfilePayloadVersion
         payload.capabilities = Nonproxy_Policy_V1_CompileCapabilitySet()
 
         let hash = try CanonicalSnapshotHasher.hash(
@@ -25,6 +27,28 @@ final class SnapshotValidatorTests: XCTestCase {
         XCTAssertEqual(
             hash,
             Data(hex: "e69cae04e22406132514bc8386d7e18e4204369b9eaf3582ea0f2565ec3e2f78")
+        )
+    }
+
+    func testRuntimeOverrideHasherMatchesRustGoldenVector() throws {
+        var runtimeOverride = Nonproxy_Policy_V1_RuntimeRoutingOverride()
+        runtimeOverride.mode = .paused
+        var expiresAt = Google_Protobuf_Timestamp()
+        expiresAt.seconds = 2
+        runtimeOverride.expiresAt = expiresAt
+        var payload = SnapshotFixtures.payload(
+            capabilities: Nonproxy_Policy_V1_CompileCapabilitySet()
+        )
+        payload.runtimeOverride = runtimeOverride
+
+        let hash = try CanonicalSnapshotHasher.hash(
+            schemaVersion: 1,
+            payload: payload
+        )
+
+        XCTAssertEqual(
+            hash,
+            Data(hex: "6de2c8f8ded0f99c1b229caf35613fb10381eb8e680f8da4dcd0d70af1326ab2")
         )
     }
 
@@ -39,6 +63,21 @@ final class SnapshotValidatorTests: XCTestCase {
             verified.payload.formatVersion,
             SnapshotValidator.legacyPayloadVersion
         )
+    }
+
+    func testAcceptsVersionTwoPayloadWithoutRuntimeOverride() throws {
+        var payload = SnapshotFixtures.payload()
+        payload.formatVersion = SnapshotValidator.networkProfilePayloadVersion
+
+        let verified = try SnapshotValidator.validate(
+            SnapshotFixtures.snapshot(payload: payload)
+        )
+
+        XCTAssertEqual(
+            verified.payload.formatVersion,
+            SnapshotValidator.networkProfilePayloadVersion
+        )
+        XCTAssertFalse(verified.payload.hasRuntimeOverride)
     }
 
     func testNetworkCatalogIsValidatedAndCoveredByHash() throws {
@@ -110,6 +149,54 @@ final class SnapshotValidatorTests: XCTestCase {
         let snapshot = try SnapshotFixtures.snapshot(payload: payload)
 
         XCTAssertThrowsError(try SnapshotValidator.validate(snapshot))
+    }
+
+    func testRuntimeOverrideIsValidatedAndCoveredByHash() throws {
+        var runtimeOverride = Nonproxy_Policy_V1_RuntimeRoutingOverride()
+        runtimeOverride.mode = .paused
+        var expiresAt = Google_Protobuf_Timestamp()
+        expiresAt.seconds = 2
+        runtimeOverride.expiresAt = expiresAt
+        var payload = SnapshotFixtures.payload()
+        payload.runtimeOverride = runtimeOverride
+        var snapshot = try SnapshotFixtures.snapshot(payload: payload)
+
+        var tampered = payload
+        tampered.runtimeOverride.mode = .direct
+        snapshot.payload = try tampered.serializedData()
+
+        XCTAssertThrowsError(try SnapshotValidator.validate(snapshot))
+    }
+
+    func testRejectsRuntimeOverrideWithoutSnapshotCreationTime() throws {
+        var runtimeOverride = Nonproxy_Policy_V1_RuntimeRoutingOverride()
+        runtimeOverride.mode = .paused
+        var expiresAt = Google_Protobuf_Timestamp()
+        expiresAt.seconds = 2
+        runtimeOverride.expiresAt = expiresAt
+        var payload = SnapshotFixtures.payload()
+        payload.runtimeOverride = runtimeOverride
+        var snapshot = try SnapshotFixtures.snapshot(payload: payload)
+        snapshot.metadata.clearCreatedAt()
+
+        XCTAssertThrowsError(try SnapshotValidator.validate(snapshot))
+    }
+
+    func testRejectsProxyOverrideWithoutKnownCapableOutbound() throws {
+        var runtimeOverride = Nonproxy_Policy_V1_RuntimeRoutingOverride()
+        runtimeOverride.mode = .proxy
+        runtimeOverride.outboundID = "missing"
+        var expiresAt = Google_Protobuf_Timestamp()
+        expiresAt.seconds = 2
+        runtimeOverride.expiresAt = expiresAt
+        var payload = SnapshotFixtures.payload()
+        payload.runtimeOverride = runtimeOverride
+
+        XCTAssertThrowsError(
+            try SnapshotValidator.validate(
+                SnapshotFixtures.snapshot(payload: payload)
+            )
+        )
     }
 }
 

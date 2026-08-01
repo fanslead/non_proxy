@@ -12,6 +12,7 @@ public sealed partial class DashboardViewModel : LoadableViewModel
 {
     private readonly IPlatformInformation _platformInformation;
     private readonly ISystemStatusService _statusService;
+    private readonly IRuntimeOverrideService _runtimeOverrideService;
     private readonly ISystemComponentInstaller _componentInstaller;
     private readonly IOutboundService _outboundService;
     private readonly IAdapterManagementService _adapterService;
@@ -40,6 +41,7 @@ public sealed partial class DashboardViewModel : LoadableViewModel
     public DashboardViewModel(
         IPlatformInformation platformInformation,
         ISystemStatusService statusService,
+        IRuntimeOverrideService runtimeOverrideService,
         ISystemComponentInstaller componentInstaller,
         IOutboundService outboundService,
         IAdapterManagementService adapterService,
@@ -48,6 +50,7 @@ public sealed partial class DashboardViewModel : LoadableViewModel
     {
         _platformInformation = platformInformation;
         _statusService = statusService;
+        _runtimeOverrideService = runtimeOverrideService;
         _componentInstaller = componentInstaller;
         _outboundService = outboundService;
         _adapterService = adapterService;
@@ -70,6 +73,20 @@ public sealed partial class DashboardViewModel : LoadableViewModel
         RefreshRuntimeCommand = new AsyncRelayCommand(
             RefreshRuntimeAsync,
             AsyncRelayCommandOptions.None);
+        RequestPauseCommand = new RelayCommand(
+            () => RequestRuntimeOverride(RuntimeOverrideKind.Paused));
+        RequestDirectOverrideCommand = new RelayCommand(
+            () => RequestRuntimeOverride(RuntimeOverrideKind.Direct));
+        RequestProxyOverrideCommand = new RelayCommand(
+            () => RequestRuntimeOverride(RuntimeOverrideKind.Proxy));
+        CancelRuntimeOverrideCommand = new RelayCommand(
+            () => EmergencyConfirmation = null);
+        ConfirmRuntimeOverrideCommand = new AsyncRelayCommand(
+            ConfirmRuntimeOverrideAsync,
+            AsyncRelayCommandOptions.None);
+        ClearRuntimeOverrideCommand = new AsyncRelayCommand(
+            ClearRuntimeOverrideAsync,
+            AsyncRelayCommandOptions.None);
     }
 
     public string PlatformLabel => _platformInformation.DisplayName;
@@ -86,8 +103,6 @@ public sealed partial class DashboardViewModel : LoadableViewModel
 
     public IRelayCommand<WorkspaceDestination?> NavigateSetupCommand { get; }
 
-    public IAsyncRelayCommand RefreshRuntimeCommand { get; }
-
     protected override async Task LoadCoreAsync(CancellationToken cancellationToken)
     {
         var overviewTask = _statusService.GetOverviewAsync(cancellationToken);
@@ -97,10 +112,18 @@ public sealed partial class DashboardViewModel : LoadableViewModel
         var adaptersTask = TryReadAsync(
             _adapterService.ListAsync,
             cancellationToken);
-        await Task.WhenAll(overviewTask, outboundsTask, adaptersTask);
+        var runtimeOverrideTask = TryReadAsync(
+            _runtimeOverrideService.GetStatusAsync,
+            cancellationToken);
+        await Task.WhenAll(
+            overviewTask,
+            outboundsTask,
+            adaptersTask,
+            runtimeOverrideTask);
         var overview = await overviewTask;
         _lastOutbounds = await outboundsTask;
         _lastAdapters = await adaptersTask;
+        _lastRuntimeOverride = await runtimeOverrideTask;
         ApplyOverview(overview);
     }
 
@@ -124,6 +147,10 @@ public sealed partial class DashboardViewModel : LoadableViewModel
             overview,
             _lastOutbounds,
             _lastAdapters);
+        RuntimeOverride = RuntimeOverridePanelState.Build(
+            _lastRuntimeOverride,
+            _lastOutbounds);
+        ScheduleRuntimeOverrideExpiryRefresh();
     }
 
     public void SetLiveConnectionState(ConnectionState state)
@@ -217,14 +244,6 @@ public sealed partial class DashboardViewModel : LoadableViewModel
         {
             _navigator.NavigateTo(value);
         }
-    }
-
-    private Task RefreshRuntimeAsync(CancellationToken cancellationToken)
-    {
-        return RunOperationAsync(
-            async token => ApplyOverview(
-                await _statusService.GetOverviewAsync(token)),
-            cancellationToken);
     }
 
     private static async Task<OptionalRead<T>> TryReadAsync<T>(

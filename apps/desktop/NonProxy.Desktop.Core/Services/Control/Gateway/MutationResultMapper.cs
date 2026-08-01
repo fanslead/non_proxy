@@ -79,9 +79,12 @@ public static class MutationResultMapper
         {
             "NP_POLICY_REVISION_CONFLICT" => "规则已被其他操作修改，请刷新后重试。",
             "NP_SNAPSHOT_ALREADY_PENDING" => "已有快照等待系统组件确认，请稍后再发布。",
-            "NP_SNAPSHOT_ACTIVE_VERSION_CONFLICT" => "当前生效配置已经变化，请刷新后重新确认恢复目标。",
+            "NP_SNAPSHOT_ACTIVE_VERSION_CONFLICT" => "当前生效配置已经变化，请刷新后重新确认本次操作。",
             "NP_POLICY_COMPILE_REJECTED" => "规则之间存在冲突，请检查后重试。",
-            "NP_REQUEST_INVALID" => "规则内容无效，请检查输入。",
+            "NP_RUNTIME_OVERRIDE_NOT_ACTIVE" => "当前没有需要取消的限时运行模式。",
+            "NP_RUNTIME_OVERRIDE_DURATION_INVALID" => "限时运行时长必须在 1 秒到 1 小时之间。",
+            "NP_RUNTIME_OVERRIDE_ACTIVE_SNAPSHOT_MISSING" => "当前没有活动快照，无法切换限时运行模式。",
+            "NP_REQUEST_INVALID" => "请求内容无效，请检查输入。",
             "NP_STORAGE_FAILURE" => "规则存储暂时不可用。",
             _ => "控制服务没有接受本次操作。",
         };

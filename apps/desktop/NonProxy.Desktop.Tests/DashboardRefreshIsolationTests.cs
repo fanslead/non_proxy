@@ -13,11 +13,13 @@ public sealed class DashboardRefreshIsolationTests
         var status = new CountingStatusService();
         var outbounds = new CountingOutboundService();
         var adapters = new CountingAdapterService();
+        var runtimeOverride = new CountingRuntimeOverrideService();
         using var services = TestPlatformServices.Create(configure: registrations =>
         {
             registrations.AddSingleton<ISystemStatusService>(status);
             registrations.AddSingleton<IOutboundService>(outbounds);
             registrations.AddSingleton<IAdapterManagementService>(adapters);
+            registrations.AddSingleton<IRuntimeOverrideService>(runtimeOverride);
         });
         var viewModel = services.GetRequiredService<DashboardViewModel>();
 
@@ -27,6 +29,7 @@ public sealed class DashboardRefreshIsolationTests
         Assert.Equal(2, status.ReadCount);
         Assert.Equal(1, outbounds.ReadCount);
         Assert.Equal(1, adapters.ReadCount);
+        Assert.Equal(2, runtimeOverride.ReadCount);
     }
 
     [Fact]
@@ -62,6 +65,28 @@ public sealed class DashboardRefreshIsolationTests
                     NonProxy.Desktop.Core.Platform.SystemComponentStatus.NotInstalled,
                     "测试组件未安装")));
         }
+    }
+
+    private sealed class CountingRuntimeOverrideService : IRuntimeOverrideService
+    {
+        public int ReadCount { get; private set; }
+
+        public Task<RuntimeOverrideStatus> GetStatusAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ReadCount++;
+            return Task.FromResult(RuntimeOverrideStatus.Unavailable);
+        }
+
+        public Task<ApplyResult> SetAsync(
+            RuntimeOverrideKind kind,
+            string? outboundId,
+            TimeSpan duration,
+            CancellationToken cancellationToken) => throw Unused();
+
+        public Task<ApplyResult> ClearAsync(
+            CancellationToken cancellationToken) => throw Unused();
     }
 
     internal sealed class CountingOutboundService : IOutboundService

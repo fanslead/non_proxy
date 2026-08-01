@@ -121,6 +121,21 @@ message DecisionSpec {
   nonproxy.common.v1.FailureMode failure_mode = 3;
 }
 
+// RuntimeOverrideMode 表示不改写持久默认路由的有时限紧急覆盖。
+enum RuntimeOverrideMode {
+  RUNTIME_OVERRIDE_MODE_UNSPECIFIED = 0;
+  RUNTIME_OVERRIDE_MODE_PAUSED = 1;
+  RUNTIME_OVERRIDE_MODE_DIRECT = 2;
+  RUNTIME_OVERRIDE_MODE_PROXY = 3;
+}
+
+// RuntimeRoutingOverride 随不可变快照分发，并由数据面在到期时自行停止生效。
+message RuntimeRoutingOverride {
+  RuntimeOverrideMode mode = 1;
+  string outbound_id = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
 // Policy 是控制面可编辑的权威策略对象。
 message Policy {
   string id = 1;
@@ -186,6 +201,7 @@ message CompiledPolicyPayload {
   CompileCapabilitySet capabilities = 3;
   DecisionSpec default_decision = 4;
   repeated NetworkProfileBinding network_profiles = 5;
+  RuntimeRoutingOverride runtime_override = 6;
 }
 
 // Decision 描述一次纯策略判定，不等同于路径或出口证据。

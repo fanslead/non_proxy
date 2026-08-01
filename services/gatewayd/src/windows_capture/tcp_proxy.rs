@@ -6,7 +6,7 @@ use std::{
 use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_model::{ConnectionContext, Destination, FailureMode, RouteAction, Transport};
 use nonproxy_outbound::{OutboundError, TcpDialer};
-use nonproxy_policy::PolicyEngine;
+use nonproxy_policy::{PolicyEngine, PolicyEvaluation};
 use nonproxy_windows_network::PhysicalInterfaceCatalog;
 use nonproxy_windows_wfp::query_redirect_metadata;
 use tokio::{
@@ -174,8 +174,16 @@ async fn handle_connection(
         .ok_or_else(|| GatewayError::WindowsDataPlane("没有可用的活动策略快照".to_owned()))?;
     let observed_at_unix_ms = unix_time_ms()?;
     let decision_started = Instant::now();
-    let decision = PolicyEngine::decide(&snapshot, &context);
+    let evaluation = PolicyEngine::evaluate_at(&snapshot, &context, observed_at_unix_ms);
     let decision_latency_micros = elapsed_micros(decision_started);
+    if let PolicyEvaluation::Bypass { .. } = evaluation {
+        let dialer = RedirectTcpDialer::new(metadata.records());
+        let mut outbound = dialer.connect(&target).await.map_err(data_plane_error)?;
+        return relay(&mut inbound, &mut outbound).await;
+    }
+    let PolicyEvaluation::Decision(decision) = evaluation else {
+        unreachable!("旁路判定已提前返回")
+    };
     let observation = DecisionObservation::new(
         "windows-wfp",
         policies.provider_generation(),

@@ -6,8 +6,10 @@ public enum SnapshotValidator {
     public static let schemaVersion: UInt32 = 1
     public static let payloadFormat = "nonproxy.compiled-policy.v1"
     public static let legacyPayloadVersion: UInt32 = 1
-    public static let payloadVersion: UInt32 = 2
+    public static let networkProfilePayloadVersion: UInt32 = 2
+    public static let payloadVersion: UInt32 = 3
     public static let maximumPayloadBytes = 16 * 1024 * 1024
+    private static let maximumRuntimeOverrideMilliseconds: UInt64 = 60 * 60 * 1_000
 
     public static func validate(
         _ snapshot: Nonproxy_Policy_V1_CompiledPolicySnapshot
@@ -59,6 +61,7 @@ public enum SnapshotValidator {
         against snapshot: Nonproxy_Policy_V1_CompiledPolicySnapshot
     ) throws {
         guard payload.formatVersion == legacyPayloadVersion
+                || payload.formatVersion == networkProfilePayloadVersion
                 || payload.formatVersion == payloadVersion,
               payload.hasCapabilities,
               payload.hasDefaultDecision,
@@ -85,6 +88,7 @@ public enum SnapshotValidator {
             try SnapshotContentValidator.validatePolicy(policy)
         }
         try validateNetworkProfiles(payload)
+        try validateRuntimeOverride(payload, against: snapshot)
         try validateCapabilities(
             payload.capabilities,
             policies: payload.policies,
@@ -99,7 +103,7 @@ public enum SnapshotValidator {
     private static func validateNetworkProfiles(
         _ payload: Nonproxy_Policy_V1_CompiledPolicyPayload
     ) throws {
-        if payload.formatVersion == legacyPayloadVersion {
+        if payload.formatVersion < networkProfilePayloadVersion {
             guard payload.networkProfiles.isEmpty else {
                 throw ProviderError.invalidSnapshot("旧版策略快照包含网络配置档目录")
             }
@@ -124,6 +128,59 @@ public enum SnapshotValidator {
                 throw ProviderError.invalidSnapshot("网络规则引用了未知配置档")
             }
         }
+    }
+
+    private static func validateRuntimeOverride(
+        _ payload: Nonproxy_Policy_V1_CompiledPolicyPayload,
+        against snapshot: Nonproxy_Policy_V1_CompiledPolicySnapshot
+    ) throws {
+        if payload.formatVersion < payloadVersion {
+            guard !payload.hasRuntimeOverride else {
+                throw ProviderError.invalidSnapshot("旧版策略快照包含运行态覆盖")
+            }
+            return
+        }
+        guard payload.hasRuntimeOverride else {
+            return
+        }
+        let runtimeOverride = payload.runtimeOverride
+        guard runtimeOverride.hasExpiresAt,
+              snapshot.metadata.hasCreatedAt
+        else {
+            throw ProviderError.invalidSnapshot("运行态覆盖缺少时间边界")
+        }
+        let expiresAt = try unixMilliseconds(runtimeOverride.expiresAt)
+        let createdAt = try unixMilliseconds(snapshot.metadata.createdAt)
+        guard expiresAt > createdAt,
+              expiresAt - createdAt <= maximumRuntimeOverrideMilliseconds
+        else {
+            throw ProviderError.invalidSnapshot("运行态覆盖到期时间超出允许范围")
+        }
+        try SnapshotContentValidator.validateRuntimeOverride(
+            runtimeOverride,
+            capabilities: payload.capabilities
+        )
+    }
+
+    private static func unixMilliseconds(
+        _ timestamp: Google_Protobuf_Timestamp
+    ) throws -> UInt64 {
+        guard timestamp.seconds >= 0,
+              timestamp.nanos >= 0,
+              timestamp.nanos < 1_000_000_000,
+              timestamp.nanos % 1_000_000 == 0,
+              let seconds = UInt64(exactly: timestamp.seconds)
+        else {
+            throw ProviderError.invalidSnapshot("策略时间戳无效")
+        }
+        let (milliseconds, multiplyOverflow) = seconds.multipliedReportingOverflow(by: 1_000)
+        let (total, addOverflow) = milliseconds.addingReportingOverflow(
+            UInt64(timestamp.nanos / 1_000_000)
+        )
+        guard !multiplyOverflow, !addOverflow, total > 0 else {
+            throw ProviderError.invalidSnapshot("策略时间戳无效")
+        }
+        return total
     }
 
     private static func validateCapabilities(

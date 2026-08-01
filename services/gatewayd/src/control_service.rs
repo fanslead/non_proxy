@@ -24,7 +24,7 @@ use crate::{
     decision_rpc, diagnostics_export, exit_probe, exit_probe_rpc, learning_rpc,
     network_profile_rpc, outbound_import_service, outbound_probe,
     proto_policy::{policy_from_proto, policy_to_proto},
-    routing_rpc, system_rpc,
+    routing_rpc, runtime_override_rpc, system_rpc,
 };
 
 #[tonic::async_trait]
@@ -262,6 +262,29 @@ impl ControlService for ControlRpcService {
                 result: Some(result),
             },
         ))
+    }
+
+    async fn get_runtime_override_status(
+        &self,
+        _request: Request<control_proto::GetRuntimeOverrideStatusRequest>,
+    ) -> Result<Response<control_proto::GetRuntimeOverrideStatusResponse>, Status> {
+        Ok(Response::new(runtime_override_rpc::status(self).await?))
+    }
+
+    async fn set_runtime_override(
+        &self,
+        request: Request<control_proto::SetRuntimeOverrideRequest>,
+    ) -> Result<Response<control_proto::SetRuntimeOverrideResponse>, Status> {
+        let response = runtime_override_rpc::set(self, request.into_inner()).await?;
+        Ok(Response::new(response))
+    }
+
+    async fn clear_runtime_override(
+        &self,
+        request: Request<control_proto::ClearRuntimeOverrideRequest>,
+    ) -> Result<Response<control_proto::ClearRuntimeOverrideResponse>, Status> {
+        let response = runtime_override_rpc::clear(self, request.into_inner()).await?;
+        Ok(Response::new(response))
     }
 
     async fn list_outbounds(

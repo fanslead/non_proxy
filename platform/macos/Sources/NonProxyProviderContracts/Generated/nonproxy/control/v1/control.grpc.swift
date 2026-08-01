@@ -215,6 +215,45 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "GetRuntimeOverrideStatus" metadata.
+        public enum GetRuntimeOverrideStatus: Sendable {
+            /// Request type for "GetRuntimeOverrideStatus".
+            public typealias Input = Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest
+            /// Response type for "GetRuntimeOverrideStatus".
+            public typealias Output = Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse
+            /// Descriptor for "GetRuntimeOverrideStatus".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "GetRuntimeOverrideStatus",
+                type: .unary
+            )
+        }
+        /// Namespace for "SetRuntimeOverride" metadata.
+        public enum SetRuntimeOverride: Sendable {
+            /// Request type for "SetRuntimeOverride".
+            public typealias Input = Nonproxy_Control_V1_SetRuntimeOverrideRequest
+            /// Response type for "SetRuntimeOverride".
+            public typealias Output = Nonproxy_Control_V1_SetRuntimeOverrideResponse
+            /// Descriptor for "SetRuntimeOverride".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "SetRuntimeOverride",
+                type: .unary
+            )
+        }
+        /// Namespace for "ClearRuntimeOverride" metadata.
+        public enum ClearRuntimeOverride: Sendable {
+            /// Request type for "ClearRuntimeOverride".
+            public typealias Input = Nonproxy_Control_V1_ClearRuntimeOverrideRequest
+            /// Response type for "ClearRuntimeOverride".
+            public typealias Output = Nonproxy_Control_V1_ClearRuntimeOverrideResponse
+            /// Descriptor for "ClearRuntimeOverride".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "ClearRuntimeOverride",
+                type: .unary
+            )
+        }
         /// Namespace for "StartLearningSession" metadata.
         public enum StartLearningSession: Sendable {
             /// Request type for "StartLearningSession".
@@ -362,6 +401,9 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             TestOutbound.descriptor,
             VerifyExit.descriptor,
             SetDefaultRoute.descriptor,
+            GetRuntimeOverrideStatus.descriptor,
+            SetRuntimeOverride.descriptor,
+            ClearRuntimeOverride.descriptor,
             StartLearningSession.descriptor,
             RecordLearningObservation.descriptor,
             ListLearningCandidates.descriptor,
@@ -678,6 +720,63 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_SetDefaultRouteResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_SetDefaultRouteResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "GetRuntimeOverrideStatus" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func getRuntimeOverrideStatus<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "SetRuntimeOverride" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_SetRuntimeOverrideRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_SetRuntimeOverrideRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_SetRuntimeOverrideResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func setRuntimeOverride<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_SetRuntimeOverrideRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_SetRuntimeOverrideRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_SetRuntimeOverrideResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_SetRuntimeOverrideResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "ClearRuntimeOverride" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ClearRuntimeOverrideRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ClearRuntimeOverrideRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ClearRuntimeOverrideResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func clearRuntimeOverride<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ClearRuntimeOverrideRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ClearRuntimeOverrideRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ClearRuntimeOverrideResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ClearRuntimeOverrideResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "StartLearningSession" method.
@@ -1334,6 +1433,96 @@ extension Nonproxy_Control_V1_ControlService {
             try await self.client.unary(
                 request: request,
                 descriptor: Nonproxy_Control_V1_ControlService.Method.SetDefaultRoute.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "GetRuntimeOverrideStatus" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func getRuntimeOverrideStatus<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.GetRuntimeOverrideStatus.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "SetRuntimeOverride" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_SetRuntimeOverrideRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_SetRuntimeOverrideRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_SetRuntimeOverrideResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func setRuntimeOverride<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_SetRuntimeOverrideRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_SetRuntimeOverrideRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_SetRuntimeOverrideResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_SetRuntimeOverrideResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.SetRuntimeOverride.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "ClearRuntimeOverride" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ClearRuntimeOverrideRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ClearRuntimeOverrideRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ClearRuntimeOverrideResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func clearRuntimeOverride<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ClearRuntimeOverrideRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ClearRuntimeOverrideRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ClearRuntimeOverrideResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ClearRuntimeOverrideResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.ClearRuntimeOverride.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -2014,6 +2203,81 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_SetDefaultRouteRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_SetDefaultRouteResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "GetRuntimeOverrideStatus" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func getRuntimeOverrideStatus<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.getRuntimeOverrideStatus(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "SetRuntimeOverride" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_SetRuntimeOverrideRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setRuntimeOverride<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_SetRuntimeOverrideRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_SetRuntimeOverrideResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.setRuntimeOverride(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_SetRuntimeOverrideRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_SetRuntimeOverrideResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ClearRuntimeOverride" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_ClearRuntimeOverrideRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func clearRuntimeOverride<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ClearRuntimeOverrideRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ClearRuntimeOverrideResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.clearRuntimeOverride(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_ClearRuntimeOverrideRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_ClearRuntimeOverrideResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -2700,6 +2964,93 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.setDefaultRoute(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "GetRuntimeOverrideStatus" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func getRuntimeOverrideStatus<Result>(
+        _ message: Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_GetRuntimeOverrideStatusResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_GetRuntimeOverrideStatusRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.getRuntimeOverrideStatus(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "SetRuntimeOverride" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setRuntimeOverride<Result>(
+        _ message: Nonproxy_Control_V1_SetRuntimeOverrideRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_SetRuntimeOverrideResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_SetRuntimeOverrideRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.setRuntimeOverride(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ClearRuntimeOverride" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func clearRuntimeOverride<Result>(
+        _ message: Nonproxy_Control_V1_ClearRuntimeOverrideRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ClearRuntimeOverrideResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_ClearRuntimeOverrideRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.clearRuntimeOverride(
             request: request,
             options: options,
             onResponse: handleResponse

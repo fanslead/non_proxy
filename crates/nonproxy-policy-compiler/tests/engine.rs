@@ -3,10 +3,13 @@ mod support;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use nonproxy_model::{
-    AppIdentity, ConnectionContext, DecisionSpec, DomainMatchKind, Platform, Policy,
-    PolicySourceKind, Transport,
+    AppIdentity, ConnectionContext, DecisionSpec, DomainMatchKind, FailureMode, OutboundId,
+    Platform, Policy, PolicySourceKind, RouteAction, RuntimeOverrideMode, RuntimeRoutingOverride,
+    Transport,
 };
-use nonproxy_policy::{CompiledPolicySnapshot, PolicyEngine};
+use nonproxy_policy::{
+    CompiledPolicySnapshot, OutboundCapabilities, PolicyEngine, PolicyEvaluation,
+};
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
 use support::{
     app_identity, app_match, cidr_match, context, destination, domain_match, matcher, must_policy,
@@ -25,6 +28,23 @@ fn compile(policies: Vec<Policy>) -> CompiledPolicySnapshot {
         Ok(value) => value,
         Err(error) => panic!("测试快照编译失败: {error:?}"),
     }
+}
+
+fn compile_with_override(
+    policies: Vec<Policy>,
+    runtime_override: RuntimeRoutingOverride,
+) -> CompiledPolicySnapshot {
+    PolicyCompiler::compile(
+        CompileRequest::new(
+            42,
+            100,
+            DecisionSpec::blocked(),
+            policies,
+            CompileCapabilities::full(),
+        )
+        .with_runtime_override(Some(runtime_override)),
+    )
+    .unwrap_or_else(|error| panic!("运行态覆盖测试快照编译失败: {error:?}"))
 }
 
 fn matched_id(snapshot: &CompiledPolicySnapshot, context: &ConnectionContext) -> Option<String> {
@@ -77,6 +97,142 @@ fn fixed_tiers_prefer_system_then_app_destination_then_app() {
         matched_id(&compile(vec![app, app_destination, system]), &request),
         Some("system".to_owned())
     );
+}
+
+#[test]
+fn system_rules_remain_authoritative_during_runtime_override() {
+    let system = must_policy(
+        "system",
+        PolicySourceKind::System,
+        nonproxy_model::PolicyMatch::global(),
+        DecisionSpec::blocked(),
+        -100,
+    );
+    let runtime_override = RuntimeRoutingOverride::new(RuntimeOverrideMode::Direct, None, 200)
+        .unwrap_or_else(|error| panic!("运行态覆盖创建失败: {error}"));
+    let snapshot = compile_with_override(vec![system], runtime_override);
+    let request = context(
+        "com.example.app",
+        Some("example.com"),
+        None,
+        443,
+        Transport::Tcp,
+    );
+
+    let PolicyEvaluation::Decision(decision) = PolicyEngine::evaluate_at(&snapshot, &request, 150)
+    else {
+        panic!("系统规则不应被暂停旁路");
+    };
+    assert_eq!(decision.result().action(), RouteAction::Block);
+    assert_eq!(decision.reason_code(), "NP_POLICY_SYSTEM_MATCH");
+}
+
+#[test]
+fn direct_override_precedes_user_rules_and_expires_without_snapshot_rebuild() {
+    let user = must_policy(
+        "blocked-site",
+        PolicySourceKind::Site,
+        matcher(
+            None,
+            Some(domain_match(DomainMatchKind::Suffix, "example.com")),
+            None,
+            None,
+            Vec::new(),
+            Vec::new(),
+        ),
+        DecisionSpec::blocked(),
+        100,
+    );
+    let runtime_override = RuntimeRoutingOverride::new(RuntimeOverrideMode::Direct, None, 200)
+        .unwrap_or_else(|error| panic!("运行态覆盖创建失败: {error}"));
+    let snapshot = compile_with_override(vec![user], runtime_override);
+    let request = context(
+        "com.example.app",
+        Some("api.example.com"),
+        None,
+        443,
+        Transport::Tcp,
+    );
+
+    let PolicyEvaluation::Decision(active) = PolicyEngine::evaluate_at(&snapshot, &request, 199)
+    else {
+        panic!("全部直连覆盖应产生决策");
+    };
+    let PolicyEvaluation::Decision(expired) = PolicyEngine::evaluate_at(&snapshot, &request, 200)
+    else {
+        panic!("覆盖到期后应恢复普通策略");
+    };
+    assert_eq!(active.result().action(), RouteAction::Direct);
+    assert_eq!(active.reason_code(), "NP_RUNTIME_OVERRIDE_DIRECT");
+    assert_eq!(expired.result().action(), RouteAction::Block);
+    assert_eq!(
+        expired.matched_policy_id().map(ToString::to_string),
+        Some("blocked-site".to_owned())
+    );
+}
+
+#[test]
+fn pause_is_a_time_bounded_bypass_instead_of_direct() {
+    let runtime_override = RuntimeRoutingOverride::new(RuntimeOverrideMode::Paused, None, 200)
+        .unwrap_or_else(|error| panic!("运行态覆盖创建失败: {error}"));
+    let snapshot = compile_with_override(Vec::new(), runtime_override);
+    let request = context(
+        "com.example.app",
+        Some("example.com"),
+        None,
+        443,
+        Transport::Tcp,
+    );
+
+    assert!(matches!(
+        PolicyEngine::evaluate_at(&snapshot, &request, 199),
+        PolicyEvaluation::Bypass {
+            snapshot_version: 42,
+            reason_code: "NP_RUNTIME_OVERRIDE_PAUSED"
+        }
+    ));
+    let PolicyEvaluation::Decision(expired) = PolicyEngine::evaluate_at(&snapshot, &request, 200)
+    else {
+        panic!("暂停到期后应恢复普通策略");
+    };
+    assert_eq!(expired.result().action(), RouteAction::Block);
+}
+
+#[test]
+fn proxy_override_is_fail_closed_and_uses_its_validated_outbound() {
+    let outbound = OutboundId::new("emergency-proxy")
+        .unwrap_or_else(|error| panic!("代理出口创建失败: {error}"));
+    let runtime_override =
+        RuntimeRoutingOverride::new(RuntimeOverrideMode::Proxy, Some(outbound.clone()), 200)
+            .unwrap_or_else(|error| panic!("代理覆盖创建失败: {error}"));
+    let snapshot = PolicyCompiler::compile(
+        CompileRequest::new(
+            42,
+            100,
+            DecisionSpec::blocked(),
+            Vec::new(),
+            CompileCapabilities::full()
+                .with_outbound(outbound.clone(), OutboundCapabilities::full()),
+        )
+        .with_runtime_override(Some(runtime_override)),
+    )
+    .unwrap_or_else(|error| panic!("代理覆盖测试快照编译失败: {error:?}"));
+    let request = context(
+        "com.example.app",
+        Some("example.com"),
+        None,
+        443,
+        Transport::Tcp,
+    );
+
+    let PolicyEvaluation::Decision(decision) = PolicyEngine::evaluate_at(&snapshot, &request, 199)
+    else {
+        panic!("全部代理覆盖应产生代理决策");
+    };
+    assert_eq!(decision.result().action(), RouteAction::Proxy);
+    assert_eq!(decision.result().outbound_id(), Some(&outbound));
+    assert_eq!(decision.result().failure_mode(), FailureMode::Closed);
+    assert_eq!(decision.reason_code(), "NP_RUNTIME_OVERRIDE_PROXY");
 }
 
 #[test]

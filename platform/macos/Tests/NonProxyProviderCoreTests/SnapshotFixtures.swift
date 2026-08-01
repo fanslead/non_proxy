@@ -1,5 +1,6 @@
 import Foundation
 import NonProxyProviderContracts
+import SwiftProtobuf
 @testable import NonProxyProviderCore
 
 enum SnapshotFixtures {
@@ -44,6 +45,9 @@ enum SnapshotFixtures {
         var metadata = Nonproxy_Policy_V1_PolicySnapshotMetadata()
         metadata.schemaVersion = 1
         metadata.snapshotVersion = version
+        var createdAt = Google_Protobuf_Timestamp()
+        createdAt.seconds = 1
+        metadata.createdAt = createdAt
         metadata.contentHash = try CanonicalSnapshotHasher.hash(
             schemaVersion: 1,
             payload: payload
