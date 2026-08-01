@@ -61,34 +61,39 @@ public sealed class AdapterTransportTests
     }
 
     [Fact]
-    public void WindowsEnvironmentOverridesDirectoryAndPipe()
+    public void WindowsProductionEndpointIgnoresAdapterEnvironmentOverrides()
     {
-        var stateDirectory = Path.Combine(
+        var localApplicationData = Path.Combine(
             Path.GetTempPath(),
             "nonproxy-windows-adapter-environment-test");
-        const string pipePath = @"\\.\pipe\NonProxy.Adapter.test-2";
         var previousStateDirectory = Environment.GetEnvironmentVariable(
             LocalAdapterEndpoint.StateDirectoryEnvironment);
         var previousPipePath = Environment.GetEnvironmentVariable(
-            LocalAdapterEndpoint.WindowsAdapterPipeEnvironment);
+            "NONPROXY_WINDOWS_ADAPTER_PIPE");
 
         try
         {
             Environment.SetEnvironmentVariable(
                 LocalAdapterEndpoint.StateDirectoryEnvironment,
-                stateDirectory);
+                Path.Combine(Path.GetTempPath(), "attacker-state"));
             Environment.SetEnvironmentVariable(
-                LocalAdapterEndpoint.WindowsAdapterPipeEnvironment,
-                pipePath);
+                "NONPROXY_WINDOWS_ADAPTER_PIPE",
+                @"\\.\pipe\NonProxy.Adapter.attacker");
 
-            var endpoint = LocalAdapterEndpoint.FromWindowsEnvironment(
-                LocalAdapterEndpoint.WindowsPipeForUserSid(WindowsUserSid),
-                Path.Combine(Path.GetTempPath(), "nonproxy-unused-default"));
+            var endpoint = WindowsAdapterEndpointFactory.CreateForUser(
+                localApplicationData,
+                WindowsUserSid);
 
             Assert.Null(endpoint.SocketPath);
-            Assert.Equal(pipePath, endpoint.NamedPipePath);
             Assert.Equal(
-                Path.Combine(stateDirectory, "adapter.capability"),
+                @"\\.\pipe\NonProxy.Adapter.S-1-5-21-1000-2000-3000-1001",
+                endpoint.NamedPipePath);
+            Assert.Equal(
+                Path.Combine(
+                    localApplicationData,
+                    "NonProxy",
+                    "adapter-host",
+                    "adapter.capability"),
                 endpoint.CapabilityPath);
             Assert.True(endpoint.IsConfigured);
         }
@@ -98,7 +103,7 @@ public sealed class AdapterTransportTests
                 LocalAdapterEndpoint.StateDirectoryEnvironment,
                 previousStateDirectory);
             Environment.SetEnvironmentVariable(
-                LocalAdapterEndpoint.WindowsAdapterPipeEnvironment,
+                "NONPROXY_WINDOWS_ADAPTER_PIPE",
                 previousPipePath);
         }
     }

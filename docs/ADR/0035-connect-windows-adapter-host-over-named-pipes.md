@@ -25,8 +25,8 @@ Windows 桌面端复用了客户端协同页面，但 adapter-host 只有 Unix U
 3. 桌面端使用独立 `IAdapterChannelFactory` 和 `FileAdapterCapabilityProvider`。控制面与
    Adapter 只共享通用命名管道客户端实现，不共享端点、令牌或 RPC 服务。
 4. SDDL 由当前 SID 确定性生成，只授予 SYSTEM、Administrators 和该用户完整访问；环境覆盖
-   在 Windows 生产入口全部拒绝，不能改写状态根、管道、SDDL 或包指纹，也不能退回
-   `Interactive Users`。运行身份中的包指纹
+   在 Windows 宿主和桌面生产入口全部拒绝，不能改写状态根、管道、SDDL 或包指纹，也不能
+   让两端解析出不同端点，不能退回 `Interactive Users`。运行身份中的包指纹
    在 Windows 默认取当前 adapter-host 可执行文件的 SHA-256，供后续升级就绪检查使用。
    状态目录、能力文件、运行身份、安装目录与事务材料使用同一组受保护 DACL 并在写入后枚举
    ACE 复验；重解析点失败关闭。能力轮换、运行身份和安装目录更新不再先删除旧文件，而是经

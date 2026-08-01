@@ -7,7 +7,6 @@ public sealed record LocalAdapterEndpoint(
 {
     public const string StateDirectoryEnvironment = "NONPROXY_ADAPTER_STATE_DIR";
     public const string SocketPathEnvironment = "NONPROXY_ADAPTER_SOCKET_PATH";
-    public const string WindowsAdapterPipeEnvironment = "NONPROXY_WINDOWS_ADAPTER_PIPE";
     private const string WindowsPipePrefix = @"\\.\pipe\NonProxy.";
     private const int MaximumWindowsSidLength = 184;
 
@@ -64,42 +63,6 @@ public sealed record LocalAdapterEndpoint(
         }
 
         return new LocalAdapterEndpoint(socketPath, capabilityPath);
-    }
-
-    public static LocalAdapterEndpoint FromWindowsEnvironment(
-        string defaultPipePath,
-        string? defaultStateDirectory = null)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(defaultPipePath);
-        ValidateWindowsPipe(defaultPipePath);
-        var stateDirectory = Environment.GetEnvironmentVariable(
-            StateDirectoryEnvironment);
-        if (string.IsNullOrWhiteSpace(stateDirectory))
-        {
-            stateDirectory = defaultStateDirectory;
-            if (string.IsNullOrWhiteSpace(stateDirectory))
-            {
-                var localApplicationData = Environment.GetFolderPath(
-                    Environment.SpecialFolder.LocalApplicationData);
-                if (string.IsNullOrWhiteSpace(localApplicationData))
-                {
-                    throw new InvalidOperationException(
-                        "无法定位 Windows 用户应用数据目录。");
-                }
-
-                stateDirectory = Path.Combine(
-                    localApplicationData,
-                    "NonProxy",
-                    "adapter-host");
-            }
-        }
-
-        var pipePath = Environment.GetEnvironmentVariable(
-            WindowsAdapterPipeEnvironment);
-        pipePath = string.IsNullOrWhiteSpace(pipePath)
-            ? defaultPipePath
-            : pipePath;
-        return FromWindowsStateDirectory(stateDirectory, pipePath);
     }
 
     public static LocalAdapterEndpoint FromWindowsStateDirectory(

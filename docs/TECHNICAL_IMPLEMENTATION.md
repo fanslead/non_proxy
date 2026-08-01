@@ -1626,8 +1626,9 @@ configuration verify 执行。投影只接受客户端能无损表达的单维 D
 Rust 和 C# 使用相同的规范 SID 规则生成端点；Session 0、服务 SID 与 SYSTEM/LocalService/NetworkService
 身份会失败关闭，显式 SDDL 也不得放宽当前用户 DACL。宿主先独占命名管道首实例，再轮换
 能力文件、打开事务状态和发布运行身份，避免登录任务与桌面即时启动竞态破坏存活实例令牌。
-Windows 进程入口拒绝状态目录、Socket、管道、SDDL 和包指纹环境覆盖，只使用当前用户
-LocalAppData、token SID 与自身哈希；测试通过显式构造器注入隔离路径。当前仓库
+Windows Adapter 宿主与桌面生产入口拒绝状态目录、Socket、管道、SDDL 和包指纹环境覆盖，
+只使用当前用户 LocalAppData、token SID 与自身哈希；Windows 桌面控制端点同样固定从
+ProgramData 和产品管道派生，不消费用户环境覆盖。测试通过显式构造器注入隔离路径。当前仓库
 Windows adapter-host 已进入固定发布者签名包；Users group 登录任务负责每个登录用户的长期
 实例，桌面端只从管理员安装元数据解析并复验受保护路径和 SHA-256 后补齐当前会话即时启动。
 这些源码仍需真实 Windows 任务、多用户 ACL 隔离和 RPC 验收，不能据此显示“产品可用”或伪成功。完整平台边界见

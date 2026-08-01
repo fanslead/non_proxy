@@ -1,5 +1,6 @@
 using NonProxy.Desktop.Core.Services.Control;
 using NonProxy.Desktop.Core.Services.Control.Transport;
+using NonProxy.Desktop.Windows;
 
 namespace NonProxy.Desktop.Tests;
 
@@ -42,33 +43,37 @@ public sealed class ControlTransportTests
     }
 
     [Fact]
-    public void WindowsEnvironmentOverridesDefaultDirectoryAndPipe()
+    public void WindowsProductionEndpointIgnoresControlEnvironmentOverrides()
     {
-        var stateDirectory = Path.Combine(
+        var commonApplicationData = Path.Combine(
             Path.GetTempPath(),
             "nonproxy-windows-environment-test");
-        const string pipePath = @"\\.\pipe\NonProxy.Control.test-2";
         var previousStateDirectory = Environment.GetEnvironmentVariable(
             LocalControlEndpoint.StateDirectoryEnvironment);
         var previousPipePath = Environment.GetEnvironmentVariable(
-            LocalControlEndpoint.WindowsControlPipeEnvironment);
+            "NONPROXY_WINDOWS_CONTROL_PIPE");
 
         try
         {
             Environment.SetEnvironmentVariable(
                 LocalControlEndpoint.StateDirectoryEnvironment,
-                stateDirectory);
+                Path.Combine(Path.GetTempPath(), "attacker-state"));
             Environment.SetEnvironmentVariable(
-                LocalControlEndpoint.WindowsControlPipeEnvironment,
-                pipePath);
+                "NONPROXY_WINDOWS_CONTROL_PIPE",
+                @"\\.\pipe\NonProxy.Control.attacker");
 
-            var endpoint = LocalControlEndpoint.FromWindowsEnvironment(
-                Path.Combine(Path.GetTempPath(), "nonproxy-unused-default"));
+            var endpoint = WindowsControlEndpointFactory.CreateForMachine(
+                commonApplicationData);
 
             Assert.Null(endpoint.SocketPath);
-            Assert.Equal(pipePath, endpoint.NamedPipePath);
             Assert.Equal(
-                Path.Combine(stateDirectory, "session.capability"),
+                LocalControlEndpoint.DefaultWindowsControlPipe,
+                endpoint.NamedPipePath);
+            Assert.Equal(
+                Path.Combine(
+                    commonApplicationData,
+                    "NonProxy",
+                    "session.capability"),
                 endpoint.SessionCapabilityPath);
             Assert.True(endpoint.IsConfigured);
         }
@@ -78,7 +83,7 @@ public sealed class ControlTransportTests
                 LocalControlEndpoint.StateDirectoryEnvironment,
                 previousStateDirectory);
             Environment.SetEnvironmentVariable(
-                LocalControlEndpoint.WindowsControlPipeEnvironment,
+                "NONPROXY_WINDOWS_CONTROL_PIPE",
                 previousPipePath);
         }
     }

@@ -20,7 +20,30 @@ internal static class WindowsAdapterEndpointFactory
             throw new InvalidOperationException("无法读取当前 Windows 用户 SID。");
         }
 
-        return LocalAdapterEndpoint.FromWindowsEnvironment(
+        var localApplicationData = Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData);
+        return CreateForUser(localApplicationData, userSid);
+    }
+
+    internal static LocalAdapterEndpoint CreateForUser(
+        string localApplicationData,
+        string userSid)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(localApplicationData);
+        ArgumentException.ThrowIfNullOrWhiteSpace(userSid);
+        if (!Path.IsPathFullyQualified(localApplicationData))
+        {
+            throw new ArgumentException(
+                "Windows 用户应用数据目录必须是绝对路径。",
+                nameof(localApplicationData));
+        }
+
+        var stateDirectory = Path.Combine(
+            localApplicationData,
+            "NonProxy",
+            "adapter-host");
+        return LocalAdapterEndpoint.FromWindowsStateDirectory(
+            stateDirectory,
             LocalAdapterEndpoint.WindowsPipeForUserSid(userSid));
     }
 }

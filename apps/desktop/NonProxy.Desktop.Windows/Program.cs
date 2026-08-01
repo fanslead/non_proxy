@@ -49,7 +49,7 @@ internal static class Program
             collection.AddSingleton<
                 IAdapterCapabilityProvider,
                 FileAdapterCapabilityProvider>();
-            collection.AddSingleton(LocalControlEndpoint.FromWindowsEnvironment());
+            collection.AddSingleton(WindowsControlEndpointFactory.Create());
             collection.AddSingleton<
                 IControlChannelFactory,
                 WindowsNamedPipeControlChannelFactory>();

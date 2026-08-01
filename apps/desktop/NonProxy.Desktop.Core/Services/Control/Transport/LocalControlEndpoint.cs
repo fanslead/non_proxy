@@ -7,7 +7,6 @@ public sealed record LocalControlEndpoint(
 {
     public const string StateDirectoryEnvironment = "NONPROXY_STATE_DIR";
     public const string SocketPathEnvironment = "NONPROXY_SOCKET_PATH";
-    public const string WindowsControlPipeEnvironment = "NONPROXY_WINDOWS_CONTROL_PIPE";
     public const string DefaultWindowsControlPipe = @"\\.\pipe\NonProxy.Control.v1";
     private const string WindowsPipePrefix = @"\\.\pipe\NonProxy.";
 
@@ -40,31 +39,6 @@ public sealed record LocalControlEndpoint(
 
         var socketPath = Environment.GetEnvironmentVariable(SocketPathEnvironment);
         return FromStateDirectory(stateDirectory, socketPath);
-    }
-
-    public static LocalControlEndpoint FromWindowsEnvironment(
-        string? defaultStateDirectory = null)
-    {
-        var stateDirectory = Environment.GetEnvironmentVariable(StateDirectoryEnvironment);
-        if (string.IsNullOrWhiteSpace(stateDirectory))
-        {
-            stateDirectory = defaultStateDirectory;
-            if (string.IsNullOrWhiteSpace(stateDirectory))
-            {
-                stateDirectory = Environment.GetFolderPath(
-                    Environment.SpecialFolder.CommonApplicationData);
-                if (string.IsNullOrWhiteSpace(stateDirectory))
-                {
-                    throw new InvalidOperationException("无法定位 Windows ProgramData 目录。");
-                }
-
-                stateDirectory = Path.Combine(stateDirectory, "NonProxy");
-            }
-        }
-
-        var pipePath = Environment.GetEnvironmentVariable(
-            WindowsControlPipeEnvironment);
-        return FromWindowsStateDirectory(stateDirectory, pipePath);
     }
 
     public static LocalControlEndpoint FromStateDirectory(
