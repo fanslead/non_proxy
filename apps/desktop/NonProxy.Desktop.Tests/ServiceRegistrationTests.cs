@@ -37,7 +37,7 @@ public sealed class ServiceRegistrationTests
         Assert.Same(
             services.GetRequiredService<DashboardViewModel>(),
             shell.Dashboard);
-        Assert.Equal(11, shell.NavigationItems.Count);
+        Assert.Equal(12, shell.NavigationItems.Count);
         Assert.Equal("运行概览", shell.CurrentPage.Title);
         Assert.NotNull(services.GetRequiredService<DesktopLifetimeController>());
         Assert.Same(

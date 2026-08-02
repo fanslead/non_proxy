@@ -7,6 +7,7 @@
         xmlns:websites="using:NonProxy.Desktop.Core.Features.Websites"
         xmlns:networks="using:NonProxy.Desktop.Core.Features.Networks"
         xmlns:outbounds="using:NonProxy.Desktop.Core.Features.Outbounds"
+        xmlns:subscriptions="using:NonProxy.Desktop.Core.Features.Subscriptions"
         xmlns:learning="using:NonProxy.Desktop.Core.Features.Learning"
         xmlns:activity="using:NonProxy.Desktop.Core.Features.Activity"
         xmlns:adapters="using:NonProxy.Desktop.Core.Features.Adapters"
@@ -38,6 +39,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type outbounds:OutboundsViewModel}">
             <outbounds:OutboundsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type subscriptions:SubscriptionsViewModel}">
+            <subscriptions:SubscriptionsView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type adapters:AdaptersViewModel}">
             <adapters:AdaptersView />

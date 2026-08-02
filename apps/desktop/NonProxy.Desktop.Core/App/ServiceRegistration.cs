@@ -10,6 +10,7 @@ using NonProxy.Desktop.Core.Features.Outbounds;
 using NonProxy.Desktop.Core.Features.Policies;
 using NonProxy.Desktop.Core.Features.Settings;
 using NonProxy.Desktop.Core.Features.Shell;
+using NonProxy.Desktop.Core.Features.Subscriptions;
 using NonProxy.Desktop.Core.Features.Websites;
 using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Adapters;
@@ -38,6 +39,7 @@ public static class ServiceRegistration
         services.AddSingleton<ApplicationsViewModel>();
         services.AddSingleton<WebsitesViewModel>();
         services.AddSingleton<OutboundsViewModel>();
+        services.AddSingleton<SubscriptionsViewModel>();
         services.AddSingleton<NetworkProfilesViewModel>();
         services.AddSingleton<LearningViewModel>();
         services.AddSingleton<ActivityViewModel>();

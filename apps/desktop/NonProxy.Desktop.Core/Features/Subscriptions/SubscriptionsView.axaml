@@ -1,0 +1,348 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:subscriptions="using:NonProxy.Desktop.Core.Features.Subscriptions"
+             x:Name="Root"
+             x:Class="NonProxy.Desktop.Core.Features.Subscriptions.SubscriptionsView"
+             x:DataType="subscriptions:SubscriptionsViewModel">
+    <ScrollViewer>
+        <StackPanel Margin="40"
+                    MaxWidth="1040"
+                    Spacing="24">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="20">
+                <StackPanel Spacing="6">
+                    <TextBlock Theme="{StaticResource NpPageTitle}"
+                               Text="订阅管理" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="统一管理远程节点订阅，不需要了解代理规则或逐个查找软件请求地址。" />
+                </StackPanel>
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="10">
+                    <Button Theme="{StaticResource NpSecondaryButton}"
+                            Command="{Binding RefreshCommand}"
+                            Content="刷新状态"
+                            AutomationProperties.Name="刷新全部订阅状态" />
+                    <Button x:Name="AddSubscriptionButton"
+                            Theme="{StaticResource NpPrimaryButton}"
+                            Command="{Binding OpenCreateCommand}"
+                            Content="添加订阅"
+                            AutomationProperties.Name="添加远程代理订阅" />
+                </StackPanel>
+            </Grid>
+
+            <Border Theme="{StaticResource NpCard}">
+                <Grid ColumnDefinitions="5,1.2*,2*"
+                      ColumnSpacing="20">
+                    <Border Background="{DynamicResource NpBrandBrush}"
+                            CornerRadius="3" />
+                    <StackPanel Grid.Column="1"
+                                Spacing="6">
+                        <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                   Text="订阅同步轨道" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="{Binding SyncSummary}" />
+                    </StackPanel>
+                    <Grid Grid.Column="2"
+                          ColumnDefinitions="*,Auto,*,Auto,*"
+                          VerticalAlignment="Center"
+                          ColumnSpacing="10">
+                        <StackPanel HorizontalAlignment="Center"
+                                    Spacing="4">
+                            <Border Width="10"
+                                    Height="10"
+                                    CornerRadius="5"
+                                    Background="{DynamicResource NpBrandBrush}" />
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="系统凭据库" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       FontSize="11"
+                                       Text="地址与 Token" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1"
+                                   Foreground="{DynamicResource NpMutedBrush}"
+                                   Text="→" />
+                        <StackPanel Grid.Column="2"
+                                    HorizontalAlignment="Center"
+                                    Spacing="4">
+                            <Border Width="10"
+                                    Height="10"
+                                    CornerRadius="5"
+                                    Background="{DynamicResource NpBrandBrush}" />
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="安全拉取" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       FontSize="11"
+                                       Text="HTTPS 与公网校验" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="3"
+                                   Foreground="{DynamicResource NpMutedBrush}"
+                                   Text="→" />
+                        <StackPanel Grid.Column="4"
+                                    HorizontalAlignment="Center"
+                                    Spacing="4">
+                            <Border Width="10"
+                                    Height="10"
+                                    CornerRadius="5"
+                                    Background="{DynamicResource NpSuccessBrush}" />
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="节点出口" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       FontSize="11"
+                                       Text="供规则选择" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Border x:Name="SubscriptionEditor"
+                    Theme="{StaticResource NpCard}"
+                    BorderBrush="{DynamicResource NpBrandBrush}"
+                    BorderThickness="1"
+                    IsVisible="{Binding IsEditorOpen}">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="4">
+                            <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                       Text="{Binding EditorTitle}" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="{Binding EndpointHint}" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding CancelEditorCommand}"
+                                Content="取消"
+                                AutomationProperties.Name="取消编辑订阅" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="1.2*,1*"
+                          ColumnSpacing="16">
+                        <StackPanel Spacing="6">
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="名称" />
+                            <TextBox x:Name="SubscriptionNameInput"
+                                     Theme="{StaticResource NpTextBox}"
+                                     Text="{Binding DisplayName}"
+                                     PlaceholderText="例如：日常网络订阅"
+                                     AutomationProperties.Name="订阅显示名称" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1"
+                                    Spacing="6">
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="自动刷新" />
+                            <ComboBox ItemsSource="{Binding AvailableIntervals}"
+                                      SelectedItem="{Binding SelectedInterval}"
+                                      AutomationProperties.Name="订阅自动刷新间隔">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="subscriptions:SubscriptionIntervalOption">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{Binding Label}" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       FontSize="11"
+                                                       Text="{Binding Hint}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="HTTPS 订阅地址" />
+                        <TextBox x:Name="SubscriptionEndpointInput"
+                                 Theme="{StaticResource NpTextBox}"
+                                 Text="{Binding EndpointUrl}"
+                                 PlaceholderText="https://provider.example/subscription?token=…"
+                                 AutomationProperties.Name="HTTPS 订阅地址" />
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="16">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="10"
+                                    VerticalAlignment="Center">
+                            <CheckBox IsChecked="{Binding SubscriptionEnabled}"
+                                      Content="启用自动同步"
+                                      AutomationProperties.Name="是否启用订阅自动同步" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="停用不会删除已经导入的节点。" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Theme="{StaticResource NpPrimaryButton}"
+                                Command="{Binding SaveCommand}"
+                                Content="{Binding SaveActionLabel}"
+                                AutomationProperties.Name="安全保存订阅" />
+                    </Grid>
+                    <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                               Text="{Binding ValidationMessage}"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource NpCard}"
+                    IsVisible="{Binding IsEmpty}">
+                <Grid ColumnDefinitions="Auto,*"
+                      ColumnSpacing="16">
+                    <TextBlock FontSize="28"
+                               Foreground="{DynamicResource NpBrandBrush}"
+                               Text="⇣" />
+                    <StackPanel Grid.Column="1"
+                                Spacing="5">
+                        <TextBlock Theme="{StaticResource NpSectionTitle}"
+                                   Text="还没有远程订阅" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="添加后，NonProxy 会安全保存地址、定时同步节点，并在这里直接告诉你是否健康。" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <ItemsControl x:Name="SubscriptionItemsList"
+                          ItemsSource="{Binding Items}"
+                          IsVisible="{Binding HasItems}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="subscriptions:SubscriptionViewItem">
+                        <Border Theme="{StaticResource NpCard}"
+                                Margin="0,0,0,14">
+                            <Grid ColumnDefinitions="24,*"
+                                  ColumnSpacing="14">
+                                <Grid>
+                                    <Border Width="2"
+                                            HorizontalAlignment="Center"
+                                            Background="{DynamicResource NpBorderBrush}" />
+                                    <Border Width="12"
+                                            Height="12"
+                                            CornerRadius="6"
+                                            VerticalAlignment="Top"
+                                            Margin="0,5,0,0"
+                                            Background="{DynamicResource NpSuccessBrush}"
+                                            IsVisible="{Binding IsHealthy}" />
+                                    <Border Width="12"
+                                            Height="12"
+                                            CornerRadius="6"
+                                            VerticalAlignment="Top"
+                                            Margin="0,5,0,0"
+                                            Background="{DynamicResource NpWarningBrush}"
+                                            IsVisible="{Binding NeedsAttention}" />
+                                    <Border Width="12"
+                                            Height="12"
+                                            CornerRadius="6"
+                                            VerticalAlignment="Top"
+                                            Margin="0,5,0,0"
+                                            Background="{DynamicResource NpMutedBrush}"
+                                            IsVisible="{Binding IsDisabled}" />
+                                </Grid>
+
+                                <StackPanel Grid.Column="1"
+                                            Spacing="14">
+                                    <Grid RowDefinitions="Auto,Auto"
+                                          ColumnDefinitions="1.4*,1*"
+                                          ColumnSpacing="18"
+                                          RowSpacing="10">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Text="{Binding DisplayName}" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       Text="{Binding StatusDetail}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1"
+                                                    Spacing="4">
+                                            <TextBlock FontWeight="SemiBold"
+                                                       Text="{Binding StatusLabel}" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       Text="{Binding ScheduleLabel}" />
+                                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                                       FontSize="11"
+                                                       Text="{Binding LastSuccessLabel}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1"
+                                                    Grid.ColumnSpan="2"
+                                                    Orientation="Horizontal"
+                                                    Spacing="8"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Top">
+                                            <Button Theme="{StaticResource NpSecondaryButton}"
+                                                    Command="{ReflectionBinding DataContext.RefreshSourceCommand, ElementName=Root}"
+                                                    CommandParameter="{Binding}"
+                                                    Content="立即刷新"
+                                                    AutomationProperties.Name="立即刷新此订阅" />
+                                            <Button Theme="{StaticResource NpSecondaryButton}"
+                                                    Command="{ReflectionBinding DataContext.EditCommand, ElementName=Root}"
+                                                    CommandParameter="{Binding}"
+                                                    Content="设置"
+                                                    AutomationProperties.Name="编辑订阅设置" />
+                                            <Button Theme="{StaticResource NpSecondaryButton}"
+                                                    Command="{ReflectionBinding DataContext.ToggleEnabledCommand, ElementName=Root}"
+                                                    CommandParameter="{Binding}"
+                                                    Content="{Binding ToggleActionLabel}"
+                                                    AutomationProperties.Name="启用或停用订阅" />
+                                            <Button Theme="{StaticResource NpSecondaryButton}"
+                                                    Foreground="{DynamicResource NpDangerBrush}"
+                                                    Command="{ReflectionBinding DataContext.RequestDeleteCommand, ElementName=Root}"
+                                                    CommandParameter="{Binding}"
+                                                    Content="删除"
+                                                    AutomationProperties.Name="请求删除订阅" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="Auto,Auto,*"
+                                          ColumnSpacing="14">
+                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                   Text="{Binding IntervalLabel}" />
+                                        <TextBlock Grid.Column="1"
+                                                   Theme="{StaticResource NpMutedText}"
+                                                   Text="{Binding GenerationLabel}" />
+                                        <TextBlock Grid.Column="2"
+                                                   HorizontalAlignment="Right"
+                                                   Theme="{StaticResource NpMutedText}"
+                                                   FontSize="11"
+                                                   Text="地址与 Token 不会回显" />
+                                    </Grid>
+
+                                    <Border BorderBrush="{DynamicResource NpDangerBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="12"
+                                            IsVisible="{Binding IsDeletePending}">
+                                        <Grid ColumnDefinitions="*,Auto"
+                                              ColumnSpacing="12">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock FontWeight="SemiBold"
+                                                           Text="确认删除此订阅？" />
+                                                <TextBlock Theme="{StaticResource NpMutedText}"
+                                                           Text="会同时删除未被规则、默认出口或出口组引用的所属节点；被引用时操作会安全拒绝。" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1"
+                                                        Orientation="Horizontal"
+                                                        Spacing="8">
+                                                <Button Theme="{StaticResource NpSecondaryButton}"
+                                                        Command="{ReflectionBinding DataContext.CancelDeleteCommand, ElementName=Root}"
+                                                        CommandParameter="{Binding}"
+                                                        Content="取消"
+                                                        AutomationProperties.Name="取消删除订阅" />
+                                                <Button Theme="{StaticResource NpSecondaryButton}"
+                                                        Foreground="{DynamicResource NpDangerBrush}"
+                                                        Command="{ReflectionBinding DataContext.ConfirmDeleteCommand, ElementName=Root}"
+                                                        CommandParameter="{Binding}"
+                                                        Content="确认删除"
+                                                        AutomationProperties.Name="确认删除订阅及其未引用节点" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Theme="{StaticResource NpMutedText}"
+                       Text="{Binding OperationMessage}"
+                       TextWrapping="Wrap" />
+            <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                       Text="{Binding ErrorMessage}"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

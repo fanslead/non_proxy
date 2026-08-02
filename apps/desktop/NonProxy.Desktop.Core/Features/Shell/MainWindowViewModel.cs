@@ -12,6 +12,7 @@ using NonProxy.Desktop.Core.Features.Networks;
 using NonProxy.Desktop.Core.Features.Outbounds;
 using NonProxy.Desktop.Core.Features.Policies;
 using NonProxy.Desktop.Core.Features.Settings;
+using NonProxy.Desktop.Core.Features.Subscriptions;
 using NonProxy.Desktop.Core.Features.Websites;
 using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Control;
@@ -54,6 +55,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         WebsitesViewModel websites,
         NetworkProfilesViewModel networks,
         OutboundsViewModel outbounds,
+        SubscriptionsViewModel subscriptions,
         AdaptersViewModel adapters,
         LearningViewModel learning,
         ActivityViewModel activity,
@@ -76,6 +78,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             new("网站直连", "◎", websites),
             new("网络环境", "⌁", networks),
             new("网络出口", "⇄", outbounds),
+            new("订阅管理", "⇣", subscriptions),
             new("客户端协同", "⟷", adapters),
             new("智能学习", "✦", learning),
             new("活动记录", "◷", activity),
@@ -285,7 +288,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         var refreshCurrent = (impact & RefreshCurrent) != 0
             || (impact & RefreshPolicies) != 0 && CurrentPage is
                 PoliciesViewModel or ApplicationsViewModel or WebsitesViewModel
-                or NetworkProfilesViewModel or OutboundsViewModel or AdaptersViewModel
+                or NetworkProfilesViewModel or OutboundsViewModel or SubscriptionsViewModel
+                or AdaptersViewModel
             || (impact & RefreshActivity) != 0 && CurrentPage is ActivityViewModel
             || (impact & RefreshDiagnostics) != 0 && CurrentPage is DiagnosticsViewModel;
         if (refreshCurrent)
