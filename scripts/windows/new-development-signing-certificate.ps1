@@ -100,16 +100,15 @@ $publicCertificateBytes = $certificate.Export(
     [Security.Cryptography.X509Certificates.X509ContentType]::Cert)
 [IO.File]::WriteAllBytes($certificatePath, $publicCertificateBytes)
 Write-Host "临时开发签名公钥证书已导出。"
-Write-Host "正在以无界面模式加入一次性 CI 用户根信任存储。"
+Write-Host "正在以命令行模式加入一次性 CI 用户根信任存储。"
 $certUtil = Join-Path $env:SystemRoot "System32/certutil.exe"
 Invoke-NonProxyExternal -FilePath $certUtil -Arguments @(
     "-user",
-    "-f",
-    "-silent",
     "-addstore",
+    "-f",
     "Root",
     $certificatePath
-) | Out-Null
+) | ForEach-Object { Write-Host $_ }
 $publicCertificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
     $publicCertificateBytes)
 foreach ($storeName in @(
