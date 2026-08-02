@@ -13,6 +13,9 @@ public sealed class WindowsReleaseSourceContractTests
             ["developmentSign"] = Read(
                 root,
                 "sign-development-release-package.ps1"),
+            ["developmentCertificate"] = Read(
+                root,
+                "new-development-signing-certificate.ps1"),
             ["verify"] = Read(root, "verify-release-package.ps1"),
             ["install"] = Read(root, "install-system-components.ps1"),
             ["task"] = Read(root, "NonProxy.Windows.AdapterHost.psm1"),
@@ -33,6 +36,8 @@ public sealed class WindowsReleaseSourceContractTests
             ("verify", "AllowCrossArchitectureBuildVerification"),
             ("developmentSign", "ExpectedArchitecture"),
             ("developmentSign", "-AllowCrossArchitectureBuildVerification"),
+            ("developmentCertificate", "StoreName]::TrustedPeople"),
+            ("developmentCertificate", "StoreName]::TrustedPublisher"),
             ("install", "Set-NonProxyAdapterHostTask"),
             ("install", "Remove-NonProxyAdapterHostTask"),
             ("install", "Stop-NonProxyAdapterHostProcesses"),
@@ -45,6 +50,10 @@ public sealed class WindowsReleaseSourceContractTests
         {
             Assert.Contains(required, sources[source], StringComparison.Ordinal);
         }
+        Assert.DoesNotContain(
+            "StoreName]::Root",
+            sources["developmentCertificate"],
+            StringComparison.Ordinal);
 
         var bootstrap = File.ReadAllText(Path.Combine(
             root,
