@@ -111,7 +111,10 @@ public final class TransparentProxyProvider:
 
     public override func handleNewFlow(_ flow: NEAppProxyFlow) -> Bool {
         guard let tcpFlow = flow as? NEAppProxyTCPFlow else {
-            return reject(flow, code: "NP_FLOW_TYPE_UNSUPPORTED")
+            return rejectedFlows.rejectAndHandle(
+                flow,
+                errorCode: "NP_FLOW_TYPE_UNSUPPORTED"
+            )
         }
         return handle(
             flow,
@@ -133,7 +136,10 @@ public final class TransparentProxyProvider:
         transport: Nonproxy_Common_V1_TransportProtocol
     ) -> Bool {
         guard let runtime = providerState.runtime() else {
-            return reject(flow, code: "NP_PROVIDER_NOT_READY")
+            return rejectedFlows.rejectAndHandle(
+                flow,
+                errorCode: "NP_PROVIDER_NOT_READY"
+            )
         }
         do {
             let observedAt = Date()
@@ -157,47 +163,56 @@ public final class TransparentProxyProvider:
                 flowID: UUID().uuidString.lowercased(),
                 context: context,
                 decision: decision,
+                proxyTarget: evaluation.proxyTarget,
                 observedAt: observedAt,
                 decisionLatencyNanoseconds: decisionFinished - decisionStarted
             )
             switch TransparentFlowPlanner.plan(
                 decision: decision,
+                proxyTarget: evaluation.proxyTarget,
                 proxyRelayAvailable: true
             ) {
             case .direct:
-                return startDirectRelay(
+                return DirectRelayFlowStarter.start(
                     runtime: runtime,
                     flow: flow,
                     endpoint: endpoint,
                     transport: transport,
                     observation: observation,
                     network: network,
-                    failOpen: false
+                    failOpen: false,
+                    rejectedFlows: rejectedFlows
                 )
-            case .proxy(let outboundID):
+            case .proxy(let proxyTarget):
                 return startProxyRelay(
                     runtime: runtime,
                     flow: flow,
                     endpoint: endpoint,
                     destination: context.destination,
                     transport: transport,
-                    outboundID: outboundID,
+                    proxyTarget: proxyTarget,
                     observation: observation,
                     network: network
                 )
             case .reject(let errorCode):
-                report(
+                TransparentDecisionReporter.report(
                     runtime: runtime,
                     observation: observation,
                     path: .decision,
                     errorCode: errorCode
                 )
-                return reject(flow, code: errorCode)
+                return rejectedFlows.rejectAndHandle(
+                    flow,
+                    errorCode: errorCode
+                )
             }
         } catch let error as ProviderError {
-            return reject(flow, code: error.code)
+            return rejectedFlows.rejectAndHandle(flow, errorCode: error.code)
         } catch {
-            return reject(flow, code: "NP_FLOW_DECISION_FAILED")
+            return rejectedFlows.rejectAndHandle(
+                flow,
+                errorCode: "NP_FLOW_DECISION_FAILED"
+            )
         }
     }
 
@@ -207,15 +222,16 @@ public final class TransparentProxyProvider:
         endpoint: NWEndpoint,
         destination: PolicyDestination,
         transport: Nonproxy_Common_V1_TransportProtocol,
-        outboundID: String,
+        proxyTarget: ProviderProxyTarget,
         observation: ProviderDecisionObservation,
         network: MacNetworkEnvironmentSnapshot
     ) -> Bool {
-        let onEstablished: @Sendable () -> Void = { [weak self] in
-            self?.report(
+        let onEstablished: @Sendable (String) -> Void = {
+            selectedOutboundID in
+            TransparentDecisionReporter.report(
                 runtime: runtime,
                 observation: observation,
-                path: .proxy(outboundID: outboundID)
+                path: .proxy(outboundID: selectedOutboundID)
             )
         }
         let flowReference = AppProxyFlowReference(flow)
@@ -237,7 +253,7 @@ public final class TransparentProxyProvider:
                 runtime.proxyRelays.startTCP(
                     flow: $0,
                     destination: destination,
-                    outboundID: outboundID,
+                    proxyTarget: proxyTarget,
                     onEstablished: onEstablished,
                     onSetupFailed: onSetupFailed
                 )
@@ -247,7 +263,7 @@ public final class TransparentProxyProvider:
                 runtime.proxyRelays.startUDP(
                     flow: $0,
                     destination: destination,
-                    outboundID: outboundID,
+                    proxyTarget: proxyTarget,
                     onEstablished: onEstablished,
                     onSetupFailed: onSetupFailed
                 )
@@ -283,80 +299,6 @@ public final class TransparentProxyProvider:
         }
     }
 
-    private func startDirectRelay(
-        runtime: TransparentProviderRuntime,
-        flow: NEAppProxyFlow,
-        endpoint: NWEndpoint,
-        transport: Nonproxy_Common_V1_TransportProtocol,
-        observation: ProviderDecisionObservation,
-        network: MacNetworkEnvironmentSnapshot,
-        failOpen: Bool
-    ) -> Bool {
-        let onEstablished: @Sendable (String) -> Void = { [weak self] interface in
-            self?.report(
-                runtime: runtime,
-                observation: observation,
-                path: .direct(interfaceName: interface, failOpen: failOpen),
-                errorCode: failOpen ? "NP_PROXY_FAIL_OPEN_DIRECT" : nil
-            )
-        }
-        let onSetupFailed: @Sendable (String) -> Void = { [weak self] code in
-            self?.report(
-                runtime: runtime,
-                observation: observation,
-                path: .decision,
-                errorCode: code
-            )
-        }
-        let result: DirectRelayStartResult
-        switch transport {
-        case .tcp:
-            result = (flow as? NEAppProxyTCPFlow).map {
-                runtime.directRelays.startTCP(
-                    flow: $0,
-                    endpoint: endpoint,
-                    interface: network.preferredInterface,
-                    onEstablished: onEstablished,
-                    onSetupFailed: onSetupFailed
-                )
-            } ?? .capacityExceeded
-        case .udp:
-            result = (flow as? NEAppProxyUDPFlow).map {
-                runtime.directRelays.startUDP(
-                    flow: $0,
-                    interface: network.preferredInterface,
-                    onEstablished: onEstablished,
-                    onSetupFailed: onSetupFailed
-                )
-            } ?? .capacityExceeded
-        default:
-            result = .capacityExceeded
-        }
-        switch result {
-        case .accepted:
-            return true
-        case .physicalInterfaceUnavailable:
-            report(
-                runtime: runtime,
-                observation: observation,
-                path: .decision,
-                errorCode: "NP_DIRECT_PHYSICAL_INTERFACE_UNAVAILABLE"
-            )
-            return reject(
-                flow,
-                code: "NP_DIRECT_PHYSICAL_INTERFACE_UNAVAILABLE"
-            )
-        case .capacityExceeded:
-            report(
-                runtime: runtime,
-                observation: observation,
-                path: .decision,
-                errorCode: "NP_DIRECT_RELAY_CAPACITY_EXCEEDED"
-            )
-            return reject(flow, code: "NP_DIRECT_RELAY_CAPACITY_EXCEEDED")
-        }
-    }
-
     private func handleProxySetupFailure(
         runtime: TransparentProviderRuntime,
         flow: NEAppProxyFlow,
@@ -374,44 +316,24 @@ public final class TransparentProxyProvider:
             errorCode: code
         ) {
         case .directFallback:
-            _ = startDirectRelay(
+            _ = DirectRelayFlowStarter.start(
                 runtime: runtime,
                 flow: flow,
                 endpoint: endpoint,
                 transport: transport,
                 observation: observation,
                 network: network,
-                failOpen: true
+                failOpen: true,
+                rejectedFlows: rejectedFlows
             )
         case .reject(let errorCode):
-            report(
+            TransparentDecisionReporter.report(
                 runtime: runtime,
                 observation: observation,
                 path: .decision,
                 errorCode: errorCode
             )
-            _ = reject(flow, code: errorCode)
+            _ = rejectedFlows.rejectAndHandle(flow, errorCode: errorCode)
         }
-    }
-
-    private func report(
-        runtime: TransparentProviderRuntime,
-        observation: ProviderDecisionObservation,
-        path: ProviderObservedPath,
-        errorCode: String? = nil
-    ) {
-        guard let record = try? observation.record(
-            path: path,
-            errorCode: errorCode
-        ) else {
-            runtime.provider.decisions.recordUnreportable()
-            return
-        }
-        runtime.provider.decisions.submit(record)
-    }
-
-    private func reject(_ flow: NEAppProxyFlow, code: String) -> Bool {
-        rejectedFlows.reject(flow, errorCode: code)
-        return true
     }
 }

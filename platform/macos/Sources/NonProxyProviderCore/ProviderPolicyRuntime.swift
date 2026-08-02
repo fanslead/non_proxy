@@ -84,10 +84,56 @@ public final class ProviderPolicyRuntime: Sendable {
                 )
             )
         }
+        let proxyTarget = try resolveProxyTarget(
+            disposition: disposition,
+            snapshot: snapshot
+        )
         return ProviderPolicyEvaluation(
             context: resolvedContext,
-            disposition: disposition
+            disposition: disposition,
+            proxyTarget: proxyTarget
         )
+    }
+
+    private func resolveProxyTarget(
+        disposition: ProviderPolicyDisposition,
+        snapshot: VerifiedPolicySnapshot
+    ) throws -> ProviderProxyTarget? {
+        guard case .decision(let decision) = disposition,
+              decision.result.action == .proxy
+        else {
+            return nil
+        }
+        if !decision.result.outboundID.isEmpty,
+           decision.result.outboundGroupID.isEmpty {
+            let target = ProviderProxyTarget.outbound(
+                id: decision.result.outboundID
+            )
+            guard target.isValid else {
+                throw ProviderError.invalidSnapshot("代理决策目标无效")
+            }
+            return target
+        }
+        guard decision.result.outboundID.isEmpty,
+              !decision.result.outboundGroupID.isEmpty,
+              let group = snapshot.payload.capabilities.outboundGroups.first(
+                  where: {
+                      $0.outboundGroupID == decision.result.outboundGroupID
+                  }
+              ),
+              group.revision > 0
+        else {
+            throw ProviderError.invalidSnapshot("代理决策目标无效")
+        }
+        let target = ProviderProxyTarget.group(
+            id: group.outboundGroupID,
+            snapshotVersion: decision.snapshotVersion,
+            memberIDs: group.outboundIds
+        )
+        guard target.isValid else {
+            throw ProviderError.invalidSnapshot("代理决策目标无效")
+        }
+        return target
     }
 
     private func isActive(
@@ -183,6 +229,7 @@ public enum ProviderPolicyDisposition: Sendable {
 public struct ProviderPolicyEvaluation: Sendable {
     public let context: PolicyConnectionContext
     public let disposition: ProviderPolicyDisposition
+    public let proxyTarget: ProviderProxyTarget?
 
     public var decision: PolicyDecision? {
         guard case .decision(let decision) = disposition else {
@@ -193,9 +240,11 @@ public struct ProviderPolicyEvaluation: Sendable {
 
     public init(
         context: PolicyConnectionContext,
-        disposition: ProviderPolicyDisposition
+        disposition: ProviderPolicyDisposition,
+        proxyTarget: ProviderProxyTarget? = nil
     ) {
         self.context = context
         self.disposition = disposition
+        self.proxyTarget = proxyTarget
     }
 }

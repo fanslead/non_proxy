@@ -159,19 +159,52 @@ public enum NPF1PayloadCodec {
         endpoint: NPF1Endpoint,
         initialWindowBytes: UInt32
     ) throws -> Data {
-        let outbound = Data(outboundID.utf8)
+        try encodeOpen(
+            capability: capability,
+            proxyTarget: .outbound(id: outboundID),
+            endpoint: endpoint,
+            initialWindowBytes: initialWindowBytes
+        )
+    }
+
+    public static func encodeOpen(
+        capability: Data,
+        proxyTarget: ProviderProxyTarget,
+        endpoint: NPF1Endpoint,
+        initialWindowBytes: UInt32
+    ) throws -> Data {
+        guard proxyTarget.isValid else {
+            throw NPF1ProtocolError.invalidPayload
+        }
+        let targetID: String
+        let snapshotVersion: UInt64?
+        switch proxyTarget {
+        case .outbound(let id):
+            targetID = id
+            snapshotVersion = nil
+        case .group(let id, let version, _):
+            targetID = id
+            snapshotVersion = version
+        }
+        let target = Data(targetID.utf8)
         guard capability.count == capabilityBytes,
-              isValidIdentifier(outboundID),
-              let outboundLength = UInt8(exactly: outbound.count),
+              isValidIdentifier(targetID),
+              let targetLength = UInt8(exactly: target.count),
               (minimumWindowBytes...maximumWindowBytes)
                   .contains(initialWindowBytes)
         else {
             throw NPF1ProtocolError.invalidPayload
         }
-        var output = Data(capacity: 64 + outbound.count)
+        var output = Data(capacity: 74 + target.count)
         output.append(capability)
-        output.append(outboundLength)
-        output.append(outbound)
+        if let snapshotVersion {
+            output.append(contentsOf: [0, 2, targetLength])
+            output.append(target)
+            output.appendBigEndian(snapshotVersion)
+        } else {
+            output.append(targetLength)
+            output.append(target)
+        }
         try endpoint.encode(into: &output)
         output.appendBigEndian(initialWindowBytes)
         return output
@@ -219,6 +252,66 @@ public enum NPF1PayloadCodec {
             throw NPF1ProtocolError.invalidPayload
         }
         return bytes
+    }
+
+    public static func encodeReady(
+        selectedOutboundID: String,
+        initialWindowBytes: UInt32
+    ) throws -> Data {
+        let outbound = Data(selectedOutboundID.utf8)
+        guard isValidIdentifier(selectedOutboundID),
+              let length = UInt8(exactly: outbound.count),
+              (minimumWindowBytes...maximumWindowBytes)
+                  .contains(initialWindowBytes)
+        else {
+            throw NPF1ProtocolError.invalidPayload
+        }
+        var output = Data(capacity: 5 + outbound.count)
+        output.append(length)
+        output.append(outbound)
+        output.appendBigEndian(initialWindowBytes)
+        return output
+    }
+
+    public static func decodeReady(
+        _ input: Data
+    ) throws -> (selectedOutboundID: String, initialWindowBytes: UInt32) {
+        guard let lengthByte = input.first else {
+            throw NPF1ProtocolError.invalidPayload
+        }
+        let length = Int(lengthByte)
+        let windowOffset = 1 + length
+        guard length > 0,
+              input.count == windowOffset + 4,
+              let outboundID = String(
+                  data: input.subdata(in: 1..<windowOffset),
+                  encoding: .utf8
+              ),
+              isValidIdentifier(outboundID)
+        else {
+            throw NPF1ProtocolError.invalidPayload
+        }
+        let window = try input.readUInt32(at: windowOffset)
+        guard (minimumWindowBytes...maximumWindowBytes).contains(window)
+        else {
+            throw NPF1ProtocolError.invalidPayload
+        }
+        return (outboundID, window)
+    }
+
+    public static func decodeErrorCode(_ input: Data) -> String {
+        guard input.count <= 128,
+              let value = String(data: input, encoding: .utf8),
+              value.hasPrefix("NP_"),
+              value.utf8.allSatisfy({
+                  (48...57).contains($0)
+                      || (65...90).contains($0)
+                      || $0 == 95
+              })
+        else {
+            return "NP_PROXY_GATEWAY_ERROR"
+        }
+        return value
     }
 
     private static func isValidIdentifier(_ value: String) -> Bool {

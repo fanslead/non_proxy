@@ -64,6 +64,37 @@ final class ProviderDecisionObservationTests: XCTestCase {
         ))
     }
 
+    func testProxyGroupEvidenceRecordsOnlyAnImmutableSnapshotMember() throws {
+        var result = Nonproxy_Policy_V1_DecisionSpec()
+        result.action = .proxy
+        result.outboundGroupID = "automatic"
+        result.failureMode = .closed
+        let decision = PolicyDecision(
+            result: result,
+            matchedPolicyID: "policy-automatic",
+            snapshotVersion: 7,
+            reasonCode: "NP_POLICY_APP_MATCH"
+        )
+        let observation = ProviderDecisionObservation(
+            flowID: "flow-group",
+            context: context(),
+            decision: decision,
+            proxyTarget: .group(
+                id: "automatic",
+                snapshotVersion: 7,
+                memberIDs: ["primary", "backup"]
+            ),
+            observedAt: Date(),
+            decisionLatencyNanoseconds: 1
+        )
+
+        let record = try observation.record(path: .proxy(outboundID: "backup"))
+        XCTAssertEqual(record.evidence.outboundID, "backup")
+        XCTAssertThrowsError(
+            try observation.record(path: .proxy(outboundID: "outsider"))
+        )
+    }
+
     private func context() -> PolicyConnectionContext {
         PolicyConnectionContext(
             app: PolicyAppIdentity(

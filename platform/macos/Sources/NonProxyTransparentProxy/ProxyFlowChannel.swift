@@ -3,7 +3,7 @@ import Network
 import NonProxyProviderCore
 
 enum ProxyFlowChannelEvent: Sendable {
-    case ready
+    case ready(selectedOutboundID: String)
     case creditAvailable
     case frame(NPF1Frame)
     case failed(String)
@@ -32,7 +32,7 @@ final class ProxyFlowChannel: @unchecked Sendable {
 
     private let connection: any ProxyFlowStreamConnection
     private var capability: Data
-    private let outboundID: String
+    private let proxyTarget: ProviderProxyTarget
     private let endpoint: NPF1Endpoint
     private let openType: NPF1FrameType
     private let flowID: NPF1FlowID
@@ -52,7 +52,7 @@ final class ProxyFlowChannel: @unchecked Sendable {
     init(
         socketPath: String,
         capability: Data,
-        outboundID: String,
+        proxyTarget: ProviderProxyTarget,
         endpoint: NPF1Endpoint,
         openType: NPF1FrameType,
         queue: DispatchQueue,
@@ -63,13 +63,14 @@ final class ProxyFlowChannel: @unchecked Sendable {
         guard socketPath.hasPrefix("/"),
               !socketPath.contains("\0"),
               capability.count == NPF1PayloadCodec.capabilityBytes,
+              proxyTarget.isValid,
               matchesOpenType(openType)
         else {
             throw NPF1ProtocolError.invalidPayload
         }
         connection = connectionFactory(socketPath)
         self.capability = capability
-        self.outboundID = outboundID
+        self.proxyTarget = proxyTarget
         self.endpoint = endpoint
         self.openType = openType
         flowID = try NPF1FlowID.random()
@@ -169,7 +170,7 @@ final class ProxyFlowChannel: @unchecked Sendable {
         do {
             let payload = try NPF1PayloadCodec.encodeOpen(
                 capability: capability,
-                outboundID: outboundID,
+                proxyTarget: proxyTarget,
                 endpoint: endpoint,
                 initialWindowBytes: Self.initialWindowBytes
             )
@@ -281,17 +282,30 @@ final class ProxyFlowChannel: @unchecked Sendable {
             let increment = try NPF1PayloadCodec.decodeWindowUpdate(
                 frame.payload
             )
-            guard sendCredit <= Self.maximumWindowBytes - UInt64(increment)
+            if isProtocolReady {
+                try addSendCredit(increment)
+                onEvent(.creditAvailable)
+            } else {
+                guard case .outbound(let outboundID) = proxyTarget else {
+                    throw NPF1ProtocolError.invalidPayload
+                }
+                try addSendCredit(increment)
+                isProtocolReady = true
+                onEvent(.ready(selectedOutboundID: outboundID))
+            }
+        case .ready:
+            guard !isProtocolReady,
+                  case .group(_, _, let memberIDs) = proxyTarget
             else {
                 throw NPF1ProtocolError.invalidPayload
             }
-            sendCredit += UInt64(increment)
-            if isProtocolReady {
-                onEvent(.creditAvailable)
-            } else {
-                isProtocolReady = true
-                onEvent(.ready)
+            let ready = try NPF1PayloadCodec.decodeReady(frame.payload)
+            guard memberIDs.contains(ready.selectedOutboundID) else {
+                throw NPF1ProtocolError.invalidPayload
             }
+            try addSendCredit(ready.initialWindowBytes)
+            isProtocolReady = true
+            onEvent(.ready(selectedOutboundID: ready.selectedOutboundID))
         case .data, .datagram:
             guard isProtocolReady,
                   !frame.payload.isEmpty,
@@ -301,7 +315,14 @@ final class ProxyFlowChannel: @unchecked Sendable {
             }
             receiveCredit -= UInt64(frame.payload.count)
             onEvent(.frame(frame))
-        case .halfClose, .close, .error:
+        case .halfClose, .close:
+            guard isProtocolReady else {
+                throw NPF1ProtocolError.invalidPayload
+            }
+            onEvent(.frame(frame))
+        case .error where !isProtocolReady:
+            fail(code: NPF1PayloadCodec.decodeErrorCode(frame.payload))
+        case .error:
             onEvent(.frame(frame))
         case .ping:
             try enqueue(type: .pong, payload: Data())
@@ -310,6 +331,14 @@ final class ProxyFlowChannel: @unchecked Sendable {
         case .openTCP, .openUDP:
             throw NPF1ProtocolError.invalidFrameType
         }
+    }
+
+    private func addSendCredit(_ increment: UInt32) throws {
+        guard sendCredit <= Self.maximumWindowBytes - UInt64(increment)
+        else {
+            throw NPF1ProtocolError.invalidPayload
+        }
+        sendCredit += UInt64(increment)
     }
 
     private func fail(code: String) {

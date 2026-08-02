@@ -133,6 +133,24 @@ final class ProviderPolicyRuntimeTests: XCTestCase {
         XCTAssertEqual(proxyDecision?.result.failureMode, .closed)
     }
 
+    func testResolvesProxyGroupFromTheVerifiedSnapshotCatalog() throws {
+        let runtime = ProviderPolicyRuntime()
+        try runtime.install(try outboundGroupSnapshot(version: 12))
+
+        let evaluation = try runtime.evaluate(context: context())
+
+        XCTAssertEqual(evaluation.decision?.result.action, .proxy)
+        XCTAssertEqual(evaluation.decision?.result.outboundGroupID, "automatic")
+        XCTAssertEqual(
+            evaluation.proxyTarget,
+            .group(
+                id: "automatic",
+                snapshotVersion: 12,
+                memberIDs: ["primary", "backup"]
+            )
+        )
+    }
+
     func testSystemRuleStillWinsDuringPause() throws {
         var policy = Nonproxy_Policy_V1_Policy()
         policy.id = "system-global"
@@ -253,6 +271,38 @@ final class ProviderPolicyRuntimeTests: XCTestCase {
         payload.networkProfiles = [interfaceProfile, officeProfile]
         return try SnapshotValidator.validate(
             SnapshotFixtures.snapshot(payload: payload, version: 9)
+        )
+    }
+
+    private func outboundGroupSnapshot(
+        version: UInt64
+    ) throws -> VerifiedPolicySnapshot {
+        var primary = Nonproxy_Policy_V1_OutboundCapabilitySpec()
+        primary.outboundID = "primary"
+        primary.transports = [.tcp, .udp]
+        primary.ipFamilies = [.ipv4, .ipv6]
+        var backup = primary
+        backup.outboundID = "backup"
+
+        var group = Nonproxy_Policy_V1_OutboundGroupCapabilitySpec()
+        group.outboundGroupID = "automatic"
+        group.revision = 3
+        group.outboundIds = ["primary", "backup"]
+        group.transports = [.tcp, .udp]
+        group.ipFamilies = [.ipv4, .ipv6]
+
+        var capabilities = SnapshotFixtures.fullCapabilities()
+        capabilities.outbounds = [backup, primary]
+        capabilities.outboundGroups = [group]
+        var decision = SnapshotFixtures.directDecision()
+        decision.action = .proxy
+        decision.outboundGroupID = "automatic"
+        let payload = SnapshotFixtures.payload(
+            capabilities: capabilities,
+            defaultDecision: decision
+        )
+        return try SnapshotValidator.validate(
+            SnapshotFixtures.snapshot(payload: payload, version: version)
         )
     }
 }

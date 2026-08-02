@@ -36,6 +36,11 @@ final class RejectedFlowRegistry: Sendable {
         }
     }
 
+    func rejectAndHandle(_ flow: NEAppProxyFlow, errorCode: String) -> Bool {
+        reject(flow, errorCode: errorCode)
+        return true
+    }
+
     func closeAll() {
         let retained = entries.withLock { entries -> [Entry] in
             let current = Array(entries.values)

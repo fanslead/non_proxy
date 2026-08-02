@@ -3,21 +3,29 @@ import NonProxyProviderCore
 
 public enum DNSRoutePlan: Equatable, Sendable {
     case direct
-    case proxy(outboundID: String)
+    case proxy(target: ProviderProxyTarget)
     case refuse
 }
 
 public enum DNSRoutePlanner {
-    public static func plan(decision: PolicyDecision) -> DNSRoutePlan {
+    public static func plan(
+        decision: PolicyDecision,
+        proxyTarget: ProviderProxyTarget?
+    ) -> DNSRoutePlan {
         switch decision.result.action {
         case .direct:
             return .direct
-        case .proxy where !decision.result.outboundID.isEmpty:
-            return .proxy(outboundID: decision.result.outboundID)
+        case .proxy:
+            guard let proxyTarget,
+                  proxyTarget.matches(decision: decision)
+            else {
+                return decision.result.failureMode == .open ? .direct : .refuse
+            }
+            return .proxy(target: proxyTarget)
         case .block:
             return .refuse
         default:
-            return decision.result.failureMode == .open ? .direct : .refuse
+            return .refuse
         }
     }
 }

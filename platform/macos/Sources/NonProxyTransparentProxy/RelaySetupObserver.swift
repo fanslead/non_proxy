@@ -2,22 +2,22 @@ import Synchronization
 
 final class RelaySetupObserver: Sendable {
     private let reported = Mutex(false)
-    private let onEstablished: @Sendable () -> Void
+    private let onEstablished: @Sendable (String) -> Void
     private let onFailed: @Sendable (String) -> Void
 
     init(
-        onEstablished: @escaping @Sendable () -> Void,
+        onEstablished: @escaping @Sendable (String) -> Void,
         onFailed: @escaping @Sendable (String) -> Void
     ) {
         self.onEstablished = onEstablished
         self.onFailed = onFailed
     }
 
-    func established() {
+    func established(selectedOutboundID: String) {
         guard claimOutcome() else {
             return
         }
-        onEstablished()
+        onEstablished(selectedOutboundID)
     }
 
     func failed(code: String) {

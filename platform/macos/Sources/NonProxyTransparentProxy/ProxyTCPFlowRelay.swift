@@ -9,7 +9,7 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
     private let flow: NEAppProxyTCPFlow
     private let socketPath: String
     private let capability: Data
-    private let outboundID: String
+    private let proxyTarget: ProviderProxyTarget
     private let endpoint: NPF1Endpoint
     private let budget: FlowRelayRegistry
     private let queue: DispatchQueue
@@ -33,18 +33,18 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
         flow: NEAppProxyTCPFlow,
         socketPath: String,
         capability: Data,
-        outboundID: String,
+        proxyTarget: ProviderProxyTarget,
         endpoint: NPF1Endpoint,
         budget: FlowRelayRegistry,
         queue: DispatchQueue,
-        onEstablished: @escaping @Sendable () -> Void,
+        onEstablished: @escaping @Sendable (String) -> Void,
         onSetupFailed: @escaping @Sendable (String) -> Void,
         onFinish: @escaping @Sendable (ProxyTCPFlowRelay) -> Void
     ) {
         self.flow = flow
         self.socketPath = socketPath
         self.capability = capability
-        self.outboundID = outboundID
+        self.proxyTarget = proxyTarget
         self.endpoint = endpoint
         self.budget = budget
         self.queue = queue
@@ -63,7 +63,7 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
                 self.channel = try ProxyFlowChannel(
                     socketPath: self.socketPath,
                     capability: self.capability,
-                    outboundID: self.outboundID,
+                    proxyTarget: self.proxyTarget,
                     endpoint: self.endpoint,
                     openType: .openTCP,
                     queue: self.queue,
@@ -125,9 +125,9 @@ final class ProxyTCPFlowRelay: FlowRelay, @unchecked Sendable {
             return
         }
         switch event {
-        case .ready:
+        case .ready(let selectedOutboundID):
             isChannelReady = true
-            setupObserver.established()
+            setupObserver.established(selectedOutboundID: selectedOutboundID)
             openFlow()
             startPumpsIfReady()
         case .creditAvailable:

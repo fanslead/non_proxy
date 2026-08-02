@@ -157,7 +157,7 @@ private final class FlowSmokeRunner: @unchecked Sendable {
                 ?? "NP_FLOW_SMOKE_GATEWAY_ERROR")
         case .halfClose, .close:
             fail("NP_FLOW_SMOKE_CLOSED_EARLY")
-        case .openTCP, .openUDP, .datagram, .ping, .pong:
+        case .openTCP, .openUDP, .datagram, .ping, .pong, .ready:
             throw NPF1ProtocolError.invalidFrameType
         }
     }

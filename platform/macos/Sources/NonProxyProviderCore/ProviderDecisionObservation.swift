@@ -12,6 +12,7 @@ public struct ProviderDecisionObservation: Sendable {
     public let flowID: String
     public let context: PolicyConnectionContext
     public let decision: PolicyDecision
+    public let proxyTarget: ProviderProxyTarget?
     public let observedAt: Date
     public let decisionLatencyNanoseconds: UInt64
 
@@ -19,12 +20,14 @@ public struct ProviderDecisionObservation: Sendable {
         flowID: String,
         context: PolicyConnectionContext,
         decision: PolicyDecision,
+        proxyTarget: ProviderProxyTarget? = nil,
         observedAt: Date,
         decisionLatencyNanoseconds: UInt64
     ) {
         self.flowID = flowID
         self.context = context
         self.decision = decision
+        self.proxyTarget = proxyTarget
         self.observedAt = observedAt
         self.decisionLatencyNanoseconds = decisionLatencyNanoseconds
     }
@@ -132,7 +135,8 @@ public struct ProviderDecisionObservation: Sendable {
         case .proxy(let outboundID):
             guard !outboundID.isEmpty,
                   decision.result.action == .proxy,
-                  decision.result.outboundID == outboundID,
+                  proxyTarget?.matches(decision: decision) == true,
+                  proxyTarget?.accepts(selectedOutboundID: outboundID) == true,
                   errorCode == nil
             else {
                 throw ProviderError.control("代理路径证据无效")

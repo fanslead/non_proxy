@@ -23,6 +23,7 @@ public enum NPF1FrameType: UInt8, Sendable {
     case error = 8
     case ping = 9
     case pong = 10
+    case ready = 11
 
     var requiresEmptyPayload: Bool {
         switch self {

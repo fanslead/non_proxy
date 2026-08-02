@@ -99,10 +99,14 @@ public final class DNSQueryCoordinator: Sendable {
             flowID: UUID().uuidString.lowercased(),
             context: policyContext,
             decision: decision,
+            proxyTarget: evaluation.proxyTarget,
             observedAt: observedAt,
             decisionLatencyNanoseconds: decisionFinished - decisionStarted
         )
-        let plan = DNSRoutePlanner.plan(decision: decision)
+        let plan = DNSRoutePlanner.plan(
+            decision: decision,
+            proxyTarget: evaluation.proxyTarget
+        )
         if plan == .refuse {
             report(observation, path: .decision)
             return DNSResponseBuilder.refused(
@@ -157,13 +161,24 @@ public final class DNSQueryCoordinator: Sendable {
                 question: question,
                 observation: observation
             )
-        case .proxy(let outboundID):
+        case .proxy(let proxyTarget):
             request.requestedRoute = .proxy
-            request.requestedOutboundID = outboundID
+            switch proxyTarget {
+            case .outbound(let id):
+                request.requestedOutboundID = id
+            case .group(let id, let snapshotVersion, _):
+                guard snapshotVersion == request.snapshotVersion else {
+                    throw DNSProxyError.providerUnavailable(
+                        "DNS 出口组快照版本不匹配"
+                    )
+                }
+                request.requestedOutboundGroupID = id
+            }
             return try await resolveProxy(
                 request,
                 question: question,
                 observation: observation,
+                proxyTarget: proxyTarget,
                 network: network
             )
         case .refuse:
@@ -202,7 +217,11 @@ public final class DNSQueryCoordinator: Sendable {
         request.snapshotVersion = snapshotVersion
         request.requestedRoute = .system
         let response = try await resolver.resolveDNS(request)
-        try validate(response, request: request, question: question)
+        try DNSResponseValidator.validate(
+            response,
+            request: request,
+            question: question
+        )
         return response.dnsMessage
     }
 
@@ -213,7 +232,11 @@ public final class DNSQueryCoordinator: Sendable {
     ) async throws -> Data {
         do {
             let response = try await resolver.resolveDNS(request)
-            try validate(response, request: request, question: question)
+            try DNSResponseValidator.validate(
+                response,
+                request: request,
+                question: question
+            )
             if response.cacheHit {
                 report(observation, path: .decision)
             } else {
@@ -240,17 +263,23 @@ public final class DNSQueryCoordinator: Sendable {
         _ request: Nonproxy_Provider_V1_ResolveDnsRequest,
         question: DNSQuestion,
         observation: ProviderDecisionObservation,
+        proxyTarget: ProviderProxyTarget,
         network: MacNetworkEnvironmentSnapshot
     ) async throws -> Data {
         do {
             let response = try await resolver.resolveDNS(request)
-            try validate(response, request: request, question: question)
+            try DNSResponseValidator.validate(
+                response,
+                request: request,
+                question: question,
+                proxyTarget: proxyTarget
+            )
             if response.cacheHit {
                 report(observation, path: .decision)
             } else {
                 report(
                     observation,
-                    path: .proxy(outboundID: request.requestedOutboundID)
+                    path: .proxy(outboundID: response.outboundID)
                 )
             }
             return response.dnsMessage
@@ -292,10 +321,15 @@ public final class DNSQueryCoordinator: Sendable {
         var request = original
         request.requestedRoute = .direct
         request.requestedOutboundID = ""
+        request.requestedOutboundGroupID = ""
         request.directInterfaceIndex = interfaceIndex
         do {
             let response = try await resolver.resolveDNS(request)
-            try validate(response, request: request, question: question)
+            try DNSResponseValidator.validate(
+                response,
+                request: request,
+                question: question
+            )
             if response.cacheHit {
                 report(
                     observation,
@@ -321,29 +355,6 @@ public final class DNSQueryCoordinator: Sendable {
             )
             throw error
         }
-    }
-
-    private func validate(
-        _ response: Nonproxy_Provider_V1_ResolveDnsResponse,
-        request: Nonproxy_Provider_V1_ResolveDnsRequest,
-        question: DNSQuestion
-    ) throws {
-        guard response.route == request.requestedRoute else {
-            throw DNSProxyError.responseInvalid("DNS 响应路由标签不匹配")
-        }
-        if request.requestedRoute == .proxy {
-            guard response.outboundID == request.requestedOutboundID else {
-                throw DNSProxyError.responseInvalid(
-                    "DNS 响应代理出口标签不匹配"
-                )
-            }
-        } else if !response.outboundID.isEmpty {
-            throw DNSProxyError.responseInvalid("非代理 DNS 响应携带了代理出口")
-        }
-        try DNSMessageParser.validateResponse(
-            response.dnsMessage,
-            for: question
-        )
     }
 
     private func protobufIdentity(

@@ -18,6 +18,7 @@ final class ProxyFlowChannelTests: XCTestCase {
             payload: NPF1PayloadCodec.encodeWindowUpdate(65_536)
         )
         XCTAssertTrue(fixture.events.containsReady)
+        XCTAssertEqual(fixture.events.selectedOutboundID, "proxy-main")
 
         let sendResult = fixture.queue.sync {
             fixture.channel.send(
@@ -48,6 +49,119 @@ final class ProxyFlowChannelTests: XCTestCase {
             5
         )
         fixture.stop()
+    }
+
+    func testGroupHandshakeRequiresReadyWithASnapshotMember() throws {
+        let target = ProviderProxyTarget.group(
+            id: "automatic",
+            snapshotVersion: 7,
+            memberIDs: ["primary", "backup"]
+        )
+        let fixture = try ChannelFixture(proxyTarget: target)
+        fixture.start()
+        let open = try fixture.firstSentFrame()
+        XCTAssertEqual(open.type, .openTCP)
+        XCTAssertEqual(
+            open.payload,
+            try NPF1PayloadCodec.encodeOpen(
+                capability: Data(repeating: 7, count: 32),
+                proxyTarget: target,
+                endpoint: NPF1Endpoint(host: "example.test", port: 443),
+                initialWindowBytes: 256 * 1024
+            )
+        )
+
+        try fixture.deliver(
+            type: .ready,
+            sequence: 0,
+            payload: NPF1PayloadCodec.encodeReady(
+                selectedOutboundID: "backup",
+                initialWindowBytes: 65_536
+            )
+        )
+
+        XCTAssertEqual(fixture.events.selectedOutboundID, "backup")
+        let sent = fixture.queue.sync {
+            fixture.channel.send(
+                type: .data,
+                payload: Data("hello".utf8),
+                requiresCredit: true
+            )
+        }
+        XCTAssertSendAccepted(sent)
+        fixture.stop()
+    }
+
+    func testGroupRejectsLegacyWindowUpdateBeforeReady() throws {
+        let fixture = try ChannelFixture(proxyTarget: groupTarget)
+        fixture.start()
+        _ = try fixture.firstSentFrame()
+
+        try fixture.deliver(
+            type: .windowUpdate,
+            sequence: 0,
+            payload: NPF1PayloadCodec.encodeWindowUpdate(65_536)
+        )
+
+        XCTAssertEqual(
+            fixture.events.lastFailure,
+            "NP_PROXY_CHANNEL_PROTOCOL_INVALID"
+        )
+        XCTAssertFalse(fixture.events.containsReady)
+    }
+
+    func testGroupRejectsSelectedOutboundOutsideSnapshotMembership() throws {
+        let fixture = try ChannelFixture(proxyTarget: groupTarget)
+        fixture.start()
+        _ = try fixture.firstSentFrame()
+
+        try fixture.deliver(
+            type: .ready,
+            sequence: 0,
+            payload: NPF1PayloadCodec.encodeReady(
+                selectedOutboundID: "outsider",
+                initialWindowBytes: 65_536
+            )
+        )
+
+        XCTAssertEqual(
+            fixture.events.lastFailure,
+            "NP_PROXY_CHANNEL_PROTOCOL_INVALID"
+        )
+        XCTAssertFalse(fixture.events.containsReady)
+    }
+
+    func testHandshakeErrorReportsTheStableGatewayFailure() throws {
+        let fixture = try ChannelFixture(proxyTarget: groupTarget)
+        fixture.start()
+        _ = try fixture.firstSentFrame()
+
+        try fixture.deliver(
+            type: .error,
+            sequence: 0,
+            payload: Data("NP_FLOW_OUTBOUND_GROUP_UNAVAILABLE".utf8)
+        )
+
+        XCTAssertEqual(
+            fixture.events.lastFailure,
+            "NP_FLOW_OUTBOUND_GROUP_UNAVAILABLE"
+        )
+        XCTAssertEqual(fixture.events.frameCount, 0)
+        XCTAssertFalse(fixture.events.containsReady)
+    }
+
+    func testHandshakeRejectsCloseBeforeReady() throws {
+        let fixture = try ChannelFixture(proxyTarget: groupTarget)
+        fixture.start()
+        _ = try fixture.firstSentFrame()
+
+        try fixture.deliver(type: .close, sequence: 0, payload: Data())
+
+        XCTAssertEqual(
+            fixture.events.lastFailure,
+            "NP_PROXY_CHANNEL_PROTOCOL_INVALID"
+        )
+        XCTAssertEqual(fixture.events.frameCount, 0)
     }
 
     func testInsufficientCreditPausesWithoutConsumingSequence() throws {
@@ -163,13 +277,15 @@ private final class ChannelFixture: @unchecked Sendable {
     let events = ChannelEventRecorder()
     let channel: ProxyFlowChannel
 
-    init() throws {
+    init(
+        proxyTarget: ProviderProxyTarget = .outbound(id: "proxy-main")
+    ) throws {
         let connection = connection
         let events = events
         channel = try ProxyFlowChannel(
             socketPath: "/tmp/nonproxy-flow.sock",
             capability: Data(repeating: 7, count: 32),
-            outboundID: "proxy-main",
+            proxyTarget: proxyTarget,
             endpoint: NPF1Endpoint(host: "example.test", port: 443),
             openType: .openTCP,
             queue: queue,
@@ -284,6 +400,15 @@ private final class ChannelEventRecorder: @unchecked Sendable {
         }
     }
 
+    var selectedOutboundID: String? {
+        events.reversed().compactMap {
+            if case .ready(let selectedOutboundID) = $0 {
+                return selectedOutboundID
+            }
+            return nil
+        }.first
+    }
+
     var lastFrame: NPF1Frame? {
         events.reversed().compactMap {
             if case .frame(let frame) = $0 {
@@ -314,6 +439,12 @@ private final class ChannelEventRecorder: @unchecked Sendable {
         events.append(event)
     }
 }
+
+private let groupTarget = ProviderProxyTarget.group(
+    id: "automatic",
+    snapshotVersion: 7,
+    memberIDs: ["primary", "backup"]
+)
 
 private func XCTAssertSendAccepted(
     _ result: ProxyFlowChannelSendResult,

@@ -25,31 +25,49 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let port = listener.local_addr()?.port();
     fs::write(port_file, port.to_string())?;
 
-    let accepted = timeout(ACCEPT_TIMEOUT, listener.accept())
-        .await
-        .map_err(|_| timeout_error("等待代理连接超时"))??;
-    let mut stream = accepted.0;
+    loop {
+        let accepted = timeout(ACCEPT_TIMEOUT, listener.accept())
+            .await
+            .map_err(|_| timeout_error("等待代理连接超时"))??;
+        if handle_connection(accepted.0).await? {
+            return Ok(());
+        }
+    }
+}
+
+async fn handle_connection(mut stream: TcpStream) -> Result<bool, IoError> {
     let request = read_header(&mut stream).await?;
     let request_text = String::from_utf8_lossy(&request);
-    if !request_text.starts_with("CONNECT example.test:443 HTTP/1.1\r\n") {
-        return Err(IoError::new(ErrorKind::InvalidData, "CONNECT 目标不符合预期").into());
+    let is_probe = request_text.starts_with("CONNECT example.com:443 HTTP/1.1\r\n");
+    let is_flow = request_text.starts_with("CONNECT example.test:443 HTTP/1.1\r\n");
+    if !is_probe && !is_flow {
+        return Err(IoError::new(
+            ErrorKind::InvalidData,
+            "CONNECT 目标不符合预期",
+        ));
     }
 
     stream
         .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
         .await?;
+    if is_probe {
+        timeout(OPERATION_TIMEOUT, wait_for_close(&mut stream))
+            .await
+            .map_err(|_| timeout_error("等待健康探测关闭超时"))??;
+        return Ok(false);
+    }
     let mut payload = [0_u8; EXPECTED_PAYLOAD.len()];
     timeout(OPERATION_TIMEOUT, stream.read_exact(&mut payload))
         .await
         .map_err(|_| timeout_error("等待中继数据超时"))??;
     if payload != EXPECTED_PAYLOAD {
-        return Err(IoError::new(ErrorKind::InvalidData, "中继数据不符合预期").into());
+        return Err(IoError::new(ErrorKind::InvalidData, "中继数据不符合预期"));
     }
     stream.write_all(&payload).await?;
     timeout(OPERATION_TIMEOUT, wait_for_close(&mut stream))
         .await
         .map_err(|_| timeout_error("等待中继关闭超时"))??;
-    Ok(())
+    Ok(true)
 }
 
 fn port_file_argument() -> Result<PathBuf, IoError> {

@@ -33,8 +33,8 @@ final class ProxyFlowRelayCoordinator: Sendable {
     func startTCP(
         flow: NEAppProxyTCPFlow,
         destination: PolicyDestination,
-        outboundID: String,
-        onEstablished: @escaping @Sendable () -> Void,
+        proxyTarget: ProviderProxyTarget,
+        onEstablished: @escaping @Sendable (String) -> Void,
         onSetupFailed: @escaping @Sendable (String) -> Void
     ) -> ProxyRelayStartResult {
         let endpoint: NPF1Endpoint
@@ -53,7 +53,7 @@ final class ProxyFlowRelayCoordinator: Sendable {
             flow: flow,
             socketPath: socketPath,
             capability: capability,
-            outboundID: outboundID,
+            proxyTarget: proxyTarget,
             endpoint: endpoint,
             budget: registry,
             queue: queue,
@@ -73,8 +73,8 @@ final class ProxyFlowRelayCoordinator: Sendable {
     func startUDP(
         flow: NEAppProxyUDPFlow,
         destination: PolicyDestination,
-        outboundID: String,
-        onEstablished: @escaping @Sendable () -> Void,
+        proxyTarget: ProviderProxyTarget,
+        onEstablished: @escaping @Sendable (String) -> Void,
         onSetupFailed: @escaping @Sendable (String) -> Void
     ) -> ProxyRelayStartResult {
         let endpoint: NPF1Endpoint
@@ -93,7 +93,7 @@ final class ProxyFlowRelayCoordinator: Sendable {
             flow: flow,
             socketPath: socketPath,
             capability: capability,
-            outboundID: outboundID,
+            proxyTarget: proxyTarget,
             initialEndpoint: endpoint,
             budget: registry,
             queue: queue,

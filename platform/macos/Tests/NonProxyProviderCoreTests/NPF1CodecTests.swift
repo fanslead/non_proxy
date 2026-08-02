@@ -81,6 +81,85 @@ final class NPF1CodecTests: XCTestCase {
         XCTAssertEqual(decoded.content, Data([0x12, 0x34]))
     }
 
+    func testGroupOpenAndReadyPayloadsMatchRustWireContract() throws {
+        let endpoint = try NPF1Endpoint(host: "example.test", port: 443)
+        let open = try NPF1PayloadCodec.encodeOpen(
+            capability: Data(repeating: 0xAB, count: 32),
+            proxyTarget: .group(
+                id: "automatic",
+                snapshotVersion: 7,
+                memberIDs: ["primary", "backup"]
+            ),
+            endpoint: endpoint,
+            initialWindowBytes: 65_536
+        )
+
+        var expectedOpen = Data(repeating: 0xAB, count: 32)
+        expectedOpen.append(contentsOf: [0, 2, 9])
+        expectedOpen.append(Data("automatic".utf8))
+        expectedOpen.append(contentsOf: [0, 0, 0, 0, 0, 0, 0, 7])
+        expectedOpen.append(contentsOf: [3, 12])
+        expectedOpen.append(Data("example.test".utf8))
+        expectedOpen.append(contentsOf: [1, 187, 0, 1, 0, 0])
+        XCTAssertEqual(open, expectedOpen)
+
+        let ready = try NPF1PayloadCodec.encodeReady(
+            selectedOutboundID: "backup",
+            initialWindowBytes: 131_072
+        )
+        XCTAssertEqual(
+            ready,
+            Data([6]) + Data("backup".utf8)
+                + Data([0, 2, 0, 0])
+        )
+        let decoded = try NPF1PayloadCodec.decodeReady(ready)
+        XCTAssertEqual(decoded.selectedOutboundID, "backup")
+        XCTAssertEqual(decoded.initialWindowBytes, 131_072)
+    }
+
+    func testRejectsInvalidGroupAndReadyPayloads() throws {
+        let endpoint = try NPF1Endpoint(host: "example.test", port: 443)
+        for target in [
+            ProviderProxyTarget.group(
+                id: "automatic",
+                snapshotVersion: 0,
+                memberIDs: ["primary", "backup"]
+            ),
+            ProviderProxyTarget.group(
+                id: "automatic",
+                snapshotVersion: 7,
+                memberIDs: ["primary", "primary"]
+            )
+        ] {
+            XCTAssertThrowsError(
+                try NPF1PayloadCodec.encodeOpen(
+                    capability: Data(repeating: 1, count: 32),
+                    proxyTarget: target,
+                    endpoint: endpoint,
+                    initialWindowBytes: 65_536
+                )
+            )
+        }
+        XCTAssertThrowsError(
+            try NPF1PayloadCodec.decodeReady(
+                Data([6]) + Data("backup".utf8) + Data([0, 0, 0, 0])
+            )
+        )
+    }
+
+    func testSanitizesGatewayErrorCodes() {
+        XCTAssertEqual(
+            NPF1PayloadCodec.decodeErrorCode(
+                Data("NP_FLOW_OUTBOUND_GROUP_UNAVAILABLE".utf8)
+            ),
+            "NP_FLOW_OUTBOUND_GROUP_UNAVAILABLE"
+        )
+        XCTAssertEqual(
+            NPF1PayloadCodec.decodeErrorCode(Data("unsafe value".utf8)),
+            "NP_PROXY_GATEWAY_ERROR"
+        )
+    }
+
     func testRejectsMalformedSequenceWindowAndOversizedDatagram() throws {
         var tracker = NPF1SequenceTracker()
         try tracker.accept(0)
