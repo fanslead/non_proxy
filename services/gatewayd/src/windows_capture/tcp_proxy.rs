@@ -234,33 +234,36 @@ async fn handle_connection(
             relay(&mut inbound, &mut outbound).await
         }
         RouteAction::Proxy => {
-            let outbound_id = decision
-                .result()
-                .outbound_id()
-                .ok_or(GatewayError::InvalidContract("代理决策缺少出口"))?;
             let proxied = async {
+                let proxy_target = decision
+                    .result()
+                    .proxy_target()
+                    .ok_or(GatewayError::InvalidContract("代理决策缺少出口"))?;
+                let outbound_id = gateway
+                    .resolve_proxy_target_outbound(decision.snapshot_version(), proxy_target)
+                    .await
+                    .map_err(data_plane_error)?;
                 let connector = load_connector_with_dialer(
                     &gateway,
                     Arc::clone(&credential_store),
-                    outbound_id,
+                    &outbound_id,
                     proxy_dialer,
                 )
                 .await
                 .map_err(data_plane_error)?;
-                connector
+                let stream = connector
                     .connect_tcp(&target)
                     .await
-                    .map_err(data_plane_error)
+                    .map_err(data_plane_error)?;
+                Ok::<_, GatewayError>((outbound_id, stream))
             }
             .await;
             match proxied {
-                Ok(mut outbound) => {
+                Ok((outbound_id, mut outbound)) => {
                     report(
                         &decisions,
                         &observation,
-                        ObservedPath::Proxy {
-                            outbound_id: outbound_id.clone(),
-                        },
+                        ObservedPath::Proxy { outbound_id },
                         None,
                     );
                     relay(&mut inbound, &mut outbound).await

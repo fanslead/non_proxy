@@ -1388,13 +1388,18 @@ hash。Rust 编译器与 macOS Provider 使用同一 golden vector 校验该编�
 连续两次成功的成员；连续两次失败后才切走，超过 60 秒的观察视为未知。NPF1 组 OPEN 携带
 快照版本并以 `READY` 返回具体成员，DNS 请求使用与 `requested_outbound_id` 互斥的
 `requested_outbound_group_id`，响应仍返回具体 outbound ID；决策接收端会拒绝不属于快照组
-目录的路径证据。`gatewayd` 现在会在 Unix 和 Windows 的共用后台生命周期中立即扫描所有
+目录的路径证据。Windows WFP 用户态 TCP、UDP 和 DNS 路径也从同一个决策目标解析具体成员；
+成员只在新连接、新 UDP session 或单次 DNS 查询开始时确定，并与连接对象或 DNS 缓存分区
+绑定，既有会话不会迁移。Windows 路径证据只记录实际成员，组不可用或连接失败仍统一进入
+策略既有的 fail-open/fail-closed 分支。`gatewayd` 现在会在 Unix 和 Windows 的共用后台
+生命周期中立即扫描所有
 已启用出口，最多并发 4 个固定目标探测；单次探测总超时为 5 秒，完成后按出口 ID 和 revision
 使用 20～30 秒的确定性抖动间隔再次调度。调度器复用手动测试的同一条真实连接路径，只访问
 `example.com:443`，不会接触用户 flow 的目标。组选中成员首次确定或真正变化时，进程内判重
 器只持久化一条 `outbound_group_selection_changed` 审计，包含活动快照版本、组 revision、
 旧/新成员和稳定原因码，不包含用户目标；相同成员的后续 flow 和无关快照变化不会重复写入。
-尚未完成的激活边界是对应桌面状态。完整边界与冷启动行为见
+尚未完成的激活边界是对应桌面状态；Windows x64/ARM64 源码构建与真实 WFP/VPN 网络路径仍
+分别受 W0 和 W4 验收门禁约束。完整边界与冷启动行为见
 [ADR-0043](ADR/0043-own-ordered-outbound-failover-groups.md)。
 
 ### 15.2 标准代理导入

@@ -16,6 +16,12 @@ WDK 产物、Service 显示 Running 或策略显示 DIRECT，都不能单独代�
 
 产品只可对实际完成 W4 的 OS、架构、VPN 类型和协议组合声明“已确认直连”。
 
+出口组验收必须额外覆盖以下语义：新 TCP 连接、新 UDP session 和单次 DNS 查询只选择一次
+具体成员；健康成员切换不会迁移既有 TCP/UDP 会话；路径证据记录实际成员而不是组 ID；无健康
+成员时分别验证 fail-open 的物理直连回退和 fail-closed 的稳定失败。W0 的 Windows runner
+必须同时编译 `nonproxy-gatewayd` 与 `nonproxy-adapter-host`，不能用后者的构建结果代替 WFP
+用户态数据面编译证据。
+
 ## 2. 发布前置条件
 
 - Windows 10 1903 或更高版本；发布矩阵仍需覆盖 Windows 10 22H2 和受支持的

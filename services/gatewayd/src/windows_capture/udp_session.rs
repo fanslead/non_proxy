@@ -162,30 +162,34 @@ pub async fn run_udp_session(
             .await
         }
         RouteAction::Proxy => {
-            let outbound_id = decision
-                .result()
-                .outbound_id()
-                .ok_or(GatewayError::InvalidContract("代理决策缺少出口"))?;
             let opened = async {
+                let proxy_target = decision
+                    .result()
+                    .proxy_target()
+                    .ok_or(GatewayError::InvalidContract("代理决策缺少出口"))?;
+                let outbound_id = dependencies
+                    .gateway
+                    .resolve_proxy_target_outbound(decision.snapshot_version(), proxy_target)
+                    .await
+                    .map_err(data_plane_error)?;
                 let connector = load_connector_with_dialer(
                     &dependencies.gateway,
                     Arc::clone(&dependencies.credential_store),
-                    outbound_id,
+                    &outbound_id,
                     Arc::new(SystemTcpDialer),
                 )
                 .await
                 .map_err(data_plane_error)?;
-                connector.open_udp().await.map_err(data_plane_error)
+                let association = connector.open_udp().await.map_err(data_plane_error)?;
+                Ok::<_, GatewayError>((outbound_id, association))
             }
             .await;
             match opened {
-                Ok(association) => {
+                Ok((outbound_id, association)) => {
                     report(
                         &dependencies.decisions,
                         &observation,
-                        ObservedPath::Proxy {
-                            outbound_id: outbound_id.clone(),
-                        },
+                        ObservedPath::Proxy { outbound_id },
                         None,
                     );
                     relay_proxy(

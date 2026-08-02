@@ -253,15 +253,14 @@ impl WindowsDnsProcessor {
                         }
                     }
                     RouteAction::Proxy => {
-                        let proxy = self
-                            .resolve_proxy(&query, &wire_query, &snapshot, &decision)
-                            .await;
+                        let proxy = self.resolve_proxy(&query, &wire_query, &decision).await;
                         match proxy {
                             Ok(result) => {
-                                let outbound_id = decision
-                                    .result()
+                                let outbound_id = result
                                     .outbound_id()
-                                    .ok_or(DnsServiceError::InvalidRequest("代理 DNS 缺少出口"))?
+                                    .ok_or(DnsServiceError::InvalidRequest(
+                                        "代理 DNS 结果缺少实际出口",
+                                    ))?
                                     .clone();
                                 observation.proxy(outbound_id, result.cache_hit);
                                 Ok(result.dns_message)
@@ -322,7 +321,6 @@ impl WindowsDnsProcessor {
         &self,
         query: &ParsedDnsQuery,
         wire_query: &[u8],
-        snapshot: &nonproxy_policy::CompiledPolicySnapshot,
         decision: &nonproxy_model::Decision,
     ) -> Result<DnsResolutionResult, DnsServiceError> {
         let upstreams = self
@@ -330,18 +328,21 @@ impl WindowsDnsProcessor {
             .current()
             .map_err(|error| GatewayError::WindowsDataPlane(error.to_string()))?
             .all_endpoints();
-        let outbound = decision
+        let proxy_target = decision
             .result()
-            .outbound_id()
-            .ok_or(DnsServiceError::InvalidRequest("代理 DNS 缺少出口"))?
-            .clone();
+            .proxy_target()
+            .ok_or(DnsServiceError::InvalidRequest("代理 DNS 缺少出口"))?;
+        let outbound = self
+            .gateway
+            .resolve_proxy_target_outbound(decision.snapshot_version(), proxy_target)
+            .await?;
         self.resolution
             .resolve_wire(WireDnsRequest {
                 query,
                 wire_query,
                 route: DnsRoute::Proxy(outbound),
                 upstreams: &upstreams,
-                snapshot_version: snapshot.metadata().snapshot_version(),
+                snapshot_version: decision.snapshot_version(),
                 direct_interface_index: None,
                 network_profile: None,
             })

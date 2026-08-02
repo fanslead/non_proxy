@@ -135,8 +135,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  windows-adapter-host:
-    name: Windows Adapter Host（${{ matrix.architecture }}）
+  windows-rust-services:
+    name: Windows Rust 服务（${{ matrix.architecture }}）
     runs-on: windows-2022
     timeout-minutes: 20
     strategy:
@@ -159,18 +159,21 @@ jobs:
           rustup toolchain install 1.97.1 --profile minimal --component clippy
           rustup target add '${{ matrix.target }}' --toolchain 1.97.1
 
-      - name: 编译并检查 Windows Adapter Host
+      - name: 编译并检查 Windows Rust 服务
         shell: pwsh
         run: |
           if ('${{ matrix.lint }}' -eq 'true') {
             cargo +1.97.1 clippy --locked `
               -p nonproxy-adapter-host `
+              -p nonproxy-gatewayd `
               --all-targets `
               --target '${{ matrix.target }}' `
               -- -D warnings
           } else {
             cargo +1.97.1 check --locked `
               -p nonproxy-adapter-host `
+              -p nonproxy-gatewayd `
+              --all-targets `
               --target '${{ matrix.target }}'
           }
 

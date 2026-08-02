@@ -1,3 +1,5 @@
+#[cfg(any(test, windows))]
+use nonproxy_model::ProxyTarget;
 use nonproxy_model::{OutboundGroupId, OutboundId};
 use nonproxy_proto::events::v1::RuntimeState;
 
@@ -16,6 +18,22 @@ impl OutboundGroupSelection {
 }
 
 impl Gateway {
+    #[cfg(any(test, windows))]
+    pub(crate) async fn resolve_proxy_target_outbound(
+        &self,
+        snapshot_version: u64,
+        target: &ProxyTarget,
+    ) -> Result<OutboundId, FlowServiceError> {
+        match target {
+            ProxyTarget::Outbound(id) => Ok(id.clone()),
+            ProxyTarget::Group(id) => Ok(self
+                .select_outbound_group(snapshot_version, id)
+                .await?
+                .outbound_id()
+                .clone()),
+        }
+    }
+
     pub(crate) async fn select_outbound_group(
         &self,
         snapshot_version: u64,
@@ -72,7 +90,7 @@ impl Gateway {
 
 #[cfg(test)]
 mod tests {
-    use nonproxy_model::{OutboundGroupId, OutboundId};
+    use nonproxy_model::{OutboundGroupId, OutboundId, ProxyTarget};
     use nonproxy_policy_compiler::CompileCapabilities;
     use nonproxy_proto::events::v1::RuntimeState;
     use nonproxy_storage::{
@@ -81,6 +99,38 @@ mod tests {
     };
 
     use crate::Gateway;
+
+    #[tokio::test]
+    async fn resolves_a_single_outbound_without_group_selection() {
+        let gateway = gateway_with_active_group().await;
+
+        let selected = gateway
+            .resolve_proxy_target_outbound(1, &ProxyTarget::Outbound(outbound_id("primary")))
+            .await;
+
+        assert!(matches!(
+            selected,
+            Ok(value) if value.as_str() == "primary"
+        ));
+        assert_eq!(selection_audit_count(&gateway).await, 0);
+    }
+
+    #[tokio::test]
+    async fn resolves_a_group_to_its_selected_concrete_member() {
+        let gateway = gateway_with_active_group().await;
+        report(&gateway, "backup", RuntimeState::Ready);
+        report(&gateway, "backup", RuntimeState::Ready);
+
+        let selected = gateway
+            .resolve_proxy_target_outbound(1, &ProxyTarget::Group(group_id()))
+            .await;
+
+        assert!(matches!(
+            selected,
+            Ok(value) if value.as_str() == "backup"
+        ));
+        assert_eq!(selection_audit_count(&gateway).await, 1);
+    }
 
     #[tokio::test]
     async fn selects_first_stably_ready_member_from_the_active_snapshot() {
