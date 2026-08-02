@@ -1411,8 +1411,8 @@ hash。Rust 编译器与 macOS Provider 使用同一 golden vector 校验该编�
 旧/新成员和稳定原因码，不包含用户目标；相同成员的后续 flow 和无关快照变化不会重复写入。
 V0016 为 `routing_settings` 增加与单出口互斥的默认组外键；设置默认组要求全部成员支持
 TCP、UDP、IPv4 与 IPv6，且至少一个成员已经连续两次通过新鲜探测。配置、组目标默认 decision
-和 pending 快照在同一事务提交，历史回滚也恢复组目标。尚未完成的激活边界是对应桌面状态；
-Windows x64/ARM64 源码构建与真实 WFP/VPN 网络路径仍
+和 pending 快照在同一事务提交，历史回滚也恢复组目标。共享桌面端会展示默认组的配置、
+待确认和已激活状态；Windows x64/ARM64 源码构建与真实 WFP/VPN 网络路径仍
 分别受 W0 和 W4 验收门禁约束。完整边界与冷启动行为见
 [ADR-0043](ADR/0043-own-ordered-outbound-failover-groups.md)。
 
@@ -1463,8 +1463,8 @@ Trojan、WireGuard、OpenVPN、SIP003 plugin 或其他供应商订阅协议已�
 #### 15.2.1 远程订阅获取边界
 
 `nonproxy-subscription` 提供远程获取的独立安全核心，`gatewayd` 通过安全摘要控制 RPC 开放
-订阅源列表、创建/更新和手动刷新，并在 Unix/Windows 服务生命周期内启动到期调度；桌面入口
-尚未开放。
+订阅源列表、创建/更新和手动刷新，并在 Unix/Windows 服务生命周期内启动到期调度。共享桌面
+“订阅管理”页通过同一认证 RPC 提供添加、编辑、启停、手动刷新和二次确认删除。
 URL 的 path、query 和 hostname 均按秘密处理；只接受 HTTPS，DNS 解析后若包含任一私网、
 环回、链路本地、保留或文档地址则整次拒绝，实际 TCP 只连接同一批已验证公网
 `SocketAddr`。客户端不读取环境或系统代理，使用 WebPKI TLS，拒绝重定向与压缩，只接受
@@ -1472,7 +1472,7 @@ URL 的 path、query 和 hostname 均按秘密处理；只接受 HTTPS，DNS 解
 [ADR-0038](ADR/0038-fetch-remote-subscriptions-over-pinned-public-https.md)。
 
 订阅源 URL/Token 已只进入系统凭据库，刷新并发、节点归属、受 revision 保护的删除和后台到期
-扫描已由 gatewayd 编排；桌面交互完成前，UI 仍不得把该能力描述成“自动订阅管理已完成”。
+扫描已由 gatewayd 编排；桌面端只显示安全摘要、稳定状态和告警，不回显订阅地址或凭据引用。
 
 #### 15.2.2 订阅权威状态与节点归属
 
@@ -1513,8 +1513,8 @@ V0014 的持久凭据清理队列把订阅刷新、地址重配置、手动出�
 默认出口、策略或出口组仍引用的订阅节点，然后排队 URL/节点引用、删除源与出口并写审计。
 gatewayd 立即尝试清理，失败项按 1 分钟起、最长 30 分钟退避，并在每次 30 秒调度扫描前处理
 最多 100 项。队列只含引用和稳定错误码，不含任何秘密；完整决策见
-[ADR-0041](ADR/0041-delete-subscriptions-with-durable-credential-cleanup.md)。桌面管理页完成前，
-仍不能宣称完整自动订阅管理可用。
+[ADR-0041](ADR/0041-delete-subscriptions-with-durable-credential-cleanup.md)。共享桌面端会在删除前
+二次确认，并把引用冲突与凭据清理告警转换为可理解且不泄密的提示。
 
 macOS 桌面端还可通过 ABI v7 原生桥只读调用 `SCDynamicStoreCopyProxies`，发现系统
 当前明确启用的 SOCKS、HTTP 与 HTTPS 代理主机和端口。发现层不读取凭据、PAC 内容
