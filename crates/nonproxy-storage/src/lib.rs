@@ -11,6 +11,7 @@ mod learning_confirmation_receipt;
 mod learning_confirmation_repository;
 mod learning_repository;
 mod migration;
+mod migration_backup;
 mod network_profile;
 mod outbound_group_repository;
 mod outbound_group_types;

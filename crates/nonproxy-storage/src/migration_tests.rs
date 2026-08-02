@@ -19,11 +19,13 @@ fn a_failed_migration_rolls_back_the_entire_group() {
                       applied_at_unix_ms INTEGER NOT NULL
                   );
                   CREATE TABLE first_table(value TEXT);",
+            rebuilds_referenced_table: false,
         },
         Migration {
             version: 2,
             name: "broken",
             sql: "CREATE TABLE broken(",
+            rebuilds_referenced_table: false,
         },
     ];
     assert!(migrate_with(&mut connection, None, 1_000, &migrations).is_err());
@@ -52,6 +54,7 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         version: 1,
         name: "initial_schema",
         sql: INITIAL_SCHEMA,
+        rebuilds_referenced_table: false,
     }];
     let first = migrate_with(&mut connection, None, 1_000, &v1);
     let Ok(first) = first else {
@@ -78,14 +81,14 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         panic!("V1 数据库升级失败: {upgraded:?}");
     };
     assert_eq!(upgraded.previous_version(), 1);
-    assert_eq!(upgraded.current_version(), 14);
+    assert_eq!(upgraded.current_version(), 15);
     assert_eq!(
         upgraded
             .applied()
             .iter()
             .map(AppliedMigration::version)
             .collect::<Vec<_>>(),
-        vec![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        vec![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     );
     let generation: i64 = match connection.query_row(
         "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
@@ -162,6 +165,7 @@ fn legacy_learning_rows_upgrade_without_losing_candidates() {
         version: 1,
         name: "initial_schema",
         sql: INITIAL_SCHEMA,
+        rebuilds_referenced_table: false,
     }];
     if let Err(error) = migrate_with(&mut connection, None, 1_000, &v1) {
         panic!("学习迁移 V1 初始化失败: {error}");
@@ -190,7 +194,7 @@ fn legacy_learning_rows_upgrade_without_losing_candidates() {
     let Ok(upgraded) = upgraded else {
         panic!("旧学习数据升级失败: {upgraded:?}");
     };
-    assert_eq!(upgraded.current_version(), 14);
+    assert_eq!(upgraded.current_version(), 15);
     let session: (String, String, i64) = match connection.query_row(
         "SELECT browser_context_id, state, expires_at_unix_ms
          FROM learning_session WHERE id = 'legacy-session'",
@@ -336,7 +340,7 @@ fn legacy_connection_decisions_upgrade_without_fabricating_app_identity() {
         panic!("V11 连接记录升级失败: {upgraded:?}");
     };
     assert_eq!(upgraded.previous_version(), 11);
-    assert_eq!(upgraded.current_version(), 14);
+    assert_eq!(upgraded.current_version(), 15);
     let identity: (Option<String>, Option<String>, Option<String>) = match connection.query_row(
         "SELECT app_signer_id, app_parent_stable_id, app_helper_group_id
          FROM connection_decision WHERE event_id = 'legacy-identity'",
@@ -347,6 +351,82 @@ fn legacy_connection_decisions_upgrade_without_fabricating_app_identity() {
         Err(error) => panic!("升级后应用身份读取失败: {error}"),
     };
     assert_eq!(identity, (None, None, None));
+}
+
+#[test]
+fn policy_target_migration_preserves_legacy_policy_children_and_foreign_keys() {
+    let mut connection = Connection::open_in_memory()
+        .unwrap_or_else(|error| panic!("策略目标迁移测试数据库打开失败: {error}"));
+    connection
+        .pragma_update(None, "foreign_keys", "ON")
+        .unwrap_or_else(|error| panic!("策略目标迁移外键启用失败: {error}"));
+    migrate_with(&mut connection, None, 1_000, &MIGRATIONS[..14])
+        .unwrap_or_else(|error| panic!("V14 策略目标迁移基线创建失败: {error}"));
+    connection
+        .execute(
+            "INSERT INTO outbound(
+                 id, kind, endpoint_host, endpoint_port, enabled, revision, updated_at_unix_ms
+             ) VALUES ('legacy-proxy', 'socks5', '127.0.0.1', 1080, 1, 1, 1000)",
+            [],
+        )
+        .unwrap_or_else(|error| panic!("旧策略出口写入失败: {error}"));
+    connection
+        .execute(
+            "INSERT INTO policy(
+                 id, display_name, source_kind, decision_action, outbound_id,
+                 failure_mode, priority, enabled, origin, revision,
+                 app_platform, app_stable_id, app_include_helpers,
+                 updated_at_unix_ms
+             ) VALUES (
+                 'legacy-policy', '旧代理策略', 2, 2, 'legacy-proxy',
+                 1, 100, 1, 2, 1, 1, 'com.example.legacy', 0, 1000
+             )",
+            [],
+        )
+        .unwrap_or_else(|error| panic!("旧策略写入失败: {error}"));
+    connection
+        .execute(
+            "INSERT INTO policy_transport(policy_id, transport)
+             VALUES ('legacy-policy', 1)",
+            [],
+        )
+        .unwrap_or_else(|error| panic!("旧策略传输条件写入失败: {error}"));
+    connection
+        .execute(
+            "INSERT INTO policy_port_range(policy_id, first_port, last_port)
+             VALUES ('legacy-policy', 443, 443)",
+            [],
+        )
+        .unwrap_or_else(|error| panic!("旧策略端口条件写入失败: {error}"));
+
+    let report = migrate_with(&mut connection, None, 2_000, MIGRATIONS)
+        .unwrap_or_else(|error| panic!("策略目标 V15 迁移失败: {error}"));
+    assert_eq!(report.previous_version(), 14);
+    assert_eq!(report.current_version(), 15);
+    let target: (Option<String>, Option<String>) = connection
+        .query_row(
+            "SELECT outbound_id, outbound_group_id FROM policy WHERE id = 'legacy-policy'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap_or_else(|error| panic!("迁移后旧策略目标读取失败: {error}"));
+    assert_eq!(target, (Some("legacy-proxy".to_owned()), None));
+    let children: (i64, i64) = connection
+        .query_row(
+            "SELECT
+                 (SELECT COUNT(*) FROM policy_transport WHERE policy_id = 'legacy-policy'),
+                 (SELECT COUNT(*) FROM policy_port_range WHERE policy_id = 'legacy-policy')",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap_or_else(|error| panic!("迁移后旧策略子项读取失败: {error}"));
+    assert_eq!(children, (1, 1));
+    let foreign_key_violations: i64 = connection
+        .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
+            row.get(0)
+        })
+        .unwrap_or_else(|error| panic!("迁移后外键检查失败: {error}"));
+    assert_eq!(foreign_key_violations, 0);
 }
 
 #[test]

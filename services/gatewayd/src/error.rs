@@ -90,7 +90,8 @@ impl GatewayError {
                 error @ (StorageError::OutboundGroupInvalid
                 | StorageError::OutboundGroupRevisionConflict
                 | StorageError::OutboundGroupMemberNotFound
-                | StorageError::OutboundGroupMemberUnsupported),
+                | StorageError::OutboundGroupMemberUnsupported
+                | StorageError::OutboundGroupInUse),
             ) => error.code(),
             Self::Storage(
                 error @ (StorageError::SubscriptionInvalid

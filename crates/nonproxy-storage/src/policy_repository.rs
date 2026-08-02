@@ -16,7 +16,7 @@ const POLICY_SELECT: &str = "
     SELECT id, display_name, source_kind, decision_action, outbound_id,
            failure_mode, priority, enabled, origin, revision,
            app_platform, app_stable_id, app_signer_id, app_include_helpers,
-           cidr, network_profile_id
+           cidr, network_profile_id, outbound_group_id
     FROM policy";
 
 pub struct PolicyRepository<'connection> {
@@ -179,12 +179,12 @@ pub(crate) fn upsert_policy(
     let app = policy.matcher().app();
     transaction.execute(
         "INSERT INTO policy(
-            id, display_name, source_kind, decision_action, outbound_id,
+            id, display_name, source_kind, decision_action, outbound_id, outbound_group_id,
             failure_mode, priority, enabled, origin, revision,
             app_platform, app_stable_id, app_signer_id, app_include_helpers,
             cidr, network_profile_id, updated_at_unix_ms
          ) VALUES (
-            :id, :display_name, :source_kind, :decision_action, :outbound_id,
+            :id, :display_name, :source_kind, :decision_action, :outbound_id, :outbound_group_id,
             :failure_mode, :priority, :enabled, :origin, :revision,
             :app_platform, :app_stable_id, :app_signer_id,
             :app_include_helpers, :cidr, :network_profile_id, :updated_at
@@ -194,6 +194,7 @@ pub(crate) fn upsert_policy(
             source_kind = excluded.source_kind,
             decision_action = excluded.decision_action,
             outbound_id = excluded.outbound_id,
+            outbound_group_id = excluded.outbound_group_id,
             failure_mode = excluded.failure_mode,
             priority = excluded.priority,
             enabled = excluded.enabled,
@@ -212,6 +213,10 @@ pub(crate) fn upsert_policy(
             ":source_kind": source_code(policy.source_kind()),
             ":decision_action": action_code(policy.decision().action()),
             ":outbound_id": policy.decision().outbound_id().map(|value| value.as_str()),
+            ":outbound_group_id": policy
+                .decision()
+                .outbound_group_id()
+                .map(|value| value.as_str()),
             ":failure_mode": failure_mode_code(policy.decision().failure_mode()),
             ":priority": i64::from(policy.priority()),
             ":enabled": i64::from(policy.enabled()),

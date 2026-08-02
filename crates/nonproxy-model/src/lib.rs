@@ -10,7 +10,7 @@ mod runtime_override;
 
 pub use app_identity::{AppIdentity, AppMatcher, Platform};
 pub use connection::ConnectionContext;
-pub use decision::{Decision, DecisionSpec, FailureMode, RouteAction};
+pub use decision::{Decision, DecisionSpec, FailureMode, ProxyTarget, RouteAction};
 pub use destination::{
     Cidr, Destination, DomainMatchKind, DomainMatcher, DomainName, IpFamily, PortRange, Transport,
 };

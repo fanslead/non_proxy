@@ -53,6 +53,8 @@ pub enum StorageError {
     OutboundGroupMemberNotFound,
     #[error("出口组成员类型不支持内置连接")]
     OutboundGroupMemberUnsupported,
+    #[error("出口组仍被策略引用")]
+    OutboundGroupInUse,
     #[error("默认路由配置修订冲突")]
     RoutingRevisionConflict,
     #[error("默认代理出口不存在、未启用或能力不足")]
@@ -163,6 +165,7 @@ impl StorageError {
             Self::OutboundGroupRevisionConflict => "NP_STORAGE_OUTBOUND_GROUP_REVISION_CONFLICT",
             Self::OutboundGroupMemberNotFound => "NP_STORAGE_OUTBOUND_GROUP_MEMBER_NOT_FOUND",
             Self::OutboundGroupMemberUnsupported => "NP_STORAGE_OUTBOUND_GROUP_MEMBER_UNSUPPORTED",
+            Self::OutboundGroupInUse => "NP_STORAGE_OUTBOUND_GROUP_IN_USE",
             Self::RoutingRevisionConflict => "NP_STORAGE_ROUTING_REVISION_CONFLICT",
             Self::DefaultOutboundUnavailable => "NP_STORAGE_DEFAULT_OUTBOUND_UNAVAILABLE",
             Self::ConnectionDecisionInvalid => "NP_STORAGE_CONNECTION_DECISION_INVALID",

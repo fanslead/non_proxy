@@ -1,14 +1,9 @@
-use std::{
-    ffi::OsString,
-    fs::{self, OpenOptions},
-    io::Write,
-    path::Path,
-};
+use std::path::Path;
 
 use rusqlite::{Connection, TransactionBehavior, params};
 use sha2::{Digest, Sha256};
 
-use crate::StorageError;
+use crate::{StorageError, migration_backup::backup_metadata};
 
 const INITIAL_SCHEMA: &str = include_str!("../../../migrations/V0001__initial_schema.sql");
 const POLICY_CATALOG_GENERATION: &str =
@@ -35,11 +30,14 @@ const SUBSCRIPTION_SOURCES: &str =
     include_str!("../../../migrations/V0013__subscription_sources.sql");
 const CREDENTIAL_CLEANUP_QUEUE: &str =
     include_str!("../../../migrations/V0014__credential_cleanup_queue.sql");
+const POLICY_OUTBOUND_GROUP_TARGET: &str =
+    include_str!("../../../migrations/V0015__policy_outbound_group_target.sql");
 
 struct Migration {
     version: i64,
     name: &'static str,
     sql: &'static str,
+    rebuilds_referenced_table: bool,
 }
 
 const MIGRATIONS: &[Migration] = &[
@@ -47,71 +45,91 @@ const MIGRATIONS: &[Migration] = &[
         version: 1,
         name: "initial_schema",
         sql: INITIAL_SCHEMA,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 2,
         name: "policy_catalog_generation",
         sql: POLICY_CATALOG_GENERATION,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 3,
         name: "provider_generation",
         sql: PROVIDER_GENERATION,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 4,
         name: "learning_sessions",
         sql: LEARNING_SESSIONS,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 5,
         name: "learning_confirmations",
         sql: LEARNING_CONFIRMATIONS,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 6,
         name: "synthetic_dns_bindings",
         sql: SYNTHETIC_DNS_BINDINGS,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 7,
         name: "routing_settings",
         sql: ROUTING_SETTINGS,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 8,
         name: "connection_decision_evidence",
         sql: CONNECTION_DECISION_EVIDENCE,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 9,
         name: "fail_open_path_evidence",
         sql: FAIL_OPEN_PATH_EVIDENCE,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 10,
         name: "exit_probe_receipts",
         sql: EXIT_PROBE_RECEIPTS,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 11,
         name: "network_profile_catalog",
         sql: NETWORK_PROFILE_CATALOG,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 12,
         name: "connection_decision_app_identity",
         sql: CONNECTION_DECISION_APP_IDENTITY,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 13,
         name: "subscription_sources",
         sql: SUBSCRIPTION_SOURCES,
+        rebuilds_referenced_table: false,
     },
     Migration {
         version: 14,
         name: "credential_cleanup_queue",
         sql: CREDENTIAL_CLEANUP_QUEUE,
+        rebuilds_referenced_table: false,
+    },
+    Migration {
+        version: 15,
+        name: "policy_outbound_group_target",
+        sql: POLICY_OUTBOUND_GROUP_TARGET,
+        rebuilds_referenced_table: true,
     },
 ];
 
@@ -193,28 +211,23 @@ fn migrate_with(
             .transpose()?
     };
 
-    let mut newly_applied = Vec::new();
-    if !pending.is_empty() {
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        for migration in pending {
-            transaction.execute_batch(migration.sql)?;
-            transaction.execute(
-                "INSERT INTO schema_migration(version, name, checksum, applied_at_unix_ms)
-                 VALUES (?1, ?2, ?3, ?4)",
-                params![
-                    migration.version,
-                    migration.name,
-                    checksum(migration.sql).as_slice(),
-                    to_sqlite_u64(now_unix_ms)?
-                ],
-            )?;
-            newly_applied.push(AppliedMigration {
-                version: migration.version,
-                name: migration.name,
-            });
-        }
-        transaction.commit()?;
+    let rebuilds_referenced_table = pending
+        .iter()
+        .any(|migration| migration.rebuilds_referenced_table);
+    if rebuilds_referenced_table {
+        enable_referenced_table_rebuild(connection)?;
     }
+    let apply_result = apply_pending(connection, &pending, now_unix_ms);
+    let restore_result = if rebuilds_referenced_table {
+        disable_referenced_table_rebuild(connection)
+    } else {
+        Ok(())
+    };
+    let newly_applied = match (apply_result, restore_result) {
+        (Err(error), _) => return Err(error),
+        (Ok(_), Err(error)) => return Err(error),
+        (Ok(applied), Ok(())) => applied,
+    };
 
     verify_integrity(connection)?;
     Ok(MigrationReport {
@@ -223,6 +236,47 @@ fn migrate_with(
         applied: newly_applied,
         metadata_backup_path,
     })
+}
+
+fn apply_pending(
+    connection: &mut Connection,
+    pending: &[&Migration],
+    now_unix_ms: u64,
+) -> Result<Vec<AppliedMigration>, StorageError> {
+    if pending.is_empty() {
+        return Ok(Vec::new());
+    }
+    let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let mut newly_applied = Vec::with_capacity(pending.len());
+    for migration in pending {
+        transaction.execute_batch(migration.sql)?;
+        transaction.execute(
+            "INSERT INTO schema_migration(version, name, checksum, applied_at_unix_ms)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![
+                migration.version,
+                migration.name,
+                checksum(migration.sql).as_slice(),
+                to_sqlite_u64(now_unix_ms)?
+            ],
+        )?;
+        newly_applied.push(AppliedMigration {
+            version: migration.version,
+            name: migration.name,
+        });
+    }
+    transaction.commit()?;
+    Ok(newly_applied)
+}
+
+fn enable_referenced_table_rebuild(connection: &Connection) -> Result<(), StorageError> {
+    connection.pragma_update(None, "foreign_keys", "OFF")?;
+    Ok(())
+}
+
+fn disable_referenced_table_rebuild(connection: &Connection) -> Result<(), StorageError> {
+    connection.pragma_update(None, "foreign_keys", "ON")?;
+    Ok(())
 }
 
 fn read_applied(connection: &Connection) -> Result<Vec<(i64, String, Vec<u8>)>, StorageError> {
@@ -298,61 +352,6 @@ fn validate_migration_sequence(migrations: &[Migration]) -> Result<(), StorageEr
             });
         }
     }
-    Ok(())
-}
-
-fn backup_metadata(
-    database_path: &Path,
-    schema_version: i64,
-    now_unix_ms: u64,
-) -> Result<std::path::PathBuf, StorageError> {
-    let metadata = fs::metadata(database_path).map_err(|source| StorageError::Io {
-        operation: "读取迁移前数据库元数据",
-        source,
-    })?;
-    let mut filename = database_path
-        .file_name()
-        .map_or_else(|| OsString::from("nonproxy.sqlite"), OsString::from);
-    filename.push(format!(
-        ".schema-v{schema_version}-at-{now_unix_ms}.metadata.bak"
-    ));
-    let backup_path = database_path.with_file_name(filename);
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&backup_path)
-        .map_err(|source| StorageError::Io {
-            operation: "创建迁移前数据库元数据备份",
-            source,
-        })?;
-    restrict_backup_permissions(&backup_path)?;
-    writeln!(
-        file,
-        "schema_version={schema_version}\ndatabase_size={}\ncaptured_at_unix_ms={now_unix_ms}",
-        metadata.len()
-    )
-    .and_then(|()| file.sync_all())
-    .map_err(|source| StorageError::Io {
-        operation: "写入迁移前数据库元数据备份",
-        source,
-    })?;
-    Ok(backup_path)
-}
-
-#[cfg(unix)]
-fn restrict_backup_permissions(path: &Path) -> Result<(), StorageError> {
-    use std::os::unix::fs::PermissionsExt;
-
-    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|source| {
-        StorageError::Io {
-            operation: "限制迁移元数据备份权限",
-            source,
-        }
-    })
-}
-
-#[cfg(not(unix))]
-fn restrict_backup_permissions(_path: &Path) -> Result<(), StorageError> {
     Ok(())
 }
 

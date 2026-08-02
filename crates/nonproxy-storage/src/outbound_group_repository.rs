@@ -130,6 +130,14 @@ impl<'connection> OutboundGroupRepository<'connection> {
         if current != Some(expected_revision) {
             return Err(StorageError::OutboundGroupRevisionConflict);
         }
+        let referenced: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM policy WHERE outbound_group_id = ?1)",
+            [group_id.as_str()],
+            |row| row.get(0),
+        )?;
+        if referenced {
+            return Err(StorageError::OutboundGroupInUse);
+        }
         let deleted = transaction.execute(
             "DELETE FROM outbound_group WHERE id = ?1",
             [group_id.as_str()],

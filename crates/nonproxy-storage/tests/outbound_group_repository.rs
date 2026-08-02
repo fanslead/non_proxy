@@ -1,4 +1,7 @@
-use nonproxy_model::{OutboundGroupId, OutboundId};
+use nonproxy_model::{
+    AppMatcher, DecisionSpec, FailureMode, OutboundGroupId, OutboundId, Platform, Policy, PolicyId,
+    PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind,
+};
 use nonproxy_storage::{
     MAXIMUM_OUTBOUND_GROUP_MEMBERS, OutboundGroup, OutboundGroupStrategy, OutboundKind,
     OutboundReference, PolicyDatabase, StorageError,
@@ -165,6 +168,51 @@ fn group_delete_is_revision_guarded_and_keeps_member_outbounds() {
     );
 }
 
+#[test]
+fn policy_group_target_round_trip_blocks_group_deletion_until_policy_is_removed() {
+    let mut database = database_with_connectable_outbounds();
+    let group = group(
+        "policy-target",
+        "策略故障切换",
+        &["primary", "secondary"],
+        1,
+    );
+    database
+        .outbound_groups()
+        .save(&group, None, 1_100)
+        .unwrap_or_else(|error| panic!("策略目标组保存失败: {error}"));
+    let policy = group_policy(group.id().clone());
+    database
+        .policies()
+        .save(&policy, None, 1_200)
+        .unwrap_or_else(|error| panic!("出口组策略保存失败: {error}"));
+
+    let loaded = database
+        .policies()
+        .get(policy.id())
+        .unwrap_or_else(|error| panic!("出口组策略读取失败: {error}"))
+        .unwrap_or_else(|| panic!("已保存出口组策略不存在"));
+    assert_eq!(loaded.decision().outbound_group_id(), Some(group.id()));
+    assert!(loaded.decision().outbound_id().is_none());
+    assert!(matches!(
+        database.outbound_groups().delete(group.id(), 9, 1_250),
+        Err(StorageError::OutboundGroupRevisionConflict)
+    ));
+    assert!(matches!(
+        database.outbound_groups().delete(group.id(), 1, 1_300),
+        Err(StorageError::OutboundGroupInUse)
+    ));
+
+    database
+        .policies()
+        .delete(policy.id(), 1, 1_400)
+        .unwrap_or_else(|error| panic!("出口组策略删除失败: {error}"));
+    database
+        .outbound_groups()
+        .delete(group.id(), 1, 1_500)
+        .unwrap_or_else(|error| panic!("解除策略引用后的出口组删除失败: {error}"));
+}
+
 fn database_with_connectable_outbounds() -> PolicyDatabase {
     let mut database = PolicyDatabase::open_in_memory(1_000)
         .unwrap_or_else(|error| panic!("出口组测试数据库打开失败: {error}"));
@@ -201,6 +249,23 @@ fn group(id: &str, display_name: &str, members: &[&str], revision: u64) -> Outbo
         revision,
     )
     .unwrap_or_else(|error| panic!("出口组测试配置创建失败: {error}"))
+}
+
+fn group_policy(group_id: OutboundGroupId) -> Policy {
+    let app = AppMatcher::new(Platform::MacOs, "com.example.group")
+        .unwrap_or_else(|error| panic!("出口组策略应用匹配器无效: {error}"));
+    let matcher = PolicyMatch::new(Some(app), None, None, None, Vec::new(), Vec::new())
+        .unwrap_or_else(|error| panic!("出口组策略匹配器无效: {error}"));
+    let decision = DecisionSpec::proxy_group(group_id, FailureMode::Closed)
+        .unwrap_or_else(|error| panic!("出口组策略决策无效: {error}"));
+    Policy::new(
+        PolicyId::new("group-policy").unwrap_or_else(|error| panic!("出口组策略标识无效: {error}")),
+        "出口组策略",
+        matcher,
+        decision,
+        PolicyMetadata::new(PolicySourceKind::App, 100, PolicyOrigin::User, 1),
+    )
+    .unwrap_or_else(|error| panic!("出口组策略无效: {error}"))
 }
 
 fn outbound_id(value: &str) -> OutboundId {

@@ -1,4 +1,4 @@
-use crate::{ModelError, OutboundId, PolicyId, RuleId};
+use crate::{ModelError, OutboundGroupId, OutboundId, PolicyId, RuleId};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum RouteAction {
@@ -14,9 +14,15 @@ pub enum FailureMode {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum ProxyTarget {
+    Outbound(OutboundId),
+    Group(OutboundGroupId),
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DecisionSpec {
     action: RouteAction,
-    outbound_id: Option<OutboundId>,
+    proxy_target: Option<ProxyTarget>,
     failure_mode: FailureMode,
 }
 
@@ -26,7 +32,15 @@ impl DecisionSpec {
         outbound_id: Option<OutboundId>,
         failure_mode: FailureMode,
     ) -> Result<Self, ModelError> {
-        match (action, outbound_id.is_some()) {
+        Self::new_with_target(action, outbound_id.map(ProxyTarget::Outbound), failure_mode)
+    }
+
+    pub fn new_with_target(
+        action: RouteAction,
+        proxy_target: Option<ProxyTarget>,
+        failure_mode: FailureMode,
+    ) -> Result<Self, ModelError> {
+        match (action, proxy_target.is_some()) {
             (RouteAction::Proxy, false) => return Err(ModelError::ProxyDecisionMissingOutbound),
             (RouteAction::Direct | RouteAction::Block, true) => {
                 return Err(ModelError::NonProxyDecisionHasOutbound);
@@ -36,15 +50,26 @@ impl DecisionSpec {
 
         Ok(Self {
             action,
-            outbound_id,
+            proxy_target,
             failure_mode,
         })
+    }
+
+    pub fn proxy_group(
+        group_id: OutboundGroupId,
+        failure_mode: FailureMode,
+    ) -> Result<Self, ModelError> {
+        Self::new_with_target(
+            RouteAction::Proxy,
+            Some(ProxyTarget::Group(group_id)),
+            failure_mode,
+        )
     }
 
     pub fn direct() -> Self {
         Self {
             action: RouteAction::Direct,
-            outbound_id: None,
+            proxy_target: None,
             failure_mode: FailureMode::Closed,
         }
     }
@@ -52,7 +77,7 @@ impl DecisionSpec {
     pub fn blocked() -> Self {
         Self {
             action: RouteAction::Block,
-            outbound_id: None,
+            proxy_target: None,
             failure_mode: FailureMode::Closed,
         }
     }
@@ -64,7 +89,23 @@ impl DecisionSpec {
 
     #[must_use]
     pub fn outbound_id(&self) -> Option<&OutboundId> {
-        self.outbound_id.as_ref()
+        match self.proxy_target.as_ref() {
+            Some(ProxyTarget::Outbound(value)) => Some(value),
+            Some(ProxyTarget::Group(_)) | None => None,
+        }
+    }
+
+    #[must_use]
+    pub fn outbound_group_id(&self) -> Option<&OutboundGroupId> {
+        match self.proxy_target.as_ref() {
+            Some(ProxyTarget::Group(value)) => Some(value),
+            Some(ProxyTarget::Outbound(_)) | None => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn proxy_target(&self) -> Option<&ProxyTarget> {
+        self.proxy_target.as_ref()
     }
 
     #[must_use]
@@ -146,7 +187,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn proxy_requires_an_outbound() {
+    fn proxy_requires_a_target() {
         assert!(matches!(
             DecisionSpec::new(RouteAction::Proxy, None, FailureMode::Closed),
             Err(ModelError::ProxyDecisionMissingOutbound)
@@ -154,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn direct_rejects_an_outbound() {
+    fn direct_rejects_a_proxy_target() {
         let outbound_result = OutboundId::new("local-socks");
         let Ok(outbound) = outbound_result else {
             panic!("测试出口标识创建失败: {outbound_result:?}");
@@ -163,6 +204,25 @@ mod tests {
         assert!(matches!(
             DecisionSpec::new(RouteAction::Direct, Some(outbound), FailureMode::Open),
             Err(ModelError::NonProxyDecisionHasOutbound)
+        ));
+    }
+
+    #[test]
+    fn proxy_group_is_explicit_and_never_aliases_an_outbound() {
+        let group = OutboundGroupId::new("office-failover");
+        let Ok(group) = group else {
+            panic!("测试出口组标识创建失败: {group:?}");
+        };
+        let decision = DecisionSpec::proxy_group(group.clone(), FailureMode::Open);
+        let Ok(decision) = decision else {
+            panic!("测试出口组决策创建失败: {decision:?}");
+        };
+
+        assert_eq!(decision.outbound_group_id(), Some(&group));
+        assert!(decision.outbound_id().is_none());
+        assert!(matches!(
+            decision.proxy_target(),
+            Some(ProxyTarget::Group(value)) if value == &group
         ));
     }
 }

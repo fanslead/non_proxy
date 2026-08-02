@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use nonproxy_model::{
     AppMatcher, Cidr, DecisionSpec, DomainMatchKind, DomainMatcher, FailureMode, NetworkMatcher,
-    NetworkProfileId, OutboundId, Platform, Policy, PolicyId, PolicyMatch, PolicyMetadata,
-    PolicyOrigin, PolicySourceKind, PortRange, RouteAction, Transport,
+    NetworkProfileId, OutboundGroupId, OutboundId, Platform, Policy, PolicyId, PolicyMatch,
+    PolicyMetadata, PolicyOrigin, PolicySourceKind, PortRange, ProxyTarget, RouteAction, Transport,
 };
 
 use crate::StorageError;
@@ -25,6 +25,7 @@ pub(crate) struct RawPolicy {
     pub app_include_helpers: Option<i64>,
     pub cidr: Option<String>,
     pub network_profile_id: Option<String>,
+    pub outbound_group_id: Option<String>,
 }
 
 impl RawPolicy {
@@ -46,6 +47,7 @@ impl RawPolicy {
             app_include_helpers: row.get(13)?,
             cidr: row.get(14)?,
             network_profile_id: row.get(15)?,
+            outbound_group_id: row.get(16)?,
         })
     }
 }
@@ -85,10 +87,19 @@ pub(crate) fn decode_policy(
         })
         .collect::<Result<Vec<_>, _>>()?;
     let matcher = PolicyMatch::new(app, domain, cidr, network, transports, ports)?;
-    let outbound_id = raw.outbound_id.map(OutboundId::new).transpose()?;
-    let decision = DecisionSpec::new(
+    let proxy_target = match (raw.outbound_id, raw.outbound_group_id) {
+        (Some(outbound_id), None) => Some(ProxyTarget::Outbound(OutboundId::new(outbound_id)?)),
+        (None, Some(group_id)) => Some(ProxyTarget::Group(OutboundGroupId::new(group_id)?)),
+        (None, None) => None,
+        (Some(_), Some(_)) => {
+            return Err(StorageError::CorruptData {
+                field: "policy.proxy_target",
+            });
+        }
+    };
+    let decision = DecisionSpec::new_with_target(
         decode_action(raw.decision_action)?,
-        outbound_id,
+        proxy_target,
         decode_failure_mode(raw.failure_mode)?,
     )?;
     let id = PolicyId::new(raw.id)?;
