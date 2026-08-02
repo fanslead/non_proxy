@@ -222,7 +222,7 @@ fi
 codesign --verify --strict --verbose=2 "${gateway_binary}"
 gateway_identifier=$(
     codesign -d --verbose=4 "${gateway_binary}" 2>&1 |
-        awk -F= '$1 == "Identifier" { print $2; exit }'
+        awk -F= '$1 == "Identifier" && !found { print $2; found = 1 }'
 )
 if [[ "${gateway_identifier}" != com.nonproxy.gatewayd ]]; then
     echo "gatewayd 代码签名标识必须固定为 com.nonproxy.gatewayd" >&2
@@ -230,11 +230,11 @@ if [[ "${gateway_identifier}" != com.nonproxy.gatewayd ]]; then
 fi
 gateway_team_identifier=$(
     codesign -d --verbose=4 "${gateway_binary}" 2>&1 |
-        awk -F= '$1 == "TeamIdentifier" { print $2; exit }'
+        awk -F= '$1 == "TeamIdentifier" && !found { print $2; found = 1 }'
 )
 host_team_identifier=$(
     codesign -d --verbose=4 "${host_binary}" 2>&1 |
-        awk -F= '$1 == "TeamIdentifier" { print $2; exit }'
+        awk -F= '$1 == "TeamIdentifier" && !found { print $2; found = 1 }'
 )
 configured_gateway_team_identifier=$(
     /usr/libexec/PlistBuddy -c \
@@ -281,7 +281,7 @@ fi
 codesign --verify --strict --verbose=2 "${adapter_host_binary}"
 adapter_host_identifier=$(
     codesign -d --verbose=4 "${adapter_host_binary}" 2>&1 |
-        awk -F= '$1 == "Identifier" { print $2; exit }'
+        awk -F= '$1 == "Identifier" && !found { print $2; found = 1 }'
 )
 if [[ "${adapter_host_identifier}" != com.nonproxy.adapter-host ]]; then
     echo "adapter-host 代码签名标识必须固定为 com.nonproxy.adapter-host" >&2
@@ -289,7 +289,7 @@ if [[ "${adapter_host_identifier}" != com.nonproxy.adapter-host ]]; then
 fi
 adapter_host_team_identifier=$(
     codesign -d --verbose=4 "${adapter_host_binary}" 2>&1 |
-        awk -F= '$1 == "TeamIdentifier" { print $2; exit }'
+        awk -F= '$1 == "TeamIdentifier" && !found { print $2; found = 1 }'
 )
 if [[ "${adapter_host_team_identifier}" != "${gateway_team_identifier}" ]]; then
     echo "adapter-host 与 gatewayd 的 TeamIdentifier 不一致" >&2

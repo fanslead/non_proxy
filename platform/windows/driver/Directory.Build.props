@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <NonProxyWdkNuGetVersion>10.0.28000.2526</NonProxyWdkNuGetVersion>
+    <NonProxyWdkPackagesDirectory Condition="'$(NonProxyWdkPackagesDirectory)' == ''">$(MSBuildThisFileDirectory)..\..\..\.tools\windows-wdk</NonProxyWdkPackagesDirectory>
+  </PropertyGroup>
+  <Import Project="$(NonProxyWdkPackagesDirectory)\Microsoft.Windows.WDK.x64.$(NonProxyWdkNuGetVersion)\build\native\Microsoft.Windows.WDK.x64.props"
+          Condition="Exists('$(NonProxyWdkPackagesDirectory)\Microsoft.Windows.WDK.x64.$(NonProxyWdkNuGetVersion)\build\native\Microsoft.Windows.WDK.x64.props') and '$(Platform)' == 'x64'" />
+  <Import Project="$(NonProxyWdkPackagesDirectory)\Microsoft.Windows.WDK.arm64.$(NonProxyWdkNuGetVersion)\build\native\Microsoft.Windows.WDK.arm64.props"
+          Condition="Exists('$(NonProxyWdkPackagesDirectory)\Microsoft.Windows.WDK.arm64.$(NonProxyWdkNuGetVersion)\build\native\Microsoft.Windows.WDK.arm64.props') and '$(Platform)' == 'ARM64'" />
+  <Import Project="$(NonProxyWdkPackagesDirectory)\Microsoft.Windows.SDK.CPP.x64.$(NonProxyWdkNuGetVersion)\build\native\Microsoft.Windows.SDK.cpp.x64.props"
+          Condition="Exists('$(NonProxyWdkPackagesDirectory)\Microsoft.Windows.SDK.CPP.x64.$(NonProxyWdkNuGetVersion)\build\native\Microsoft.Windows.SDK.cpp.x64.props') and '$(Platform)' == 'x64'" />
+  <Import Project="$(NonProxyWdkPackagesDirectory)\Microsoft.Windows.SDK.CPP.arm64.$(NonProxyWdkNuGetVersion)\build\native\Microsoft.Windows.SDK.cpp.arm64.props"
+          Condition="Exists('$(NonProxyWdkPackagesDirectory)\Microsoft.Windows.SDK.CPP.arm64.$(NonProxyWdkNuGetVersion)\build\native\Microsoft.Windows.SDK.cpp.arm64.props') and '$(Platform)' == 'ARM64'" />
+  <Import Project="$(NonProxyWdkPackagesDirectory)\Microsoft.Windows.SDK.CPP.$(NonProxyWdkNuGetVersion)\build\native\Microsoft.Windows.SDK.cpp.props"
+          Condition="Exists('$(NonProxyWdkPackagesDirectory)\Microsoft.Windows.SDK.CPP.$(NonProxyWdkNuGetVersion)\build\native\Microsoft.Windows.SDK.cpp.props')" />
+</Project>

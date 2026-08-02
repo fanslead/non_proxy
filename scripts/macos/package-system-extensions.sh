@@ -342,7 +342,7 @@ codesign "${bridge_sign_args[@]}" "${native_messaging_host}"
 
 gateway_team_identifier=$(
     codesign -d --verbose=4 "${gateway_binary}" 2>&1 |
-        awk -F= '$1 == "TeamIdentifier" { print $2; exit }'
+        awk -F= '$1 == "TeamIdentifier" && !found { print $2; found = 1 }'
 )
 if [[ "${restricted_signing}" == 1 &&
       ( -z "${gateway_team_identifier}" ||

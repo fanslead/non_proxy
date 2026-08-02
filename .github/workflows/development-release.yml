@@ -1,0 +1,68 @@
+name: 开发预览版构建
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 与仓库版本元数据一致的发布版本
+        required: true
+        default: 0.0.1
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows ${{ matrix.architecture }} 开发签名包
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture:
+          - x64
+          - arm64
+        include:
+          - architecture: x64
+            rust-target: x86_64-pc-windows-msvc
+          - architecture: arm64
+            rust-target: aarch64-pc-windows-msvc
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 固定为 v6.0.2
+
+      - name: 安装固定 .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # 固定为 v6.0.0
+        with:
+          dotnet-version: 10.0.301
+
+      - name: 安装固定 Rust 目标
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal
+          rustup target add '${{ matrix.rust-target }}' --toolchain 1.97.1
+
+      - name: 安装固定 Protobuf Compiler
+        shell: pwsh
+        run: ./scripts/bootstrap/install-protoc-windows.ps1
+
+      - name: 构建并生成开发签名包
+        id: package
+        shell: pwsh
+        env:
+          NONPROXY_RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          ./scripts/windows/build-development-release.ps1 `
+            -Version $env:NONPROXY_RELEASE_VERSION `
+            -Architecture '${{ matrix.architecture }}'
+
+      - name: 上传 Windows 开发预览版
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # 固定为 v4.6.2
+        with:
+          name: NonProxy-${{ inputs.version }}-windows-${{ matrix.architecture }}-development
+          path: |
+            ${{ steps.package.outputs.archive }}
+            ${{ steps.package.outputs.archive }}.sha256
+          if-no-files-found: error
+          retention-days: 7

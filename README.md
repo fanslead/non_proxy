@@ -84,22 +84,27 @@ flowchart LR
 
 ## 下载与安装
 
-公开版本统一发布在 [GitHub Releases](https://github.com/fanslead/non_proxy/releases)。一个可安装
-版本必须同时提供：
+公开版本统一发布在 [GitHub Releases](https://github.com/fanslead/non_proxy/releases)。资产分为
+两类：
+
+- **开发预览版**：Release 标记为 Pre-release，资产名包含 `development`。它用于源码、UI、
+  Bundle 和开发签名验证，并保留明确的系统权限限制。
+- **正式版本**：完成平台正式签名与真实系统验收后发布。一个正式可安装版本必须同时提供：
 
 - macOS：Developer ID 签名、公证并附票据的 App 安装介质。
 - Windows：按 x64/ARM64 分包、固定发布者签名且包含 Microsoft 内核签名 Driver 的安装介质。
 - 每个资产对应的 SHA-256 摘要和明确的版本说明。
 
-缺少上述任一门禁的 CI Artifact、临时签名 App 或未签名 Driver 只属于开发证据，不作为面向
-普通用户的安装包发布。
+开发预览版的具体信任步骤和限制见
+[开发预览版发布说明](docs/DEVELOPMENT_RELEASE.md)。缺少正式门禁的 CI Artifact、临时签名
+App 或测试签名 Driver 不作为面向普通用户的正式安装包发布。
 
 ## 从源码开始
 
 ### 环境要求
 
 - macOS 开发机：Apple Silicon、macOS 15+、完整 Xcode。
-- Windows Driver：Windows 10/11、Visual Studio 2022、Windows SDK、WDK、PowerShell 7.4+。
+- Windows Driver：Windows 11、Visual Studio 2026、固定 WDK/SDK NuGet 包、PowerShell 7.4+。
 - 仓库固定版本：.NET 10、Rust、Node.js、pnpm、Buf、Protobuf Compiler 和 just。
 
 macOS 可以把完整工具链安装在仓库自己的 `.tools/`，不会修改系统默认版本：
@@ -171,6 +176,7 @@ NonProxy 的核心不变量：
 
 - [完整产品方案](NONPROXY_PRODUCT_SOLUTION.md)
 - [技术实现文档](docs/TECHNICAL_IMPLEMENTATION.md)
+- [开发预览版构建与签名](docs/DEVELOPMENT_RELEASE.md)
 - [架构决策记录](docs/ADR)
 - [AI 与工程协作规范](AGENTS.md)
 
