@@ -67,7 +67,7 @@ cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-gatewayd
 cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-adapter-host
 
 .\scripts\windows\build-release-package.ps1 `
-  -Version 0.1.0 `
+  -Version 0.0.1 `
   -Architecture x64 `
   -DesktopPublishDirectory .\.artifacts\desktop\win-x64 `
   -BootstrapPublishDirectory .\.artifacts\bootstrap\win-x64 `
@@ -81,7 +81,7 @@ cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-adapter-host
 
 ```powershell
 .\scripts\windows\sign-release-package.ps1 `
-  -PackageRoot .\.artifacts\windows-release\0.1.0\x64 `
+  -PackageRoot .\.artifacts\windows-release\0.0.1\x64 `
   -CertificateThumbprint <固定的发布证书指纹> `
   -TimestampServer https://<组织批准的-rfc3161-时间戳服务>
 ```
@@ -94,7 +94,7 @@ cargo build --release --target x86_64-pc-windows-msvc -p nonproxy-adapter-host
 
 ```powershell
 .\scripts\windows\verify-release-package.ps1 `
-  -PackageRoot .\.artifacts\windows-release\0.1.0\x64 `
+  -PackageRoot .\.artifacts\windows-release\0.0.1\x64 `
   -ExpectedPublisherThumbprint <由受控渠道获得的固定指纹>
 ```
 

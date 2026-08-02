@@ -372,20 +372,20 @@
           "Avalonia.Themes.Fluent": "[12.1.1, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.10, )",
-          "NonProxy.Contracts": "[1.0.0, )"
+          "NonProxy.Contracts": "[0.0.1, )"
         }
       },
       "nonproxy.desktop.windows": {
         "type": "Project",
         "dependencies": {
-          "NonProxy.Desktop.Core": "[1.0.0, )",
-          "NonProxy.Windows.Security": "[1.0.0, )"
+          "NonProxy.Desktop.Core": "[0.0.1, )",
+          "NonProxy.Windows.Security": "[0.0.1, )"
         }
       },
       "nonproxy.windows.bootstrap": {
         "type": "Project",
         "dependencies": {
-          "NonProxy.Windows.Security": "[1.0.0, )"
+          "NonProxy.Windows.Security": "[0.0.1, )"
         }
       },
       "nonproxy.windows.security": {

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "NonProxy 智能直连",
   "short_name": "NonProxy",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "只在你主动开启时识别当前标签页需要直连的域名。",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtidOGU7b17v41aGGBGsvczUFU+GN7PhvWUbdKZqDwpSyY7psuuD/y5f+IHpwjpxAVYf0sJflKvWaDmB9UFIgBrjWloYEozKMDIwbmDrJl24RokSbnX0dKzE32k5S10jFxBQzMya6BdKV9U4mIAvMskGbvqtpw9h6qzCUdtVXjKoOd2phjPb2NlrBXgal/Y47FhS0tX7ZCliTz46OzPiN0m8in6xdaCeZqCVd6BQP5zT5hx+ucjJg2ZMMjHcGR84iwB4qGcW0X83c4f96pyrl5duMVmJzGTkcW78EQtzPoLy7Z2sgV/jDMaapdaWX+qcTSaRQVFPvgvmTn7botI4s8wIDAQAB",
   "permissions": [

@@ -1,105 +1,108 @@
 # NonProxy
 
-NonProxy 是一个本地优先的跨平台智能分流网关。用户选择应用或网站后，系统把匹配流量明确路由为 `DIRECT` 或 `PROXY`，并保留决策、路径和出口证据。
+> 本地优先、可验证的跨平台智能分流网关。
 
-当前状态：按 `docs/TECHNICAL_IMPLEMENTATION.md` 实施中。仓库内的构建通过不代表 macOS System Extension、Windows WFP 或真实网络路径已经验收。
+[![CI](https://github.com/fanslead/non_proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/fanslead/non_proxy/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/fanslead/non_proxy?include_prereleases&label=release)](https://github.com/fanslead/non_proxy/releases)
+[![macOS 15+](https://img.shields.io/badge/macOS-15%2B-111827?logo=apple)](docs/MACOS_SYSTEM_ACCEPTANCE.md)
+[![Windows 10+](https://img.shields.io/badge/Windows-10%201903%2B-0078D4?logo=windows)](docs/WINDOWS_SYSTEM_ACCEPTANCE.md)
 
-共享基础已经覆盖版本化契约、Rust 策略/编译器/SQLite 权威存储、认证本地控制面、Avalonia 工作区、SOCKS5/HTTP CONNECT/Shadowsocks 出口、系统凭据库和有背压的 NPF1 TCP/UDP 数据通道。网络出口页既能只读发现 macOS 当前公开的系统 SOCKS/HTTP 代理，也支持逐行粘贴 SOCKS5、HTTP、`ss://` 标准代理链接或 Shadowsocks Base64 订阅内容；三种入口都先显示不含账号、密码或加密密钥的识别预览，再由用户明确批量保存，秘密只进入系统凭据库。Shadowsocks 当前只开放六种 AEAD/AEAD-2022 方法，不接受 `none`、流加密和 SIP003 plugin。gatewayd 已开放不返回 URL/Token 的远程订阅列表、创建/更新、手动刷新和受 revision 保护的删除 RPC，具备稳定节点身份、失败退避、持久凭据回收以及最多四路并发的到期后台刷新；关机时会停止接收新刷新并排空在途任务。共享桌面“订阅管理”页已经提供添加、编辑、启停、手动刷新和二次确认删除，并明确提示引用冲突、刷新错误与凭据清理告警。用户可在共享桌面端选择默认代理；只有当前配置在 60 秒内通过代理握手后，服务端才允许把它设为默认，其中 Shadowsocks 还必须通过固定公共目标的 WebPKI TLS 握手，避免错误密钥被误判为可用。默认路由配置、乐观 revision 与待确认快照在同一事务发布，未命中规则的流量使用快照中的 fail-closed 默认代理，回滚也会恢复历史默认路由。独立出口探针已经具备 HTTPS + Ed25519 签名回执、最多四把公钥的零停机轮换、固定安装信任、DIRECT/PROXY 网关编排、Provider EXIT 越级拒绝、不可变有界回执存储、共享桌面端触发/展示、Linux 生产部署与安全密钥管理工具；真实公网双路径仍需在正式环境验收。浏览器学习链路包含 Safari/Chromium 正确入口、标签页隔离、临时站点权限、候选审核和幂等规则确认；macOS 已具备真实 Transparent/DNS Provider、物理 DIRECT、代理出口、同时绑定固定代码签名标识与正式 TeamIdentifier 的 gatewayd 防回环系统规则、System Extension Bundle、LaunchAgent 生命周期与打包冒烟；旧快照会在 Provider 启动前原子升级，回滚也会重建当前系统规则，当前保护快照激活前 gatewayd 不会建立代理上游连接。临时签名只能提供不带 TeamIdentifier 的开发身份，交叉构建和夹具回显也只属于仓库证据；正式签名、系统授权与真实 VPN 共存仍需独立验收。
+NonProxy 让用户通过选择应用或网站，明确决定对应流量是直接连接物理网络，还是经指定代理
+出口访问。它统一处理应用身份、网站域名、DNS、TCP/UDP、策略发布、故障切换和路径证据，
+不要求普通用户理解不同代理客户端的规则语法。
 
-有序出口组已经覆盖权威存储、revision CAS、策略快照、固定目标健康调度和去敏切换审计。macOS Transparent/DNS Provider 会携带活动快照中的显式组目标，由 gatewayd 选择健康成员后返回具体出口；Provider 在 READY 或 DNS 响应验证该成员属于原快照前不会记录代理路径。Windows WFP 捕获后的新 TCP 连接、新 UDP session 和单次 DNS 查询也会通过同一选择器固定具体成员，并仅上报实际出口；旧单出口 NPF1 字节格式保持不变，出口组不可用时继续按策略明确执行 fail-open 或 fail-closed。服务端还允许把至少包含两个完整网关成员、且已有稳定健康成员的组设为默认路由；该配置与组目标快照原子发布，订阅刷新不能静默退役任一组成员。共享桌面“网络出口”页已提供创建、编辑、删除、排序和设为默认的自动切换线路组入口，只展示支持完整流量的候选线路，并把成员顺序直接呈现为优先级线路栈；更新默认组仍明确显示待系统组件确认。Windows 源码构建、驱动安装和真实 VPN 下的故障切换仍须在 Windows runner 与独立测试机分级验收，不能仅凭本地测试宣称跨平台故障切换已经完成。
+> [!IMPORTANT]
+> NonProxy 目前处于 `0.0.x` 开发预览阶段。仓库测试、交叉编译或临时签名不等于正式安装包
+> 已通过系统授权和真实 VPN 网络验收。请只从本仓库的
+> [Releases](https://github.com/fanslead/non_proxy/releases) 页面下载发布产物，并核对对应版本的
+> 签名与 SHA-256 清单。
 
-Windows 已接入 SCM Service、受限命名管道、共享 UI、最小 WFP ALE Connect Redirect Driver、动态 BFE session、版本化 IOCTL/context ABI、redirect records 和用户态 TCP DIRECT/PROXY/BLOCK。DIRECT TCP/DNS 会实时选择可信物理接口并设置 `IP_UNICAST_IF`/`IPV6_UNICAST_IF`；没有物理路径时明确失败。域名身份运行时会在确认 `198.18.0.0/15` 无路由冲突后分配可恢复的 IPv4/安装级 ULA 合成地址，由 WFP TCP 代理反查域名并重新物理解域或保留给远端代理。
+## 为什么需要 NonProxy
 
-Windows DNS 不修改网卡设置：动态 WFP filter 先只把远端 TCP/UDP 53 重定向到随机 loopback listener，系统 resolver 探针通过且活动策略就绪后才启用普通 TCP；探针失效则退回 DNS-only。远端 53 之外的 UDP/QUIC 使用同一最小 Driver 的 ALE flow 身份关联、DATAGRAM_DATA 有界搬运和入站重注入，Service 继续执行 App/域名策略、物理 DIRECT、SOCKS5 UDP 或 Shadowsocks UDP。
+普通 VPN 或代理客户端即使没有启用“全局模式”，仍可能因为系统路由、DNS、虚拟网卡或应用
+自身行为接管不希望代理的流量。简单修改系统代理、PAC 或静态路由无法稳定覆盖所有软件、
+IPv4/IPv6、TCP/UDP、QUIC、CDN 和网络切换场景。
 
-Windows 发行层已经加入 Primitive Driver INF、固定发布者 + 已签名清单绑定、复制后复验、版本化 Service/Driver 安装、失败回滚、默认保留数据的卸载、Driver Verifier 安全门与生命周期证据清单。消费安装使用编译固定证书 SHA-256 的单文件 Bootstrap，原生验证 Authenticode/Driver Catalog，经 UAC 复制到管理员保护 staging 二次验证后再执行事务；不含固定证书或验证失败的构建仍明确不可用。当前 Rust 单测和 Windows 交叉门禁覆盖用户态与 ABI；WDK 实机结果、Hardware Dev Center 生产签名、SCM/UAC、Driver Verifier 与真实 VPN 路径尚未验收，因此 UI 不会把源码或构建结果表述为已安装。
+NonProxy 将自身作为统一的流量决策点：
 
-运行概览会按“后台服务 → 透明代理 → DNS 分流 → 网络接管”显示真实分段状态。等待授权时可通过原生桥直接打开 macOS“登录项与扩展”，允许后重新检查；部分安装可执行修复，卸载需要二次确认。诊断页复用同一组分段证据并显示稳定错误码，还可以生成最近 24 小时的严格脱敏本地 JSON；页面会预览内容范围、大小和 SHA-256，文件不包含凭据、代理端点、网络载荷或逐连接样本，也不会自动上传。
+- 应用规则直接使用签名身份，不依赖容易冲突的进程名。
+- 网站规则由浏览器标签页发起，不要求用户查找 API、登录或 CDN 域名。
+- `DIRECT` 流量绑定可信物理路径，避免先进入第三方 VPN 再尝试绕出。
+- `PROXY` 流量通过受控出口发送，失败时严格执行显式 `fail-closed` 或 `fail-open`。
+- 配置、决策、实际路径和公网出口分别取证，不把“保存成功”误报成“已经直连”。
 
-共享桌面端已经加入当前网络一键直连：macOS 只在用户点击时采集当前物理网络并在宿主进程内生成隐私安全指纹，原始 SSID 不跨越原生边界；网络档案、网络作用域规则和待确认快照按 revision 编排，明确区分“已保存”“等待确认”和“已激活”。桌面生命周期使用跨平台托盘与原生菜单，关闭窗口只隐藏界面，恢复窗口和“只退出界面”是不同动作；系统/浅色/深色主题采用有界、原子、本地设置。控制事件作为页面失效信号，侧栏会显示订阅连接状态，中断重连后重新读取权威 RPC 快照，不把事件摘要当成本地事实。智能学习的实际入口位于当前浏览器标签页，桌面页不再提供无法关联标签页的伪开始按钮。
+## 核心能力
 
-活动记录现在保存并展示认证 Provider 解析出的应用签名、父应用与 Helper 归属。只有当前平台
-且签名身份完整的非系统记录才提供“让此应用始终直连”，并在明确确认后创建带 signer 约束
-的应用规则；macOS 可包含已经认证的辅助进程，Windows 当前只匹配精确 Win32 可执行文件。
-旧记录、身份不足、跨平台和已有规则都会保持只读说明。规则保存后
-继续等待 Provider ACK，页面不会把 pending 误报成已经生效。
+| 能力 | 当前实现 |
+|---|---|
+| 应用直连 | macOS 签名应用身份；Windows Win32 Authenticode 与 MSIX/UWP 包身份 |
+| 网站直连 | Safari/Chromium 扩展、标签页隔离、候选域名审核与幂等确认 |
+| 统一数据面 | macOS Transparent/DNS Provider；Windows WFP TCP、DNS、UDP/QUIC |
+| 代理出口 | SOCKS5、HTTP CONNECT、Shadowsocks TCP/UDP |
+| 订阅管理 | HTTPS 公网安全获取、节点归属、自动刷新、失败退避和凭据回收 |
+| 自动切换 | 有序线路组、固定目标健康探测、新连接切换和去敏审计 |
+| 客户端协同 | Surge、Clash/Mihomo、sing-box 的显式登记、原生校验、原子写入与重载 |
+| 策略发布 | 版本化快照、Provider ACK、上一有效配置恢复和五分钟紧急覆盖 |
+| 可观测性 | 决策记录、物理/代理路径证据、签名出口回执和严格脱敏诊断包 |
 
-运行概览现在持续核对“完整网关”和“客户端协同”两条接入路径，不保存会过期的向导完成状态。完整网关只有在系统组件、默认代理、直连规则和活动数据面同时满足时显示基础就绪；客户端登记仍保持待同步/待路径证据。引导按钮只切换到既有权威页面，不会根据未知的 MDM、Always-On VPN 或第三方 TUN 猜测环境已经兼容。
+当前内置 Shadowsocks 只接受六种 AEAD/AEAD-2022 方法，不接受 `none`、旧式流加密或
+SIP003 plugin。VMess/VLESS、Trojan、Hysteria 2、TUIC、WireGuard、OpenVPN 和
+OpenConnect 尚未作为内置协议开放。
 
-“全部规则”页可以二次确认后恢复上一份真正生效的配置。恢复点由后台从有效快照历史选取，操作同时绑定当前活动版本并原子恢复当时的默认路由；并发发布会拒绝旧确认，Provider ACK 前只显示等待确认。当前规则草稿不会被回滚操作删除。
+## 工作原理
 
-第三方客户端协同已覆盖 Surge、Clash/Mihomo 和 sing-box 的显式登记、活动快照无损投影、客户端原生校验、主配置与 sidecar 双文件事务、公开重载、配置确认和失败恢复。共享页面可用系统原生文件选择器选取客户端与当前配置，也保留绝对路径高级回退；所有选择结果仍由隔离 adapter-host 重新验证。页面独立显示候选校验、配置载入和真实路径，当前没有路径级证据时始终提示“尚未证明绕过 VPN”。Windows 源码已接入绑定当前普通用户 SID 的独立 Adapter 命名管道、精确 DACL、会话能力文件和共享页面客户端；adapter-host 进入固定发布者签名包，由 Users group 登录任务为多用户创建 Limited/Parallel 实例，桌面端按管理员安装元数据、受保护路径和 SHA-256 补齐当前会话即时启动。SYSTEM/服务身份启动会失败关闭，升级中的旧会话继续使用受信旧实例并在下次登录切换。Surge 在非 macOS 平台失败关闭，sing-box 在 Windows 不会误报尚无安全实现的热重载，Mihomo 保留 loopback HTTP 重载能力。真实 Windows 登录任务、ACL、RPC 和第三方客户端实机验收尚未完成，因此这条源码链路不能表述为产品可用。
+```mermaid
+flowchart LR
+    app["应用与浏览器"] --> capture["平台流量捕获"]
+    dns["系统 DNS"] --> capture
+    ui["桌面端与浏览器扩展"] --> control["认证控制面"]
+    control --> store["SQLite 权威状态"]
+    store --> snapshot["不可变策略快照"]
+    snapshot --> capture
+    capture --> decision{"策略决策"}
+    decision -- "DIRECT" --> physical["物理网络"]
+    decision -- "PROXY" --> gateway["NonProxy Gateway"]
+    gateway --> outbound["代理出口或线路组"]
+    decision --> evidence["决策与路径证据"]
+```
 
-应用直连页已经在 macOS 与 Windows 共用。Windows 目录从当前用户运行进程和系统注册应用中筛选可信 Win32 `.exe`，也可通过系统文件选择器补充；稳定身份直接来自 `FwpmGetAppIdFromFileName0`，只有通过 Authenticode 信任校验并取得证书 SHA-256 的应用才能创建规则。MSIX/UWP 由当前用户包目录提供 PFN 与 PublisherId，规则稳定身份使用系统派生的 AppContainer package SID。WFP TCP/UDP 会携带 ALE package SID，并按 PID 重新读取 PFN、派生 SID、解析 PublisherId 后等值核对；非空畸形包 SID 不回退为 Win32。Windows 不虚构 Helper 关系；真实 Windows 上的包目录、WinTrust/Catalog 签名、PID 复用与 WFP 命中仍按验收文档取证。
+控制面只管理配置；高权限平台组件只消费经过认证、版本化和完整校验的不可变快照。代理协议、
+订阅解析和数据库操作不会进入 macOS Provider 或 Windows Driver。
 
-正式签名 macOS 包的只读查询、安装、升级、卸载和完整生命周期验收使用 [macOS 系统组件验收手册](docs/MACOS_SYSTEM_ACCEPTANCE.md)。验收命令拒绝临时签名、非 `/Applications` 包和未经显式确认的系统变更，并输出带 SHA-256 清单的独立证据目录。
+## 平台状态
 
-Safari 扩展的正式登记、启用、普通/无痕窗口与多标签页验收使用 [Safari Web Extension 正式验收](docs/SAFARI_EXTENSION_ACCEPTANCE.md)。
+| 平台 | 源码与自动化门禁 | 正式安装与真实网络验收 |
+|---|---|---|
+| Apple Silicon / macOS 15+ | Avalonia App、System Extensions、LaunchAgent、Safari 扩展及跨语言 E2E 已接入 | 需要 Developer ID、Provisioning Profile、Notarization、系统授权和真实 VPN 矩阵 |
+| Windows x64 / ARM64 | 共享桌面端、SCM Service、WFP Driver、安装/回滚工具及 Windows CI 已接入 | 需要企业代码签名、Microsoft 内核签名、WDK/SCM/UAC、Driver Verifier 和真实 VPN 矩阵 |
 
-Windows 的构建签名、安装/修复/升级/卸载、Driver Verifier 和真实 VPN
-TCP/DNS/UDP/QUIC 验收使用
-[Windows 系统组件与真实网络路径验收](docs/WINDOWS_SYSTEM_ACCEPTANCE.md)。
+详细通过标准：
 
-## 架构
+- [macOS 系统组件验收](docs/MACOS_SYSTEM_ACCEPTANCE.md)
+- [Safari Web Extension 验收](docs/SAFARI_EXTENSION_ACCEPTANCE.md)
+- [Windows 系统组件与真实网络路径验收](docs/WINDOWS_SYSTEM_ACCEPTANCE.md)
 
-- `apps/desktop/`：唯一的 Avalonia 跨平台桌面 UI。
-- `crates/`：Rust 领域模型、策略、DNS、存储和安全核心。
-- `services/`：`gatewayd`、适配器宿主和测试探针。
-- `platform/`：macOS Network/System Extension 与 Windows WFP。
-- `packages/`：浏览器扩展和 TypeScript 共享包。
-- `proto/`：跨进程契约唯一来源。
-- `generated/`：生成代码，禁止手工编辑。
+## 下载与安装
 
-完整边界和交付顺序见：
+公开版本统一发布在 [GitHub Releases](https://github.com/fanslead/non_proxy/releases)。一个可安装
+版本必须同时提供：
 
-- [产品方案](NONPROXY_PRODUCT_SOLUTION.md)
-- [技术实现](docs/TECHNICAL_IMPLEMENTATION.md)
-- [桌面 UI ADR](docs/ADR/0001-use-avalonia-for-cross-platform-desktop-ui.md)
-- [macOS Provider 策略运行时 ADR](docs/ADR/0002-use-native-provider-policy-runtime.md)
-- [macOS 最低版本 ADR](docs/ADR/0003-set-macos-15-minimum.md)
-- [Windows 最小 WFP Callout ADR](docs/ADR/0004-use-minimal-wfp-connect-redirect-callout.md)
-- [Windows DIRECT 物理接口 ADR](docs/ADR/0005-bind-windows-direct-to-physical-interface.md)
-- [Windows 选择性合成 DNS ADR](docs/ADR/0006-use-selective-synthetic-dns-on-windows.md)
-- [Windows WFP 明文 DNS 截获 ADR](docs/ADR/0007-intercept-windows-dns-with-wfp.md)
-- [Windows UDP/QUIC 数据报搬运 ADR](docs/ADR/0008-divert-windows-udp-datagrams.md)
-- [Windows 系统组件发行 ADR](docs/ADR/0009-distribute-windows-system-components.md)
-- [脱敏诊断包 ADR](docs/ADR/0010-export-redacted-diagnostics-from-gateway.md)
-- [标准代理链接导入 ADR](docs/ADR/0011-import-standard-proxy-uris.md)
-- [系统代理自动发现 ADR](docs/ADR/0012-discover-public-system-proxy-settings.md)
-- [默认代理握手门禁 ADR](docs/ADR/0013-require-fresh-handshake-before-default-route.md)
-- [网络档案快照绑定 ADR](docs/ADR/0014-bind-network-profiles-to-signed-snapshots.md)
-- [macOS 当前网络身份 ADR](docs/ADR/0015-resolve-macos-network-environment-at-runtime.md)
-- [当前网络一键直连 ADR](docs/ADR/0016-orchestrate-one-click-network-direct.md)
-- [桌面生命周期与真实设置 ADR](docs/ADR/0017-own-desktop-lifetime-and-truthful-local-settings.md)
-- [桌面控制事件失效信号 ADR](docs/ADR/0018-use-control-events-as-invalidation-signals.md)
-- [第三方客户端规则格式 ADR](docs/ADR/0019-generate-versioned-client-rule-sets.md)
-- [可恢复 Adapter 文件事务 ADR](docs/ADR/0020-use-recoverable-adapter-file-transactions.md)
-- [认证 Adapter Host ADR](docs/ADR/0021-run-adapters-in-an-authenticated-host.md)
-- [客户端原生候选校验 ADR](docs/ADR/0022-validate-adapter-candidates-before-persistence.md)
-- [第三方主配置无损集成 ADR](docs/ADR/0023-patch-adapter-main-configurations-losslessly.md)
-- [sidecar 与主配置事务 ADR](docs/ADR/0024-coordinate-sidecar-and-main-configuration-transactions.md)
-- [Adapter RPC 配置绑定 ADR](docs/ADR/0025-bind-integrated-configurations-to-adapter-rpc.md)
-- [公开客户端重载 ADR](docs/ADR/0026-reload-adapter-clients-with-public-controls.md)
-- [活动快照 Adapter 投影 ADR](docs/ADR/0027-project-adapter-rules-from-active-snapshots.md)
-- [桌面 Adapter 同步编排 ADR](docs/ADR/0028-orchestrate-adapter-sync-from-the-desktop.md)
-- [权威接入就绪引导 ADR](docs/ADR/0029-guide-setup-with-authoritative-readiness.md)
-- [上一有效快照恢复 ADR](docs/ADR/0030-restore-the-previous-effective-snapshot.md)
-- [有时限运行态路由覆盖 ADR](docs/ADR/0031-time-bounded-runtime-routing-overrides.md)
-- [活动证据创建签名应用规则 ADR](docs/ADR/0032-create-signed-app-rules-from-activity.md)
-- [Windows WFP 与 Authenticode 应用身份 ADR](docs/ADR/0033-bind-windows-app-rules-to-wfp-and-authenticode.md)
-- [Windows 打包应用 ALE 身份 ADR](docs/ADR/0034-bind-packaged-apps-to-ale-package-sid.md)
-- [Windows Adapter 命名管道 ADR](docs/ADR/0035-connect-windows-adapter-host-over-named-pipes.md)
-- [嵌入式 Shadowsocks 出口 ADR](docs/ADR/0036-embed-shadowsocks-as-modern-proxy-outbound.md)
-- [Shadowsocks 订阅内容导入 ADR](docs/ADR/0037-import-shadowsocks-subscription-payloads.md)
-- [远程订阅安全获取 ADR](docs/ADR/0038-fetch-remote-subscriptions-over-pinned-public-https.md)
-- [远程订阅状态与节点归属 ADR](docs/ADR/0039-own-remote-subscription-state-and-outbounds.md)
-- [订阅刷新凭据补偿与并发编排 ADR](docs/ADR/0040-orchestrate-subscription-refresh-with-compensation.md)
-- [订阅删除与持久凭据清理 ADR](docs/ADR/0041-delete-subscriptions-with-durable-credential-cleanup.md)
-- [AI/工程协作规则](AGENTS.md)
+- macOS：Developer ID 签名、公证并附票据的 App 安装介质。
+- Windows：按 x64/ARM64 分包、固定发布者签名且包含 Microsoft 内核签名 Driver 的安装介质。
+- 每个资产对应的 SHA-256 摘要和明确的版本说明。
 
-## 本地工具链
+缺少上述任一门禁的 CI Artifact、临时签名 App 或未签名 Driver 只属于开发证据，不作为面向
+普通用户的安装包发布。
 
-macOS 开发机可以把固定版本工具安装到仓库自己的 `.tools/`，不会改动系统默认工具链：
+## 从源码开始
+
+### 环境要求
+
+- macOS 开发机：Apple Silicon、macOS 15+、完整 Xcode。
+- Windows Driver：Windows 10/11、Visual Studio 2022、Windows SDK、WDK、PowerShell 7.4+。
+- 仓库固定版本：.NET 10、Rust、Node.js、pnpm、Buf、Protobuf Compiler 和 just。
+
+macOS 可以把完整工具链安装在仓库自己的 `.tools/`，不会修改系统默认版本：
 
 ```bash
 ./scripts/bootstrap/install-local-tools.sh
@@ -107,34 +110,80 @@ source ./scripts/bootstrap/env.sh
 ./scripts/bootstrap/check-prerequisites.sh
 ```
 
-已有符合版本要求的全局 .NET、Node.js 和 pnpm 会直接复用。Rust、Buf、Protobuf Compiler 和 just 使用校验过 SHA-256 的固定版本。
-
-## 常用命令
+### 完整验证
 
 ```bash
 source ./scripts/bootstrap/env.sh
-just check-tools
-just generate
+just check
+```
+
+`just check` 包含契约生成一致性、格式、lint、Rust/.NET/TypeScript/Swift 测试、桌面构建、
+macOS Bundle 检查及控制面、Adapter、Native Messaging、Provider 跨语言冒烟。
+
+常用的定向命令：
+
+```bash
 just contracts
 just format-check
 just lint
 just test
 just native-bridge-smoke
 just gateway-bundle-smoke
-just check
 ```
 
-只有当前已经建立的语言工作区会运行。随着各组件落地，根任务保持同一入口并逐步收紧门禁。
-
-契约基线提交后，可以在修改 `.proto` 文件时运行：
+修改 `.proto` 后还应运行：
 
 ```bash
 just contracts-breaking
 ```
 
-## 平台验收边界
+## 仓库结构
 
-- macOS Provider 必须在真实 System Extension 环境验证。
-- Windows WFP/Driver 必须在真实 Windows/WDK 环境验证。
-- `DIRECT`/`PROXY` 的完成声明需要路径证据，不能只使用配置或单元测试。
-- 签名、Notarization、Driver signing 和独立机器安装属于发布门禁。
+```text
+apps/desktop/   Avalonia 共享桌面 UI 与 macOS/Windows 薄宿主
+crates/         Rust 领域模型、策略、DNS、存储、协议和安全核心
+services/       gatewayd、adapter-host 与出口探针
+platform/       macOS Network/System Extension 与 Windows WFP
+adapters/       Surge、Mihomo、sing-box 规则适配器
+packages/       Safari/Chromium 浏览器扩展
+proto/          跨进程契约的唯一来源
+generated/      生成代码，禁止手工编辑
+migrations/     只追加的 SQLite migration
+scripts/        构建、验证、打包和系统生命周期工具
+docs/           技术设计、ADR 与平台验收手册
+```
+
+## 安全与隐私
+
+NonProxy 的核心不变量：
+
+- 不进行 TLS MITM，不安装中间人根证书。
+- 不读取网页正文、Cookie、表单、请求体或代理凭据。
+- 密码、Token 和私钥只进入系统凭据库，不进入 SQLite、日志或诊断包。
+- 不绕过 MDM、Always-On VPN 或组织强制安全策略。
+- `PROXY` 失败不会未经用户授权静默退回直连。
+- UI、浏览器扩展和远程订阅输入均不被高权限组件直接信任。
+- 新配置必须先编译校验，再原子发布，并保留可验证的回滚点。
+
+请不要在公开 Issue 中粘贴订阅 URL、代理密码、诊断原文、签名私钥或其他敏感材料。
+
+## 文档
+
+- [完整产品方案](NONPROXY_PRODUCT_SOLUTION.md)
+- [技术实现文档](docs/TECHNICAL_IMPLEMENTATION.md)
+- [架构决策记录](docs/ADR)
+- [AI 与工程协作规范](AGENTS.md)
+
+## 参与开发
+
+欢迎通过 [Issue](https://github.com/fanslead/non_proxy/issues) 报告可复现问题或讨论设计。提交代码前：
+
+1. 阅读 [AGENTS.md](AGENTS.md) 和相关 ADR。
+2. 保持模块边界，不把平台、高权限和 UI 逻辑耦合进同一文件。
+3. 为行为变化补充失败、回滚和敏感信息边界测试。
+4. 运行 `just check`，并在 PR 中区分仓库证据与真实设备验收。
+
+## 许可证
+
+仓库当前尚未声明统一的软件许可证。在根目录加入明确的 `LICENSE` 之前，源代码默认保留全部
+权利；公开可见不等于获得复制、修改或再分发授权。

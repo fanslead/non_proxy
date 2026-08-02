@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "NonProxy 智能直连",
   "short_name": "NonProxy",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "只在你主动开启时识别当前标签页需要直连的域名。",
   "icons": {
     "48": "icons/nonproxy.svg",

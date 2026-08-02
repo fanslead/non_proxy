@@ -191,7 +191,7 @@
           "Avalonia.Themes.Fluent": "[12.1.1, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.10, )",
-          "NonProxy.Contracts": "[1.0.0, )"
+          "NonProxy.Contracts": "[0.0.1, )"
         }
       },
       "Avalonia": {

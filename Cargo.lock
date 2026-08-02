@@ -1640,7 +1640,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-adapter-api"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-model",
  "proptest",
@@ -1652,7 +1652,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-adapter-host"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "bytes",
  "getrandom 0.4.3",
@@ -1688,7 +1688,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-adapter-integration"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "jsonc-parser",
  "nonproxy-adapter-api",
@@ -1700,14 +1700,14 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-adapter-mihomo"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-adapter-api",
 ]
 
 [[package]]
 name = "nonproxy-adapter-sing-box"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-adapter-api",
  "serde_json",
@@ -1715,14 +1715,14 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-adapter-surge"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-adapter-api",
 ]
 
 [[package]]
 name = "nonproxy-adapter-transaction"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "libc",
  "nonproxy-adapter-api",
@@ -1740,7 +1740,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-dns"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "hickory-proto",
  "nonproxy-model",
@@ -1750,7 +1750,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-exit-probe"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "base64 0.23.0",
  "bytes",
@@ -1776,7 +1776,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-flow-protocol"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-model",
  "thiserror 2.0.19",
@@ -1786,7 +1786,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-gatewayd"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "base64 0.23.0",
  "getrandom 0.4.3",
@@ -1832,14 +1832,14 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-http-connect-fixture"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "tokio",
 ]
 
 [[package]]
 name = "nonproxy-learning"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-model",
  "thiserror 2.0.19",
@@ -1847,7 +1847,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-local-auth"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "getrandom 0.4.3",
  "nonproxy-windows-security",
@@ -1857,7 +1857,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-model"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "idna",
  "proptest",
@@ -1867,7 +1867,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-outbound"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "base64 0.23.0",
  "nonproxy-flow-protocol",
@@ -1880,14 +1880,14 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-policy"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-model",
 ]
 
 [[package]]
 name = "nonproxy-policy-compiler"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-model",
  "nonproxy-policy",
@@ -1898,7 +1898,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-probe-admin"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "getrandom 0.4.3",
  "libc",
@@ -1911,7 +1911,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-probe-server"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "base64 0.23.0",
  "bytes",
@@ -1931,7 +1931,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-proto"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "prost",
  "prost-types",
@@ -1942,7 +1942,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-storage"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-dns",
  "nonproxy-learning",
@@ -1955,7 +1955,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-subscription"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "bytes",
  "http",
@@ -1974,7 +1974,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-windows-identity"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-model",
  "sha2 0.11.0",
@@ -1984,7 +1984,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-windows-ipc"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "nonproxy-windows-security",
  "tokio",
@@ -1995,7 +1995,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-windows-network"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "socket2",
  "thiserror 2.0.19",
@@ -2005,7 +2005,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-windows-security"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "tempfile",
  "windows-sys 0.61.2",
@@ -2013,7 +2013,7 @@ dependencies = [
 
 [[package]]
 name = "nonproxy-windows-wfp"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "thiserror 2.0.19",
  "windows-sys 0.61.2",
@@ -4162,7 +4162,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.0.1"
 
 [[package]]
 name = "yasna"

@@ -14,7 +14,7 @@ public struct NativeRequestHandler: Sendable {
             case .hello:
                 payload = .hello(
                     HelloResult(
-                        hostVersion: "1.0",
+                        hostVersion: "0.0.1",
                         capabilities: [
                             "site-learning-v1",
                             "domain-only-observation-v1",

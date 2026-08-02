@@ -3,7 +3,7 @@ Signature = "$WINDOWS NT$"
 Class = WFPCALLOUTS
 ClassGuid = {57465043-616C-6C6F-7574-5F636C617373}
 Provider = %ProviderName%
-DriverVer = 07/31/2026,0.1.0.0
+DriverVer = 08/02/2026,0.0.1.0
 CatalogFile = NonProxyWfp.cat
 PnpLockdown = 1
 
