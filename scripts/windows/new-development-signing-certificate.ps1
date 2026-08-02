@@ -29,6 +29,7 @@ if (Test-Path -LiteralPath $output) {
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 
 $subject = "CN=NonProxy Development $Version $Architecture"
+Write-Host "正在生成临时自签名代码签名证书：$subject"
 $certificate = New-SelfSignedCertificate `
     -Type CodeSigningCert `
     -Subject $subject `
@@ -42,17 +43,21 @@ $certificate = New-SelfSignedCertificate `
 if ($null -eq $certificate -or -not $certificate.HasPrivateKey) {
     throw "Windows 开发代码签名证书创建失败。"
 }
+Write-Host "临时开发签名证书已写入当前用户个人证书存储。"
 
 $certificatePath = Join-Path $output "NonProxy-Development.cer"
 Export-Certificate -Cert $certificate -FilePath $certificatePath -Type CERT |
     Out-Null
+Write-Host "临时开发签名公钥证书已导出。"
 foreach ($store in @(
     "Cert:\CurrentUser\Root",
     "Cert:\CurrentUser\TrustedPublisher"
 )) {
+    Write-Host "正在将临时开发证书加入当前用户信任存储：$store"
     Import-Certificate -FilePath $certificatePath -CertStoreLocation $store |
         Out-Null
 }
+Write-Host "临时开发证书已加入当前用户信任存储。"
 
 $certificateSha256 = Get-NonProxyCertificateSha256 -Certificate $certificate
 [pscustomobject]@{

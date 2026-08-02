@@ -7,7 +7,8 @@ param(
     [string]$Version,
     [Parameter(Mandatory = $true)]
     [ValidateSet("x64", "arm64")]
-    [string]$Architecture
+    [string]$Architecture,
+    [string]$SigningCertificateDirectory
 )
 
 Set-StrictMode -Version 3.0
@@ -42,15 +43,45 @@ $target = if ($Architecture -eq "x64") {
 
 $certificateDirectory = Join-Path $repositoryRoot (
     ".artifacts/windows-development-certificate/$Version/$Architecture")
-$signing = & (Join-Path $PSScriptRoot "new-development-signing-certificate.ps1") `
-    -Version $Version `
-    -Architecture $Architecture `
-    -OutputDirectory $certificateDirectory
+if ([string]::IsNullOrWhiteSpace($SigningCertificateDirectory)) {
+    Write-Host "正在创建 Windows 临时开发签名证书。"
+    $signing = & (Join-Path $PSScriptRoot "new-development-signing-certificate.ps1") `
+        -Version $Version `
+        -Architecture $Architecture `
+        -OutputDirectory $certificateDirectory
+} else {
+    $certificateDirectory = Resolve-NonProxyExistingPath `
+        -Path $SigningCertificateDirectory -PathType Container
+    $certificatePath = Resolve-NonProxyExistingPath `
+        -Path (Join-Path $certificateDirectory "NonProxy-Development.cer") `
+        -PathType Leaf
+    $publicCertificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
+        $certificatePath)
+    try {
+        $thumbprint = ConvertTo-NonProxyThumbprint $publicCertificate.Thumbprint
+        $certificate = Get-NonProxySigningCertificate -Thumbprint $thumbprint
+        $certificateSha256 = Get-NonProxyCertificateSha256 `
+            -Certificate $certificate
+        if ($certificateSha256 -ne (
+            Get-NonProxyCertificateSha256 -Certificate $publicCertificate)) {
+            throw "证书存储中的私钥证书与开发证书文件不一致。"
+        }
+        $signing = [pscustomobject]@{
+            CertificatePath = $certificatePath
+            CertificateSha256 = $certificateSha256
+            Thumbprint = $thumbprint
+        }
+    } finally {
+        $publicCertificate.Dispose()
+    }
+    Write-Host "已复用当前 CI 作业创建的临时开发签名证书。"
+}
 
 $desktopOutput = Join-Path $repositoryRoot (
     ".artifacts/desktop/$($target.Rid)")
 $bootstrapOutput = Join-Path $repositoryRoot (
     ".artifacts/bootstrap/$($target.Rid)")
+Write-Host "正在发布 Windows 桌面端。"
 & dotnet publish (
     Join-Path $repositoryRoot (
         "apps/desktop/NonProxy.Desktop.Windows/" +
@@ -64,6 +95,7 @@ $bootstrapOutput = Join-Path $repositoryRoot (
 if ($LASTEXITCODE -ne 0) {
     throw "Windows 桌面端发布失败。"
 }
+Write-Host "正在发布 Windows 安装 Bootstrap。"
 & dotnet publish (
     Join-Path $repositoryRoot (
         "platform/windows/NonProxy.Windows.Bootstrap/" +
@@ -80,6 +112,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Windows 安装 Bootstrap 发布失败。"
 }
 
+Write-Host "正在编译 Windows Rust 服务。"
 & cargo +1.97.1 build --locked --release `
     --target $target.RustTarget `
     -p nonproxy-gatewayd `
@@ -87,12 +120,14 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
     throw "Windows Rust 服务发布失败。"
 }
+Write-Host "正在编译和组装 Windows WFP 驱动。"
 & (Join-Path $PSScriptRoot "build-driver.ps1") `
     -Platform $target.DriverPlatform
 
 $packageName = "NonProxy-$Version-windows-$Architecture-development"
 $packageRoot = Join-Path $repositoryRoot (
     ".artifacts/windows-development/$Version/$packageName")
+Write-Host "正在组装 Windows 开发预览目录。"
 & (Join-Path $PSScriptRoot "build-release-package.ps1") `
     -Version $Version `
     -Architecture $Architecture `
@@ -106,8 +141,10 @@ $packageRoot = Join-Path $repositoryRoot (
     -DriverDirectory (Join-Path $repositoryRoot (
         ".artifacts/windows-driver/$($target.DriverPlatform)")) `
     -OutputDirectory $packageRoot
+Write-Host "正在签名并校验 Windows 开发预览目录。"
 & (Join-Path $PSScriptRoot "sign-development-release-package.ps1") `
     -PackageRoot $packageRoot `
+    -ExpectedArchitecture $Architecture `
     -CertificateThumbprint $signing.Thumbprint `
     -PublicCertificatePath $signing.CertificatePath
 
@@ -117,6 +154,7 @@ $archive = Join-Path $releaseDirectory "$packageName.zip"
 if (Test-Path -LiteralPath $archive) {
     throw "开发预览版压缩包已存在，拒绝覆盖：$archive"
 }
+Write-Host "正在压缩 Windows 开发预览目录。"
 Compress-Archive -LiteralPath $packageRoot -DestinationPath $archive
 $archiveSha256 = Get-NonProxyFileSha256 -Path $archive
 Set-Content `

@@ -7,6 +7,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ExpectedPublisherThumbprint,
     [string]$ConsumerBootstrapManifestSha256,
+    [ValidateSet("x64", "arm64")]
+    [string]$ExpectedArchitecture,
+    [switch]$AllowCrossArchitectureBuildVerification,
     [switch]$PassThru
 )
 
@@ -66,6 +69,14 @@ if ([string]$manifest.publisherThumbprintHint -ne $expected) {
 if ($manifest.architecture -notin @("x64", "arm64")) {
     throw "发布清单架构无效。"
 }
+if (-not [string]::IsNullOrWhiteSpace($ExpectedArchitecture) -and
+    $manifest.architecture -ne $ExpectedArchitecture) {
+    throw "发布清单架构与构建目标不一致。"
+}
+if ($AllowCrossArchitectureBuildVerification -and
+    [string]::IsNullOrWhiteSpace($ExpectedArchitecture)) {
+    throw "交叉架构构建校验必须固定预期架构。"
+}
 if ($manifest.minimumWindowsBuild -lt 18362) {
     throw "发布清单最低 Windows Build 无效。"
 }
@@ -84,7 +95,8 @@ $nativeArchitecture = if (
 } else {
     throw "不支持当前 Windows 原生架构。"
 }
-if ($manifest.architecture -ne $nativeArchitecture) {
+if (-not $AllowCrossArchitectureBuildVerification -and
+    $manifest.architecture -ne $nativeArchitecture) {
     throw "发布包架构与当前 Windows 原生架构不匹配。"
 }
 if ($null -eq $manifest.files -or $manifest.files.Count -eq 0) {

@@ -5,6 +5,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$PackageRoot,
     [Parameter(Mandatory = $true)]
+    [ValidateSet("x64", "arm64")]
+    [string]$ExpectedArchitecture,
+    [Parameter(Mandatory = $true)]
     [string]$CertificateThumbprint,
     [Parameter(Mandatory = $true)]
     [string]$PublicCertificatePath
@@ -28,6 +31,9 @@ $manifestPath = Join-Path $root "release-manifest.json"
 $trustPath = Join-Path $root "release-trust.ps1"
 $metadataPath = Join-Path $root "release-metadata.json"
 $metadata = Get-Content -LiteralPath $metadataPath -Raw | ConvertFrom-Json
+if ([string]$metadata.architecture -ne $ExpectedArchitecture) {
+    throw "发布元数据架构与构建目标不一致。"
+}
 if ([string]$metadata.publisherCertificateSha256 -ne
     $publisherCertificateSha256) {
     throw "开发证书与发布产物编译固定的证书 SHA-256 不一致。"
@@ -165,6 +171,8 @@ if ($trustSignature.Status -ne [Management.Automation.SignatureStatus]::Valid) {
 [void](& (Join-Path $PSScriptRoot "verify-release-package.ps1") `
     -PackageRoot $root `
     -ExpectedPublisherThumbprint $thumbprint `
+    -ExpectedArchitecture $ExpectedArchitecture `
+    -AllowCrossArchitectureBuildVerification `
     -ConsumerBootstrapManifestSha256 $manifestHash `
     -PassThru)
 Write-Host "Windows 开发预览发布目录签名完成：$root"

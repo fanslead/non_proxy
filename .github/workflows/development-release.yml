@@ -16,7 +16,7 @@ jobs:
   windows:
     name: Windows ${{ matrix.architecture }} 开发签名包
     runs-on: windows-2025-vs2026
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +47,19 @@ jobs:
         shell: pwsh
         run: ./scripts/bootstrap/install-protoc-windows.ps1
 
+      - name: 创建临时开发签名证书
+        shell: pwsh
+        timeout-minutes: 5
+        env:
+          NONPROXY_RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          ./scripts/windows/new-development-signing-certificate.ps1 `
+            -Version $env:NONPROXY_RELEASE_VERSION `
+            -Architecture '${{ matrix.architecture }}' `
+            -OutputDirectory (
+              ".artifacts/windows-development-certificate/" +
+              "$env:NONPROXY_RELEASE_VERSION/${{ matrix.architecture }}")
+
       - name: 构建并生成开发签名包
         id: package
         shell: pwsh
@@ -55,7 +68,10 @@ jobs:
         run: |
           ./scripts/windows/build-development-release.ps1 `
             -Version $env:NONPROXY_RELEASE_VERSION `
-            -Architecture '${{ matrix.architecture }}'
+            -Architecture '${{ matrix.architecture }}' `
+            -SigningCertificateDirectory (
+              ".artifacts/windows-development-certificate/" +
+              "$env:NONPROXY_RELEASE_VERSION/${{ matrix.architecture }}")
 
       - name: 上传 Windows 开发预览版
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # 固定为 v4.6.2

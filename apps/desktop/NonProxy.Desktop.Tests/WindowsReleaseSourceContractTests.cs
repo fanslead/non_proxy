@@ -10,6 +10,9 @@ public sealed class WindowsReleaseSourceContractTests
         {
             ["build"] = Read(root, "build-release-package.ps1"),
             ["sign"] = Read(root, "sign-release-package.ps1"),
+            ["developmentSign"] = Read(
+                root,
+                "sign-development-release-package.ps1"),
             ["verify"] = Read(root, "verify-release-package.ps1"),
             ["install"] = Read(root, "install-system-components.ps1"),
             ["task"] = Read(root, "NonProxy.Windows.AdapterHost.psm1"),
@@ -27,6 +30,9 @@ public sealed class WindowsReleaseSourceContractTests
             ("verify", "adapter/nonproxy-adapter-host.exe"),
             ("verify", "bootstrap/NonProxy.Windows.Bootstrap.exe"),
             ("verify", "ConsumerBootstrapManifestSha256"),
+            ("verify", "AllowCrossArchitectureBuildVerification"),
+            ("developmentSign", "ExpectedArchitecture"),
+            ("developmentSign", "-AllowCrossArchitectureBuildVerification"),
             ("install", "Set-NonProxyAdapterHostTask"),
             ("install", "Remove-NonProxyAdapterHostTask"),
             ("install", "Stop-NonProxyAdapterHostProcesses"),
