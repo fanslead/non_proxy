@@ -1,18 +1,19 @@
-use std::{collections::BTreeMap, net::IpAddr};
+use std::net::IpAddr;
 
 use nonproxy_model::{
     AppMatcher, DecisionSpec, DomainMatchKind, FailureMode, IpFamily, NetworkFingerprintKind,
-    NetworkProfileBinding, OutboundId, Platform, Policy, PolicyMatch, PolicySourceKind,
+    NetworkProfileBinding, Platform, Policy, PolicyMatch, PolicySourceKind, ProxyTarget,
     RouteAction, RuntimeOverrideMode, RuntimeRoutingOverride, Transport,
 };
-use nonproxy_policy::OutboundCapabilities;
 use sha2::{Digest, Sha256};
+
+use crate::CompileCapabilities;
 
 pub(crate) fn content_hash(
     schema_version: u32,
     default_decision: &DecisionSpec,
     policies: &[&Policy],
-    outbounds: &BTreeMap<OutboundId, OutboundCapabilities>,
+    capabilities: &CompileCapabilities,
     network_profiles: Option<&[NetworkProfileBinding]>,
     runtime_override: Option<Option<&RuntimeRoutingOverride>>,
 ) -> [u8; 32] {
@@ -27,8 +28,8 @@ pub(crate) fn content_hash(
         write_bytes(&mut bytes, &matcher_bytes(policy.matcher()));
         write_decision(&mut bytes, policy.decision());
     }
-    write_u64(&mut bytes, outbounds.len() as u64);
-    for (outbound_id, capabilities) in outbounds {
+    write_u64(&mut bytes, capabilities.outbounds().len() as u64);
+    for (outbound_id, capabilities) in capabilities.outbounds() {
         write_string(&mut bytes, outbound_id.as_str());
         bytes.push(u8::from(capabilities.supports_transport(Transport::Tcp)));
         bytes.push(u8::from(capabilities.supports_transport(Transport::Udp)));
@@ -65,6 +66,31 @@ pub(crate) fn content_hash(
                 write_u64(&mut bytes, value.expires_at_unix_ms());
             }
             None => bytes.push(0),
+        }
+    }
+    if !capabilities.outbound_groups().is_empty() {
+        bytes.extend_from_slice(b"NP_GROUPS_V1");
+        write_u64(&mut bytes, capabilities.outbound_groups().len() as u64);
+        for (group_id, group) in capabilities.outbound_groups() {
+            write_string(&mut bytes, group_id.as_str());
+            write_u64(&mut bytes, group.revision());
+            write_u64(&mut bytes, group.members().len() as u64);
+            for member in group.members() {
+                write_string(&mut bytes, member.as_str());
+            }
+            match capabilities
+                .outbound_group_capabilities()
+                .get(group_id)
+                .copied()
+            {
+                Some(capabilities) => {
+                    bytes.push(u8::from(capabilities.supports_transport(Transport::Tcp)));
+                    bytes.push(u8::from(capabilities.supports_transport(Transport::Udp)));
+                    bytes.push(u8::from(capabilities.supports_family(IpFamily::Ipv4)));
+                    bytes.push(u8::from(capabilities.supports_family(IpFamily::Ipv6)));
+                }
+                None => bytes.extend_from_slice(&[u8::MAX; 4]),
+            }
         }
     }
     Sha256::digest(bytes).into()
@@ -143,7 +169,17 @@ fn write_decision(bytes: &mut Vec<u8>, decision: &DecisionSpec) {
         RouteAction::Proxy => 2,
         RouteAction::Block => 3,
     });
-    write_optional_string(bytes, decision.outbound_id().map(|value| value.as_str()));
+    match decision.proxy_target() {
+        None => bytes.push(0),
+        Some(ProxyTarget::Outbound(value)) => {
+            bytes.push(1);
+            write_string(bytes, value.as_str());
+        }
+        Some(ProxyTarget::Group(value)) => {
+            bytes.push(2);
+            write_string(bytes, value.as_str());
+        }
+    }
     bytes.push(match decision.failure_mode() {
         FailureMode::Closed => 1,
         FailureMode::Open => 2,

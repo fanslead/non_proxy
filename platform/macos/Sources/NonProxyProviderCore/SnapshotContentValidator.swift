@@ -21,7 +21,11 @@ enum SnapshotContentValidator {
             throw ProviderError.invalidSnapshot("策略基础字段或来源约束无效")
         }
         try validateMatcher(policy.match, source: policy.sourceKind)
-        try validateDecision(policy.decision, availableOutbounds: nil)
+        try validateDecision(
+            policy.decision,
+            availableOutbounds: nil,
+            availableGroups: nil
+        )
     }
 
     static func validateNetworkProfile(
@@ -52,7 +56,8 @@ enum SnapshotContentValidator {
 
     static func validateDecision(
         _ decision: Nonproxy_Policy_V1_DecisionSpec,
-        availableOutbounds: Set<String>?
+        availableOutbounds: Set<String>?,
+        availableGroups: Set<String>?
     ) throws {
         guard decision.failureMode == .closed || decision.failureMode == .open
         else {
@@ -60,13 +65,26 @@ enum SnapshotContentValidator {
         }
         switch decision.action {
         case .proxy:
-            guard isIdentifier(decision.outboundID),
-                  availableOutbounds?.contains(decision.outboundID) ?? true
-            else {
+            switch (decision.outboundID.isEmpty, decision.outboundGroupID.isEmpty) {
+            case (false, true):
+                guard isIdentifier(decision.outboundID),
+                      availableOutbounds?.contains(decision.outboundID) ?? true
+                else {
+                    throw ProviderError.invalidSnapshot("代理决策缺少有效出口")
+                }
+            case (true, false):
+                guard isIdentifier(decision.outboundGroupID),
+                      availableGroups?.contains(decision.outboundGroupID) ?? true
+                else {
+                    throw ProviderError.invalidSnapshot("代理决策缺少有效出口组")
+                }
+            case (true, true):
                 throw ProviderError.invalidSnapshot("代理决策缺少有效出口")
+            case (false, false):
+                throw ProviderError.invalidSnapshot("代理决策不能同时绑定出口和出口组")
             }
         case .direct, .block:
-            guard decision.outboundID.isEmpty else {
+            guard decision.outboundID.isEmpty, decision.outboundGroupID.isEmpty else {
                 throw ProviderError.invalidSnapshot("非代理决策不能绑定出口")
             }
         default:
@@ -80,6 +98,7 @@ enum SnapshotContentValidator {
         defaultDecision: Nonproxy_Policy_V1_DecisionSpec
     ) throws {
         let availableOutbounds = Set(capabilities.outbounds.map(\.outboundID))
+        let availableGroups = Set(capabilities.outboundGroups.map(\.outboundGroupID))
         for policy in policies {
             let matcher = policy.match
             guard !matcher.hasApp || capabilities.appMatch,
@@ -92,7 +111,8 @@ enum SnapshotContentValidator {
             }
             try validateDecision(
                 policy.decision,
-                availableOutbounds: availableOutbounds
+                availableOutbounds: availableOutbounds,
+                availableGroups: availableGroups
             )
             try validateOutboundCompatibility(
                 policy.decision,
@@ -129,7 +149,11 @@ enum SnapshotContentValidator {
             throw ProviderError.invalidSnapshot("运行态覆盖模式无效")
         }
         let availableOutbounds = Set(capabilities.outbounds.map(\.outboundID))
-        try validateDecision(decision, availableOutbounds: availableOutbounds)
+        try validateDecision(
+            decision,
+            availableOutbounds: availableOutbounds,
+            availableGroups: []
+        )
         try validateOutboundCompatibility(
             decision,
             matcher: nil,
@@ -390,10 +414,24 @@ enum SnapshotContentValidator {
         guard decision.action == .proxy else {
             return
         }
-        guard let outbound = capabilities.outbounds.first(where: {
-            $0.outboundID == decision.outboundID
-        }) else {
-            throw ProviderError.invalidSnapshot("代理决策引用了未知出口")
+        let targetTransports: [Nonproxy_Common_V1_TransportProtocol]
+        let targetFamilies: [Nonproxy_Common_V1_IpFamily]
+        if !decision.outboundGroupID.isEmpty {
+            guard let group = capabilities.outboundGroups.first(where: {
+                $0.outboundGroupID == decision.outboundGroupID
+            }) else {
+                throw ProviderError.invalidSnapshot("代理决策引用了未知出口组")
+            }
+            targetTransports = group.transports
+            targetFamilies = group.ipFamilies
+        } else {
+            guard let outbound = capabilities.outbounds.first(where: {
+                $0.outboundID == decision.outboundID
+            }) else {
+                throw ProviderError.invalidSnapshot("代理决策引用了未知出口")
+            }
+            targetTransports = outbound.transports
+            targetFamilies = outbound.ipFamilies
         }
         let transports = matcher.map(\.transports).flatMap {
             $0.isEmpty ? nil : $0
@@ -404,8 +442,8 @@ enum SnapshotContentValidator {
         } else {
             families = capabilities.ipFamilies
         }
-        guard transports.allSatisfy(outbound.transports.contains),
-              families.allSatisfy(outbound.ipFamilies.contains)
+        guard transports.allSatisfy(targetTransports.contains),
+              families.allSatisfy(targetFamilies.contains)
         else {
             throw ProviderError.invalidSnapshot("代理出口能力无法满足策略")
         }

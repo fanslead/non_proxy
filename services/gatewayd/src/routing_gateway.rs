@@ -6,7 +6,8 @@ use crate::{
     Gateway, GatewayError, PublishedSnapshot,
     clock::unix_time_ms,
     snapshot_builder::{
-        SnapshotBuildIdentity, SnapshotRoutingState, build_snapshot, rebuild_snapshot,
+        SnapshotBuildIdentity, SnapshotCatalog, SnapshotRoutingState, build_snapshot,
+        rebuild_snapshot,
     },
     snapshot_payload,
 };
@@ -64,6 +65,7 @@ impl Gateway {
             .run(move |database| {
                 let policies = database.policies().list()?;
                 let outbounds = database.outbounds().list()?;
+                let outbound_groups = database.outbound_groups().list()?;
                 let network_profiles = database.network_profiles().list()?;
                 let current = database.snapshots().latest_version()?.unwrap_or(0);
                 let runtime_override = database
@@ -81,9 +83,12 @@ impl Gateway {
                 let default_decision = decision_for_route(&route)?;
                 let published = build_snapshot(
                     capabilities,
-                    &policies,
-                    &outbounds,
-                    &network_profiles,
+                    SnapshotCatalog::new(
+                        &policies,
+                        &outbounds,
+                        &outbound_groups,
+                        &network_profiles,
+                    ),
                     SnapshotRoutingState::new(default_decision, runtime_override),
                     SnapshotBuildIdentity::new(snapshot_version, now),
                     &system_policy_config,

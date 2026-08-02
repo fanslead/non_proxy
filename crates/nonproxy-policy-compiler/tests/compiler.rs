@@ -2,8 +2,9 @@ mod support;
 
 use nonproxy_model::{
     DecisionSpec, DomainMatchKind, FailureMode, NetworkFingerprint, NetworkFingerprintKind,
-    NetworkMatcher, NetworkProfileBinding, NetworkProfileId, OutboundId, PolicySourceKind,
-    RouteAction, RuntimeOverrideMode, RuntimeRoutingOverride,
+    NetworkMatcher, NetworkProfileBinding, NetworkProfileId, OutboundGroupId, OutboundGroupSpec,
+    OutboundId, PolicySourceKind, RouteAction, RuntimeOverrideMode, RuntimeRoutingOverride,
+    Transport,
 };
 use nonproxy_policy_compiler::{
     CompileCapabilities, CompileError, CompileRequest, OutboundCapabilities, PolicyCompiler,
@@ -219,6 +220,159 @@ fn proxy_outbound_must_exist_and_cover_required_protocols() {
 
     assert!(codes.contains(&"NP_POLICY_OUTBOUND_TRANSPORT_UNSUPPORTED"));
     assert!(codes.contains(&"NP_POLICY_OUTBOUND_IP_FAMILY_UNSUPPORTED"));
+}
+
+#[test]
+fn proxy_group_must_exist() {
+    let group_id = OutboundGroupId::new("missing-group")
+        .unwrap_or_else(|error| panic!("测试出口组标识创建失败: {error}"));
+    let decision = DecisionSpec::proxy_group(group_id, FailureMode::Closed)
+        .unwrap_or_else(|error| panic!("测试出口组决策创建失败: {error}"));
+    let policy = must_policy(
+        "missing-group-rule",
+        PolicySourceKind::Site,
+        matcher(
+            None,
+            Some(domain_match(DomainMatchKind::Suffix, "example.com")),
+            None,
+            None,
+            vec![Transport::Tcp],
+            Vec::new(),
+        ),
+        decision,
+        0,
+    );
+
+    let result = compile(1, 10, vec![policy], CompileCapabilities::full());
+    let Err(error) = result else {
+        panic!("未知出口组不应编译成功");
+    };
+
+    assert!(conflict_codes(&error).contains(&"NP_POLICY_OUTBOUND_GROUP_UNKNOWN"));
+}
+
+#[test]
+fn proxy_group_uses_member_capability_intersection() {
+    let primary = OutboundId::new("primary")
+        .unwrap_or_else(|error| panic!("测试主出口标识创建失败: {error}"));
+    let backup = OutboundId::new("backup")
+        .unwrap_or_else(|error| panic!("测试备用出口标识创建失败: {error}"));
+    let group_id = OutboundGroupId::new("automatic")
+        .unwrap_or_else(|error| panic!("测试出口组标识创建失败: {error}"));
+    let group = OutboundGroupSpec::new(group_id.clone(), 7, vec![primary.clone(), backup.clone()])
+        .unwrap_or_else(|error| panic!("测试出口组创建失败: {error}"));
+    let capabilities = CompileCapabilities::full()
+        .with_outbound(primary, OutboundCapabilities::full())
+        .with_outbound(backup, OutboundCapabilities::new(true, false, true, true))
+        .with_outbound_group(group)
+        .unwrap_or_else(|error| panic!("测试出口组能力创建失败: {error}"));
+    let decision = DecisionSpec::proxy_group(group_id, FailureMode::Closed)
+        .unwrap_or_else(|error| panic!("测试出口组决策创建失败: {error}"));
+    let policy = must_policy(
+        "udp-group-rule",
+        PolicySourceKind::Site,
+        matcher(
+            None,
+            Some(domain_match(DomainMatchKind::Suffix, "example.com")),
+            None,
+            None,
+            vec![Transport::Udp],
+            Vec::new(),
+        ),
+        decision,
+        0,
+    );
+
+    let result = compile(1, 10, vec![policy], capabilities);
+    let Err(error) = result else {
+        panic!("成员能力交集不支持 UDP 时不应编译成功");
+    };
+
+    assert!(conflict_codes(&error).contains(&"NP_POLICY_OUTBOUND_TRANSPORT_UNSUPPORTED"));
+}
+
+#[test]
+fn proxy_group_catalog_is_stored_and_affects_content_hash() {
+    let primary = OutboundId::new("primary")
+        .unwrap_or_else(|error| panic!("测试主出口标识创建失败: {error}"));
+    let backup = OutboundId::new("backup")
+        .unwrap_or_else(|error| panic!("测试备用出口标识创建失败: {error}"));
+    let group_id = OutboundGroupId::new("automatic")
+        .unwrap_or_else(|error| panic!("测试出口组标识创建失败: {error}"));
+    let capabilities = |revision, members| {
+        CompileCapabilities::full()
+            .with_outbound(primary.clone(), OutboundCapabilities::full())
+            .with_outbound(backup.clone(), OutboundCapabilities::full())
+            .with_outbound_group(
+                OutboundGroupSpec::new(group_id.clone(), revision, members)
+                    .unwrap_or_else(|error| panic!("测试出口组创建失败: {error}")),
+            )
+            .unwrap_or_else(|error| panic!("测试出口组能力创建失败: {error}"))
+    };
+    let first = compile(
+        1,
+        10,
+        Vec::new(),
+        capabilities(7, vec![primary.clone(), backup.clone()]),
+    );
+    let second = compile(
+        2,
+        20,
+        Vec::new(),
+        capabilities(8, vec![backup.clone(), primary.clone()]),
+    );
+    let (Ok(first), Ok(second)) = (first, second) else {
+        panic!("出口组目录快照编译失败");
+    };
+
+    let stored = first
+        .outbound_groups()
+        .get(&group_id)
+        .unwrap_or_else(|| panic!("编译快照缺少出口组"));
+    assert_eq!(stored.revision(), 7);
+    assert_eq!(stored.members()[0].as_str(), "primary");
+    assert_eq!(
+        first.outbound_group_capabilities().get(&group_id).copied(),
+        Some(OutboundCapabilities::full())
+    );
+    assert_ne!(
+        first.metadata().content_hash(),
+        second.metadata().content_hash()
+    );
+}
+
+#[test]
+fn proxy_group_hash_matches_cross_language_golden_vector() {
+    let primary = OutboundId::new("primary")
+        .unwrap_or_else(|error| panic!("测试主出口标识创建失败: {error}"));
+    let backup = OutboundId::new("backup")
+        .unwrap_or_else(|error| panic!("测试备用出口标识创建失败: {error}"));
+    let group_id = OutboundGroupId::new("automatic")
+        .unwrap_or_else(|error| panic!("测试出口组标识创建失败: {error}"));
+    let group = OutboundGroupSpec::new(group_id.clone(), 9, vec![primary.clone(), backup.clone()])
+        .unwrap_or_else(|error| panic!("测试出口组创建失败: {error}"));
+    let capabilities = CompileCapabilities::full()
+        .with_outbound(primary, OutboundCapabilities::full())
+        .with_outbound(backup, OutboundCapabilities::full())
+        .with_outbound_group(group)
+        .unwrap_or_else(|error| panic!("测试出口组能力创建失败: {error}"));
+    let decision = DecisionSpec::proxy_group(group_id, FailureMode::Closed)
+        .unwrap_or_else(|error| panic!("测试出口组决策创建失败: {error}"));
+    let snapshot = PolicyCompiler::compile(
+        CompileRequest::new(1, 1_000, decision, Vec::new(), capabilities)
+            .with_network_profiles(Vec::new())
+            .with_runtime_override(None),
+    )
+    .unwrap_or_else(|error| panic!("出口组 golden 快照编译失败: {error}"));
+
+    assert_eq!(
+        snapshot.metadata().content_hash(),
+        &[
+            0xf4, 0x31, 0x6b, 0x06, 0x0f, 0xbb, 0x02, 0xdb, 0x42, 0x2e, 0x2f, 0x36, 0x76, 0x44,
+            0xcd, 0xc9, 0x82, 0x0d, 0x17, 0x52, 0x5e, 0x78, 0xc7, 0x7f, 0x18, 0xcf, 0x0f, 0x08,
+            0x90, 0x94, 0x67, 0xce,
+        ]
+    );
 }
 
 #[test]

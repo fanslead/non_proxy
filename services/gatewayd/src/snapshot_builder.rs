@@ -1,6 +1,8 @@
 use nonproxy_model::{DecisionSpec, NetworkProfileBinding, Policy, RuntimeRoutingOverride};
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
-use nonproxy_storage::{NetworkProfileReference, OutboundReference, SnapshotArtifact};
+use nonproxy_storage::{
+    NetworkProfileReference, OutboundGroup, OutboundReference, SnapshotArtifact,
+};
 
 use crate::{
     GatewayError, PublishedSnapshot, outbound_capabilities, snapshot_payload, system_policies,
@@ -29,6 +31,51 @@ pub(crate) struct SnapshotRoutingState {
     runtime_override: Option<RuntimeRoutingOverride>,
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct SnapshotCatalog<'catalog> {
+    policies: &'catalog [Policy],
+    outbounds: &'catalog [OutboundReference],
+    outbound_groups: &'catalog [OutboundGroup],
+    network_profiles: &'catalog [NetworkProfileReference],
+}
+
+impl<'catalog> SnapshotCatalog<'catalog> {
+    #[must_use]
+    pub(crate) const fn new(
+        policies: &'catalog [Policy],
+        outbounds: &'catalog [OutboundReference],
+        outbound_groups: &'catalog [OutboundGroup],
+        network_profiles: &'catalog [NetworkProfileReference],
+    ) -> Self {
+        Self {
+            policies,
+            outbounds,
+            outbound_groups,
+            network_profiles,
+        }
+    }
+
+    #[must_use]
+    pub(crate) const fn policies(self) -> &'catalog [Policy] {
+        self.policies
+    }
+
+    #[must_use]
+    pub(crate) const fn outbounds(self) -> &'catalog [OutboundReference] {
+        self.outbounds
+    }
+
+    #[must_use]
+    pub(crate) const fn outbound_groups(self) -> &'catalog [OutboundGroup] {
+        self.outbound_groups
+    }
+
+    #[must_use]
+    pub(crate) const fn network_profiles(self) -> &'catalog [NetworkProfileReference] {
+        self.network_profiles
+    }
+}
+
 impl SnapshotRoutingState {
     #[must_use]
     pub(crate) const fn new(
@@ -54,21 +101,24 @@ impl SnapshotRoutingState {
 
 pub(crate) fn build_snapshot(
     capabilities: CompileCapabilities,
-    policies: &[Policy],
-    outbounds: &[OutboundReference],
-    network_profiles: &[NetworkProfileReference],
+    catalog: SnapshotCatalog<'_>,
     routing: SnapshotRoutingState,
     identity: SnapshotBuildIdentity,
     system_policy_config: &SystemPolicyConfig,
 ) -> Result<PublishedSnapshot, GatewayError> {
-    let capabilities = outbound_capabilities::for_configured_outbounds(capabilities, outbounds);
-    let network_profiles = network_profiles
+    let capabilities = outbound_capabilities::for_configured_outbounds(
+        capabilities,
+        catalog.outbounds(),
+        catalog.outbound_groups(),
+    )?;
+    let network_profiles = catalog
+        .network_profiles()
         .iter()
         .map(NetworkProfileReference::binding)
         .collect::<Vec<_>>();
     rebuild_snapshot(
         capabilities,
-        policies,
+        catalog.policies(),
         &network_profiles,
         routing,
         identity,

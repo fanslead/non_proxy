@@ -117,8 +117,10 @@ message PolicyMatch {
 // DecisionSpec 描述命中策略后的目标路径和失败行为。
 message DecisionSpec {
   nonproxy.common.v1.RouteAction action = 1;
+  // outbound_id 与 outbound_group_id 互斥；保留字段 2 以兼容既有调用方。
   string outbound_id = 2;
   nonproxy.common.v1.FailureMode failure_mode = 3;
+  string outbound_group_id = 4;
 }
 
 // RuntimeOverrideMode 表示不改写持久默认路由的有时限紧急覆盖。
@@ -183,6 +185,15 @@ message OutboundCapabilitySpec {
   repeated nonproxy.common.v1.IpFamily ip_families = 3;
 }
 
+// OutboundGroupCapabilitySpec 固化有序成员、组修订和经验证的能力交集。
+message OutboundGroupCapabilitySpec {
+  string outbound_group_id = 1;
+  uint64 revision = 2;
+  repeated string outbound_ids = 3;
+  repeated nonproxy.common.v1.TransportProtocol transports = 4;
+  repeated nonproxy.common.v1.IpFamily ip_families = 5;
+}
+
 // CompileCapabilitySet 固化生成快照时使用的平台和出口能力。
 message CompileCapabilitySet {
   bool app_match = 1;
@@ -191,6 +202,7 @@ message CompileCapabilitySet {
   repeated nonproxy.common.v1.TransportProtocol transports = 4;
   repeated nonproxy.common.v1.IpFamily ip_families = 5;
   repeated OutboundCapabilitySpec outbounds = 6;
+  repeated OutboundGroupCapabilitySpec outbound_groups = 7;
 }
 
 // CompiledPolicyPayload 是经校验并排序后的不可变快照载荷。

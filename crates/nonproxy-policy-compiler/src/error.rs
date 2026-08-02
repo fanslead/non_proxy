@@ -60,6 +60,8 @@ impl PolicyConflict {
 pub enum CompileError {
     #[error("策略编译校验失败")]
     Validation { conflicts: Vec<PolicyConflict> },
+    #[error("出口组包含未注册的出口成员")]
+    OutboundGroupMemberUnknown,
     #[error(transparent)]
     Model(#[from] ModelError),
 }
@@ -69,7 +71,7 @@ impl CompileError {
     pub fn conflicts(&self) -> &[PolicyConflict] {
         match self {
             Self::Validation { conflicts } => conflicts,
-            Self::Model(_) => &[],
+            Self::OutboundGroupMemberUnknown | Self::Model(_) => &[],
         }
     }
 }

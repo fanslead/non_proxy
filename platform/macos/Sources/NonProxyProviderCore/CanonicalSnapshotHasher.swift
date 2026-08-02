@@ -45,7 +45,7 @@ enum CanonicalSnapshotHasher {
                 bytes.appendString(profile.fingerprintValue)
             }
         }
-        if payload.formatVersion >= SnapshotValidator.payloadVersion {
+        if payload.formatVersion >= SnapshotValidator.runtimeOverridePayloadVersion {
             if payload.hasRuntimeOverride {
                 bytes.appendByte(1)
                 bytes.appendByte(try runtimeOverrideCode(payload.runtimeOverride.mode))
@@ -55,6 +55,25 @@ enum CanonicalSnapshotHasher {
                 )
             } else {
                 bytes.appendByte(0)
+            }
+        }
+        let groups = payload.capabilities.outboundGroups.sorted {
+            $0.outboundGroupID < $1.outboundGroupID
+        }
+        if !groups.isEmpty {
+            bytes.appendData(Data("NP_GROUPS_V1".utf8))
+            bytes.appendUInt64(UInt64(groups.count))
+            for group in groups {
+                bytes.appendString(group.outboundGroupID)
+                bytes.appendUInt64(group.revision)
+                bytes.appendUInt64(UInt64(group.outboundIds.count))
+                for member in group.outboundIds {
+                    bytes.appendString(member)
+                }
+                bytes.appendByte(group.transports.contains(.tcp) ? 1 : 0)
+                bytes.appendByte(group.transports.contains(.udp) ? 1 : 0)
+                bytes.appendByte(group.ipFamilies.contains(.ipv4) ? 1 : 0)
+                bytes.appendByte(group.ipFamilies.contains(.ipv6) ? 1 : 0)
             }
         }
         return Data(SHA256.hash(data: bytes.data))
@@ -143,7 +162,12 @@ enum CanonicalSnapshotHasher {
         default:
             throw ProviderError.invalidSnapshot("策略动作无效")
         }
-        bytes.appendOptionalString(optional(decision.outboundID))
+        if !decision.outboundGroupID.isEmpty {
+            bytes.appendByte(2)
+            bytes.appendString(decision.outboundGroupID)
+        } else {
+            bytes.appendOptionalString(optional(decision.outboundID))
+        }
         switch decision.failureMode {
         case .closed:
             bytes.appendByte(1)

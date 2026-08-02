@@ -114,6 +114,7 @@ fn direct_path_record() -> ProtoDecisionRecord {
                 action: RouteAction::Direct as i32,
                 failure_mode: FailureMode::Closed as i32,
                 outbound_id: String::new(),
+                outbound_group_id: String::new(),
             }),
             snapshot_version: 1,
             reason_code: "NP_POLICY_DEFAULT".to_owned(),

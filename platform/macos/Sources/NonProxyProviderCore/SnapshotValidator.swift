@@ -7,7 +7,8 @@ public enum SnapshotValidator {
     public static let payloadFormat = "nonproxy.compiled-policy.v1"
     public static let legacyPayloadVersion: UInt32 = 1
     public static let networkProfilePayloadVersion: UInt32 = 2
-    public static let payloadVersion: UInt32 = 3
+    public static let runtimeOverridePayloadVersion: UInt32 = 3
+    public static let payloadVersion: UInt32 = 4
     public static let maximumPayloadBytes = 16 * 1024 * 1024
     private static let maximumRuntimeOverrideMilliseconds: UInt64 = 60 * 60 * 1_000
 
@@ -62,6 +63,7 @@ public enum SnapshotValidator {
     ) throws {
         guard payload.formatVersion == legacyPayloadVersion
                 || payload.formatVersion == networkProfilePayloadVersion
+                || payload.formatVersion == runtimeOverridePayloadVersion
                 || payload.formatVersion == payloadVersion,
               payload.hasCapabilities,
               payload.hasDefaultDecision,
@@ -89,6 +91,7 @@ public enum SnapshotValidator {
         }
         try validateNetworkProfiles(payload)
         try validateRuntimeOverride(payload, against: snapshot)
+        try validateOutboundGroups(payload)
         try validateCapabilities(
             payload.capabilities,
             policies: payload.policies,
@@ -96,7 +99,8 @@ public enum SnapshotValidator {
         )
         try SnapshotContentValidator.validateDecision(
             payload.defaultDecision,
-            availableOutbounds: Set(payload.capabilities.outbounds.map(\.outboundID))
+            availableOutbounds: Set(payload.capabilities.outbounds.map(\.outboundID)),
+            availableGroups: Set(payload.capabilities.outboundGroups.map(\.outboundGroupID))
         )
     }
 
@@ -134,7 +138,7 @@ public enum SnapshotValidator {
         _ payload: Nonproxy_Policy_V1_CompiledPolicyPayload,
         against snapshot: Nonproxy_Policy_V1_CompiledPolicySnapshot
     ) throws {
-        if payload.formatVersion < payloadVersion {
+        if payload.formatVersion < runtimeOverridePayloadVersion {
             guard !payload.hasRuntimeOverride else {
                 throw ProviderError.invalidSnapshot("旧版策略快照包含运行态覆盖")
             }
@@ -160,6 +164,52 @@ public enum SnapshotValidator {
             runtimeOverride,
             capabilities: payload.capabilities
         )
+    }
+
+    private static func validateOutboundGroups(
+        _ payload: Nonproxy_Policy_V1_CompiledPolicyPayload
+    ) throws {
+        if payload.formatVersion < payloadVersion {
+            guard payload.capabilities.outboundGroups.isEmpty else {
+                throw ProviderError.invalidSnapshot("旧版策略快照包含出口组目录")
+            }
+            return
+        }
+        var outbounds: [String: Nonproxy_Policy_V1_OutboundCapabilitySpec] = [:]
+        for outbound in payload.capabilities.outbounds {
+            outbounds[outbound.outboundID] = outbound
+        }
+        var groupIDs = Set<String>()
+        var previousGroupID: String?
+        for group in payload.capabilities.outboundGroups {
+            let members = group.outboundIds.compactMap { outbounds[$0] }
+            guard SnapshotContentValidator.isIdentifier(group.outboundGroupID),
+                group.revision > 0,
+                (2...32).contains(group.outboundIds.count),
+                Set(group.outboundIds).count == group.outboundIds.count,
+                members.count == group.outboundIds.count,
+                groupIDs.insert(group.outboundGroupID).inserted,
+                previousGroupID.map({ $0 < group.outboundGroupID }) ?? true,
+                validOrderedUnique(group.transports, allowed: [.tcp, .udp]),
+                validOrderedUnique(group.ipFamilies, allowed: [.ipv4, .ipv6]),
+                group.transports == capabilityIntersection(members.map(\.transports)),
+                group.ipFamilies == capabilityIntersection(members.map(\.ipFamilies))
+            else {
+                throw ProviderError.invalidSnapshot("策略快照出口组目录无效")
+            }
+            previousGroupID = group.outboundGroupID
+        }
+    }
+
+    private static func capabilityIntersection<T: Hashable>(
+        _ values: [[T]]
+    ) -> [T] {
+        guard let first = values.first else {
+            return []
+        }
+        return first.filter { candidate in
+            values.dropFirst().allSatisfy { $0.contains(candidate) }
+        }
     }
 
     private static func unixMilliseconds(
@@ -233,6 +283,7 @@ public enum SnapshotValidator {
     ) -> Bool {
         left.action == right.action
             && left.outboundID == right.outboundID
+            && left.outboundGroupID == right.outboundGroupID
             && left.failureMode == right.failureMode
     }
 

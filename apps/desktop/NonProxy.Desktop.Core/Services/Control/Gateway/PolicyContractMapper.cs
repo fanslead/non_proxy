@@ -28,18 +28,23 @@ public sealed class PolicyContractMapper
                 "代理规则必须选择一个已配置出口。");
         }
 
+        var decision = new DecisionSpec
+        {
+            Action = ToRouteAction(draft.Action),
+            FailureMode = FailureMode.Closed,
+        };
+        if (draft.Action == PolicyAction.Proxy)
+        {
+            decision.OutboundId = outboundId;
+        }
+
         var policy = new ProtoPolicy
         {
             Id = draft.ExistingId ?? $"user-{Guid.NewGuid():N}",
             DisplayName = draft.Name.Trim(),
             SourceKind = ToSourceKind(draft.Scope),
             Match = matcher,
-            Decision = new DecisionSpec
-            {
-                Action = ToRouteAction(draft.Action),
-                OutboundId = outboundId,
-                FailureMode = FailureMode.Closed,
-            },
+            Decision = decision,
             Priority = 100,
             Enabled = true,
             Origin = PolicyOrigin.User,

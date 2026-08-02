@@ -1374,6 +1374,15 @@ V0015 在 `policy` 中加入与 `outbound_id` 互斥的 `outbound_group_id` 外�
 仍被策略引用的组不能删除。迁移完成只代表草稿可被权威保存，Provider 生效仍以包含组目录的
 新版快照为准。
 
+`CompiledPolicyPayload.format_version = 4` 在 `CompileCapabilitySet` 中固化按组 ID 排序的
+出口组目录：组 ID、revision、有序成员、传输能力交集和地址族交集。`DecisionSpec` 保留原
+`outbound_id = 2` 的隐式 presence 和生成 API，追加互斥的 `outbound_group_id = 4` 区分
+出口组；解码端拒绝两者同时存在，避免把 wire 兼容误写成调用方源码破坏。v1～v3 快照不得
+携带组目录；v4 解码端必须根据同一载荷中的成员出口重新计算交集，拒绝未知成员、顺序或修订
+无效、重复成员以及伪造能力。组目录非空时，跨语言 canonical hash 在既有字段之后追加
+`NP_GROUPS_V1` 域分隔符与完整组目录；空目录不追加扩展，因此不改变旧的单出口 golden
+hash。Rust 编译器与 macOS Provider 使用同一 golden vector 校验该编码。
+
 持久化完成并不等于运行态故障切换已经可用。完整激活还必须把组作为显式策略目标固化进
 快照，以固定公共目标的后台探测维护带迟滞的健康状态，只为新 flow 选择第一个新鲜健康成员，
 并在选中成员真正变化时写一次不含用户目标的审计事件。完整边界与冷启动行为见

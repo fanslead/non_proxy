@@ -5,6 +5,7 @@ mod destination;
 mod error;
 mod ids;
 mod network_profile;
+mod outbound_group;
 mod policy;
 mod runtime_override;
 
@@ -19,6 +20,7 @@ pub use ids::{NetworkProfileId, OutboundGroupId, OutboundId, PolicyId, RuleId};
 pub use network_profile::{
     NetworkFingerprint, NetworkFingerprintKind, NetworkProfileBinding, NetworkProfileReference,
 };
+pub use outbound_group::OutboundGroupSpec;
 pub use policy::{
     NetworkMatcher, Policy, PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind,
     PolicyValidation,

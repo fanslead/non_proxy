@@ -260,6 +260,7 @@ fn report_request(session_token: Vec<u8>, request_sequence: u64) -> ReportDecisi
                     action: RouteAction::Direct as i32,
                     outbound_id: String::new(),
                     failure_mode: FailureMode::Closed as i32,
+                    outbound_group_id: String::new(),
                 }),
                 snapshot_version: 1,
                 reason_code: "NP_POLICY_DEFAULT".to_owned(),

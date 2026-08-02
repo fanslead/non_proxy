@@ -7,7 +7,7 @@ use nonproxy_model::{
 };
 use nonproxy_storage::{
     DefaultRoute, LearningConfirmationReceipt, LearningPolicySelection, NetworkProfileReference,
-    OutboundReference, SnapshotRecord, StorageError,
+    OutboundGroup, OutboundReference, SnapshotRecord, StorageError,
 };
 
 use crate::{
@@ -15,7 +15,9 @@ use crate::{
     clock::unix_time_ms,
     outbound_capabilities,
     routing_gateway::decision_for_route,
-    snapshot_builder::{SnapshotBuildIdentity, SnapshotRoutingState, build_snapshot},
+    snapshot_builder::{
+        SnapshotBuildIdentity, SnapshotCatalog, SnapshotRoutingState, build_snapshot,
+    },
     snapshot_payload, system_policies,
 };
 
@@ -53,6 +55,7 @@ struct ConfirmationState {
     receipt: Option<LearningConfirmationReceipt>,
     policies: Vec<Policy>,
     outbounds: Vec<OutboundReference>,
+    outbound_groups: Vec<OutboundGroup>,
     network_profiles: Vec<NetworkProfileReference>,
     default_route: DefaultRoute,
     pending: Option<SnapshotRecord>,
@@ -89,6 +92,7 @@ impl Gateway {
                     receipt: database.learning_confirmations().get(&lookup_id)?,
                     policies: database.policies().list()?,
                     outbounds: database.outbounds().list()?,
+                    outbound_groups: database.outbound_groups().list()?,
                     network_profiles: database.network_profiles().list()?,
                     default_route: database.routing_settings().get()?.route().clone(),
                     pending: database.snapshots().pending()?,
@@ -131,9 +135,12 @@ impl Gateway {
         let default_decision = decision_for_route(&state.default_route)?;
         let published = build_snapshot(
             self.capabilities().clone(),
-            &proposed,
-            &state.outbounds,
-            &state.network_profiles,
+            SnapshotCatalog::new(
+                &proposed,
+                &state.outbounds,
+                &state.outbound_groups,
+                &state.network_profiles,
+            ),
             SnapshotRoutingState::new(default_decision, state.runtime_override.clone()),
             SnapshotBuildIdentity::new(next_snapshot_version, now),
             &self.system_policy_config,
@@ -176,9 +183,12 @@ impl Gateway {
         if let Some(pending) = state.pending.as_ref() {
             if snapshot_contains(
                 pending,
-                &state.policies,
-                &state.outbounds,
-                &state.network_profiles,
+                SnapshotCatalog::new(
+                    &state.policies,
+                    &state.outbounds,
+                    &state.outbound_groups,
+                    &state.network_profiles,
+                ),
                 SnapshotRoutingState::new(
                     decision_for_route(&state.default_route)?,
                     state.runtime_override.clone(),
@@ -197,9 +207,12 @@ impl Gateway {
         }
         let published = build_snapshot(
             self.capabilities().clone(),
-            &state.policies,
-            &state.outbounds,
-            &state.network_profiles,
+            SnapshotCatalog::new(
+                &state.policies,
+                &state.outbounds,
+                &state.outbound_groups,
+                &state.network_profiles,
+            ),
             SnapshotRoutingState::new(
                 decision_for_route(&state.default_route)?,
                 state.runtime_override.clone(),
@@ -381,16 +394,19 @@ fn next_version(current: u64) -> Result<u64, GatewayError> {
 
 fn snapshot_contains(
     snapshot: &SnapshotRecord,
-    policies: &[Policy],
-    outbounds: &[OutboundReference],
-    network_profiles: &[NetworkProfileReference],
+    catalog: SnapshotCatalog<'_>,
     routing: SnapshotRoutingState,
     capabilities: nonproxy_policy_compiler::CompileCapabilities,
     system_policy_config: &system_policies::SystemPolicyConfig,
 ) -> Result<bool, GatewayError> {
-    let capabilities = outbound_capabilities::for_configured_outbounds(capabilities, outbounds);
-    let policies = system_policies::with_required(policies, system_policy_config)?;
-    let network_profiles = network_profiles
+    let capabilities = outbound_capabilities::for_configured_outbounds(
+        capabilities,
+        catalog.outbounds(),
+        catalog.outbound_groups(),
+    )?;
+    let policies = system_policies::with_required(catalog.policies(), system_policy_config)?;
+    let network_profiles = catalog
+        .network_profiles()
         .iter()
         .map(NetworkProfileReference::binding)
         .collect::<Vec<_>>();

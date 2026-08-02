@@ -28,6 +28,26 @@ public sealed class GatewayPolicyServiceTests
         Assert.Equal(DomainMatchKind.Exact, mapped.Policy.Match.Domain.Kind);
         Assert.Equal("example.com", mapped.Policy.Match.Domain.AsciiPattern);
         Assert.Equal(RouteAction.Direct, mapped.Policy.Decision.Action);
+        Assert.Empty(mapped.Policy.Decision.OutboundId);
+        Assert.Empty(mapped.Policy.Decision.OutboundGroupId);
+    }
+
+    [Fact]
+    public void ProxyDraftSetsExplicitOutboundTarget()
+    {
+        var mapper = new PolicyContractMapper(
+            new StubPlatformInformation(PlatformKind.MacOS));
+
+        var mapped = mapper.ToContract(new PolicyDraft(
+            null,
+            "代理网站",
+            PolicyScope.Website,
+            "example.com",
+            PolicyAction.Proxy,
+            OutboundId: " proxy-primary "));
+
+        Assert.Equal("proxy-primary", mapped.Policy.Decision.OutboundId);
+        Assert.Empty(mapped.Policy.Decision.OutboundGroupId);
     }
 
     [Fact]

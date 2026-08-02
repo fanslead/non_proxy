@@ -1,20 +1,14 @@
 use std::collections::HashSet;
 
 use nonproxy_model::{
-    DecisionSpec, IpFamily, NetworkFingerprint, NetworkFingerprintKind, NetworkProfileBinding,
-    NetworkProfileId, OutboundId, Policy, RuntimeOverrideMode, RuntimeRoutingOverride, Transport,
+    DecisionSpec, NetworkFingerprint, NetworkFingerprintKind, NetworkProfileBinding,
+    NetworkProfileId, OutboundId, Policy, RuntimeOverrideMode, RuntimeRoutingOverride,
 };
-use nonproxy_policy::OutboundCapabilities;
 use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest};
-use nonproxy_proto::{
-    common::v1 as common_proto,
-    policy::v1::{
-        CompileCapabilitySet, CompiledPolicyPayload,
-        NetworkFingerprintKind as ProtoFingerprintKind,
-        NetworkProfileBinding as ProtoProfileBinding, OutboundCapabilitySpec,
-        RuntimeOverrideMode as ProtoRuntimeOverrideMode,
-        RuntimeRoutingOverride as ProtoRuntimeRoutingOverride,
-    },
+use nonproxy_proto::policy::v1::{
+    CompiledPolicyPayload, NetworkFingerprintKind as ProtoFingerprintKind,
+    NetworkProfileBinding as ProtoProfileBinding, RuntimeOverrideMode as ProtoRuntimeOverrideMode,
+    RuntimeRoutingOverride as ProtoRuntimeRoutingOverride,
 };
 use prost::Message;
 
@@ -22,12 +16,14 @@ use crate::{
     GatewayError,
     clock::{timestamp_from_unix_ms, unix_ms_from_timestamp},
     proto_policy::{policy_from_proto, policy_to_proto},
+    snapshot_capabilities,
 };
 
 pub const SNAPSHOT_PAYLOAD_FORMAT: &str = "nonproxy.compiled-policy.v1";
 const LEGACY_SNAPSHOT_PAYLOAD_VERSION: u32 = 1;
 const NETWORK_PROFILE_SNAPSHOT_PAYLOAD_VERSION: u32 = 2;
-const SNAPSHOT_PAYLOAD_VERSION: u32 = 3;
+const RUNTIME_OVERRIDE_SNAPSHOT_PAYLOAD_VERSION: u32 = 3;
+const SNAPSHOT_PAYLOAD_VERSION: u32 = 4;
 
 pub(crate) struct DecodedSnapshotPayload {
     pub policies: Vec<Policy>,
@@ -80,7 +76,7 @@ pub fn encode(
     let payload = CompiledPolicyPayload {
         format_version: SNAPSHOT_PAYLOAD_VERSION,
         policies: enabled.into_iter().map(policy_to_proto).collect(),
-        capabilities: Some(capabilities_to_proto(capabilities)),
+        capabilities: Some(snapshot_capabilities::to_proto(capabilities)?),
         default_decision: Some(crate::proto_policy::decision_to_proto(default_decision)),
         network_profiles: sorted_profiles_to_proto(network_profiles),
         runtime_override: runtime_override
@@ -117,6 +113,7 @@ pub(crate) fn decode_versioned(bytes: &[u8]) -> Result<DecodedSnapshotPayload, G
     if ![
         LEGACY_SNAPSHOT_PAYLOAD_VERSION,
         NETWORK_PROFILE_SNAPSHOT_PAYLOAD_VERSION,
+        RUNTIME_OVERRIDE_SNAPSHOT_PAYLOAD_VERSION,
         SNAPSHOT_PAYLOAD_VERSION,
     ]
     .contains(&payload.format_version)
@@ -125,7 +122,9 @@ pub(crate) fn decode_versioned(bytes: &[u8]) -> Result<DecodedSnapshotPayload, G
     }
     let includes_network_profiles =
         payload.format_version >= NETWORK_PROFILE_SNAPSHOT_PAYLOAD_VERSION;
-    let includes_runtime_override = payload.format_version >= SNAPSHOT_PAYLOAD_VERSION;
+    let includes_runtime_override =
+        payload.format_version >= RUNTIME_OVERRIDE_SNAPSHOT_PAYLOAD_VERSION;
+    let includes_outbound_groups = payload.format_version >= SNAPSHOT_PAYLOAD_VERSION;
     if !includes_network_profiles && !payload.network_profiles.is_empty() {
         return Err(GatewayError::InvalidContract(
             "旧版快照不能包含网络配置档目录",
@@ -134,13 +133,21 @@ pub(crate) fn decode_versioned(bytes: &[u8]) -> Result<DecodedSnapshotPayload, G
     if !includes_runtime_override && payload.runtime_override.is_some() {
         return Err(GatewayError::InvalidContract("旧版快照不能包含运行态覆盖"));
     }
+    if !includes_outbound_groups
+        && payload
+            .capabilities
+            .as_ref()
+            .is_some_and(|capabilities| !capabilities.outbound_groups.is_empty())
+    {
+        return Err(GatewayError::InvalidContract("旧版快照不能包含出口组目录"));
+    }
     let policies = payload
         .policies
         .into_iter()
         .map(policy_from_proto)
         .collect::<Result<Vec<_>, _>>()?;
     validate_unique_policy_ids(&policies)?;
-    let capabilities = capabilities_from_proto(
+    let capabilities = snapshot_capabilities::from_proto(
         payload
             .capabilities
             .ok_or(GatewayError::InvalidContract("快照缺少能力集合"))?,
@@ -270,135 +277,6 @@ fn profiles_from_proto(
     Ok(profiles)
 }
 
-fn capabilities_to_proto(value: &CompileCapabilities) -> CompileCapabilitySet {
-    let transports = [Transport::Tcp, Transport::Udp]
-        .into_iter()
-        .filter(|item| value.supports_transport(*item))
-        .map(|item| match item {
-            Transport::Tcp => common_proto::TransportProtocol::Tcp as i32,
-            Transport::Udp => common_proto::TransportProtocol::Udp as i32,
-        })
-        .collect();
-    let ip_families = [IpFamily::Ipv4, IpFamily::Ipv6]
-        .into_iter()
-        .filter(|item| value.supports_family(*item))
-        .map(|item| match item {
-            IpFamily::Ipv4 => common_proto::IpFamily::Ipv4 as i32,
-            IpFamily::Ipv6 => common_proto::IpFamily::Ipv6 as i32,
-        })
-        .collect();
-    let outbounds = value
-        .outbounds()
-        .iter()
-        .map(|(id, capabilities)| outbound_to_proto(id, *capabilities))
-        .collect();
-    CompileCapabilitySet {
-        app_match: value.supports_app_matching(),
-        domain_match: value.supports_domain_matching(),
-        cidr_match: value.supports_cidr_matching(),
-        transports,
-        ip_families,
-        outbounds,
-    }
-}
-
-fn capabilities_from_proto(
-    value: CompileCapabilitySet,
-) -> Result<CompileCapabilities, GatewayError> {
-    let target = OutboundCapabilities::new(
-        has_transport(&value.transports, common_proto::TransportProtocol::Tcp)?,
-        has_transport(&value.transports, common_proto::TransportProtocol::Udp)?,
-        has_family(&value.ip_families, common_proto::IpFamily::Ipv4)?,
-        has_family(&value.ip_families, common_proto::IpFamily::Ipv6)?,
-    );
-    let mut capabilities = CompileCapabilities::new(
-        value.app_match,
-        value.domain_match,
-        value.cidr_match,
-        target,
-    );
-    let mut outbound_ids = HashSet::new();
-    for outbound in value.outbounds {
-        if !outbound_ids.insert(outbound.outbound_id.clone()) {
-            return Err(GatewayError::InvalidContract("快照包含重复出口能力"));
-        }
-        let id = OutboundId::new(outbound.outbound_id)?;
-        let outbound_capabilities = OutboundCapabilities::new(
-            has_transport(&outbound.transports, common_proto::TransportProtocol::Tcp)?,
-            has_transport(&outbound.transports, common_proto::TransportProtocol::Udp)?,
-            has_family(&outbound.ip_families, common_proto::IpFamily::Ipv4)?,
-            has_family(&outbound.ip_families, common_proto::IpFamily::Ipv6)?,
-        );
-        capabilities = capabilities.with_outbound(id, outbound_capabilities);
-    }
-    Ok(capabilities)
-}
-
-fn outbound_to_proto(
-    id: &OutboundId,
-    capabilities: OutboundCapabilities,
-) -> OutboundCapabilitySpec {
-    let transports = [Transport::Tcp, Transport::Udp]
-        .into_iter()
-        .filter(|item| capabilities.supports_transport(*item))
-        .map(|item| match item {
-            Transport::Tcp => common_proto::TransportProtocol::Tcp as i32,
-            Transport::Udp => common_proto::TransportProtocol::Udp as i32,
-        })
-        .collect();
-    let ip_families = [IpFamily::Ipv4, IpFamily::Ipv6]
-        .into_iter()
-        .filter(|item| capabilities.supports_family(*item))
-        .map(|item| match item {
-            IpFamily::Ipv4 => common_proto::IpFamily::Ipv4 as i32,
-            IpFamily::Ipv6 => common_proto::IpFamily::Ipv6 as i32,
-        })
-        .collect();
-    OutboundCapabilitySpec {
-        outbound_id: id.as_str().to_owned(),
-        transports,
-        ip_families,
-    }
-}
-
-fn has_transport(
-    values: &[i32],
-    target: common_proto::TransportProtocol,
-) -> Result<bool, GatewayError> {
-    validate_enum_values(
-        values,
-        common_proto::TransportProtocol::Unspecified as i32,
-        |value| common_proto::TransportProtocol::try_from(value).is_ok(),
-    )?;
-    Ok(values.contains(&(target as i32)))
-}
-
-fn has_family(values: &[i32], target: common_proto::IpFamily) -> Result<bool, GatewayError> {
-    validate_enum_values(
-        values,
-        common_proto::IpFamily::Unspecified as i32,
-        |value| common_proto::IpFamily::try_from(value).is_ok(),
-    )?;
-    Ok(values.contains(&(target as i32)))
-}
-
-fn validate_enum_values(
-    values: &[i32],
-    unspecified: i32,
-    is_known: impl Fn(i32) -> bool,
-) -> Result<(), GatewayError> {
-    let mut seen = HashSet::new();
-    for value in values.iter().copied() {
-        if value == unspecified || !is_known(value) {
-            return Err(GatewayError::InvalidContract("快照包含无效能力枚举值"));
-        }
-        if !seen.insert(value) {
-            return Err(GatewayError::InvalidContract("快照包含重复能力枚举值"));
-        }
-    }
-    Ok(())
-}
-
 fn validate_unique_policy_ids(policies: &[Policy]) -> Result<(), GatewayError> {
     let mut ids = HashSet::new();
     if policies
@@ -413,9 +291,11 @@ fn validate_unique_policy_ids(policies: &[Policy]) -> Result<(), GatewayError> {
 #[cfg(test)]
 mod tests {
     use nonproxy_model::{
-        DecisionSpec, NetworkFingerprint, NetworkFingerprintKind, NetworkProfileBinding,
-        NetworkProfileId, RuntimeOverrideMode, RuntimeRoutingOverride,
+        DecisionSpec, FailureMode, NetworkFingerprint, NetworkFingerprintKind,
+        NetworkProfileBinding, NetworkProfileId, OutboundGroupId, OutboundGroupSpec, OutboundId,
+        RuntimeOverrideMode, RuntimeRoutingOverride,
     };
+    use nonproxy_policy::OutboundCapabilities;
     use nonproxy_policy_compiler::CompileCapabilities;
     use nonproxy_proto::{
         common::v1::{IpFamily, TransportProtocol},
@@ -532,6 +412,90 @@ mod tests {
         assert!(decode_versioned(&payload.encode_to_vec()).is_err());
     }
 
+    #[test]
+    fn group_snapshot_round_trip_preserves_revision_order_and_intersection() {
+        let (capabilities, group_id) = group_capabilities();
+        let default_decision = DecisionSpec::proxy_group(group_id.clone(), FailureMode::Closed)
+            .unwrap_or_else(|error| panic!("测试出口组决策创建失败: {error}"));
+        let bytes = encode(&[], &capabilities, &default_decision, &[], None)
+            .unwrap_or_else(|error| panic!("出口组快照编码失败: {error}"));
+
+        let decoded =
+            decode_versioned(&bytes).unwrap_or_else(|error| panic!("出口组快照解码失败: {error}"));
+        let group = decoded
+            .capabilities
+            .outbound_groups()
+            .get(&group_id)
+            .unwrap_or_else(|| panic!("解码快照缺少出口组"));
+
+        assert_eq!(group.revision(), 9);
+        assert_eq!(group.members()[0].as_str(), "primary");
+        assert_eq!(group.members()[1].as_str(), "backup");
+        assert_eq!(
+            decoded
+                .capabilities
+                .outbound_group_capabilities()
+                .get(&group_id)
+                .copied(),
+            Some(OutboundCapabilities::new(true, false, true, true))
+        );
+        assert_eq!(
+            decoded.default_decision.outbound_group_id(),
+            Some(&group_id)
+        );
+    }
+
+    #[test]
+    fn group_snapshot_rejects_forged_capability_intersection() {
+        let (capabilities, group_id) = group_capabilities();
+        let default_decision = DecisionSpec::proxy_group(group_id, FailureMode::Closed)
+            .unwrap_or_else(|error| panic!("测试出口组决策创建失败: {error}"));
+        let bytes = encode(&[], &capabilities, &default_decision, &[], None)
+            .unwrap_or_else(|error| panic!("出口组快照编码失败: {error}"));
+        let mut payload = CompiledPolicyPayload::decode(bytes.as_slice())
+            .unwrap_or_else(|error| panic!("出口组快照 fixture 解码失败: {error}"));
+        let group = payload
+            .capabilities
+            .as_mut()
+            .and_then(|value| value.outbound_groups.first_mut())
+            .unwrap_or_else(|| panic!("出口组快照 fixture 缺少组目录"));
+        group.transports.push(TransportProtocol::Udp as i32);
+
+        assert!(decode_versioned(&payload.encode_to_vec()).is_err());
+    }
+
+    #[test]
+    fn version_three_rejects_outbound_group_catalog() {
+        let (capabilities, group_id) = group_capabilities();
+        let default_decision = DecisionSpec::proxy_group(group_id, FailureMode::Closed)
+            .unwrap_or_else(|error| panic!("测试出口组决策创建失败: {error}"));
+        let bytes = encode(&[], &capabilities, &default_decision, &[], None)
+            .unwrap_or_else(|error| panic!("出口组快照编码失败: {error}"));
+        let mut payload = CompiledPolicyPayload::decode(bytes.as_slice())
+            .unwrap_or_else(|error| panic!("出口组快照 fixture 解码失败: {error}"));
+        payload.format_version = super::RUNTIME_OVERRIDE_SNAPSHOT_PAYLOAD_VERSION;
+
+        assert!(decode_versioned(&payload.encode_to_vec()).is_err());
+    }
+
+    fn group_capabilities() -> (CompileCapabilities, OutboundGroupId) {
+        let primary = OutboundId::new("primary")
+            .unwrap_or_else(|error| panic!("测试主出口标识创建失败: {error}"));
+        let backup = OutboundId::new("backup")
+            .unwrap_or_else(|error| panic!("测试备用出口标识创建失败: {error}"));
+        let group_id = OutboundGroupId::new("automatic")
+            .unwrap_or_else(|error| panic!("测试出口组标识创建失败: {error}"));
+        let group =
+            OutboundGroupSpec::new(group_id.clone(), 9, vec![primary.clone(), backup.clone()])
+                .unwrap_or_else(|error| panic!("测试出口组创建失败: {error}"));
+        let capabilities = CompileCapabilities::full()
+            .with_outbound(primary, OutboundCapabilities::full())
+            .with_outbound(backup, OutboundCapabilities::new(true, false, true, true))
+            .with_outbound_group(group)
+            .unwrap_or_else(|error| panic!("测试出口组能力创建失败: {error}"));
+        (capabilities, group_id)
+    }
+
     fn payload(
         transports: Vec<i32>,
         outbounds: Vec<OutboundCapabilitySpec>,
@@ -546,11 +510,13 @@ mod tests {
                 transports,
                 ip_families: vec![IpFamily::Ipv4 as i32],
                 outbounds,
+                outbound_groups: Vec::new(),
             }),
             default_decision: Some(nonproxy_proto::policy::v1::DecisionSpec {
                 action: nonproxy_proto::common::v1::RouteAction::Direct as i32,
                 outbound_id: String::new(),
                 failure_mode: nonproxy_proto::common::v1::FailureMode::Closed as i32,
+                outbound_group_id: String::new(),
             }),
             network_profiles: Vec::new(),
             runtime_override: None,

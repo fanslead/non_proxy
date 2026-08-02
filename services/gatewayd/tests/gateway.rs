@@ -4,14 +4,15 @@ use nonproxy_learning::{
     LearningResourceType, LearningSession, LearningSessionId, LearningSubject, ObservationId,
 };
 use nonproxy_model::{
-    DecisionSpec, DomainMatchKind, DomainMatcher, DomainName, OutboundId, Policy, PolicyId,
-    PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction, RuntimeOverrideMode,
+    DecisionSpec, DomainMatchKind, DomainMatcher, DomainName, FailureMode, OutboundGroupId,
+    OutboundId, Policy, PolicyId, PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind,
+    RouteAction, RuntimeOverrideMode,
 };
 use nonproxy_policy_compiler::{CompileCapabilities, CompileError};
 use nonproxy_proto::events::v1::RuntimeState;
 use nonproxy_storage::{
-    DefaultRoute, LearningPolicySelection, OutboundKind, OutboundReference, PolicyDatabase,
-    ProviderAck, StorageError,
+    DefaultRoute, LearningPolicySelection, OutboundGroup, OutboundGroupStrategy, OutboundKind,
+    OutboundReference, PolicyDatabase, ProviderAck, StorageError,
 };
 
 #[tokio::test]
@@ -93,6 +94,56 @@ async fn validated_snapshot_is_staged_and_payload_can_be_rebuilt() {
             .as_ref()
             .map(|value| value.artifact().snapshot_version()),
         Some(1)
+    );
+}
+
+#[tokio::test]
+async fn outbound_group_policy_is_staged_with_authoritative_catalog() {
+    let gateway = gateway();
+    let primary = proxy_outbound("primary");
+    let backup = proxy_outbound("backup");
+    gateway
+        .save_outbounds(vec![(primary.clone(), None), (backup.clone(), None)])
+        .await
+        .unwrap_or_else(|error| panic!("出口组成员保存失败: {error}"));
+    let group_id =
+        OutboundGroupId::new("automatic").unwrap_or_else(|error| panic!("出口组标识无效: {error}"));
+    let group = OutboundGroup::new(
+        group_id.clone(),
+        "自动切换",
+        OutboundGroupStrategy::Failover,
+        vec![primary.id().clone(), backup.id().clone()],
+        1,
+    )
+    .unwrap_or_else(|error| panic!("出口组无效: {error}"));
+    gateway
+        .save_outbound_group(group, None)
+        .await
+        .unwrap_or_else(|error| panic!("出口组保存失败: {error}"));
+    let decision = DecisionSpec::proxy_group(group_id.clone(), FailureMode::Closed)
+        .unwrap_or_else(|error| panic!("出口组决策无效: {error}"));
+    let policy = site_policy_with_decision("group-policy", "example.com", 1, decision);
+    gateway
+        .save_policy(policy.clone(), None)
+        .await
+        .unwrap_or_else(|error| panic!("出口组策略保存失败: {error}"));
+
+    let published = gateway
+        .compile_and_stage()
+        .await
+        .unwrap_or_else(|error| panic!("出口组策略快照发布失败: {error}"));
+    let (policies, capabilities, _) = decode_snapshot_payload(published.artifact().payload())
+        .unwrap_or_else(|error| panic!("出口组策略快照解码失败: {error}"));
+    let group = capabilities
+        .outbound_groups()
+        .get(&group_id)
+        .unwrap_or_else(|| panic!("待发布快照缺少出口组目录"));
+
+    assert!(policies.contains(&policy));
+    assert_eq!(group.revision(), 1);
+    assert_eq!(
+        group.members(),
+        &[primary.id().clone(), backup.id().clone()]
     );
 }
 
@@ -712,6 +763,15 @@ async fn activate(gateway: &Gateway, snapshot: &nonproxy_gatewayd::PublishedSnap
 }
 
 fn site_policy(id: &str, domain: &str, revision: u64) -> Policy {
+    site_policy_with_decision(id, domain, revision, DecisionSpec::direct())
+}
+
+fn site_policy_with_decision(
+    id: &str,
+    domain: &str,
+    revision: u64,
+    decision: DecisionSpec,
+) -> Policy {
     let matcher = DomainMatcher::new(DomainMatchKind::Exact, domain).and_then(|domain| {
         PolicyMatch::new(None, Some(domain), None, None, Vec::new(), Vec::new())
     });
@@ -726,7 +786,7 @@ fn site_policy(id: &str, domain: &str, revision: u64) -> Policy {
         id,
         "直连网站",
         matcher,
-        DecisionSpec::direct(),
+        decision,
         PolicyMetadata::new(PolicySourceKind::Site, 100, PolicyOrigin::User, revision),
     );
     let Ok(policy) = policy else {

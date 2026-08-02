@@ -28,7 +28,9 @@ use crate::{
     provider_requirements,
     routing_gateway::decision_for_route,
     runtime_events::{RuntimeEventPublisher, SystemRuntimeSnapshot},
-    snapshot_builder::{SnapshotBuildIdentity, SnapshotRoutingState, build_snapshot},
+    snapshot_builder::{
+        SnapshotBuildIdentity, SnapshotCatalog, SnapshotRoutingState, build_snapshot,
+    },
     snapshot_payload,
     snapshot_types::{ProviderSnapshot, PublishedSnapshot},
     system_policies::SystemPolicyConfig,
@@ -247,6 +249,7 @@ impl Gateway {
             .run(move |database| {
                 let policies = database.policies().list()?;
                 let outbounds = database.outbounds().list()?;
+                let outbound_groups = database.outbound_groups().list()?;
                 let network_profiles = database.network_profiles().list()?;
                 let routing = database.routing_settings().get()?;
                 let runtime_override = database
@@ -266,9 +269,12 @@ impl Gateway {
                     .ok_or(GatewayError::SnapshotVersionExhausted)?;
                 let published = build_snapshot(
                     capabilities,
-                    &policies,
-                    &outbounds,
-                    &network_profiles,
+                    SnapshotCatalog::new(
+                        &policies,
+                        &outbounds,
+                        &outbound_groups,
+                        &network_profiles,
+                    ),
                     SnapshotRoutingState::new(
                         decision_for_route(routing.route())?,
                         runtime_override,

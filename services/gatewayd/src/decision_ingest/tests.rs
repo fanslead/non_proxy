@@ -61,6 +61,7 @@ async fn rejects_forged_decision_and_preserves_empty_batch() {
         action: RouteAction::Block as i32,
         outbound_id: String::new(),
         failure_mode: FailureMode::Closed as i32,
+        outbound_group_id: String::new(),
     });
 
     let result = gateway
@@ -181,6 +182,7 @@ fn direct_record(flow_id: &str, observed_at_unix_ms: u64) -> ProtoDecisionRecord
                 action: RouteAction::Direct as i32,
                 outbound_id: String::new(),
                 failure_mode: FailureMode::Closed as i32,
+                outbound_group_id: String::new(),
             }),
             snapshot_version: 1,
             reason_code: "NP_POLICY_DEFAULT".to_owned(),

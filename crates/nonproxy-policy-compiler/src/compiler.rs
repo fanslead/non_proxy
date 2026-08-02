@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashSet};
 
 use nonproxy_model::{DecisionSpec, NetworkProfileBinding, Policy, RuleId, RuntimeRoutingOverride};
-use nonproxy_policy::{CompiledPolicySnapshot, CompiledRule, SnapshotMetadata};
+use nonproxy_policy::{
+    CompiledOutboundCatalog, CompiledPolicySnapshot, CompiledRule, SnapshotMetadata,
+};
 
 use crate::{
     CompileCapabilities, CompileError, PolicyConflict, canonical::content_hash,
@@ -96,7 +98,7 @@ impl PolicyCompiler {
             POLICY_SCHEMA_VERSION,
             &request.default_decision,
             &enabled,
-            request.capabilities.outbounds(),
+            &request.capabilities,
             request.network_profiles.as_deref(),
             request
                 .runtime_override
@@ -127,7 +129,11 @@ impl PolicyCompiler {
         Ok(CompiledPolicySnapshot::from_compiled_rules(
             metadata,
             request.default_decision,
-            request.capabilities.outbounds().clone(),
+            CompiledOutboundCatalog::new(
+                request.capabilities.outbounds().clone(),
+                request.capabilities.outbound_groups().clone(),
+                request.capabilities.outbound_group_capabilities().clone(),
+            ),
             network_profiles,
             request.runtime_override.flatten(),
             rules,

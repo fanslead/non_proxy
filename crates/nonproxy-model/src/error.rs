@@ -48,6 +48,8 @@ pub enum ModelError {
     ProxyDecisionMissingOutbound,
     #[error("直连或阻断决策不能指定出口")]
     NonProxyDecisionHasOutbound,
+    #[error("出口组快照必须包含有效修订和 2 到 32 个不重复成员")]
+    InvalidOutboundGroupSpec,
     #[error("策略显示名称不能为空")]
     EmptyPolicyDisplayName,
     #[error("策略显示名称超过长度上限")]
@@ -118,6 +120,7 @@ impl ModelError {
             Self::InvalidPortRange => "NP_MODEL_PORT_RANGE_INVALID",
             Self::ProxyDecisionMissingOutbound => "NP_MODEL_PROXY_OUTBOUND_MISSING",
             Self::NonProxyDecisionHasOutbound => "NP_MODEL_NON_PROXY_OUTBOUND_PRESENT",
+            Self::InvalidOutboundGroupSpec => "NP_MODEL_OUTBOUND_GROUP_SPEC_INVALID",
             Self::EmptyPolicyDisplayName => "NP_MODEL_POLICY_NAME_EMPTY",
             Self::PolicyDisplayNameTooLong => "NP_MODEL_POLICY_NAME_TOO_LONG",
             Self::InvalidPolicyDisplayName => "NP_MODEL_POLICY_NAME_INVALID",

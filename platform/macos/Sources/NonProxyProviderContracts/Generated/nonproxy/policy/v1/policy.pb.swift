@@ -502,9 +502,12 @@ public nonisolated struct Nonproxy_Policy_V1_DecisionSpec: Sendable {
 
   public var action: Nonproxy_Common_V1_RouteAction = .unspecified
 
+  /// outbound_id 与 outbound_group_id 互斥；保留字段 2 以兼容既有调用方。
   public var outboundID: String = String()
 
   public var failureMode: Nonproxy_Common_V1_FailureMode = .unspecified
+
+  public var outboundGroupID: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -723,6 +726,27 @@ public nonisolated struct Nonproxy_Policy_V1_OutboundCapabilitySpec: Sendable {
   public init() {}
 }
 
+/// OutboundGroupCapabilitySpec 固化有序成员、组修订和经验证的能力交集。
+public nonisolated struct Nonproxy_Policy_V1_OutboundGroupCapabilitySpec: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var outboundGroupID: String = String()
+
+  public var revision: UInt64 = 0
+
+  public var outboundIds: [String] = []
+
+  public var transports: [Nonproxy_Common_V1_TransportProtocol] = []
+
+  public var ipFamilies: [Nonproxy_Common_V1_IpFamily] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 /// CompileCapabilitySet 固化生成快照时使用的平台和出口能力。
 public nonisolated struct Nonproxy_Policy_V1_CompileCapabilitySet: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -741,6 +765,8 @@ public nonisolated struct Nonproxy_Policy_V1_CompileCapabilitySet: Sendable {
 
   public var outbounds: [Nonproxy_Policy_V1_OutboundCapabilitySpec] = []
 
+  public var outboundGroups: [Nonproxy_Policy_V1_OutboundGroupCapabilitySpec] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -748,51 +774,58 @@ public nonisolated struct Nonproxy_Policy_V1_CompileCapabilitySet: Sendable {
 
 /// CompiledPolicyPayload 是经校验并排序后的不可变快照载荷。
 /// Provider 解码后使用同版本 Rust Compiler 一次性构建内存索引，并校验内容哈希。
-public nonisolated struct Nonproxy_Policy_V1_CompiledPolicyPayload: Sendable {
+public nonisolated struct Nonproxy_Policy_V1_CompiledPolicyPayload: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var formatVersion: UInt32 = 0
+  public var formatVersion: UInt32 {
+    get {_storage._formatVersion}
+    set {_uniqueStorage()._formatVersion = newValue}
+  }
 
-  public var policies: [Nonproxy_Policy_V1_Policy] = []
+  public var policies: [Nonproxy_Policy_V1_Policy] {
+    get {_storage._policies}
+    set {_uniqueStorage()._policies = newValue}
+  }
 
   public var capabilities: Nonproxy_Policy_V1_CompileCapabilitySet {
-    get {_capabilities ?? Nonproxy_Policy_V1_CompileCapabilitySet()}
-    set {_capabilities = newValue}
+    get {_storage._capabilities ?? Nonproxy_Policy_V1_CompileCapabilitySet()}
+    set {_uniqueStorage()._capabilities = newValue}
   }
   /// Returns true if `capabilities` has been explicitly set.
-  public var hasCapabilities: Bool {self._capabilities != nil}
+  public var hasCapabilities: Bool {_storage._capabilities != nil}
   /// Clears the value of `capabilities`. Subsequent reads from it will return its default value.
-  public mutating func clearCapabilities() {self._capabilities = nil}
+  public mutating func clearCapabilities() {_uniqueStorage()._capabilities = nil}
 
   public var defaultDecision: Nonproxy_Policy_V1_DecisionSpec {
-    get {_defaultDecision ?? Nonproxy_Policy_V1_DecisionSpec()}
-    set {_defaultDecision = newValue}
+    get {_storage._defaultDecision ?? Nonproxy_Policy_V1_DecisionSpec()}
+    set {_uniqueStorage()._defaultDecision = newValue}
   }
   /// Returns true if `defaultDecision` has been explicitly set.
-  public var hasDefaultDecision: Bool {self._defaultDecision != nil}
+  public var hasDefaultDecision: Bool {_storage._defaultDecision != nil}
   /// Clears the value of `defaultDecision`. Subsequent reads from it will return its default value.
-  public mutating func clearDefaultDecision() {self._defaultDecision = nil}
+  public mutating func clearDefaultDecision() {_uniqueStorage()._defaultDecision = nil}
 
-  public var networkProfiles: [Nonproxy_Policy_V1_NetworkProfileBinding] = []
+  public var networkProfiles: [Nonproxy_Policy_V1_NetworkProfileBinding] {
+    get {_storage._networkProfiles}
+    set {_uniqueStorage()._networkProfiles = newValue}
+  }
 
   public var runtimeOverride: Nonproxy_Policy_V1_RuntimeRoutingOverride {
-    get {_runtimeOverride ?? Nonproxy_Policy_V1_RuntimeRoutingOverride()}
-    set {_runtimeOverride = newValue}
+    get {_storage._runtimeOverride ?? Nonproxy_Policy_V1_RuntimeRoutingOverride()}
+    set {_uniqueStorage()._runtimeOverride = newValue}
   }
   /// Returns true if `runtimeOverride` has been explicitly set.
-  public var hasRuntimeOverride: Bool {self._runtimeOverride != nil}
+  public var hasRuntimeOverride: Bool {_storage._runtimeOverride != nil}
   /// Clears the value of `runtimeOverride`. Subsequent reads from it will return its default value.
-  public mutating func clearRuntimeOverride() {self._runtimeOverride = nil}
+  public mutating func clearRuntimeOverride() {_uniqueStorage()._runtimeOverride = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _capabilities: Nonproxy_Policy_V1_CompileCapabilitySet? = nil
-  fileprivate var _defaultDecision: Nonproxy_Policy_V1_DecisionSpec? = nil
-  fileprivate var _runtimeOverride: Nonproxy_Policy_V1_RuntimeRoutingOverride? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// Decision 描述一次纯策略判定，不等同于路径或出口证据。
@@ -1184,7 +1217,7 @@ nonisolated extension Nonproxy_Policy_V1_PolicyMatch: SwiftProtobuf.Message, Swi
 
 nonisolated extension Nonproxy_Policy_V1_DecisionSpec: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DecisionSpec"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}action\0\u{3}outbound_id\0\u{3}failure_mode\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}action\0\u{3}outbound_id\0\u{3}failure_mode\0\u{3}outbound_group_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1195,6 +1228,7 @@ nonisolated extension Nonproxy_Policy_V1_DecisionSpec: SwiftProtobuf.Message, Sw
       case 1: try { try decoder.decodeSingularEnumField(value: &self.action) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.outboundID) }()
       case 3: try { try decoder.decodeSingularEnumField(value: &self.failureMode) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.outboundGroupID) }()
       default: break
       }
     }
@@ -1210,6 +1244,9 @@ nonisolated extension Nonproxy_Policy_V1_DecisionSpec: SwiftProtobuf.Message, Sw
     if self.failureMode != .unspecified {
       try visitor.visitSingularEnumField(value: self.failureMode, fieldNumber: 3)
     }
+    if !self.outboundGroupID.isEmpty {
+      try visitor.visitSingularStringField(value: self.outboundGroupID, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1217,6 +1254,7 @@ nonisolated extension Nonproxy_Policy_V1_DecisionSpec: SwiftProtobuf.Message, Sw
     if lhs.action != rhs.action {return false}
     if lhs.outboundID != rhs.outboundID {return false}
     if lhs.failureMode != rhs.failureMode {return false}
+    if lhs.outboundGroupID != rhs.outboundGroupID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1594,9 +1632,59 @@ nonisolated extension Nonproxy_Policy_V1_OutboundCapabilitySpec: SwiftProtobuf.M
   }
 }
 
+nonisolated extension Nonproxy_Policy_V1_OutboundGroupCapabilitySpec: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".OutboundGroupCapabilitySpec"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}outbound_group_id\0\u{1}revision\0\u{3}outbound_ids\0\u{1}transports\0\u{3}ip_families\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.outboundGroupID) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.revision) }()
+      case 3: try { try decoder.decodeRepeatedStringField(value: &self.outboundIds) }()
+      case 4: try { try decoder.decodeRepeatedEnumField(value: &self.transports) }()
+      case 5: try { try decoder.decodeRepeatedEnumField(value: &self.ipFamilies) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.outboundGroupID.isEmpty {
+      try visitor.visitSingularStringField(value: self.outboundGroupID, fieldNumber: 1)
+    }
+    if self.revision != 0 {
+      try visitor.visitSingularUInt64Field(value: self.revision, fieldNumber: 2)
+    }
+    if !self.outboundIds.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.outboundIds, fieldNumber: 3)
+    }
+    if !self.transports.isEmpty {
+      try visitor.visitPackedEnumField(value: self.transports, fieldNumber: 4)
+    }
+    if !self.ipFamilies.isEmpty {
+      try visitor.visitPackedEnumField(value: self.ipFamilies, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Policy_V1_OutboundGroupCapabilitySpec, rhs: Nonproxy_Policy_V1_OutboundGroupCapabilitySpec) -> Bool {
+    if lhs.outboundGroupID != rhs.outboundGroupID {return false}
+    if lhs.revision != rhs.revision {return false}
+    if lhs.outboundIds != rhs.outboundIds {return false}
+    if lhs.transports != rhs.transports {return false}
+    if lhs.ipFamilies != rhs.ipFamilies {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Nonproxy_Policy_V1_CompileCapabilitySet: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CompileCapabilitySet"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}app_match\0\u{3}domain_match\0\u{3}cidr_match\0\u{1}transports\0\u{3}ip_families\0\u{1}outbounds\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}app_match\0\u{3}domain_match\0\u{3}cidr_match\0\u{1}transports\0\u{3}ip_families\0\u{1}outbounds\0\u{3}outbound_groups\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1610,6 +1698,7 @@ nonisolated extension Nonproxy_Policy_V1_CompileCapabilitySet: SwiftProtobuf.Mes
       case 4: try { try decoder.decodeRepeatedEnumField(value: &self.transports) }()
       case 5: try { try decoder.decodeRepeatedEnumField(value: &self.ipFamilies) }()
       case 6: try { try decoder.decodeRepeatedMessageField(value: &self.outbounds) }()
+      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.outboundGroups) }()
       default: break
       }
     }
@@ -1634,6 +1723,9 @@ nonisolated extension Nonproxy_Policy_V1_CompileCapabilitySet: SwiftProtobuf.Mes
     if !self.outbounds.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.outbounds, fieldNumber: 6)
     }
+    if !self.outboundGroups.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.outboundGroups, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1644,6 +1736,7 @@ nonisolated extension Nonproxy_Policy_V1_CompileCapabilitySet: SwiftProtobuf.Mes
     if lhs.transports != rhs.transports {return false}
     if lhs.ipFamilies != rhs.ipFamilies {return false}
     if lhs.outbounds != rhs.outbounds {return false}
+    if lhs.outboundGroups != rhs.outboundGroups {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1653,56 +1746,102 @@ nonisolated extension Nonproxy_Policy_V1_CompiledPolicyPayload: SwiftProtobuf.Me
   public static let protoMessageName: String = _protobuf_package + ".CompiledPolicyPayload"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}format_version\0\u{1}policies\0\u{1}capabilities\0\u{3}default_decision\0\u{3}network_profiles\0\u{3}runtime_override\0")
 
+  fileprivate class _StorageClass {
+    var _formatVersion: UInt32 = 0
+    var _policies: [Nonproxy_Policy_V1_Policy] = []
+    var _capabilities: Nonproxy_Policy_V1_CompileCapabilitySet? = nil
+    var _defaultDecision: Nonproxy_Policy_V1_DecisionSpec? = nil
+    var _networkProfiles: [Nonproxy_Policy_V1_NetworkProfileBinding] = []
+    var _runtimeOverride: Nonproxy_Policy_V1_RuntimeRoutingOverride? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _formatVersion = source._formatVersion
+      _policies = source._policies
+      _capabilities = source._capabilities
+      _defaultDecision = source._defaultDecision
+      _networkProfiles = source._networkProfiles
+      _runtimeOverride = source._runtimeOverride
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.formatVersion) }()
-      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.policies) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._capabilities) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._defaultDecision) }()
-      case 5: try { try decoder.decodeRepeatedMessageField(value: &self.networkProfiles) }()
-      case 6: try { try decoder.decodeSingularMessageField(value: &self._runtimeOverride) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularUInt32Field(value: &_storage._formatVersion) }()
+        case 2: try { try decoder.decodeRepeatedMessageField(value: &_storage._policies) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._capabilities) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._defaultDecision) }()
+        case 5: try { try decoder.decodeRepeatedMessageField(value: &_storage._networkProfiles) }()
+        case 6: try { try decoder.decodeSingularMessageField(value: &_storage._runtimeOverride) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.formatVersion != 0 {
-      try visitor.visitSingularUInt32Field(value: self.formatVersion, fieldNumber: 1)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._formatVersion != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._formatVersion, fieldNumber: 1)
+      }
+      if !_storage._policies.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._policies, fieldNumber: 2)
+      }
+      try { if let v = _storage._capabilities {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      try { if let v = _storage._defaultDecision {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
+      if !_storage._networkProfiles.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._networkProfiles, fieldNumber: 5)
+      }
+      try { if let v = _storage._runtimeOverride {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+      } }()
     }
-    if !self.policies.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.policies, fieldNumber: 2)
-    }
-    try { if let v = self._capabilities {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    try { if let v = self._defaultDecision {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    } }()
-    if !self.networkProfiles.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.networkProfiles, fieldNumber: 5)
-    }
-    try { if let v = self._runtimeOverride {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Nonproxy_Policy_V1_CompiledPolicyPayload, rhs: Nonproxy_Policy_V1_CompiledPolicyPayload) -> Bool {
-    if lhs.formatVersion != rhs.formatVersion {return false}
-    if lhs.policies != rhs.policies {return false}
-    if lhs._capabilities != rhs._capabilities {return false}
-    if lhs._defaultDecision != rhs._defaultDecision {return false}
-    if lhs.networkProfiles != rhs.networkProfiles {return false}
-    if lhs._runtimeOverride != rhs._runtimeOverride {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._formatVersion != rhs_storage._formatVersion {return false}
+        if _storage._policies != rhs_storage._policies {return false}
+        if _storage._capabilities != rhs_storage._capabilities {return false}
+        if _storage._defaultDecision != rhs_storage._defaultDecision {return false}
+        if _storage._networkProfiles != rhs_storage._networkProfiles {return false}
+        if _storage._runtimeOverride != rhs_storage._runtimeOverride {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

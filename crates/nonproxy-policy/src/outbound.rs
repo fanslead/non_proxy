@@ -25,6 +25,16 @@ impl OutboundCapabilities {
     }
 
     #[must_use]
+    pub const fn intersection(self, other: Self) -> Self {
+        Self::new(
+            self.tcp && other.tcp,
+            self.udp && other.udp,
+            self.ipv4 && other.ipv4,
+            self.ipv6 && other.ipv6,
+        )
+    }
+
+    #[must_use]
     pub const fn supports_transport(self, transport: Transport) -> bool {
         match transport {
             Transport::Tcp => self.tcp,

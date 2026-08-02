@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use nonproxy_model::{
-    DecisionSpec, DomainName, NetworkFingerprint, NetworkProfileId, OutboundId,
-    RuntimeRoutingOverride,
+    DecisionSpec, DomainName, NetworkFingerprint, NetworkProfileId, OutboundGroupId,
+    OutboundGroupSpec, OutboundId, RuntimeRoutingOverride,
 };
 
 use crate::{
@@ -66,10 +66,47 @@ impl SnapshotMetadata {
 }
 
 #[derive(Clone, Debug)]
+pub struct CompiledOutboundCatalog {
+    outbounds: BTreeMap<OutboundId, OutboundCapabilities>,
+    groups: BTreeMap<OutboundGroupId, OutboundGroupSpec>,
+    group_capabilities: BTreeMap<OutboundGroupId, OutboundCapabilities>,
+}
+
+impl CompiledOutboundCatalog {
+    #[must_use]
+    pub fn new(
+        outbounds: BTreeMap<OutboundId, OutboundCapabilities>,
+        groups: BTreeMap<OutboundGroupId, OutboundGroupSpec>,
+        group_capabilities: BTreeMap<OutboundGroupId, OutboundCapabilities>,
+    ) -> Self {
+        Self {
+            outbounds,
+            groups,
+            group_capabilities,
+        }
+    }
+
+    #[must_use]
+    pub const fn outbounds(&self) -> &BTreeMap<OutboundId, OutboundCapabilities> {
+        &self.outbounds
+    }
+
+    #[must_use]
+    pub const fn groups(&self) -> &BTreeMap<OutboundGroupId, OutboundGroupSpec> {
+        &self.groups
+    }
+
+    #[must_use]
+    pub const fn group_capabilities(&self) -> &BTreeMap<OutboundGroupId, OutboundCapabilities> {
+        &self.group_capabilities
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct CompiledPolicySnapshot {
     metadata: SnapshotMetadata,
     default_decision: DecisionSpec,
-    outbound_capabilities: BTreeMap<OutboundId, OutboundCapabilities>,
+    outbound_catalog: CompiledOutboundCatalog,
     network_profiles: BTreeMap<NetworkProfileId, NetworkFingerprint>,
     runtime_override: Option<RuntimeRoutingOverride>,
     system_rules: Vec<CompiledRule>,
@@ -86,7 +123,7 @@ impl CompiledPolicySnapshot {
     pub fn from_compiled_rules(
         metadata: SnapshotMetadata,
         default_decision: DecisionSpec,
-        outbound_capabilities: BTreeMap<OutboundId, OutboundCapabilities>,
+        outbound_catalog: CompiledOutboundCatalog,
         network_profiles: BTreeMap<NetworkProfileId, NetworkFingerprint>,
         runtime_override: Option<RuntimeRoutingOverride>,
         rules: Vec<CompiledRule>,
@@ -94,7 +131,7 @@ impl CompiledPolicySnapshot {
         let mut snapshot = Self {
             metadata,
             default_decision,
-            outbound_capabilities,
+            outbound_catalog,
             network_profiles,
             runtime_override,
             system_rules: Vec::new(),
@@ -123,7 +160,19 @@ impl CompiledPolicySnapshot {
 
     #[must_use]
     pub const fn outbound_capabilities(&self) -> &BTreeMap<OutboundId, OutboundCapabilities> {
-        &self.outbound_capabilities
+        self.outbound_catalog.outbounds()
+    }
+
+    #[must_use]
+    pub const fn outbound_groups(&self) -> &BTreeMap<OutboundGroupId, OutboundGroupSpec> {
+        self.outbound_catalog.groups()
+    }
+
+    #[must_use]
+    pub const fn outbound_group_capabilities(
+        &self,
+    ) -> &BTreeMap<OutboundGroupId, OutboundCapabilities> {
+        self.outbound_catalog.group_capabilities()
     }
 
     #[must_use]

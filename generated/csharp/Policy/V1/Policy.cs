@@ -54,95 +54,104 @@ namespace NonProxy.Policy.V1 {
             "a01hdGNoZXJSB25ldHdvcmsSRQoKdHJhbnNwb3J0cxgFIAMoDjIlLm5vbnBy",
             "b3h5LmNvbW1vbi52MS5UcmFuc3BvcnRQcm90b2NvbFIKdHJhbnNwb3J0cxIz",
             "CgVwb3J0cxgGIAMoCzIdLm5vbnByb3h5LnBvbGljeS52MS5Qb3J0UmFuZ2VS",
-            "BXBvcnRzIqwBCgxEZWNpc2lvblNwZWMSNwoGYWN0aW9uGAEgASgOMh8ubm9u",
+            "BXBvcnRzItgBCgxEZWNpc2lvblNwZWMSNwoGYWN0aW9uGAEgASgOMh8ubm9u",
             "cHJveHkuY29tbW9uLnYxLlJvdXRlQWN0aW9uUgZhY3Rpb24SHwoLb3V0Ym91",
             "bmRfaWQYAiABKAlSCm91dGJvdW5kSWQSQgoMZmFpbHVyZV9tb2RlGAMgASgO",
             "Mh8ubm9ucHJveHkuY29tbW9uLnYxLkZhaWx1cmVNb2RlUgtmYWlsdXJlTW9k",
-            "ZSKxAQoWUnVudGltZVJvdXRpbmdPdmVycmlkZRI7CgRtb2RlGAEgASgOMicu",
-            "bm9ucHJveHkucG9saWN5LnYxLlJ1bnRpbWVPdmVycmlkZU1vZGVSBG1vZGUS",
-            "HwoLb3V0Ym91bmRfaWQYAiABKAlSCm91dGJvdW5kSWQSOQoKZXhwaXJlc19h",
-            "dBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSCWV4cGlyZXNB",
-            "dCL5AwoGUG9saWN5Eg4KAmlkGAEgASgJUgJpZBIhCgxkaXNwbGF5X25hbWUY",
-            "AiABKAlSC2Rpc3BsYXlOYW1lEkUKC3NvdXJjZV9raW5kGAMgASgOMiQubm9u",
-            "cHJveHkucG9saWN5LnYxLlBvbGljeVNvdXJjZUtpbmRSCnNvdXJjZUtpbmQS",
-            "NQoFbWF0Y2gYBCABKAsyHy5ub25wcm94eS5wb2xpY3kudjEuUG9saWN5TWF0",
-            "Y2hSBW1hdGNoEjwKCGRlY2lzaW9uGAUgASgLMiAubm9ucHJveHkucG9saWN5",
-            "LnYxLkRlY2lzaW9uU3BlY1IIZGVjaXNpb24SGgoIcHJpb3JpdHkYBiABKAVS",
-            "CHByaW9yaXR5EhgKB2VuYWJsZWQYByABKAhSB2VuYWJsZWQSOAoGb3JpZ2lu",
-            "GAggASgOMiAubm9ucHJveHkucG9saWN5LnYxLlBvbGljeU9yaWdpblIGb3Jp",
-            "Z2luEhoKCHJldmlzaW9uGAkgASgEUghyZXZpc2lvbhI5CgpjcmVhdGVkX2F0",
-            "GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJY3JlYXRlZEF0",
-            "EjkKCnVwZGF0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0",
-            "YW1wUgl1cGRhdGVkQXQiXQoOUG9saWN5Q29uZmxpY3QSEgoEY29kZRgBIAEo",
-            "CVIEY29kZRIYCgdtZXNzYWdlGAIgASgJUgdtZXNzYWdlEh0KCnBvbGljeV9p",
-            "ZHMYAyADKAlSCXBvbGljeUlkcyKkAgoWUG9saWN5U25hcHNob3RNZXRhZGF0",
-            "YRIlCg5zY2hlbWFfdmVyc2lvbhgBIAEoDVINc2NoZW1hVmVyc2lvbhIpChBz",
-            "bmFwc2hvdF92ZXJzaW9uGAIgASgEUg9zbmFwc2hvdFZlcnNpb24SIQoMY29u",
-            "dGVudF9oYXNoGAMgASgMUgtjb250ZW50SGFzaBI3CgVzdGF0ZRgEIAEoDjIh",
-            "Lm5vbnByb3h5LnBvbGljeS52MS5TbmFwc2hvdFN0YXRlUgVzdGF0ZRI5Cgpj",
-            "cmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJ",
-            "Y3JlYXRlZEF0EiEKDHBvbGljeV9jb3VudBgGIAEoDVILcG9saWN5Q291bnQi",
-            "7gEKFkNvbXBpbGVkUG9saWN5U25hcHNob3QSRgoIbWV0YWRhdGEYASABKAsy",
-            "Ki5ub25wcm94eS5wb2xpY3kudjEuUG9saWN5U25hcHNob3RNZXRhZGF0YVII",
-            "bWV0YWRhdGESJQoOcGF5bG9hZF9mb3JtYXQYAiABKAlSDXBheWxvYWRGb3Jt",
-            "YXQSGAoHcGF5bG9hZBgDIAEoDFIHcGF5bG9hZBJLChBkZWZhdWx0X2RlY2lz",
-            "aW9uGAQgASgLMiAubm9ucHJveHkucG9saWN5LnYxLkRlY2lzaW9uU3BlY1IP",
-            "ZGVmYXVsdERlY2lzaW9uIr8BChZPdXRib3VuZENhcGFiaWxpdHlTcGVjEh8K",
-            "C291dGJvdW5kX2lkGAEgASgJUgpvdXRib3VuZElkEkUKCnRyYW5zcG9ydHMY",
-            "AiADKA4yJS5ub25wcm94eS5jb21tb24udjEuVHJhbnNwb3J0UHJvdG9jb2xS",
-            "CnRyYW5zcG9ydHMSPQoLaXBfZmFtaWxpZXMYAyADKA4yHC5ub25wcm94eS5j",
-            "b21tb24udjEuSXBGYW1pbHlSCmlwRmFtaWxpZXMixQIKFENvbXBpbGVDYXBh",
-            "YmlsaXR5U2V0EhsKCWFwcF9tYXRjaBgBIAEoCFIIYXBwTWF0Y2gSIQoMZG9t",
-            "YWluX21hdGNoGAIgASgIUgtkb21haW5NYXRjaBIdCgpjaWRyX21hdGNoGAMg",
-            "ASgIUgljaWRyTWF0Y2gSRQoKdHJhbnNwb3J0cxgEIAMoDjIlLm5vbnByb3h5",
-            "LmNvbW1vbi52MS5UcmFuc3BvcnRQcm90b2NvbFIKdHJhbnNwb3J0cxI9Cgtp",
-            "cF9mYW1pbGllcxgFIAMoDjIcLm5vbnByb3h5LmNvbW1vbi52MS5JcEZhbWls",
-            "eVIKaXBGYW1pbGllcxJICglvdXRib3VuZHMYBiADKAsyKi5ub25wcm94eS5w",
-            "b2xpY3kudjEuT3V0Ym91bmRDYXBhYmlsaXR5U3BlY1IJb3V0Ym91bmRzIr4D",
-            "ChVDb21waWxlZFBvbGljeVBheWxvYWQSJQoOZm9ybWF0X3ZlcnNpb24YASAB",
-            "KA1SDWZvcm1hdFZlcnNpb24SNgoIcG9saWNpZXMYAiADKAsyGi5ub25wcm94",
-            "eS5wb2xpY3kudjEuUG9saWN5Ughwb2xpY2llcxJMCgxjYXBhYmlsaXRpZXMY",
-            "AyABKAsyKC5ub25wcm94eS5wb2xpY3kudjEuQ29tcGlsZUNhcGFiaWxpdHlT",
-            "ZXRSDGNhcGFiaWxpdGllcxJLChBkZWZhdWx0X2RlY2lzaW9uGAQgASgLMiAu",
-            "bm9ucHJveHkucG9saWN5LnYxLkRlY2lzaW9uU3BlY1IPZGVmYXVsdERlY2lz",
-            "aW9uElQKEG5ldHdvcmtfcHJvZmlsZXMYBSADKAsyKS5ub25wcm94eS5wb2xp",
-            "Y3kudjEuTmV0d29ya1Byb2ZpbGVCaW5kaW5nUg9uZXR3b3JrUHJvZmlsZXMS",
-            "VQoQcnVudGltZV9vdmVycmlkZRgGIAEoCzIqLm5vbnByb3h5LnBvbGljeS52",
-            "MS5SdW50aW1lUm91dGluZ092ZXJyaWRlUg9ydW50aW1lT3ZlcnJpZGUi5AEK",
-            "CERlY2lzaW9uEjgKBnJlc3VsdBgBIAEoCzIgLm5vbnByb3h5LnBvbGljeS52",
-            "MS5EZWNpc2lvblNwZWNSBnJlc3VsdBIqChFtYXRjaGVkX3BvbGljeV9pZBgC",
-            "IAEoCVIPbWF0Y2hlZFBvbGljeUlkEiYKD21hdGNoZWRfcnVsZV9pZBgDIAEo",
-            "CVINbWF0Y2hlZFJ1bGVJZBIpChBzbmFwc2hvdF92ZXJzaW9uGAQgASgEUg9z",
-            "bmFwc2hvdFZlcnNpb24SHwoLcmVhc29uX2NvZGUYBSABKAlSCnJlYXNvbkNv",
-            "ZGUqtAIKEFBvbGljeVNvdXJjZUtpbmQSIgoeUE9MSUNZX1NPVVJDRV9LSU5E",
-            "X1VOU1BFQ0lGSUVEEAASHQoZUE9MSUNZX1NPVVJDRV9LSU5EX1NZU1RFTRAB",
-            "EiYKIlBPTElDWV9TT1VSQ0VfS0lORF9BUFBfREVTVElOQVRJT04QAhIaChZQ",
-            "T0xJQ1lfU09VUkNFX0tJTkRfQVBQEAMSGwoXUE9MSUNZX1NPVVJDRV9LSU5E",
-            "X1NJVEUQBBIeChpQT0xJQ1lfU09VUkNFX0tJTkRfTkVUV09SSxAFEh8KG1BP",
-            "TElDWV9TT1VSQ0VfS0lORF9CVUlMVF9JThAGEhsKF1BPTElDWV9TT1VSQ0Vf",
-            "S0lORF9DSURSEAcSHgoaUE9MSUNZX1NPVVJDRV9LSU5EX0FEQVBURVIQCCq9",
-            "AQoMUG9saWN5T3JpZ2luEh0KGVBPTElDWV9PUklHSU5fVU5TUEVDSUZJRUQQ",
-            "ABIYChRQT0xJQ1lfT1JJR0lOX1NZU1RFTRABEhYKElBPTElDWV9PUklHSU5f",
-            "VVNFUhACEiEKHVBPTElDWV9PUklHSU5fU0lHTkVEX0JVSUxUX0lOEAMSHgoa",
-            "UE9MSUNZX09SSUdJTl9TVUJTQ1JJUFRJT04QBBIZChVQT0xJQ1lfT1JJR0lO",
-            "X0FEQVBURVIQBSqZAQoPRG9tYWluTWF0Y2hLaW5kEiEKHURPTUFJTl9NQVRD",
-            "SF9LSU5EX1VOU1BFQ0lGSUVEEAASGwoXRE9NQUlOX01BVENIX0tJTkRfRVhB",
-            "Q1QQARIcChhET01BSU5fTUFUQ0hfS0lORF9TVUZGSVgQAhIoCiRET01BSU5f",
-            "TUFUQ0hfS0lORF9SRUdJU1RSQUJMRV9ET01BSU4QAyrgAQoNU25hcHNob3RT",
-            "dGF0ZRIeChpTTkFQU0hPVF9TVEFURV9VTlNQRUNJRklFRBAAEhgKFFNOQVBT",
-            "SE9UX1NUQVRFX0RSQUZUEAESHgoaU05BUFNIT1RfU1RBVEVfUEVORElOR19B",
-            "Q0sQAhIZChVTTkFQU0hPVF9TVEFURV9BQ1RJVkUQAxIbChdTTkFQU0hPVF9T",
-            "VEFURV9SRUpFQ1RFRBAEEh4KGlNOQVBTSE9UX1NUQVRFX1JPTExFRF9CQUNL",
-            "EAUSHQoZU05BUFNIT1RfU1RBVEVfU1VQRVJTRURFRBAGKtQBChZOZXR3b3Jr",
-            "RmluZ2VycHJpbnRLaW5kEigKJE5FVFdPUktfRklOR0VSUFJJTlRfS0lORF9V",
-            "TlNQRUNJRklFRBAAEi0KKU5FVFdPUktfRklOR0VSUFJJTlRfS0lORF9XSUZJ",
-            "X1NTSURfU0hBMjU2EAESMwovTkVUV09SS19GSU5HRVJQUklOVF9LSU5EX0RF",
-            "RkFVTFRfR0FURVdBWV9TSEEyNTYQAhIsCihORVRXT1JLX0ZJTkdFUlBSSU5U",
-            "X0tJTkRfSU5URVJGQUNFX0NMQVNTEAMqoQEKE1J1bnRpbWVPdmVycmlkZU1v",
-            "ZGUSJQohUlVOVElNRV9PVkVSUklERV9NT0RFX1VOU1BFQ0lGSUVEEAASIAoc",
-            "UlVOVElNRV9PVkVSUklERV9NT0RFX1BBVVNFRBABEiAKHFJVTlRJTUVfT1ZF",
-            "UlJJREVfTU9ERV9ESVJFQ1QQAhIfChtSVU5USU1FX09WRVJSSURFX01PREVf",
-            "UFJPWFkQA0IVqgISTm9uUHJveHkuUG9saWN5LlYxYgZwcm90bzM="));
+            "ZRIqChFvdXRib3VuZF9ncm91cF9pZBgEIAEoCVIPb3V0Ym91bmRHcm91cElk",
+            "IrEBChZSdW50aW1lUm91dGluZ092ZXJyaWRlEjsKBG1vZGUYASABKA4yJy5u",
+            "b25wcm94eS5wb2xpY3kudjEuUnVudGltZU92ZXJyaWRlTW9kZVIEbW9kZRIf",
+            "CgtvdXRib3VuZF9pZBgCIAEoCVIKb3V0Ym91bmRJZBI5CgpleHBpcmVzX2F0",
+            "GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJZXhwaXJlc0F0",
+            "IvkDCgZQb2xpY3kSDgoCaWQYASABKAlSAmlkEiEKDGRpc3BsYXlfbmFtZRgC",
+            "IAEoCVILZGlzcGxheU5hbWUSRQoLc291cmNlX2tpbmQYAyABKA4yJC5ub25w",
+            "cm94eS5wb2xpY3kudjEuUG9saWN5U291cmNlS2luZFIKc291cmNlS2luZBI1",
+            "CgVtYXRjaBgEIAEoCzIfLm5vbnByb3h5LnBvbGljeS52MS5Qb2xpY3lNYXRj",
+            "aFIFbWF0Y2gSPAoIZGVjaXNpb24YBSABKAsyIC5ub25wcm94eS5wb2xpY3ku",
+            "djEuRGVjaXNpb25TcGVjUghkZWNpc2lvbhIaCghwcmlvcml0eRgGIAEoBVII",
+            "cHJpb3JpdHkSGAoHZW5hYmxlZBgHIAEoCFIHZW5hYmxlZBI4CgZvcmlnaW4Y",
+            "CCABKA4yIC5ub25wcm94eS5wb2xpY3kudjEuUG9saWN5T3JpZ2luUgZvcmln",
+            "aW4SGgoIcmV2aXNpb24YCSABKARSCHJldmlzaW9uEjkKCmNyZWF0ZWRfYXQY",
+            "CiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUgljcmVhdGVkQXQS",
+            "OQoKdXBkYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3Rh",
+            "bXBSCXVwZGF0ZWRBdCJdCg5Qb2xpY3lDb25mbGljdBISCgRjb2RlGAEgASgJ",
+            "UgRjb2RlEhgKB21lc3NhZ2UYAiABKAlSB21lc3NhZ2USHQoKcG9saWN5X2lk",
+            "cxgDIAMoCVIJcG9saWN5SWRzIqQCChZQb2xpY3lTbmFwc2hvdE1ldGFkYXRh",
+            "EiUKDnNjaGVtYV92ZXJzaW9uGAEgASgNUg1zY2hlbWFWZXJzaW9uEikKEHNu",
+            "YXBzaG90X3ZlcnNpb24YAiABKARSD3NuYXBzaG90VmVyc2lvbhIhCgxjb250",
+            "ZW50X2hhc2gYAyABKAxSC2NvbnRlbnRIYXNoEjcKBXN0YXRlGAQgASgOMiEu",
+            "bm9ucHJveHkucG9saWN5LnYxLlNuYXBzaG90U3RhdGVSBXN0YXRlEjkKCmNy",
+            "ZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUglj",
+            "cmVhdGVkQXQSIQoMcG9saWN5X2NvdW50GAYgASgNUgtwb2xpY3lDb3VudCLu",
+            "AQoWQ29tcGlsZWRQb2xpY3lTbmFwc2hvdBJGCghtZXRhZGF0YRgBIAEoCzIq",
+            "Lm5vbnByb3h5LnBvbGljeS52MS5Qb2xpY3lTbmFwc2hvdE1ldGFkYXRhUght",
+            "ZXRhZGF0YRIlCg5wYXlsb2FkX2Zvcm1hdBgCIAEoCVINcGF5bG9hZEZvcm1h",
+            "dBIYCgdwYXlsb2FkGAMgASgMUgdwYXlsb2FkEksKEGRlZmF1bHRfZGVjaXNp",
+            "b24YBCABKAsyIC5ub25wcm94eS5wb2xpY3kudjEuRGVjaXNpb25TcGVjUg9k",
+            "ZWZhdWx0RGVjaXNpb24ivwEKFk91dGJvdW5kQ2FwYWJpbGl0eVNwZWMSHwoL",
+            "b3V0Ym91bmRfaWQYASABKAlSCm91dGJvdW5kSWQSRQoKdHJhbnNwb3J0cxgC",
+            "IAMoDjIlLm5vbnByb3h5LmNvbW1vbi52MS5UcmFuc3BvcnRQcm90b2NvbFIK",
+            "dHJhbnNwb3J0cxI9CgtpcF9mYW1pbGllcxgDIAMoDjIcLm5vbnByb3h5LmNv",
+            "bW1vbi52MS5JcEZhbWlseVIKaXBGYW1pbGllcyKOAgobT3V0Ym91bmRHcm91",
+            "cENhcGFiaWxpdHlTcGVjEioKEW91dGJvdW5kX2dyb3VwX2lkGAEgASgJUg9v",
+            "dXRib3VuZEdyb3VwSWQSGgoIcmV2aXNpb24YAiABKARSCHJldmlzaW9uEiEK",
+            "DG91dGJvdW5kX2lkcxgDIAMoCVILb3V0Ym91bmRJZHMSRQoKdHJhbnNwb3J0",
+            "cxgEIAMoDjIlLm5vbnByb3h5LmNvbW1vbi52MS5UcmFuc3BvcnRQcm90b2Nv",
+            "bFIKdHJhbnNwb3J0cxI9CgtpcF9mYW1pbGllcxgFIAMoDjIcLm5vbnByb3h5",
+            "LmNvbW1vbi52MS5JcEZhbWlseVIKaXBGYW1pbGllcyKfAwoUQ29tcGlsZUNh",
+            "cGFiaWxpdHlTZXQSGwoJYXBwX21hdGNoGAEgASgIUghhcHBNYXRjaBIhCgxk",
+            "b21haW5fbWF0Y2gYAiABKAhSC2RvbWFpbk1hdGNoEh0KCmNpZHJfbWF0Y2gY",
+            "AyABKAhSCWNpZHJNYXRjaBJFCgp0cmFuc3BvcnRzGAQgAygOMiUubm9ucHJv",
+            "eHkuY29tbW9uLnYxLlRyYW5zcG9ydFByb3RvY29sUgp0cmFuc3BvcnRzEj0K",
+            "C2lwX2ZhbWlsaWVzGAUgAygOMhwubm9ucHJveHkuY29tbW9uLnYxLklwRmFt",
+            "aWx5UgppcEZhbWlsaWVzEkgKCW91dGJvdW5kcxgGIAMoCzIqLm5vbnByb3h5",
+            "LnBvbGljeS52MS5PdXRib3VuZENhcGFiaWxpdHlTcGVjUglvdXRib3VuZHMS",
+            "WAoPb3V0Ym91bmRfZ3JvdXBzGAcgAygLMi8ubm9ucHJveHkucG9saWN5LnYx",
+            "Lk91dGJvdW5kR3JvdXBDYXBhYmlsaXR5U3BlY1IOb3V0Ym91bmRHcm91cHMi",
+            "vgMKFUNvbXBpbGVkUG9saWN5UGF5bG9hZBIlCg5mb3JtYXRfdmVyc2lvbhgB",
+            "IAEoDVINZm9ybWF0VmVyc2lvbhI2Cghwb2xpY2llcxgCIAMoCzIaLm5vbnBy",
+            "b3h5LnBvbGljeS52MS5Qb2xpY3lSCHBvbGljaWVzEkwKDGNhcGFiaWxpdGll",
+            "cxgDIAEoCzIoLm5vbnByb3h5LnBvbGljeS52MS5Db21waWxlQ2FwYWJpbGl0",
+            "eVNldFIMY2FwYWJpbGl0aWVzEksKEGRlZmF1bHRfZGVjaXNpb24YBCABKAsy",
+            "IC5ub25wcm94eS5wb2xpY3kudjEuRGVjaXNpb25TcGVjUg9kZWZhdWx0RGVj",
+            "aXNpb24SVAoQbmV0d29ya19wcm9maWxlcxgFIAMoCzIpLm5vbnByb3h5LnBv",
+            "bGljeS52MS5OZXR3b3JrUHJvZmlsZUJpbmRpbmdSD25ldHdvcmtQcm9maWxl",
+            "cxJVChBydW50aW1lX292ZXJyaWRlGAYgASgLMioubm9ucHJveHkucG9saWN5",
+            "LnYxLlJ1bnRpbWVSb3V0aW5nT3ZlcnJpZGVSD3J1bnRpbWVPdmVycmlkZSLk",
+            "AQoIRGVjaXNpb24SOAoGcmVzdWx0GAEgASgLMiAubm9ucHJveHkucG9saWN5",
+            "LnYxLkRlY2lzaW9uU3BlY1IGcmVzdWx0EioKEW1hdGNoZWRfcG9saWN5X2lk",
+            "GAIgASgJUg9tYXRjaGVkUG9saWN5SWQSJgoPbWF0Y2hlZF9ydWxlX2lkGAMg",
+            "ASgJUg1tYXRjaGVkUnVsZUlkEikKEHNuYXBzaG90X3ZlcnNpb24YBCABKARS",
+            "D3NuYXBzaG90VmVyc2lvbhIfCgtyZWFzb25fY29kZRgFIAEoCVIKcmVhc29u",
+            "Q29kZSq0AgoQUG9saWN5U291cmNlS2luZBIiCh5QT0xJQ1lfU09VUkNFX0tJ",
+            "TkRfVU5TUEVDSUZJRUQQABIdChlQT0xJQ1lfU09VUkNFX0tJTkRfU1lTVEVN",
+            "EAESJgoiUE9MSUNZX1NPVVJDRV9LSU5EX0FQUF9ERVNUSU5BVElPThACEhoK",
+            "FlBPTElDWV9TT1VSQ0VfS0lORF9BUFAQAxIbChdQT0xJQ1lfU09VUkNFX0tJ",
+            "TkRfU0lURRAEEh4KGlBPTElDWV9TT1VSQ0VfS0lORF9ORVRXT1JLEAUSHwob",
+            "UE9MSUNZX1NPVVJDRV9LSU5EX0JVSUxUX0lOEAYSGwoXUE9MSUNZX1NPVVJD",
+            "RV9LSU5EX0NJRFIQBxIeChpQT0xJQ1lfU09VUkNFX0tJTkRfQURBUFRFUhAI",
+            "Kr0BCgxQb2xpY3lPcmlnaW4SHQoZUE9MSUNZX09SSUdJTl9VTlNQRUNJRklF",
+            "RBAAEhgKFFBPTElDWV9PUklHSU5fU1lTVEVNEAESFgoSUE9MSUNZX09SSUdJ",
+            "Tl9VU0VSEAISIQodUE9MSUNZX09SSUdJTl9TSUdORURfQlVJTFRfSU4QAxIe",
+            "ChpQT0xJQ1lfT1JJR0lOX1NVQlNDUklQVElPThAEEhkKFVBPTElDWV9PUklH",
+            "SU5fQURBUFRFUhAFKpkBCg9Eb21haW5NYXRjaEtpbmQSIQodRE9NQUlOX01B",
+            "VENIX0tJTkRfVU5TUEVDSUZJRUQQABIbChdET01BSU5fTUFUQ0hfS0lORF9F",
+            "WEFDVBABEhwKGERPTUFJTl9NQVRDSF9LSU5EX1NVRkZJWBACEigKJERPTUFJ",
+            "Tl9NQVRDSF9LSU5EX1JFR0lTVFJBQkxFX0RPTUFJThADKuABCg1TbmFwc2hv",
+            "dFN0YXRlEh4KGlNOQVBTSE9UX1NUQVRFX1VOU1BFQ0lGSUVEEAASGAoUU05B",
+            "UFNIT1RfU1RBVEVfRFJBRlQQARIeChpTTkFQU0hPVF9TVEFURV9QRU5ESU5H",
+            "X0FDSxACEhkKFVNOQVBTSE9UX1NUQVRFX0FDVElWRRADEhsKF1NOQVBTSE9U",
+            "X1NUQVRFX1JFSkVDVEVEEAQSHgoaU05BUFNIT1RfU1RBVEVfUk9MTEVEX0JB",
+            "Q0sQBRIdChlTTkFQU0hPVF9TVEFURV9TVVBFUlNFREVEEAYq1AEKFk5ldHdv",
+            "cmtGaW5nZXJwcmludEtpbmQSKAokTkVUV09SS19GSU5HRVJQUklOVF9LSU5E",
+            "X1VOU1BFQ0lGSUVEEAASLQopTkVUV09SS19GSU5HRVJQUklOVF9LSU5EX1dJ",
+            "RklfU1NJRF9TSEEyNTYQARIzCi9ORVRXT1JLX0ZJTkdFUlBSSU5UX0tJTkRf",
+            "REVGQVVMVF9HQVRFV0FZX1NIQTI1NhACEiwKKE5FVFdPUktfRklOR0VSUFJJ",
+            "TlRfS0lORF9JTlRFUkZBQ0VfQ0xBU1MQAyqhAQoTUnVudGltZU92ZXJyaWRl",
+            "TW9kZRIlCiFSVU5USU1FX09WRVJSSURFX01PREVfVU5TUEVDSUZJRUQQABIg",
+            "ChxSVU5USU1FX09WRVJSSURFX01PREVfUEFVU0VEEAESIAocUlVOVElNRV9P",
+            "VkVSUklERV9NT0RFX0RJUkVDVBACEh8KG1JVTlRJTUVfT1ZFUlJJREVfTU9E",
+            "RV9QUk9YWRADQhWqAhJOb25Qcm94eS5Qb2xpY3kuVjFiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::NonProxy.Common.V1.CommonReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::NonProxy.Policy.V1.PolicySourceKind), typeof(global::NonProxy.Policy.V1.PolicyOrigin), typeof(global::NonProxy.Policy.V1.DomainMatchKind), typeof(global::NonProxy.Policy.V1.SnapshotState), typeof(global::NonProxy.Policy.V1.NetworkFingerprintKind), typeof(global::NonProxy.Policy.V1.RuntimeOverrideMode), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -154,14 +163,15 @@ namespace NonProxy.Policy.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.NetworkProfileSpec), global::NonProxy.Policy.V1.NetworkProfileSpec.Parser, new[]{ "Id", "DisplayName", "FingerprintKind", "FingerprintValue", "Revision" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.NetworkProfileBinding), global::NonProxy.Policy.V1.NetworkProfileBinding.Parser, new[]{ "Id", "FingerprintKind", "FingerprintValue" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.PolicyMatch), global::NonProxy.Policy.V1.PolicyMatch.Parser, new[]{ "App", "Domain", "Cidr", "Network", "Transports", "Ports" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.DecisionSpec), global::NonProxy.Policy.V1.DecisionSpec.Parser, new[]{ "Action", "OutboundId", "FailureMode" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.DecisionSpec), global::NonProxy.Policy.V1.DecisionSpec.Parser, new[]{ "Action", "OutboundId", "FailureMode", "OutboundGroupId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.RuntimeRoutingOverride), global::NonProxy.Policy.V1.RuntimeRoutingOverride.Parser, new[]{ "Mode", "OutboundId", "ExpiresAt" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.Policy), global::NonProxy.Policy.V1.Policy.Parser, new[]{ "Id", "DisplayName", "SourceKind", "Match", "Decision", "Priority", "Enabled", "Origin", "Revision", "CreatedAt", "UpdatedAt" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.PolicyConflict), global::NonProxy.Policy.V1.PolicyConflict.Parser, new[]{ "Code", "Message", "PolicyIds" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.PolicySnapshotMetadata), global::NonProxy.Policy.V1.PolicySnapshotMetadata.Parser, new[]{ "SchemaVersion", "SnapshotVersion", "ContentHash", "State", "CreatedAt", "PolicyCount" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompiledPolicySnapshot), global::NonProxy.Policy.V1.CompiledPolicySnapshot.Parser, new[]{ "Metadata", "PayloadFormat", "Payload", "DefaultDecision" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.OutboundCapabilitySpec), global::NonProxy.Policy.V1.OutboundCapabilitySpec.Parser, new[]{ "OutboundId", "Transports", "IpFamilies" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompileCapabilitySet), global::NonProxy.Policy.V1.CompileCapabilitySet.Parser, new[]{ "AppMatch", "DomainMatch", "CidrMatch", "Transports", "IpFamilies", "Outbounds" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.OutboundGroupCapabilitySpec), global::NonProxy.Policy.V1.OutboundGroupCapabilitySpec.Parser, new[]{ "OutboundGroupId", "Revision", "OutboundIds", "Transports", "IpFamilies" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompileCapabilitySet), global::NonProxy.Policy.V1.CompileCapabilitySet.Parser, new[]{ "AppMatch", "DomainMatch", "CidrMatch", "Transports", "IpFamilies", "Outbounds", "OutboundGroups" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.CompiledPolicyPayload), global::NonProxy.Policy.V1.CompiledPolicyPayload.Parser, new[]{ "FormatVersion", "Policies", "Capabilities", "DefaultDecision", "NetworkProfiles", "RuntimeOverride" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::NonProxy.Policy.V1.Decision), global::NonProxy.Policy.V1.Decision.Parser, new[]{ "Result", "MatchedPolicyId", "MatchedRuleId", "SnapshotVersion", "ReasonCode" }, null, null, null, null)
           }));
@@ -2537,6 +2547,7 @@ namespace NonProxy.Policy.V1 {
       action_ = other.action_;
       outboundId_ = other.outboundId_;
       failureMode_ = other.failureMode_;
+      outboundGroupId_ = other.outboundGroupId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -2561,6 +2572,9 @@ namespace NonProxy.Policy.V1 {
     /// <summary>Field number for the "outbound_id" field.</summary>
     public const int OutboundIdFieldNumber = 2;
     private string outboundId_ = "";
+    /// <summary>
+    /// outbound_id 与 outbound_group_id 互斥；保留字段 2 以兼容既有调用方。
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public string OutboundId {
@@ -2582,6 +2596,18 @@ namespace NonProxy.Policy.V1 {
       }
     }
 
+    /// <summary>Field number for the "outbound_group_id" field.</summary>
+    public const int OutboundGroupIdFieldNumber = 4;
+    private string outboundGroupId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string OutboundGroupId {
+      get { return outboundGroupId_; }
+      set {
+        outboundGroupId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -2600,6 +2626,7 @@ namespace NonProxy.Policy.V1 {
       if (Action != other.Action) return false;
       if (OutboundId != other.OutboundId) return false;
       if (FailureMode != other.FailureMode) return false;
+      if (OutboundGroupId != other.OutboundGroupId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -2610,6 +2637,7 @@ namespace NonProxy.Policy.V1 {
       if (Action != global::NonProxy.Common.V1.RouteAction.Unspecified) hash ^= Action.GetHashCode();
       if (OutboundId.Length != 0) hash ^= OutboundId.GetHashCode();
       if (FailureMode != global::NonProxy.Common.V1.FailureMode.Unspecified) hash ^= FailureMode.GetHashCode();
+      if (OutboundGroupId.Length != 0) hash ^= OutboundGroupId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -2640,6 +2668,10 @@ namespace NonProxy.Policy.V1 {
         output.WriteRawTag(24);
         output.WriteEnum((int) FailureMode);
       }
+      if (OutboundGroupId.Length != 0) {
+        output.WriteRawTag(34);
+        output.WriteString(OutboundGroupId);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -2662,6 +2694,10 @@ namespace NonProxy.Policy.V1 {
         output.WriteRawTag(24);
         output.WriteEnum((int) FailureMode);
       }
+      if (OutboundGroupId.Length != 0) {
+        output.WriteRawTag(34);
+        output.WriteString(OutboundGroupId);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -2680,6 +2716,9 @@ namespace NonProxy.Policy.V1 {
       }
       if (FailureMode != global::NonProxy.Common.V1.FailureMode.Unspecified) {
         size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) FailureMode);
+      }
+      if (OutboundGroupId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(OutboundGroupId);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -2701,6 +2740,9 @@ namespace NonProxy.Policy.V1 {
       }
       if (other.FailureMode != global::NonProxy.Common.V1.FailureMode.Unspecified) {
         FailureMode = other.FailureMode;
+      }
+      if (other.OutboundGroupId.Length != 0) {
+        OutboundGroupId = other.OutboundGroupId;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -2733,6 +2775,10 @@ namespace NonProxy.Policy.V1 {
             FailureMode = (global::NonProxy.Common.V1.FailureMode) input.ReadEnum();
             break;
           }
+          case 34: {
+            OutboundGroupId = input.ReadString();
+            break;
+          }
         }
       }
     #endif
@@ -2762,6 +2808,10 @@ namespace NonProxy.Policy.V1 {
           }
           case 24: {
             FailureMode = (global::NonProxy.Common.V1.FailureMode) input.ReadEnum();
+            break;
+          }
+          case 34: {
+            OutboundGroupId = input.ReadString();
             break;
           }
         }
@@ -4909,6 +4959,326 @@ namespace NonProxy.Policy.V1 {
   }
 
   /// <summary>
+  /// OutboundGroupCapabilitySpec 固化有序成员、组修订和经验证的能力交集。
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class OutboundGroupCapabilitySpec : pb::IMessage<OutboundGroupCapabilitySpec>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<OutboundGroupCapabilitySpec> _parser = new pb::MessageParser<OutboundGroupCapabilitySpec>(() => new OutboundGroupCapabilitySpec());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<OutboundGroupCapabilitySpec> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[15]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OutboundGroupCapabilitySpec() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OutboundGroupCapabilitySpec(OutboundGroupCapabilitySpec other) : this() {
+      outboundGroupId_ = other.outboundGroupId_;
+      revision_ = other.revision_;
+      outboundIds_ = other.outboundIds_.Clone();
+      transports_ = other.transports_.Clone();
+      ipFamilies_ = other.ipFamilies_.Clone();
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OutboundGroupCapabilitySpec Clone() {
+      return new OutboundGroupCapabilitySpec(this);
+    }
+
+    /// <summary>Field number for the "outbound_group_id" field.</summary>
+    public const int OutboundGroupIdFieldNumber = 1;
+    private string outboundGroupId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string OutboundGroupId {
+      get { return outboundGroupId_; }
+      set {
+        outboundGroupId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "revision" field.</summary>
+    public const int RevisionFieldNumber = 2;
+    private ulong revision_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong Revision {
+      get { return revision_; }
+      set {
+        revision_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "outbound_ids" field.</summary>
+    public const int OutboundIdsFieldNumber = 3;
+    private static readonly pb::FieldCodec<string> _repeated_outboundIds_codec
+        = pb::FieldCodec.ForString(26);
+    private readonly pbc::RepeatedField<string> outboundIds_ = new pbc::RepeatedField<string>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<string> OutboundIds {
+      get { return outboundIds_; }
+    }
+
+    /// <summary>Field number for the "transports" field.</summary>
+    public const int TransportsFieldNumber = 4;
+    private static readonly pb::FieldCodec<global::NonProxy.Common.V1.TransportProtocol> _repeated_transports_codec
+        = pb::FieldCodec.ForEnum(34, x => (int) x, x => (global::NonProxy.Common.V1.TransportProtocol) x);
+    private readonly pbc::RepeatedField<global::NonProxy.Common.V1.TransportProtocol> transports_ = new pbc::RepeatedField<global::NonProxy.Common.V1.TransportProtocol>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::NonProxy.Common.V1.TransportProtocol> Transports {
+      get { return transports_; }
+    }
+
+    /// <summary>Field number for the "ip_families" field.</summary>
+    public const int IpFamiliesFieldNumber = 5;
+    private static readonly pb::FieldCodec<global::NonProxy.Common.V1.IpFamily> _repeated_ipFamilies_codec
+        = pb::FieldCodec.ForEnum(42, x => (int) x, x => (global::NonProxy.Common.V1.IpFamily) x);
+    private readonly pbc::RepeatedField<global::NonProxy.Common.V1.IpFamily> ipFamilies_ = new pbc::RepeatedField<global::NonProxy.Common.V1.IpFamily>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::NonProxy.Common.V1.IpFamily> IpFamilies {
+      get { return ipFamilies_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as OutboundGroupCapabilitySpec);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(OutboundGroupCapabilitySpec other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (OutboundGroupId != other.OutboundGroupId) return false;
+      if (Revision != other.Revision) return false;
+      if(!outboundIds_.Equals(other.outboundIds_)) return false;
+      if(!transports_.Equals(other.transports_)) return false;
+      if(!ipFamilies_.Equals(other.ipFamilies_)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (OutboundGroupId.Length != 0) hash ^= OutboundGroupId.GetHashCode();
+      if (Revision != 0UL) hash ^= Revision.GetHashCode();
+      hash ^= outboundIds_.GetHashCode();
+      hash ^= transports_.GetHashCode();
+      hash ^= ipFamilies_.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (OutboundGroupId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(OutboundGroupId);
+      }
+      if (Revision != 0UL) {
+        output.WriteRawTag(16);
+        output.WriteUInt64(Revision);
+      }
+      outboundIds_.WriteTo(output, _repeated_outboundIds_codec);
+      transports_.WriteTo(output, _repeated_transports_codec);
+      ipFamilies_.WriteTo(output, _repeated_ipFamilies_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (OutboundGroupId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(OutboundGroupId);
+      }
+      if (Revision != 0UL) {
+        output.WriteRawTag(16);
+        output.WriteUInt64(Revision);
+      }
+      outboundIds_.WriteTo(ref output, _repeated_outboundIds_codec);
+      transports_.WriteTo(ref output, _repeated_transports_codec);
+      ipFamilies_.WriteTo(ref output, _repeated_ipFamilies_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (OutboundGroupId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(OutboundGroupId);
+      }
+      if (Revision != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Revision);
+      }
+      size += outboundIds_.CalculateSize(_repeated_outboundIds_codec);
+      size += transports_.CalculateSize(_repeated_transports_codec);
+      size += ipFamilies_.CalculateSize(_repeated_ipFamilies_codec);
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(OutboundGroupCapabilitySpec other) {
+      if (other == null) {
+        return;
+      }
+      if (other.OutboundGroupId.Length != 0) {
+        OutboundGroupId = other.OutboundGroupId;
+      }
+      if (other.Revision != 0UL) {
+        Revision = other.Revision;
+      }
+      outboundIds_.Add(other.outboundIds_);
+      transports_.Add(other.transports_);
+      ipFamilies_.Add(other.ipFamilies_);
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            OutboundGroupId = input.ReadString();
+            break;
+          }
+          case 16: {
+            Revision = input.ReadUInt64();
+            break;
+          }
+          case 26: {
+            outboundIds_.AddEntriesFrom(input, _repeated_outboundIds_codec);
+            break;
+          }
+          case 34:
+          case 32: {
+            transports_.AddEntriesFrom(input, _repeated_transports_codec);
+            break;
+          }
+          case 42:
+          case 40: {
+            ipFamilies_.AddEntriesFrom(input, _repeated_ipFamilies_codec);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            OutboundGroupId = input.ReadString();
+            break;
+          }
+          case 16: {
+            Revision = input.ReadUInt64();
+            break;
+          }
+          case 26: {
+            outboundIds_.AddEntriesFrom(ref input, _repeated_outboundIds_codec);
+            break;
+          }
+          case 34:
+          case 32: {
+            transports_.AddEntriesFrom(ref input, _repeated_transports_codec);
+            break;
+          }
+          case 42:
+          case 40: {
+            ipFamilies_.AddEntriesFrom(ref input, _repeated_ipFamilies_codec);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
   /// CompileCapabilitySet 固化生成快照时使用的平台和出口能力。
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -4926,7 +5296,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[15]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[16]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4952,6 +5322,7 @@ namespace NonProxy.Policy.V1 {
       transports_ = other.transports_.Clone();
       ipFamilies_ = other.ipFamilies_.Clone();
       outbounds_ = other.outbounds_.Clone();
+      outboundGroups_ = other.outboundGroups_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -5030,6 +5401,17 @@ namespace NonProxy.Policy.V1 {
       get { return outbounds_; }
     }
 
+    /// <summary>Field number for the "outbound_groups" field.</summary>
+    public const int OutboundGroupsFieldNumber = 7;
+    private static readonly pb::FieldCodec<global::NonProxy.Policy.V1.OutboundGroupCapabilitySpec> _repeated_outboundGroups_codec
+        = pb::FieldCodec.ForMessage(58, global::NonProxy.Policy.V1.OutboundGroupCapabilitySpec.Parser);
+    private readonly pbc::RepeatedField<global::NonProxy.Policy.V1.OutboundGroupCapabilitySpec> outboundGroups_ = new pbc::RepeatedField<global::NonProxy.Policy.V1.OutboundGroupCapabilitySpec>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::NonProxy.Policy.V1.OutboundGroupCapabilitySpec> OutboundGroups {
+      get { return outboundGroups_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -5051,6 +5433,7 @@ namespace NonProxy.Policy.V1 {
       if(!transports_.Equals(other.transports_)) return false;
       if(!ipFamilies_.Equals(other.ipFamilies_)) return false;
       if(!outbounds_.Equals(other.outbounds_)) return false;
+      if(!outboundGroups_.Equals(other.outboundGroups_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -5064,6 +5447,7 @@ namespace NonProxy.Policy.V1 {
       hash ^= transports_.GetHashCode();
       hash ^= ipFamilies_.GetHashCode();
       hash ^= outbounds_.GetHashCode();
+      hash ^= outboundGroups_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -5097,6 +5481,7 @@ namespace NonProxy.Policy.V1 {
       transports_.WriteTo(output, _repeated_transports_codec);
       ipFamilies_.WriteTo(output, _repeated_ipFamilies_codec);
       outbounds_.WriteTo(output, _repeated_outbounds_codec);
+      outboundGroups_.WriteTo(output, _repeated_outboundGroups_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -5122,6 +5507,7 @@ namespace NonProxy.Policy.V1 {
       transports_.WriteTo(ref output, _repeated_transports_codec);
       ipFamilies_.WriteTo(ref output, _repeated_ipFamilies_codec);
       outbounds_.WriteTo(ref output, _repeated_outbounds_codec);
+      outboundGroups_.WriteTo(ref output, _repeated_outboundGroups_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -5144,6 +5530,7 @@ namespace NonProxy.Policy.V1 {
       size += transports_.CalculateSize(_repeated_transports_codec);
       size += ipFamilies_.CalculateSize(_repeated_ipFamilies_codec);
       size += outbounds_.CalculateSize(_repeated_outbounds_codec);
+      size += outboundGroups_.CalculateSize(_repeated_outboundGroups_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -5168,6 +5555,7 @@ namespace NonProxy.Policy.V1 {
       transports_.Add(other.transports_);
       ipFamilies_.Add(other.ipFamilies_);
       outbounds_.Add(other.outbounds_);
+      outboundGroups_.Add(other.outboundGroups_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -5211,6 +5599,10 @@ namespace NonProxy.Policy.V1 {
           }
           case 50: {
             outbounds_.AddEntriesFrom(input, _repeated_outbounds_codec);
+            break;
+          }
+          case 58: {
+            outboundGroups_.AddEntriesFrom(input, _repeated_outboundGroups_codec);
             break;
           }
         }
@@ -5258,6 +5650,10 @@ namespace NonProxy.Policy.V1 {
             outbounds_.AddEntriesFrom(ref input, _repeated_outbounds_codec);
             break;
           }
+          case 58: {
+            outboundGroups_.AddEntriesFrom(ref input, _repeated_outboundGroups_codec);
+            break;
+          }
         }
       }
     }
@@ -5284,7 +5680,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[16]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[17]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5675,7 +6071,7 @@ namespace NonProxy.Policy.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[17]; }
+      get { return global::NonProxy.Policy.V1.PolicyReflection.Descriptor.MessageTypes[18]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

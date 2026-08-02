@@ -52,6 +52,86 @@ final class SnapshotValidatorTests: XCTestCase {
         )
     }
 
+    func testOutboundGroupHasherMatchesRustGoldenVector() throws {
+        let fixture = outboundGroupFixture()
+        let payload = SnapshotFixtures.payload(
+            capabilities: fixture.capabilities,
+            defaultDecision: fixture.decision
+        )
+
+        let hash = try CanonicalSnapshotHasher.hash(
+            schemaVersion: 1,
+            payload: payload
+        )
+
+        XCTAssertEqual(
+            hash,
+            Data(hex: "f4316b060fbb02db422e2f367644cdc9820d17525e78c77f18cf0f08909467ce")
+        )
+    }
+
+    func testAcceptsOutboundGroupCatalogAndTarget() throws {
+        let fixture = outboundGroupFixture()
+        let payload = SnapshotFixtures.payload(
+            capabilities: fixture.capabilities,
+            defaultDecision: fixture.decision
+        )
+
+        let verified = try SnapshotValidator.validate(
+            SnapshotFixtures.snapshot(payload: payload)
+        )
+
+        XCTAssertEqual(
+            verified.payload.defaultDecision.outboundGroupID,
+            "automatic"
+        )
+    }
+
+    func testRejectsForgedOutboundGroupIntersection() throws {
+        var fixture = outboundGroupFixture()
+        fixture.capabilities.outboundGroups[0].transports = [.tcp]
+        let payload = SnapshotFixtures.payload(
+            capabilities: fixture.capabilities,
+            defaultDecision: fixture.decision
+        )
+
+        XCTAssertThrowsError(
+            try SnapshotValidator.validate(
+                SnapshotFixtures.snapshot(payload: payload)
+            )
+        )
+    }
+
+    func testRejectsDecisionWithOutboundAndGroupTargets() throws {
+        var fixture = outboundGroupFixture()
+        fixture.decision.outboundID = "primary"
+        let payload = SnapshotFixtures.payload(
+            capabilities: fixture.capabilities,
+            defaultDecision: fixture.decision
+        )
+
+        XCTAssertThrowsError(
+            try SnapshotValidator.validate(
+                SnapshotFixtures.snapshot(payload: payload)
+            )
+        )
+    }
+
+    func testVersionThreeRejectsOutboundGroupCatalog() throws {
+        let fixture = outboundGroupFixture()
+        var payload = SnapshotFixtures.payload(
+            capabilities: fixture.capabilities,
+            defaultDecision: fixture.decision
+        )
+        payload.formatVersion = SnapshotValidator.runtimeOverridePayloadVersion
+
+        XCTAssertThrowsError(
+            try SnapshotValidator.validate(
+                SnapshotFixtures.snapshot(payload: payload)
+            )
+        )
+    }
+
     func testAcceptsLegacyPayloadWithoutNetworkCatalog() throws {
         var payload = SnapshotFixtures.payload()
         payload.formatVersion = SnapshotValidator.legacyPayloadVersion
@@ -228,6 +308,34 @@ private func networkPolicy(
     policy.origin = .user
     policy.revision = 1
     return policy
+}
+
+private func outboundGroupFixture() -> (
+    capabilities: Nonproxy_Policy_V1_CompileCapabilitySet,
+    decision: Nonproxy_Policy_V1_DecisionSpec
+) {
+    var backup = Nonproxy_Policy_V1_OutboundCapabilitySpec()
+    backup.outboundID = "backup"
+    backup.transports = [.tcp, .udp]
+    backup.ipFamilies = [.ipv4, .ipv6]
+    var primary = Nonproxy_Policy_V1_OutboundCapabilitySpec()
+    primary.outboundID = "primary"
+    primary.transports = [.tcp, .udp]
+    primary.ipFamilies = [.ipv4, .ipv6]
+    var group = Nonproxy_Policy_V1_OutboundGroupCapabilitySpec()
+    group.outboundGroupID = "automatic"
+    group.revision = 9
+    group.outboundIds = ["primary", "backup"]
+    group.transports = [.tcp, .udp]
+    group.ipFamilies = [.ipv4, .ipv6]
+    var capabilities = SnapshotFixtures.fullCapabilities()
+    capabilities.outbounds = [backup, primary]
+    capabilities.outboundGroups = [group]
+    var decision = Nonproxy_Policy_V1_DecisionSpec()
+    decision.action = .proxy
+    decision.outboundGroupID = "automatic"
+    decision.failureMode = .closed
+    return (capabilities, decision)
 }
 
 private extension Data {

@@ -2,8 +2,8 @@ use std::net::IpAddr;
 
 use nonproxy_model::{
     AppMatcher, Cidr, DecisionSpec, DomainMatchKind, DomainMatcher, FailureMode, NetworkMatcher,
-    NetworkProfileId, OutboundId, Platform, Policy, PolicyId, PolicyMatch, PolicyMetadata,
-    PolicyOrigin, PolicySourceKind, PortRange, RouteAction, Transport,
+    NetworkProfileId, OutboundGroupId, OutboundId, Platform, Policy, PolicyId, PolicyMatch,
+    PolicyMetadata, PolicyOrigin, PolicySourceKind, PortRange, ProxyTarget, RouteAction, Transport,
 };
 use nonproxy_proto::{
     common::v1 as common_proto,
@@ -199,29 +199,43 @@ pub fn decision_from_proto(value: ProtoDecisionSpec) -> Result<DecisionSpec, Gat
         Ok(common_proto::FailureMode::Open) => FailureMode::Open,
         _ => return Err(GatewayError::InvalidContract("失败模式无效")),
     };
-    let outbound = if value.outbound_id.is_empty() {
-        None
-    } else {
-        Some(OutboundId::new(value.outbound_id)?)
+    let proxy_target = match (
+        value.outbound_id.is_empty(),
+        value.outbound_group_id.is_empty(),
+    ) {
+        (false, true) => Some(ProxyTarget::Outbound(OutboundId::new(value.outbound_id)?)),
+        (true, false) => Some(ProxyTarget::Group(OutboundGroupId::new(
+            value.outbound_group_id,
+        )?)),
+        (true, true) => None,
+        (false, false) => {
+            return Err(GatewayError::InvalidContract(
+                "代理决策不能同时指定出口和出口组",
+            ));
+        }
     };
-    DecisionSpec::new(action, outbound, failure_mode).map_err(GatewayError::from)
+    DecisionSpec::new_with_target(action, proxy_target, failure_mode).map_err(GatewayError::from)
 }
 
 #[must_use]
 pub fn decision_to_proto(value: &DecisionSpec) -> ProtoDecisionSpec {
+    let (outbound_id, outbound_group_id) = match value.proxy_target() {
+        Some(ProxyTarget::Outbound(value)) => (value.as_str().to_owned(), String::new()),
+        Some(ProxyTarget::Group(value)) => (String::new(), value.as_str().to_owned()),
+        None => (String::new(), String::new()),
+    };
     ProtoDecisionSpec {
         action: match value.action() {
             RouteAction::Direct => common_proto::RouteAction::Direct as i32,
             RouteAction::Proxy => common_proto::RouteAction::Proxy as i32,
             RouteAction::Block => common_proto::RouteAction::Block as i32,
         },
-        outbound_id: value
-            .outbound_id()
-            .map_or_else(String::new, |item| item.as_str().to_owned()),
         failure_mode: match value.failure_mode() {
             FailureMode::Closed => common_proto::FailureMode::Closed as i32,
             FailureMode::Open => common_proto::FailureMode::Open as i32,
         },
+        outbound_id,
+        outbound_group_id,
     }
 }
 
@@ -286,5 +300,38 @@ const fn origin_to_proto(value: PolicyOrigin) -> policy_proto::PolicyOrigin {
         PolicyOrigin::SignedBuiltIn => policy_proto::PolicyOrigin::SignedBuiltIn,
         PolicyOrigin::Subscription => policy_proto::PolicyOrigin::Subscription,
         PolicyOrigin::Adapter => policy_proto::PolicyOrigin::Adapter,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn proxy_decision(outbound_id: &str, outbound_group_id: &str) -> ProtoDecisionSpec {
+        ProtoDecisionSpec {
+            action: common_proto::RouteAction::Proxy as i32,
+            outbound_id: outbound_id.to_owned(),
+            failure_mode: common_proto::FailureMode::Closed as i32,
+            outbound_group_id: outbound_group_id.to_owned(),
+        }
+    }
+
+    #[test]
+    fn rejects_ambiguous_proxy_target() {
+        let error = decision_from_proto(proxy_decision("primary", "automatic"))
+            .expect_err("simultaneous outbound and group targets must be rejected");
+
+        assert!(matches!(error, GatewayError::InvalidContract(_)));
+    }
+
+    #[test]
+    fn round_trips_group_target_without_legacy_outbound_field() {
+        let decision = decision_from_proto(proxy_decision("", "automatic"))
+            .expect("group target should be accepted");
+
+        let encoded = decision_to_proto(&decision);
+
+        assert_eq!(encoded.outbound_group_id, "automatic");
+        assert!(encoded.outbound_id.is_empty());
     }
 }

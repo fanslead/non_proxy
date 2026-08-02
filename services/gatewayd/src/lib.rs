@@ -71,6 +71,7 @@ mod runtime_policy;
 mod server;
 mod session_capability;
 mod snapshot_builder;
+mod snapshot_capabilities;
 mod snapshot_payload;
 mod snapshot_types;
 mod subscription_delete_service;
