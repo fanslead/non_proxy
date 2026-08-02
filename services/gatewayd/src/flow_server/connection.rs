@@ -1,8 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
 use nonproxy_flow_protocol::{
-    FlowFrame, FlowId, FrameType, OpenFlowRequest, SequenceTracker, read_frame, write_frame,
+    FlowFrame, FlowId, FlowProxyTarget, FrameType, OpenFlowRequest, SequenceTracker, read_frame,
+    write_frame,
 };
+use nonproxy_model::OutboundId;
 use nonproxy_outbound::OutboundConnector;
 use tokio::time::timeout;
 
@@ -63,6 +65,7 @@ impl FlowConnectionHandler {
                     prepared.initial_window_bytes,
                     prepared.connector,
                     &prepared.endpoint,
+                    prepared.selected_outbound.as_ref(),
                 )
                 .await;
             }
@@ -73,6 +76,7 @@ impl FlowConnectionHandler {
                     prepared.sequence,
                     prepared.initial_window_bytes,
                     prepared.connector,
+                    prepared.selected_outbound.as_ref(),
                 )
                 .await;
             }
@@ -91,10 +95,24 @@ impl FlowConnectionHandler {
         if !self.session.matches_token(open.capability()) {
             return Err(FlowServiceError::Authentication);
         }
+        let (outbound_id, selected_outbound) = match open.proxy_target() {
+            FlowProxyTarget::Outbound(id) => (id.clone(), None),
+            FlowProxyTarget::Group {
+                id,
+                snapshot_version,
+            } => {
+                let selected = self
+                    .gateway
+                    .select_outbound_group(*snapshot_version, id)
+                    .await?;
+                let id = selected.outbound_id().clone();
+                (id.clone(), Some(id))
+            }
+        };
         let connector = load_connector(
             &self.gateway,
             Arc::clone(&self.credential_store),
-            open.outbound_id(),
+            &outbound_id,
         )
         .await?;
         if frame_type == FrameType::OpenUdp && !connector.supports_udp() {
@@ -106,6 +124,7 @@ impl FlowConnectionHandler {
             endpoint: open.endpoint().clone(),
             initial_window_bytes: open.initial_window_bytes(),
             connector,
+            selected_outbound,
         })
     }
 }
@@ -116,6 +135,7 @@ struct PreparedFlow {
     endpoint: nonproxy_flow_protocol::FlowEndpoint,
     initial_window_bytes: u32,
     connector: OutboundConnector,
+    selected_outbound: Option<OutboundId>,
 }
 
 async fn read_open_frame(stream: &mut BoxedFlowTransport) -> Result<FlowFrame, FlowServiceError> {

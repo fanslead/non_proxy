@@ -4,8 +4,8 @@ use std::{
     num::NonZeroU32,
 };
 
-use nonproxy_dns::{DnsName, DnsRoute, ParsedDnsQuery};
-use nonproxy_model::{NetworkProfileId, OutboundId};
+use nonproxy_dns::{DnsName, ParsedDnsQuery};
+use nonproxy_model::{NetworkProfileId, OutboundGroupId, OutboundId};
 use nonproxy_proto::provider::v1::{DnsRouteKind, ResolveDnsRequest};
 
 use super::DnsServiceError;
@@ -16,11 +16,19 @@ const MAXIMUM_UPSTREAMS: usize = 8;
 pub struct ValidatedDnsRequest {
     query: ParsedDnsQuery,
     wire_query: Vec<u8>,
-    route: DnsRoute,
+    route: RequestedDnsRoute,
     network_profile: Option<NetworkProfileId>,
     upstreams: Vec<SocketAddr>,
     snapshot_version: u64,
     direct_interface_index: Option<NonZeroU32>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum RequestedDnsRoute {
+    Direct,
+    System,
+    Outbound(OutboundId),
+    Group(OutboundGroupId),
 }
 
 impl ValidatedDnsRequest {
@@ -61,7 +69,7 @@ impl ValidatedDnsRequest {
     }
 
     #[must_use]
-    pub const fn route(&self) -> &DnsRoute {
+    pub const fn route(&self) -> &RequestedDnsRoute {
         &self.route
     }
 
@@ -126,36 +134,55 @@ fn validate_question(
     Ok(())
 }
 
-fn parse_route(request: &ResolveDnsRequest) -> Result<DnsRoute, DnsServiceError> {
+fn parse_route(request: &ResolveDnsRequest) -> Result<RequestedDnsRoute, DnsServiceError> {
     let route = DnsRouteKind::try_from(request.requested_route)
         .map_err(|_| DnsServiceError::InvalidRequest("DNS route 无效"))?;
-    match route {
-        DnsRouteKind::Direct if request.requested_outbound_id.is_empty() => Ok(DnsRoute::Direct),
-        DnsRouteKind::System if request.requested_outbound_id.is_empty() => Ok(DnsRoute::System),
-        DnsRouteKind::Proxy if !request.requested_outbound_id.is_empty() => {
+    let has_outbound = !request.requested_outbound_id.is_empty();
+    let has_group = !request.requested_outbound_group_id.is_empty();
+    match (route, has_outbound, has_group) {
+        (DnsRouteKind::Direct, false, false) => Ok(RequestedDnsRoute::Direct),
+        (DnsRouteKind::System, false, false) => Ok(RequestedDnsRoute::System),
+        (DnsRouteKind::Proxy, true, false) => {
             let outbound = OutboundId::new(request.requested_outbound_id.clone())
                 .map_err(|_| DnsServiceError::InvalidRequest("DNS outbound_id 无效"))?;
-            Ok(DnsRoute::Proxy(outbound))
+            Ok(RequestedDnsRoute::Outbound(outbound))
         }
-        DnsRouteKind::Unspecified => Err(DnsServiceError::InvalidRequest("DNS route 未指定")),
+        (DnsRouteKind::Proxy, false, true) => {
+            let group = OutboundGroupId::new(request.requested_outbound_group_id.clone())
+                .map_err(|_| DnsServiceError::InvalidRequest("DNS outbound_group_id 无效"))?;
+            Ok(RequestedDnsRoute::Group(group))
+        }
+        (DnsRouteKind::Unspecified, _, _) => {
+            Err(DnsServiceError::InvalidRequest("DNS route 未指定"))
+        }
         _ => Err(DnsServiceError::InvalidRequest(
-            "DNS route 与 outbound_id 不一致",
+            "DNS route 与代理目标不一致",
         )),
     }
 }
 
 fn parse_direct_interface(
     request: &ResolveDnsRequest,
-    route: &DnsRoute,
+    route: &RequestedDnsRoute,
 ) -> Result<Option<NonZeroU32>, DnsServiceError> {
     let interface = NonZeroU32::new(request.direct_interface_index);
     match (route, interface) {
-        (DnsRoute::Direct, Some(value)) => Ok(Some(value)),
-        (DnsRoute::Direct, None) => Err(DnsServiceError::InvalidRequest(
+        (RequestedDnsRoute::Direct, Some(value)) => Ok(Some(value)),
+        (RequestedDnsRoute::Direct, None) => Err(DnsServiceError::InvalidRequest(
             "DIRECT DNS 必须指定物理网卡",
         )),
-        (DnsRoute::Proxy(_) | DnsRoute::System, None) => Ok(None),
-        (DnsRoute::Proxy(_) | DnsRoute::System, Some(_)) => Err(DnsServiceError::InvalidRequest(
+        (
+            RequestedDnsRoute::Outbound(_)
+            | RequestedDnsRoute::Group(_)
+            | RequestedDnsRoute::System,
+            None,
+        ) => Ok(None),
+        (
+            RequestedDnsRoute::Outbound(_)
+            | RequestedDnsRoute::Group(_)
+            | RequestedDnsRoute::System,
+            Some(_),
+        ) => Err(DnsServiceError::InvalidRequest(
             "非 DIRECT DNS 不得指定物理网卡",
         )),
     }

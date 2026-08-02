@@ -19,7 +19,7 @@ use crate::{
 };
 
 pub use error::DnsServiceError;
-use request::ValidatedDnsRequest;
+use request::{RequestedDnsRoute, ValidatedDnsRequest};
 
 const DNS_REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -63,10 +63,22 @@ impl DnsResolutionService {
         request: ResolveDnsRequest,
     ) -> Result<DnsResolutionResult, DnsServiceError> {
         let request = ValidatedDnsRequest::parse(request)?;
+        let route = match request.route() {
+            RequestedDnsRoute::Direct => DnsRoute::Direct,
+            RequestedDnsRoute::System => DnsRoute::System,
+            RequestedDnsRoute::Outbound(id) => DnsRoute::Proxy(id.clone()),
+            RequestedDnsRoute::Group(id) => DnsRoute::Proxy(
+                self.gateway
+                    .select_outbound_group(request.snapshot_version(), id)
+                    .await?
+                    .outbound_id()
+                    .clone(),
+            ),
+        };
         self.resolve_wire(WireDnsRequest {
             query: request.query(),
             wire_query: request.wire_query(),
-            route: request.route().clone(),
+            route,
             upstreams: request.upstreams(),
             snapshot_version: request.snapshot_version(),
             direct_interface_index: request.direct_interface_index(),
@@ -196,5 +208,7 @@ pub(crate) fn error_response(error: &DnsServiceError) -> ResolveDnsResponse {
     }
 }
 
+#[cfg(test)]
+mod group_tests;
 #[cfg(test)]
 mod tests;

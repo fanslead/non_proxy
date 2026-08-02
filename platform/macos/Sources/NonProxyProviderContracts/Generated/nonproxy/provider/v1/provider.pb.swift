@@ -647,6 +647,12 @@ public nonisolated struct Nonproxy_Provider_V1_ResolveDnsRequest: @unchecked Sen
     set {_uniqueStorage()._directInterfaceIndex = newValue}
   }
 
+  /// requested_outbound_group_id 与 requested_outbound_id 互斥；网关按活动快照选择具体成员。
+  public var requestedOutboundGroupID: String {
+    get {_storage._requestedOutboundGroupID}
+    set {_uniqueStorage()._requestedOutboundGroupID = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1651,7 +1657,7 @@ nonisolated extension Nonproxy_Provider_V1_ReportHealthResponse: SwiftProtobuf.M
 
 nonisolated extension Nonproxy_Provider_V1_ResolveDnsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ResolveDnsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}query_id\0\u{1}app\0\u{1}qname\0\u{1}qtype\0\u{3}network_profile_id\0\u{3}dns_message\0\u{3}requested_route\0\u{3}requested_outbound_id\0\u{1}upstreams\0\u{3}snapshot_version\0\u{3}direct_interface_index\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}query_id\0\u{1}app\0\u{1}qname\0\u{1}qtype\0\u{3}network_profile_id\0\u{3}dns_message\0\u{3}requested_route\0\u{3}requested_outbound_id\0\u{1}upstreams\0\u{3}snapshot_version\0\u{3}direct_interface_index\0\u{3}requested_outbound_group_id\0")
 
   fileprivate class _StorageClass {
     var _context: Nonproxy_Provider_V1_ProviderRequestContext? = nil
@@ -1666,6 +1672,7 @@ nonisolated extension Nonproxy_Provider_V1_ResolveDnsRequest: SwiftProtobuf.Mess
     var _upstreams: [Nonproxy_Provider_V1_DnsUpstreamEndpoint] = []
     var _snapshotVersion: UInt64 = 0
     var _directInterfaceIndex: UInt32 = 0
+    var _requestedOutboundGroupID: String = String()
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1688,6 +1695,7 @@ nonisolated extension Nonproxy_Provider_V1_ResolveDnsRequest: SwiftProtobuf.Mess
       _upstreams = source._upstreams
       _snapshotVersion = source._snapshotVersion
       _directInterfaceIndex = source._directInterfaceIndex
+      _requestedOutboundGroupID = source._requestedOutboundGroupID
     }
   }
 
@@ -1718,6 +1726,7 @@ nonisolated extension Nonproxy_Provider_V1_ResolveDnsRequest: SwiftProtobuf.Mess
         case 10: try { try decoder.decodeRepeatedMessageField(value: &_storage._upstreams) }()
         case 11: try { try decoder.decodeSingularUInt64Field(value: &_storage._snapshotVersion) }()
         case 12: try { try decoder.decodeSingularUInt32Field(value: &_storage._directInterfaceIndex) }()
+        case 13: try { try decoder.decodeSingularStringField(value: &_storage._requestedOutboundGroupID) }()
         default: break
         }
       }
@@ -1766,6 +1775,9 @@ nonisolated extension Nonproxy_Provider_V1_ResolveDnsRequest: SwiftProtobuf.Mess
       if _storage._directInterfaceIndex != 0 {
         try visitor.visitSingularUInt32Field(value: _storage._directInterfaceIndex, fieldNumber: 12)
       }
+      if !_storage._requestedOutboundGroupID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._requestedOutboundGroupID, fieldNumber: 13)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1787,6 +1799,7 @@ nonisolated extension Nonproxy_Provider_V1_ResolveDnsRequest: SwiftProtobuf.Mess
         if _storage._upstreams != rhs_storage._upstreams {return false}
         if _storage._snapshotVersion != rhs_storage._snapshotVersion {return false}
         if _storage._directInterfaceIndex != rhs_storage._directInterfaceIndex {return false}
+        if _storage._requestedOutboundGroupID != rhs_storage._requestedOutboundGroupID {return false}
         return true
       }
       if !storagesAreEqual {return false}

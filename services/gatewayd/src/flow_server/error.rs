@@ -16,6 +16,12 @@ pub enum FlowServiceError {
     SystemSnapshotPending,
     #[error("代理出口不存在")]
     OutboundNotFound,
+    #[error("Provider 策略快照不是当前已激活版本")]
+    PolicySnapshotUnavailable,
+    #[error("策略快照中的代理出口组不存在")]
+    OutboundGroupNotFound,
+    #[error("代理出口组没有已确认健康的成员")]
+    OutboundGroupUnavailable,
     #[error("代理出口未启用")]
     OutboundDisabled,
     #[error("代理出口类型暂不支持")]
@@ -51,6 +57,9 @@ impl FlowServiceError {
             Self::Authentication => "NP_FLOW_AUTHENTICATION_FAILED",
             Self::SystemSnapshotPending => "NP_FLOW_SYSTEM_SNAPSHOT_PENDING",
             Self::OutboundNotFound => "NP_FLOW_OUTBOUND_NOT_FOUND",
+            Self::PolicySnapshotUnavailable => "NP_FLOW_POLICY_SNAPSHOT_UNAVAILABLE",
+            Self::OutboundGroupNotFound => "NP_FLOW_OUTBOUND_GROUP_NOT_FOUND",
+            Self::OutboundGroupUnavailable => "NP_FLOW_OUTBOUND_GROUP_UNAVAILABLE",
             Self::OutboundDisabled => "NP_FLOW_OUTBOUND_DISABLED",
             Self::OutboundUnsupported => "NP_FLOW_OUTBOUND_UNSUPPORTED",
             Self::OutboundInvalid => "NP_FLOW_OUTBOUND_INVALID",

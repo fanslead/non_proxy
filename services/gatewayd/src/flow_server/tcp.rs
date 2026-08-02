@@ -3,13 +3,16 @@ use std::{sync::Arc, time::Duration};
 use nonproxy_flow_protocol::{
     FlowId, FlowProtocolError, FrameType, SequenceTracker, WindowUpdate, read_frame,
 };
+use nonproxy_model::OutboundId;
 use nonproxy_outbound::{BoxedProxyStream, OutboundConnector};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
     time::timeout,
 };
 
-use super::{BoxedFlowTransport, FlowFrameSender, FlowServiceError, FlowWindow};
+use super::{
+    BoxedFlowTransport, FlowFrameSender, FlowServiceError, FlowWindow, send_initial_ready,
+};
 
 const SERVER_RECEIVE_WINDOW_BYTES: u32 = 256 * 1024;
 const MAXIMUM_READ_BYTES: usize = 64 * 1024;
@@ -22,19 +25,13 @@ pub async fn relay_tcp(
     client_window_bytes: u32,
     connector: OutboundConnector,
     target: &nonproxy_flow_protocol::FlowEndpoint,
+    selected_outbound: Option<&OutboundId>,
 ) -> Result<(), FlowServiceError> {
     let proxy = connector.connect_tcp(target).await?;
     let (reader, writer) = tokio::io::split(stream);
     let (proxy_reader, proxy_writer) = tokio::io::split(proxy);
     let (sender, writer_task) = FlowFrameSender::start(writer, flow_id);
-    sender
-        .send(
-            FrameType::WindowUpdate,
-            WindowUpdate::new(SERVER_RECEIVE_WINDOW_BYTES)?
-                .encode()
-                .to_vec(),
-        )
-        .await?;
+    send_initial_ready(&sender, selected_outbound, SERVER_RECEIVE_WINDOW_BYTES).await?;
     let client_window = Arc::new(FlowWindow::new(client_window_bytes)?);
     let relay_result = run_pumps(
         reader,

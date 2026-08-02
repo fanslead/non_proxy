@@ -1,5 +1,6 @@
 mod connection;
 mod error;
+mod initial_ready;
 pub(crate) mod outbound_factory;
 mod tcp;
 mod udp;
@@ -10,6 +11,7 @@ use std::sync::Arc;
 
 pub use connection::FlowConnectionHandler;
 pub use error::FlowServiceError;
+use initial_ready::send_initial_ready;
 use outbound_factory::load_connector;
 use tcp::relay_tcp;
 use tokio::{
@@ -94,6 +96,8 @@ impl FlowServer {
     }
 }
 
+#[cfg(all(test, unix))]
+mod group_tests;
 #[cfg(all(test, unix))]
 mod tests;
 #[cfg(all(test, unix))]

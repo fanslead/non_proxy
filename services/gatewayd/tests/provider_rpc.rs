@@ -269,6 +269,7 @@ async fn two_authenticated_providers_activate_the_pending_snapshot() {
             dns_message: query,
             requested_route: DnsRouteKind::Direct as i32,
             requested_outbound_id: String::new(),
+            requested_outbound_group_id: String::new(),
             upstreams: vec![DnsUpstreamEndpoint {
                 ip_address: resolver_endpoint.ip().to_string(),
                 port: u32::from(resolver_endpoint.port()),

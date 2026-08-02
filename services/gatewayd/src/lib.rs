@@ -9,6 +9,7 @@ mod credential_store;
 mod database_executor;
 #[cfg(any(test, windows))]
 mod decision_event;
+mod decision_evidence;
 mod decision_ingest;
 mod decision_rpc;
 mod decision_snapshot_cache;
@@ -44,6 +45,7 @@ mod outbound_capabilities;
 mod outbound_catalog_gateway;
 mod outbound_group_gateway;
 mod outbound_group_rpc;
+mod outbound_group_selector;
 mod outbound_health;
 mod outbound_import;
 mod outbound_import_service;

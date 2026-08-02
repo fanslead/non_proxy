@@ -4,6 +4,7 @@ mod endpoint;
 mod error;
 mod frame;
 mod open_flow;
+mod ready;
 mod sequence;
 mod window;
 
@@ -15,6 +16,7 @@ pub use frame::{
     FRAME_HEADER_BYTES, FRAME_MAGIC, FRAME_VERSION, FlowFrame, FlowId, FrameType,
     MAX_FRAME_PAYLOAD_BYTES,
 };
-pub use open_flow::{CAPABILITY_TOKEN_BYTES, OpenFlowRequest};
+pub use open_flow::{CAPABILITY_TOKEN_BYTES, FlowProxyTarget, OpenFlowRequest};
+pub use ready::FlowReady;
 pub use sequence::SequenceTracker;
 pub use window::WindowUpdate;

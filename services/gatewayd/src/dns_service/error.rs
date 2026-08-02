@@ -40,6 +40,9 @@ impl DnsServiceError {
             Self::Proxy(FlowServiceError::SystemSnapshotPending) => {
                 "NP_DNS_SYSTEM_SNAPSHOT_PENDING"
             }
+            Self::Proxy(FlowServiceError::PolicySnapshotUnavailable) => {
+                "NP_DNS_SNAPSHOT_UNAVAILABLE"
+            }
             Self::Proxy(_) => "NP_DNS_PROXY_UNAVAILABLE",
             Self::Gateway(_) => "NP_DNS_GATEWAY_UNAVAILABLE",
         }

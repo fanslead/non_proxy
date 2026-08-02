@@ -24,6 +24,8 @@ pub enum FlowProtocolError {
     InvalidEndpoint(#[from] nonproxy_model::ModelError),
     #[error("数据面出口标识无效: {0}")]
     InvalidOutbound(#[source] nonproxy_model::ModelError),
+    #[error("数据面出口组标识无效: {0}")]
+    InvalidOutboundGroup(#[source] nonproxy_model::ModelError),
     #[error("数据面读写失败: {0}")]
     Io(#[from] std::io::Error),
 }

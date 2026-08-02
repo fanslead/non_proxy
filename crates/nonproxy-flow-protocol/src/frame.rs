@@ -22,6 +22,7 @@ pub enum FrameType {
     Error = 8,
     Ping = 9,
     Pong = 10,
+    Ready = 11,
 }
 
 impl TryFrom<u8> for FrameType {
@@ -39,6 +40,7 @@ impl TryFrom<u8> for FrameType {
             8 => Ok(Self::Error),
             9 => Ok(Self::Ping),
             10 => Ok(Self::Pong),
+            11 => Ok(Self::Ready),
             _ => Err(FlowProtocolError::InvalidFrameType),
         }
     }

@@ -1,8 +1,8 @@
 use std::net::Ipv4Addr;
 
 use nonproxy_model::{
-    AppIdentity, Decision, DecisionSpec, Destination, FailureMode, OutboundId, Platform,
-    RouteAction, Transport,
+    AppIdentity, Decision, DecisionSpec, Destination, FailureMode, OutboundGroupId, OutboundId,
+    Platform, ProxyTarget, RouteAction, Transport,
 };
 use nonproxy_storage::{
     ConnectionDecisionInput, DecisionEvidence, EvidenceLevel, PolicyDatabase, StorageError,
@@ -162,6 +162,43 @@ fn evidence_cannot_overclaim_the_selected_route() {
         )
         .is_err()
     );
+}
+
+#[test]
+fn group_decision_can_persist_the_concrete_selected_member() {
+    let group_id = OutboundGroupId::new("automatic")
+        .unwrap_or_else(|error| panic!("出口组证据测试 ID 无效: {error}"));
+    let decision = DecisionSpec::new_with_target(
+        RouteAction::Proxy,
+        Some(ProxyTarget::Group(group_id)),
+        FailureMode::Closed,
+    )
+    .unwrap_or_else(|error| panic!("出口组证据测试决策无效: {error}"));
+    let evidence = DecisionEvidence::new(
+        EvidenceLevel::Path,
+        None,
+        Some(
+            OutboundId::new("backup")
+                .unwrap_or_else(|error| panic!("出口组证据测试成员 ID 无效: {error}")),
+        ),
+        None,
+        false,
+    )
+    .unwrap_or_else(|error| panic!("出口组证据测试路径无效: {error}"));
+    let input = ConnectionDecisionInput::new(
+        "transparent-proxy",
+        1,
+        "group-flow",
+        1_000,
+        app().unwrap_or_else(|error| panic!("出口组证据测试应用无效: {error}")),
+        destination(None).unwrap_or_else(|error| panic!("出口组证据测试目标无效: {error}")),
+        Decision::defaulted(decision, 1, "NP_POLICY_DEFAULT"),
+        evidence,
+        Some(100),
+        None,
+    );
+
+    assert!(input.is_ok());
 }
 
 #[test]

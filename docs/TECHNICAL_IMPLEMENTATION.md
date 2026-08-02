@@ -699,8 +699,9 @@ payload      N bytes
 - `ERROR`
 - `PING`
 - `PONG`
+- `READY`
 
-`NPF1` 首版固定使用 36 字节大端序帧头，单帧 payload 上限 256 KiB，`flow_id` 不得全零，收发两个方向的 `sequence` 均从 0 开始严格递增。`OPEN_TCP`/`OPEN_UDP` payload 依次携带 32 字节 Provider capability、长度前缀的 outbound ID、SOCKS 地址格式的目标 endpoint 和 32 位初始接收窗口；该 payload 在解析后归零。`DATAGRAM` 每帧携带独立目标 endpoint，单个 UDP 内容上限 65,000 字节且不支持 SOCKS5 分片。`WINDOW_UPDATE` 只包含 32 位正整数增量。
+`NPF1` 首版固定使用 36 字节大端序帧头，单帧 payload 上限 256 KiB，`flow_id` 不得全零，收发两个方向的 `sequence` 均从 0 开始严格递增。旧版单出口 `OPEN_TCP`/`OPEN_UDP` payload 继续依次携带 32 字节 Provider capability、非零长度前缀的 outbound ID、SOCKS 地址格式的目标 endpoint 和 32 位初始接收窗口，字节格式不变。出口组使用旧格式不可能出现的零长度作为扩展标记，随后携带目标类型 `2`、长度前缀的 group ID、活动 `snapshot_version`、目标 endpoint 和初始窗口；网关必须按该活动快照选择成员，不能读取未发布的组草稿。OPEN payload 在解析后归零。`DATAGRAM` 每帧携带独立目标 endpoint，单个 UDP 内容上限 65,000 字节且不支持 SOCKS5 分片。`WINDOW_UPDATE` 只包含 32 位正整数增量；旧版单出口握手仍以首个 `WINDOW_UPDATE` 确认，出口组握手改用 `READY` 返回实际 outbound ID 和同一初始窗口，使 Provider 能上报真实路径且不破坏旧客户端。
 
 首版每条 UDS 连接只承载一个 flow，但帧始终携带 `flow_id`，为后续经过独立压测的多路复用保留兼容空间。`gatewayd` 默认在状态目录创建权限为 `0600` 的 `gatewayd-flow.sock`，可通过 `NONPROXY_FLOW_SOCKET_PATH` 覆盖；覆盖路径仍必须与控制 Socket 同处私有状态目录且不能重名。服务端只在验证首个 OPEN 帧、Provider capability、严格序列、出口启用状态和连接上限后建立真实代理连接。
 
@@ -1383,9 +1384,12 @@ V0015 在 `policy` 中加入与 `outbound_id` 互斥的 `outbound_group_id` 外�
 `NP_GROUPS_V1` 域分隔符与完整组目录；空目录不追加扩展，因此不改变旧的单出口 golden
 hash。Rust 编译器与 macOS Provider 使用同一 golden vector 校验该编码。
 
-持久化完成并不等于运行态故障切换已经可用。完整激活还必须把组作为显式策略目标固化进
-快照，以固定公共目标的后台探测维护带迟滞的健康状态，只为新 flow 选择第一个新鲜健康成员，
-并在选中成员真正变化时写一次不含用户目标的审计事件。完整边界与冷启动行为见
+运行态已经按活动快照解析显式组目标，只为新 TCP/UDP flow 与 DNS 查询选择第一个新鲜且
+连续两次成功的成员；连续两次失败后才切走，超过 60 秒的观察视为未知。NPF1 组 OPEN 携带
+快照版本并以 `READY` 返回具体成员，DNS 请求使用与 `requested_outbound_id` 互斥的
+`requested_outbound_group_id`，响应仍返回具体 outbound ID；决策接收端会拒绝不属于快照组
+目录的路径证据。尚未完成的激活边界是固定公共目标的自动后台调度、选中成员真正变化时只写
+一次且不含用户目标的审计事件，以及对应桌面状态。完整边界与冷启动行为见
 [ADR-0043](ADR/0043-own-ordered-outbound-failover-groups.md)。
 
 ### 15.2 标准代理导入

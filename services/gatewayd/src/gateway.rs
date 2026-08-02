@@ -43,7 +43,7 @@ pub struct Gateway {
     pub(crate) system_policy_config: SystemPolicyConfig,
     pub(crate) mutation_gate: Arc<Mutex<()>>,
     events: EventHub,
-    outbound_health: OutboundHealthRegistry,
+    pub(crate) outbound_health: OutboundHealthRegistry,
     provider_health: ProviderHealthRegistry,
     runtime_events: RuntimeEventPublisher,
     pub(crate) decision_snapshots: DecisionSnapshotCache,

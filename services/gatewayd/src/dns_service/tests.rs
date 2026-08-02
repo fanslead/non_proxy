@@ -61,6 +61,7 @@ fn request(query: Vec<u8>, upstream: SocketAddr, route: DnsRouteKind) -> Resolve
         dns_message: query,
         requested_route: route as i32,
         requested_outbound_id: String::new(),
+        requested_outbound_group_id: String::new(),
         upstreams: vec![DnsUpstreamEndpoint {
             ip_address: upstream.ip().to_string(),
             port: u32::from(upstream.port()),

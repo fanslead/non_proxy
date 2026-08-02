@@ -1,4 +1,9 @@
-use nonproxy_policy_compiler::CompileCapabilities;
+use nonproxy_model::{
+    Decision as ModelDecision, DecisionSpec as ModelDecisionSpec, FailureMode as ModelFailureMode,
+    OutboundGroupId, OutboundGroupSpec, OutboundId, ProxyTarget, RouteAction as ModelRouteAction,
+};
+use nonproxy_policy::OutboundCapabilities;
+use nonproxy_policy_compiler::{CompileCapabilities, CompileRequest, PolicyCompiler};
 use nonproxy_proto::{
     common::v1::{
         AppIdentity, Destination, EvidenceLevel, FailureMode, IpFamily, Platform, RouteAction,
@@ -7,9 +12,41 @@ use nonproxy_proto::{
     policy::v1::{Decision, DecisionSpec},
     provider::v1::{ConnectionContext, DecisionEvidence, DecisionRecord as ProtoDecisionRecord},
 };
-use nonproxy_storage::{EvidenceLevel as StoredEvidenceLevel, PolicyDatabase, StorageError};
+use nonproxy_storage::{
+    DecisionEvidence as StoredDecisionEvidence, EvidenceLevel as StoredEvidenceLevel,
+    PolicyDatabase, StorageError,
+};
 
 use crate::{Gateway, GatewayError};
+
+#[test]
+fn group_path_evidence_must_name_a_member_from_the_decision_snapshot() {
+    let (snapshot, decision) = group_snapshot();
+    let member = StoredDecisionEvidence::new(
+        StoredEvidenceLevel::Path,
+        None,
+        Some(outbound_id("backup")),
+        None,
+        false,
+    )
+    .unwrap_or_else(|error| panic!("出口组成员证据创建失败: {error}"));
+    let stranger = StoredDecisionEvidence::new(
+        StoredEvidenceLevel::Path,
+        None,
+        Some(outbound_id("stranger")),
+        None,
+        false,
+    )
+    .unwrap_or_else(|error| panic!("出口组非成员证据创建失败: {error}"));
+
+    assert!(
+        crate::decision_evidence::validate_group_evidence(&snapshot, &decision, &member).is_ok()
+    );
+    assert!(matches!(
+        crate::decision_evidence::validate_group_evidence(&snapshot, &decision, &stranger),
+        Err(GatewayError::InvalidRequest(_))
+    ));
+}
 
 #[tokio::test]
 async fn authoritative_recomputation_accepts_idempotent_decision_evidence() {
@@ -198,4 +235,40 @@ fn direct_record(flow_id: &str, observed_at_unix_ms: u64) -> ProtoDecisionRecord
         }),
         error: None,
     }
+}
+
+fn group_snapshot() -> (nonproxy_policy::CompiledPolicySnapshot, ModelDecision) {
+    let group_id = OutboundGroupId::new("automatic")
+        .unwrap_or_else(|error| panic!("出口组证据快照 ID 无效: {error}"));
+    let members = vec![outbound_id("primary"), outbound_id("backup")];
+    let capabilities = CompileCapabilities::full()
+        .with_outbound(members[0].clone(), OutboundCapabilities::full())
+        .with_outbound(members[1].clone(), OutboundCapabilities::full())
+        .with_outbound_group(
+            OutboundGroupSpec::new(group_id.clone(), 1, members)
+                .unwrap_or_else(|error| panic!("出口组证据快照组无效: {error}")),
+        )
+        .unwrap_or_else(|error| panic!("出口组证据快照能力无效: {error}"));
+    let result = ModelDecisionSpec::new_with_target(
+        ModelRouteAction::Proxy,
+        Some(ProxyTarget::Group(group_id)),
+        ModelFailureMode::Closed,
+    )
+    .unwrap_or_else(|error| panic!("出口组证据快照决策无效: {error}"));
+    let snapshot = PolicyCompiler::compile(CompileRequest::new(
+        1,
+        1_000,
+        result.clone(),
+        Vec::new(),
+        capabilities,
+    ))
+    .unwrap_or_else(|error| panic!("出口组证据快照编译失败: {error}"));
+    (
+        snapshot,
+        ModelDecision::defaulted(result, 1, "NP_POLICY_DEFAULT"),
+    )
+}
+
+fn outbound_id(value: &str) -> OutboundId {
+    OutboundId::new(value).unwrap_or_else(|error| panic!("出口组证据出口 ID 无效: {error}"))
 }

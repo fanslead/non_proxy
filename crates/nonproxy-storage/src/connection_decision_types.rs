@@ -367,7 +367,9 @@ fn validate_evidence_for_decision(
         }
         (RouteAction::Proxy, EvidenceLevel::Path | EvidenceLevel::Exit)
             if evidence.interface_name().is_none()
-                && evidence.outbound_id() == decision.result().outbound_id() =>
+                && evidence.outbound_id().is_some()
+                && (evidence.outbound_id() == decision.result().outbound_id()
+                    || decision.result().outbound_group_id().is_some()) =>
         {
             Ok(())
         }

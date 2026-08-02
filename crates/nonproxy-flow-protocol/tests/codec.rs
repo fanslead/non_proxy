@@ -1,10 +1,10 @@
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 
 use nonproxy_flow_protocol::{
-    FRAME_HEADER_BYTES, FlowEndpoint, FlowFrame, FlowId, FrameType, OpenFlowRequest,
-    SequenceTracker, WindowUpdate, read_frame, write_frame,
+    FRAME_HEADER_BYTES, FlowEndpoint, FlowFrame, FlowId, FlowProxyTarget, FlowReady, FrameType,
+    OpenFlowRequest, SequenceTracker, WindowUpdate, read_frame, write_frame,
 };
-use nonproxy_model::OutboundId;
+use nonproxy_model::{OutboundGroupId, OutboundId};
 
 #[tokio::test]
 async fn frame_round_trip_preserves_header_and_sensitive_open_payload() {
@@ -57,11 +57,76 @@ fn open_request_round_trip_normalizes_domain_and_redacts_capability() {
         panic!("测试 OPEN 请求解码失败: {decoded:?}");
     };
 
-    assert_eq!(decoded.outbound_id().as_str(), "primary");
+    assert!(matches!(
+        decoded.proxy_target(),
+        FlowProxyTarget::Outbound(value) if value.as_str() == "primary"
+    ));
     assert_eq!(decoded.endpoint().host(), "proxy.example.com");
     assert_eq!(decoded.endpoint().port(), 443);
     assert_eq!(decoded.initial_window_bytes(), 65_536);
     assert!(!format!("{decoded:?}").contains("abab"));
+}
+
+#[test]
+fn group_open_and_ready_match_the_extended_wire_contract() {
+    let group = OutboundGroupId::new("automatic")
+        .unwrap_or_else(|error| panic!("跨语言测试出口组 ID 创建失败: {error}"));
+    let endpoint = FlowEndpoint::new("proxy.example.com", 443)
+        .unwrap_or_else(|error| panic!("跨语言测试 endpoint 创建失败: {error}"));
+    let request = OpenFlowRequest::new_with_target(
+        [0xCD; 32],
+        FlowProxyTarget::Group {
+            id: group,
+            snapshot_version: 42,
+        },
+        endpoint,
+        65_536,
+    )
+    .unwrap_or_else(|error| panic!("跨语言测试组 OPEN 创建失败: {error}"));
+    let encoded = request
+        .encode()
+        .unwrap_or_else(|error| panic!("跨语言测试组 OPEN 编码失败: {error}"));
+    let decoded = OpenFlowRequest::decode(&encoded)
+        .unwrap_or_else(|error| panic!("跨语言测试组 OPEN 解码失败: {error}"));
+
+    assert!(matches!(
+        decoded.proxy_target(),
+        FlowProxyTarget::Group { id, snapshot_version }
+            if id.as_str() == "automatic" && *snapshot_version == 42
+    ));
+    assert_eq!(
+        &encoded[32..46],
+        &[
+            0, 2, 9, b'a', b'u', b't', b'o', b'm', b'a', b't', b'i', b'c', 0, 0
+        ]
+    );
+
+    let ready = FlowReady::new(
+        OutboundId::new("backup").unwrap_or_else(|error| panic!("READY 出口 ID 创建失败: {error}")),
+        65_536,
+    )
+    .unwrap_or_else(|error| panic!("READY 创建失败: {error}"));
+    let ready_bytes = ready
+        .encode()
+        .unwrap_or_else(|error| panic!("READY 编码失败: {error}"));
+    assert_eq!(
+        ready_bytes,
+        [6, b'b', b'a', b'c', b'k', b'u', b'p', 0, 1, 0, 0]
+    );
+    assert_eq!(FlowReady::decode(&ready_bytes).ok(), Some(ready));
+}
+
+#[test]
+fn extended_group_open_rejects_zero_snapshot_and_unknown_target_kind() {
+    let mut zero_version = vec![7_u8; 32];
+    zero_version.extend_from_slice(&[0, 2, 5]);
+    zero_version.extend_from_slice(b"group");
+    zero_version.extend_from_slice(&[0; 8]);
+    zero_version.extend_from_slice(&[3, 1, b'x', 0, 53, 0, 1, 0, 0]);
+    assert!(OpenFlowRequest::decode(&zero_version).is_err());
+
+    zero_version[33] = 9;
+    assert!(OpenFlowRequest::decode(&zero_version).is_err());
 }
 
 #[test]

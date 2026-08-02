@@ -86,7 +86,7 @@ impl Gateway {
             .map_err(|_| GatewayError::InvalidContract("决策接收数量超出协议范围"))
     }
 
-    async fn load_decision_snapshots(
+    pub(crate) async fn load_decision_snapshots(
         &self,
         versions: Vec<u64>,
     ) -> Result<BTreeMap<u64, Arc<CompiledPolicySnapshot>>, GatewayError> {
@@ -274,6 +274,7 @@ fn input_from_proto(
             .evidence
             .ok_or(GatewayError::InvalidRequest("决策记录缺少证据等级"))?,
     )?;
+    crate::decision_evidence::validate_group_evidence(snapshot, &expected, &evidence)?;
     let latency = record
         .decision_latency
         .as_ref()
