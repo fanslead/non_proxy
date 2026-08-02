@@ -62,8 +62,14 @@ function Assert-NonProxyDevelopmentCatalogMember {
     if ($verificationExitCode -eq 0) {
         return
     }
-    $untrustedRootPattern =
-        "0x800B0109|root certificate which is not trusted|CERT_E_UNTRUSTEDROOT"
+    $untrustedRootPattern = @(
+        "0x800B0109",
+        "CERT_E_UNTRUSTEDROOT",
+        "root certificate which is not trusted",
+        "0x800B010A",
+        "CERT_E_CHAINING",
+        "certificate chain could not be built to a trusted root authority"
+    ) -join "|"
     if ($verificationExitCode -ne 1 -or
         $verificationOutput -notmatch $untrustedRootPattern) {
         throw (
