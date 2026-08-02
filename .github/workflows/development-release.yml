@@ -53,12 +53,21 @@ jobs:
         env:
           NONPROXY_RELEASE_VERSION: ${{ inputs.version }}
         run: |
-          ./scripts/windows/new-development-signing-certificate.ps1 `
+          $signing = ./scripts/windows/new-development-signing-certificate.ps1 `
             -Version $env:NONPROXY_RELEASE_VERSION `
             -Architecture '${{ matrix.architecture }}' `
             -OutputDirectory (
               ".artifacts/windows-development-certificate/" +
               "$env:NONPROXY_RELEASE_VERSION/${{ matrix.architecture }}")
+          $probe = Join-Path $env:RUNNER_TEMP "nonproxy-signing-probe.ps1"
+          Set-Content -LiteralPath $probe -Encoding UTF8 -Value "`$true"
+          $signature = Set-AuthenticodeSignature `
+            -LiteralPath $probe `
+            -Certificate $signing.Certificate `
+            -HashAlgorithm SHA256
+          if ($signature.Status -ne "Valid") {
+            throw "临时开发证书 Authenticode 校验失败：$($signature.Status)"
+          }
 
       - name: 构建并生成开发签名包
         id: package

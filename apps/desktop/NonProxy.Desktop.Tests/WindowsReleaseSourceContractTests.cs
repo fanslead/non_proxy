@@ -38,6 +38,8 @@ public sealed class WindowsReleaseSourceContractTests
             ("developmentSign", "-AllowCrossArchitectureBuildVerification"),
             ("developmentCertificate", "StoreName]::TrustedPeople"),
             ("developmentCertificate", "StoreName]::TrustedPublisher"),
+            ("developmentCertificate", "-silent"),
+            ("developmentCertificate", "-addstore"),
             ("install", "Set-NonProxyAdapterHostTask"),
             ("install", "Remove-NonProxyAdapterHostTask"),
             ("install", "Stop-NonProxyAdapterHostProcesses"),
