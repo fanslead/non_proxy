@@ -59,6 +59,10 @@ impl Gateway {
                 .stable_outbound_health(&outbound, now)?
                 .is_some_and(|health| health.state == RuntimeState::Ready)
             {
+                self.outbound_group_selections
+                    .clone()
+                    .record(self, snapshot_version, group, &id)
+                    .await?;
                 return Ok(OutboundGroupSelection { outbound_id: id });
             }
         }
@@ -90,6 +94,10 @@ mod tests {
             selected,
             Ok(value) if value.outbound_id().as_str() == "backup"
         ));
+        assert_eq!(selection_audit_count(&gateway).await, 1);
+
+        assert!(gateway.select_outbound_group(1, &group_id).await.is_ok());
+        assert_eq!(selection_audit_count(&gateway).await, 1);
 
         report(&gateway, "primary", RuntimeState::Ready);
         assert!(matches!(
@@ -101,6 +109,7 @@ mod tests {
             gateway.select_outbound_group(1, &group_id).await,
             Ok(value) if value.outbound_id().as_str() == "primary"
         ));
+        assert_eq!(selection_audit_count(&gateway).await, 2);
 
         gateway
             .save_outbound_group(
@@ -120,6 +129,7 @@ mod tests {
             gateway.select_outbound_group(1, &group_id).await,
             Ok(value) if value.outbound_id().as_str() == "primary"
         ));
+        assert_eq!(selection_audit_count(&gateway).await, 2);
 
         report(&gateway, "primary", RuntimeState::Failed);
         assert!(matches!(
@@ -131,6 +141,7 @@ mod tests {
             gateway.select_outbound_group(1, &group_id).await,
             Ok(value) if value.outbound_id().as_str() == "backup"
         ));
+        assert_eq!(selection_audit_count(&gateway).await, 3);
     }
 
     #[tokio::test]
@@ -146,6 +157,23 @@ mod tests {
             gateway.select_outbound_group(2, &group_id()).await,
             Err(crate::flow_server::FlowServiceError::PolicySnapshotUnavailable)
         ));
+    }
+
+    #[tokio::test]
+    async fn concurrent_flows_persist_only_one_selection_audit() {
+        let gateway = gateway_with_active_group().await;
+        report(&gateway, "primary", RuntimeState::Ready);
+        report(&gateway, "primary", RuntimeState::Ready);
+        let mut tasks = tokio::task::JoinSet::new();
+        for _ in 0..16 {
+            let gateway = gateway.clone();
+            tasks.spawn(async move { gateway.select_outbound_group(1, &group_id()).await });
+        }
+        while let Some(result) = tasks.join_next().await {
+            assert!(matches!(result, Ok(Ok(_))));
+        }
+
+        assert_eq!(selection_audit_count(&gateway).await, 1);
     }
 
     async fn gateway_with_active_group() -> Gateway {
@@ -211,6 +239,14 @@ mod tests {
         gateway
             .report_outbound_health(outbound_id(id), 1, state, Some(10), now)
             .unwrap_or_else(|error| panic!("测试出口健康状态写入失败: {error}"));
+    }
+
+    async fn selection_audit_count(gateway: &Gateway) -> u64 {
+        gateway
+            .database
+            .run(|database| Ok(database.runtime_audit().outbound_group_selection_count()?))
+            .await
+            .unwrap_or_else(|error| panic!("测试出口组选择审计计数失败: {error}"))
     }
 
     fn group_id() -> OutboundGroupId {

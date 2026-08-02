@@ -34,13 +34,16 @@ impl Gateway {
     ) -> Result<(), GatewayError> {
         let _operation = self.mutation_gate.lock().await;
         let now = unix_time_ms()?;
+        let deleted_group_id = group_id.clone();
         self.database
             .run(move |database| {
                 database
                     .outbound_groups()
-                    .delete(&group_id, expected_revision, now)?;
+                    .delete(&deleted_group_id, expected_revision, now)?;
                 Ok(())
             })
-            .await
+            .await?;
+        self.outbound_group_selections.forget(&group_id).await;
+        Ok(())
     }
 }

@@ -11,6 +11,7 @@ use crate::{
     control_rpc_service::ControlRpcService,
     credential_store::{CredentialStore, OsCredentialStore},
     gateway::Gateway,
+    outbound_health_scheduler::OutboundHealthScheduler,
     provider_service::ProviderRpcService,
     session_capability::SessionCapability,
     subscription_scheduler::SubscriptionScheduler,
@@ -72,6 +73,7 @@ async fn run_with_lifecycle(
     #[cfg(any(unix, windows))]
     let background = BackgroundServices {
         gateway: gateway.clone(),
+        health: OutboundHealthScheduler::new(gateway.clone(), Arc::clone(&credential_store)),
         subscriptions: SubscriptionScheduler::new(
             gateway.clone(),
             control.subscription_service.clone(),
@@ -127,7 +129,17 @@ struct WindowsPlatformDependencies {
 #[cfg(any(unix, windows))]
 struct BackgroundServices {
     gateway: Gateway,
+    health: OutboundHealthScheduler,
     subscriptions: SubscriptionScheduler,
+}
+
+#[cfg(any(unix, windows))]
+impl BackgroundServices {
+    async fn serve(self, shutdown: tokio::sync::watch::Receiver<bool>) {
+        let subscriptions = self.subscriptions.serve(shutdown.clone());
+        let health = self.health.serve(shutdown);
+        tokio::join!(subscriptions, health);
+    }
 }
 
 #[cfg(unix)]
@@ -190,38 +202,39 @@ async fn serve_unix_with_shutdown(
         UnixListenerStream::new(flow_listener),
         shutdown_receiver.clone(),
     );
-    let subscription_worker = background.subscriptions.serve(shutdown_receiver.clone());
+    let runtime_gateway = background.gateway.clone();
+    let background_worker = background.serve(shutdown_receiver.clone());
     let control_server = Server::builder()
         .concurrency_limit_per_connection(64)
         .add_service(control_rpc)
         .add_service(provider_rpc)
         .serve_with_incoming_shutdown(
             incoming,
-            monitor_runtime_events_until_shutdown(shutdown_receiver, background.gateway),
+            monitor_runtime_events_until_shutdown(shutdown_receiver, runtime_gateway),
         );
     tokio::pin!(flow_server);
     tokio::pin!(control_server);
-    tokio::pin!(subscription_worker);
+    tokio::pin!(background_worker);
     tokio::pin!(shutdown);
     tokio::select! {
         () = &mut shutdown => {
             let _send_result = shutdown_sender.send(true);
             let (control_result, flow_result, ()) =
-                tokio::join!(&mut control_server, &mut flow_server, &mut subscription_worker);
+                tokio::join!(&mut control_server, &mut flow_server, &mut background_worker);
             combine_server_results(control_result, flow_result)
         }
         control_result = &mut control_server => {
             let _send_result = shutdown_sender.send(true);
-            let (flow_result, ()) = tokio::join!(&mut flow_server, &mut subscription_worker);
+            let (flow_result, ()) = tokio::join!(&mut flow_server, &mut background_worker);
             combine_server_results(control_result, flow_result)
         }
         flow_result = &mut flow_server => {
             let _send_result = shutdown_sender.send(true);
             let (control_result, ()) =
-                tokio::join!(&mut control_server, &mut subscription_worker);
+                tokio::join!(&mut control_server, &mut background_worker);
             combine_server_results(control_result, flow_result)
         }
-        () = &mut subscription_worker => {
+        () = &mut background_worker => {
             let _send_result = shutdown_sender.send(true);
             let (control_result, flow_result) =
                 tokio::join!(&mut control_server, &mut flow_server);
@@ -321,6 +334,7 @@ mod tests {
         credential_store::{CredentialStore, tests_support::MemoryCredentialStore},
         flow_server::FlowConnectionHandler,
         gateway::Gateway,
+        outbound_health_scheduler::OutboundHealthScheduler,
         provider_service::ProviderRpcService,
         session_capability::SessionCapability,
         subscription_scheduler::SubscriptionScheduler,
@@ -361,10 +375,17 @@ mod tests {
             provider_capability.clone(),
             std::sync::Arc::clone(&credential_store),
         );
-        let flow =
-            FlowConnectionHandler::new(gateway.clone(), provider_capability, credential_store);
+        let flow = FlowConnectionHandler::new(
+            gateway.clone(),
+            provider_capability,
+            std::sync::Arc::clone(&credential_store),
+        );
         let background = super::BackgroundServices {
             gateway: gateway.clone(),
+            health: OutboundHealthScheduler::new(
+                gateway.clone(),
+                std::sync::Arc::clone(&credential_store),
+            ),
             subscriptions: SubscriptionScheduler::new(
                 gateway.clone(),
                 control.subscription_service.clone(),

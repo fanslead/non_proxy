@@ -28,6 +28,11 @@ pub(super) async fn serve(
     shutdown: impl Future<Output = ()> + Send + 'static,
     ready: Option<oneshot::Sender<()>>,
 ) -> Result<(), GatewayError> {
+    let WindowsPlatformDependencies {
+        gateway,
+        credential_store,
+        background,
+    } = platform;
     let (shutdown_sender, shutdown_receiver) = watch::channel(false);
     let transport = config.windows_transport();
     let incoming = bind_pipe(
@@ -44,10 +49,10 @@ pub(super) async fn serve(
         shutdown_receiver.clone(),
         "创建 Windows 数据命名管道",
     )?;
-    let runtime_gateway = platform.background.gateway;
+    let runtime_gateway = background.gateway.clone();
     let capture = crate::windows_capture::WindowsCapture::start(
-        platform.gateway,
-        platform.credential_store,
+        gateway,
+        credential_store,
         shutdown_receiver.clone(),
     )
     .await?;
@@ -62,10 +67,7 @@ pub(super) async fn serve(
         .max_decoding_message_size(ControlRpcService::max_message_bytes())
         .max_encoding_message_size(ControlRpcService::max_message_bytes());
     let flow_server = FlowServer::new(flow).serve(flow_incoming, shutdown_receiver.clone());
-    let subscription_worker = platform
-        .background
-        .subscriptions
-        .serve(shutdown_receiver.clone());
+    let background_worker = background.serve(shutdown_receiver.clone());
     let capture_server = capture.serve();
     let control_server = Server::builder()
         .concurrency_limit_per_connection(64)
@@ -78,7 +80,7 @@ pub(super) async fn serve(
     tokio::pin!(flow_server);
     tokio::pin!(control_server);
     tokio::pin!(capture_server);
-    tokio::pin!(subscription_worker);
+    tokio::pin!(background_worker);
     tokio::pin!(shutdown);
     tokio::select! {
         () = &mut shutdown => {
@@ -87,7 +89,7 @@ pub(super) async fn serve(
                 &mut control_server,
                 &mut flow_server,
                 &mut capture_server,
-                &mut subscription_worker,
+                &mut background_worker,
             );
             combine_server_results(control_result, flow_result)?;
             capture_result
@@ -97,7 +99,7 @@ pub(super) async fn serve(
             let (flow_result, capture_result, ()) = tokio::join!(
                 &mut flow_server,
                 &mut capture_server,
-                &mut subscription_worker,
+                &mut background_worker,
             );
             combine_server_results(control_result, flow_result)?;
             capture_result
@@ -107,7 +109,7 @@ pub(super) async fn serve(
             let (control_result, capture_result, ()) = tokio::join!(
                 &mut control_server,
                 &mut capture_server,
-                &mut subscription_worker,
+                &mut background_worker,
             );
             combine_server_results(control_result, flow_result)?;
             capture_result
@@ -117,12 +119,12 @@ pub(super) async fn serve(
             let (control_result, flow_result, ()) = tokio::join!(
                 &mut control_server,
                 &mut flow_server,
-                &mut subscription_worker,
+                &mut background_worker,
             );
             combine_server_results(control_result, flow_result)?;
             capture_result
         }
-        () = &mut subscription_worker => {
+        () = &mut background_worker => {
             let _send_result = shutdown_sender.send(true);
             let (control_result, flow_result, capture_result) =
                 tokio::join!(&mut control_server, &mut flow_server, &mut capture_server);

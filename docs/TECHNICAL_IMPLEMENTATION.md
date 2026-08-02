@@ -1388,8 +1388,13 @@ hash。Rust 编译器与 macOS Provider 使用同一 golden vector 校验该编�
 连续两次成功的成员；连续两次失败后才切走，超过 60 秒的观察视为未知。NPF1 组 OPEN 携带
 快照版本并以 `READY` 返回具体成员，DNS 请求使用与 `requested_outbound_id` 互斥的
 `requested_outbound_group_id`，响应仍返回具体 outbound ID；决策接收端会拒绝不属于快照组
-目录的路径证据。尚未完成的激活边界是固定公共目标的自动后台调度、选中成员真正变化时只写
-一次且不含用户目标的审计事件，以及对应桌面状态。完整边界与冷启动行为见
+目录的路径证据。`gatewayd` 现在会在 Unix 和 Windows 的共用后台生命周期中立即扫描所有
+已启用出口，最多并发 4 个固定目标探测；单次探测总超时为 5 秒，完成后按出口 ID 和 revision
+使用 20～30 秒的确定性抖动间隔再次调度。调度器复用手动测试的同一条真实连接路径，只访问
+`example.com:443`，不会接触用户 flow 的目标。组选中成员首次确定或真正变化时，进程内判重
+器只持久化一条 `outbound_group_selection_changed` 审计，包含活动快照版本、组 revision、
+旧/新成员和稳定原因码，不包含用户目标；相同成员的后续 flow 和无关快照变化不会重复写入。
+尚未完成的激活边界是对应桌面状态。完整边界与冷启动行为见
 [ADR-0043](ADR/0043-own-ordered-outbound-failover-groups.md)。
 
 ### 15.2 标准代理导入
@@ -1509,6 +1514,13 @@ macOS 桌面端还可通过 ABI v7 原生桥只读调用 `SCDynamicStoreCopyProx
 桌面端每个出口提供独立“测试”操作。RPC 使用会话能力鉴权，并固定发送 5 秒探测超时；网关只接受 1 到 30 秒的合法 protobuf duration。测试目标由服务端固定为 `example.com:443`，客户端不能传入用户正在访问的域名；探测只执行协议协商以及 Shadowsocks 所需的公共 TLS 认证，不发送 HTTP 请求、Cookie 或用户数据。
 
 网关复用数据面的当前出口加载器和系统凭据引用，实际完成 HTTP CONNECT、SOCKS5 或 Shadowsocks TCP 路径。Shadowsocks 建立客户端流本身是单向的，错误密钥可能暂时没有本地错误，因此还必须经该加密流对 `example.com:443` 完成 WebPKI TLS 握手后才能标记 `READY`；不发送 HTTP 请求、Cookie 或用户载荷。TLS 失败返回稳定的 `NP_FLOW_OUTBOUND_AUTHENTICATION_FAILED`。成功结果记录完整认证路径耗时；失败只返回稳定错误码和去敏提示，不回传连接器内部错误、用户名、密码、密钥、凭据引用或原始配置。
+
+自动健康调度与手动测试共用上述 runner，但客户端不能控制自动探测目标、频率或并发。服务启动
+后的首次扫描立即把尚无计划的已启用出口加入队列；最多同时运行 4 个任务，任务完成后以 20 秒
+基础间隔加 0～10 秒确定性抖动安排下一次探测。出口 revision 变化会立即重新验证；停用或删除
+出口会从计划表清除。防回环系统快照尚未激活、出口在探测并发窗口内被删除或停用、数据库
+瞬时读取失败时不写入节点失败观察，避免把本机基础设施状态误计入连续失败门槛。关闭服务时
+尚未完成的探测会被取消，不会阻塞网关退出。
 
 健康观察保存在进程内的有界注册表中，并同时绑定 `outbound_id` 与配置 revision。配置 revision 变化后旧结果立即失效；观察超过 60 秒后恢复为“未验证”。`OutboundSummary` 返回 `health`、`last_checked_at` 和 `latency`，macOS 与 Windows 共享桌面层使用同一映射。`READY` 若缺少时间或延迟属于无效控制契约，客户端不得据此开放默认代理操作。
 

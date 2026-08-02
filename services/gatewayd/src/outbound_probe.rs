@@ -1,49 +1,41 @@
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
+
+#[cfg(test)]
+use std::future::Future;
 
 use crate::{
-    Gateway,
-    clock::unix_time_ms,
-    control_mapping,
+    Gateway, control_mapping,
     credential_store::CredentialStore,
-    flow_server::{FlowServiceError, outbound_factory::load_connector},
-    outbound_probe_tls::authenticate_tls_path,
+    flow_server::FlowServiceError,
+    outbound_probe_runner::{self, ProbeOutcome},
 };
+#[cfg(test)]
 use nonproxy_flow_protocol::FlowEndpoint;
 use nonproxy_model::OutboundId;
 use nonproxy_proto::{
     common::v1::ErrorDetail,
     control::v1::{TestOutboundRequest, TestOutboundResponse},
-    events::v1::RuntimeState,
 };
 
-const DEFAULT_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+const DEFAULT_PROBE_TIMEOUT: Duration = outbound_probe_runner::DEFAULT_PROBE_TIMEOUT;
 const MINIMUM_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 const MAXIMUM_PROBE_TIMEOUT: Duration = Duration::from_secs(30);
-const PROBE_TARGET_HOST: &str = "example.com";
-const PROBE_TARGET_PORT: u16 = 443;
 
 pub async fn run(
     gateway: &Gateway,
     credential_store: Arc<dyn CredentialStore>,
     request: TestOutboundRequest,
 ) -> TestOutboundResponse {
-    let probe_gateway = gateway.clone();
-    run_with_probe(gateway, request, move |outbound_id, target| {
-        let gateway = probe_gateway;
-        let credentials = credential_store;
-        async move {
-            let connector = load_connector(&gateway, credentials, &outbound_id).await?;
-            let requires_authenticated_path = connector.requires_authenticated_tls_probe();
-            let stream = connector.connect_tcp(&target).await?;
-            if requires_authenticated_path {
-                authenticate_tls_path(stream, PROBE_TARGET_HOST).await?;
-            }
-            Ok(())
-        }
-    })
-    .await
+    let (timeout, outbound) = match request_parameters(gateway, request).await {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    response_from_outcome(
+        outbound_probe_runner::run(gateway, credential_store, outbound, timeout).await,
+    )
 }
 
+#[cfg(test)]
 async fn run_with_probe<F, Fut>(
     gateway: &Gateway,
     request: TestOutboundRequest,
@@ -53,91 +45,52 @@ where
     F: FnOnce(OutboundId, FlowEndpoint) -> Fut,
     Fut: Future<Output = Result<(), FlowServiceError>>,
 {
-    let timeout = match probe_timeout(request.timeout.as_ref()) {
+    let (timeout, outbound) = match request_parameters(gateway, request).await {
         Ok(value) => value,
-        Err(error) => return response_error(error),
+        Err(response) => return response,
     };
-    let outbound_id = match OutboundId::new(request.outbound_id) {
-        Ok(value) => value,
-        Err(_) => {
-            return response_error(detail("NP_REQUEST_INVALID", "代理出口标识无效。", false));
-        }
-    };
-    let outbound = match gateway.outbound(outbound_id.clone()).await {
+    response_from_outcome(
+        outbound_probe_runner::observe_with(gateway, outbound, timeout, probe).await,
+    )
+}
+
+async fn request_parameters(
+    gateway: &Gateway,
+    request: TestOutboundRequest,
+) -> Result<(Duration, nonproxy_storage::OutboundReference), TestOutboundResponse> {
+    let timeout = probe_timeout(request.timeout.as_ref()).map_err(response_error)?;
+    let outbound_id = OutboundId::new(request.outbound_id)
+        .map_err(|_| response_error(detail("NP_REQUEST_INVALID", "代理出口标识无效。", false)))?;
+    let outbound = match gateway.outbound(outbound_id).await {
         Ok(Some(value)) => value,
         Ok(None) => {
-            return response_error(detail(
+            return Err(response_error(detail(
                 "NP_FLOW_OUTBOUND_NOT_FOUND",
                 "要测试的代理出口不存在，请刷新列表后重试。",
                 false,
-            ));
+            )));
         }
-        Err(error) => return response_error(control_mapping::error_detail(&error)),
+        Err(error) => return Err(response_error(control_mapping::error_detail(&error))),
     };
-    let target = match FlowEndpoint::new(PROBE_TARGET_HOST, PROBE_TARGET_PORT) {
-        Ok(value) => value,
-        Err(_) => {
-            return response_error(detail(
-                "NP_OUTBOUND_PROBE_TARGET_INVALID",
-                "内置代理测试目标无效。",
-                false,
-            ));
-        }
-    };
-    let started = std::time::Instant::now();
-    let result = tokio::time::timeout(timeout, probe(outbound_id.clone(), target)).await;
-    let observed_at = match unix_time_ms() {
-        Ok(value) => value,
-        Err(error) => return response_error(control_mapping::error_detail(&error)),
-    };
+    Ok((timeout, outbound))
+}
 
-    match result {
-        Ok(Ok(())) => {
-            let elapsed = started.elapsed();
-            let latency_ms = duration_millis(elapsed);
-            if let Err(error) = gateway.report_outbound_health(
-                outbound_id,
-                outbound.revision(),
-                RuntimeState::Ready,
-                Some(latency_ms),
-                observed_at,
-            ) {
-                return response_error(control_mapping::error_detail(&error));
-            }
-            TestOutboundResponse {
-                healthy: true,
-                latency: Some(proto_duration(elapsed)),
-                error: None,
-            }
-        }
-        Ok(Err(error)) => {
-            if let Err(registry_error) = gateway.report_outbound_health(
-                outbound_id,
-                outbound.revision(),
-                RuntimeState::Failed,
-                None,
-                observed_at,
-            ) {
-                return response_error(control_mapping::error_detail(&registry_error));
-            }
-            response_error(flow_detail(&error))
-        }
-        Err(_) => {
-            if let Err(error) = gateway.report_outbound_health(
-                outbound_id,
-                outbound.revision(),
-                RuntimeState::Failed,
-                None,
-                observed_at,
-            ) {
-                return response_error(control_mapping::error_detail(&error));
-            }
-            response_error(detail(
-                "NP_OUTBOUND_TEST_TIMEOUT",
-                "代理握手超时，请检查代理地址、端口和网络状态。",
-                true,
-            ))
-        }
+fn response_from_outcome(
+    outcome: Result<ProbeOutcome, crate::GatewayError>,
+) -> TestOutboundResponse {
+    match outcome {
+        Ok(ProbeOutcome::Ready(elapsed)) => TestOutboundResponse {
+            healthy: true,
+            latency: Some(proto_duration(elapsed)),
+            error: None,
+        },
+        Ok(ProbeOutcome::Failed(error)) => response_error(flow_detail(&error)),
+        Ok(ProbeOutcome::TimedOut) => response_error(detail(
+            "NP_OUTBOUND_TEST_TIMEOUT",
+            "代理握手超时，请检查代理地址、端口和网络状态。",
+            true,
+        )),
+        Err(error) => response_error(control_mapping::error_detail(&error)),
     }
 }
 
@@ -205,12 +158,6 @@ fn detail(code: &str, message: &str, retryable: bool) -> ErrorDetail {
         retryable,
         metadata: Default::default(),
     }
-}
-
-fn duration_millis(value: Duration) -> u64 {
-    let nanos = value.as_nanos();
-    let rounded = nanos.saturating_add(999_999) / 1_000_000;
-    u64::try_from(rounded).map_or(u64::MAX, |value| value)
 }
 
 fn proto_duration(value: Duration) -> prost_types::Duration {
@@ -314,7 +261,7 @@ mod tests {
     async fn failed_probe_returns_stable_error_and_failed_health() {
         let gateway = gateway_with_outbound().await;
         let response = run_with_probe(&gateway, test_request(2), |_outbound_id, _target| async {
-            Err(FlowServiceError::OutboundDisabled)
+            Err(FlowServiceError::OutboundInvalid)
         })
         .await;
 
@@ -322,7 +269,7 @@ mod tests {
         assert!(response.latency.is_none());
         assert!(matches!(
             response.error,
-            Some(error) if error.code == "NP_FLOW_OUTBOUND_DISABLED"
+            Some(error) if error.code == "NP_FLOW_OUTBOUND_INVALID"
                 && !error.retryable
                 && !error.message.contains("primary")
         ));
@@ -334,6 +281,29 @@ mod tests {
             gateway.outbound_health(&outbounds[0], current_time()),
             Ok(Some(value)) if value.state == RuntimeState::Failed
                 && value.latency_ms.is_none()
+        ));
+    }
+
+    #[tokio::test]
+    async fn infrastructure_gate_does_not_mark_the_outbound_failed() {
+        let gateway = gateway_with_outbound().await;
+        let response = run_with_probe(&gateway, test_request(2), |_outbound_id, _target| async {
+            Err(FlowServiceError::SystemSnapshotPending)
+        })
+        .await;
+
+        assert!(!response.healthy);
+        assert!(matches!(
+            response.error,
+            Some(error) if error.code == "NP_FLOW_SYSTEM_SNAPSHOT_PENDING" && error.retryable
+        ));
+        let outbounds = gateway
+            .list_outbounds()
+            .await
+            .unwrap_or_else(|error| panic!("读取基础设施门测试出口失败: {error}"));
+        assert!(matches!(
+            gateway.outbound_health(&outbounds[0], current_time()),
+            Ok(None)
         ));
     }
 

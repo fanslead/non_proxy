@@ -22,6 +22,7 @@ mod policy_repository;
 mod provider_repository;
 mod retention;
 mod routing_settings_repository;
+mod runtime_audit_repository;
 mod snapshot_query;
 mod snapshot_repository;
 mod subscription_codec;
@@ -61,6 +62,9 @@ pub use policy_repository::PolicyRepository;
 pub use provider_repository::ProviderRepository;
 pub use retention::{DEFAULT_DETAIL_RETENTION_MS, RetentionRepository, RetentionResult};
 pub use routing_settings_repository::{DefaultRoute, RoutingSettings, RoutingSettingsRepository};
+pub use runtime_audit_repository::{
+    OutboundGroupSelectionAudit, OutboundGroupSelectionReason, RuntimeAuditRepository,
+};
 pub use snapshot_repository::SnapshotRepository;
 pub use subscription_repository::SubscriptionRepository;
 pub use subscription_types::{

@@ -45,14 +45,17 @@ mod outbound_capabilities;
 mod outbound_catalog_gateway;
 mod outbound_group_gateway;
 mod outbound_group_rpc;
+mod outbound_group_selection_audit;
 mod outbound_group_selector;
 mod outbound_health;
+mod outbound_health_scheduler;
 mod outbound_import;
 mod outbound_import_service;
 #[cfg(test)]
 mod outbound_import_tests;
 mod outbound_import_uri;
 mod outbound_probe;
+mod outbound_probe_runner;
 mod outbound_probe_tls;
 mod outbound_rpc;
 mod outbound_subscription;

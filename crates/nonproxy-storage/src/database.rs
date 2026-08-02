@@ -10,8 +10,8 @@ use crate::{
     ConnectionDecisionRepository, CredentialCleanupRepository, ExitProbeRepository,
     LearningConfirmationRepository, LearningRepository, MigrationReport, NetworkProfileRepository,
     OutboundGroupRepository, OutboundRepository, PolicyRepository, ProviderRepository,
-    RetentionRepository, RoutingSettingsRepository, SnapshotRepository, StorageError,
-    SubscriptionRepository, SyntheticDnsRepository, migration::migrate,
+    RetentionRepository, RoutingSettingsRepository, RuntimeAuditRepository, SnapshotRepository,
+    StorageError, SubscriptionRepository, SyntheticDnsRepository, migration::migrate,
 };
 
 #[derive(Debug)]
@@ -94,6 +94,11 @@ impl PolicyDatabase {
     #[must_use]
     pub fn routing_settings(&mut self) -> RoutingSettingsRepository<'_> {
         RoutingSettingsRepository::new(&mut self.connection)
+    }
+
+    #[must_use]
+    pub fn runtime_audit(&mut self) -> RuntimeAuditRepository<'_> {
+        RuntimeAuditRepository::new(&mut self.connection)
     }
 
     #[must_use]
