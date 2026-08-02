@@ -118,6 +118,8 @@ NonProxyInjectUdp(
 {
     const NP_WFP_UDP_INJECT_V2* injection = Input;
     NP_WFP_UDP_INJECTION_CONTEXT* context = NULL;
+    const ULONG injectionHeaderSize =
+        (ULONG)FIELD_OFFSET(NP_WFP_UDP_INJECT_V2, Payload);
     ULONG udpSize;
     ULONG bufferSize;
     UCHAR* udp;
@@ -125,8 +127,7 @@ NonProxyInjectUdp(
     HANDLE injectionHandle;
     NTSTATUS status;
 
-    if (Input == NULL ||
-        InputLength < FIELD_OFFSET(NP_WFP_UDP_INJECT_V2, Payload)) {
+    if (Input == NULL || InputLength < injectionHeaderSize) {
         return STATUS_BUFFER_TOO_SMALL;
     }
     status = NonProxyValidateUdpInjection(injection, InputLength);
@@ -199,8 +200,8 @@ NonProxyInjectUdp(
         0,
         NULL,
         0,
+        (UINT32)0,
         NULL,
-        0,
         injection->InterfaceIndex,
         injection->SubInterfaceIndex);
     if (!NT_SUCCESS(status)) {

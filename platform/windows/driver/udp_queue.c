@@ -7,9 +7,11 @@ NonProxyEnqueueUdpRecord(
 {
     KIRQL oldIrql;
     BOOLEAN accepted = FALSE;
+    const ULONG datagramHeaderSize =
+        (ULONG)FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V2, Data);
 
     if (Node == NULL ||
-        Node->RecordSize < FIELD_OFFSET(NP_WFP_UDP_DATAGRAM_V2, Data) ||
+        Node->RecordSize < datagramHeaderSize ||
         Node->RecordSize > NP_WFP_MAX_UDP_BATCH_BYTES) {
         return STATUS_INVALID_PARAMETER;
     }
@@ -42,15 +44,16 @@ NonProxyReceiveUdpBatch(
 {
     NP_WFP_UDP_BATCH_V2* batch = Output;
     LIST_ENTRY detached;
-    ULONG selectedBytes = FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams);
+    const ULONG batchHeaderSize =
+        (ULONG)FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams);
+    ULONG selectedBytes = batchHeaderSize;
     ULONG cursor;
     ULONG count = 0;
     KIRQL oldIrql;
 
     InitializeListHead(&detached);
     *BytesWritten = 0;
-    if (Output == NULL ||
-        OutputLength < FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams) ||
+    if (Output == NULL || OutputLength < batchHeaderSize ||
         OutputLength > NP_WFP_MAX_UDP_BATCH_BYTES) {
         return STATUS_INVALID_BUFFER_SIZE;
     }
@@ -76,7 +79,7 @@ NonProxyReceiveUdpBatch(
     if (count == 0) {
         return STATUS_NO_MORE_ENTRIES;
     }
-    cursor = FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams);
+    cursor = batchHeaderSize;
     while (!IsListEmpty(&detached)) {
         PLIST_ENTRY entry = RemoveHeadList(&detached);
         NP_WFP_UDP_PACKET_NODE* node =
@@ -88,10 +91,10 @@ NonProxyReceiveUdpBatch(
         cursor += node->RecordSize;
         ExFreePoolWithTag(node, NP_WFP_POOL_TAG);
     }
-    RtlZeroMemory(batch, FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams));
+    RtlZeroMemory(batch, batchHeaderSize);
     batch->Magic = NP_WFP_UDP_BATCH_MAGIC;
     batch->Version = NP_WFP_UDP_ABI_VERSION;
-    batch->HeaderSize = FIELD_OFFSET(NP_WFP_UDP_BATCH_V2, Datagrams);
+    batch->HeaderSize = (UINT16)batchHeaderSize;
     batch->TotalSize = selectedBytes;
     batch->DatagramCount = count;
     *BytesWritten = selectedBytes;

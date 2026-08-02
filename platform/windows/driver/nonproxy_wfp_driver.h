@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ntddk.h>
+#include <ntifs.h>
 #include <wdmsec.h>
 #include <ndis.h>
 #include <fwpsk.h>
