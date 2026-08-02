@@ -51,6 +51,22 @@ public interface IControlRpcClient
         string pageToken,
         CancellationToken cancellationToken);
 
+    Task<ListOutboundGroupsResponse> ListOutboundGroupsAsync(
+        string pageToken,
+        CancellationToken cancellationToken);
+
+    Task<UpsertOutboundGroupResponse> UpsertOutboundGroupAsync(
+        string groupId,
+        string displayName,
+        IReadOnlyList<string> outboundIds,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+
+    Task<DeleteOutboundGroupResponse> DeleteOutboundGroupAsync(
+        string groupId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+
     Task<ListSubscriptionSourcesResponse> ListSubscriptionSourcesAsync(
         string pageToken,
         CancellationToken cancellationToken);
@@ -118,6 +134,11 @@ public interface IControlRpcClient
         CancellationToken cancellationToken);
 
     Task<SetDefaultRouteResponse> SetDirectRouteAsync(
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken);
+
+    Task<SetDefaultRouteResponse> SetDefaultOutboundGroupAsync(
+        string groupId,
         ulong expectedRoutingRevision,
         CancellationToken cancellationToken);
 

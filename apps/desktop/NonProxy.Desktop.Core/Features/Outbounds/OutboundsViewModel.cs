@@ -11,6 +11,7 @@ namespace NonProxy.Desktop.Core.Features.Outbounds;
 public sealed partial class OutboundsViewModel : LoadableViewModel
 {
     private readonly IOutboundService _outboundService;
+    private readonly IOutboundGroupService _outboundGroupService;
     private readonly ILocalProxyDiscovery _localProxyDiscovery;
     private ulong _routingRevision;
 
@@ -51,11 +52,16 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
 
     public OutboundsViewModel(
         IOutboundService outboundService,
+        IOutboundGroupService outboundGroupService,
+        OutboundGroupsViewModel outboundGroups,
         ILocalProxyDiscovery localProxyDiscovery)
         : base("网络出口")
     {
         _outboundService = outboundService;
+        _outboundGroupService = outboundGroupService;
         _localProxyDiscovery = localProxyDiscovery;
+        OutboundGroups = outboundGroups;
+        OutboundGroups.DefaultRouteChanged += ApplyGroupDefaultRoute;
         InitializeLocalProxyDiscoveryCommand();
         InitializeUriImportCommands();
         ImportCommand = new AsyncRelayCommand(ImportAsync, CanImport);
@@ -81,6 +87,8 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
     ];
 
     public ObservableCollection<OutboundListItem> Items { get; } = [];
+
+    public OutboundGroupsViewModel OutboundGroups { get; }
 
     public IAsyncRelayCommand ImportCommand { get; }
 
@@ -145,29 +153,6 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
     {
         OnPropertyChanged(nameof(DirectExitStatusLabel));
         OnPropertyChanged(nameof(DirectExitCheckedLabel));
-    }
-
-    protected override async Task LoadCoreAsync(CancellationToken cancellationToken)
-    {
-        var catalog = await _outboundService.ListAsync(cancellationToken);
-        _routingRevision = catalog.RoutingRevision;
-        _usesDirectByDefault = catalog.UsesDirectByDefault;
-        ExitVerificationAvailable = catalog.ExitVerificationAvailable;
-        DirectExitReceipt = catalog.DirectExitReceipt;
-        DefaultRouteSummary = _routingRevision == 0
-            ? "配置：暂时无法读取"
-            : catalog.DefaultOutboundId is { } outboundId
-                ? $"配置：未命中规则时使用代理 {outboundId}"
-                : "配置：未命中规则时默认直连";
-        Items.Clear();
-        foreach (var item in catalog.Items.OrderBy(item => item.Name))
-        {
-            Items.Add(item);
-        }
-        SetDefaultCommand.NotifyCanExecuteChanged();
-        SetDirectCommand.NotifyCanExecuteChanged();
-        VerifyExitCommand.NotifyCanExecuteChanged();
-        VerifyDirectExitCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanImport()

@@ -85,6 +85,25 @@ public interface IOutboundService
         CancellationToken cancellationToken);
 }
 
+public interface IOutboundGroupService
+{
+    Task<OutboundGroupCatalog> ListAsync(CancellationToken cancellationToken);
+
+    Task<OutboundGroupMutation> SaveAsync(
+        OutboundGroupDraft draft,
+        CancellationToken cancellationToken);
+
+    Task<OutboundGroupDeletion> DeleteAsync(
+        string groupId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken);
+
+    Task<ApplyResult> SetDefaultAsync(
+        string groupId,
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken);
+}
+
 public interface ISubscriptionService
 {
     Task<SubscriptionCatalog> ListAsync(CancellationToken cancellationToken);

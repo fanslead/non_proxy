@@ -1,0 +1,293 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:outbounds="using:NonProxy.Desktop.Core.Features.Outbounds"
+             xmlns:control="using:NonProxy.Desktop.Core.Services.Control"
+             x:Name="GroupRoot"
+             x:Class="NonProxy.Desktop.Core.Features.Outbounds.OutboundGroupsView"
+             x:DataType="outbounds:OutboundGroupsViewModel">
+    <Border Theme="{StaticResource NpCard}">
+        <StackPanel Spacing="16">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="16">
+                <StackPanel Spacing="4">
+                    <TextBlock Theme="{StaticResource NpSectionTitle}"
+                               Text="自动切换线路" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="把已有代理按优先级排成一列。上方线路连续健康时优先使用；不可用时自动尝试下一条。"
+                               TextWrapping="Wrap" />
+                    <TextBlock Theme="{StaticResource NpMutedText}"
+                               Text="无需填写域名或规则；只有支持完整流量的代理会出现在候选列表中。"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+                <Button x:Name="CreateOutboundGroupButton"
+                        Grid.Column="1"
+                        Theme="{StaticResource NpPrimaryButton}"
+                        Command="{Binding StartCreateCommand}"
+                        Content="新建线路组"
+                        AutomationProperties.Name="新建自动切换线路组" />
+            </Grid>
+
+            <TextBlock Theme="{StaticResource NpMutedText}"
+                       Text="至少需要 2 条可承载完整流量的代理；请先在下方导入并测试线路。"
+                       TextWrapping="Wrap" />
+
+            <ItemsControl x:Name="OutboundGroupList"
+                          ItemsSource="{Binding Groups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="control:OutboundGroupListItem">
+                        <Border BorderBrush="{DynamicResource NpBorderBrush}"
+                                BorderThickness="1,0,0,0"
+                                Padding="16,10,0,10"
+                                Margin="0,2">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="16">
+                                <StackPanel Spacing="5">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="10">
+                                        <TextBlock FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   Text="{Binding Name}" />
+                                        <TextBlock Foreground="{DynamicResource NpBrandBrush}"
+                                                   FontWeight="SemiBold"
+                                                   Text="{Binding DefaultLabel}" />
+                                    </StackPanel>
+                                    <TextBlock Theme="{StaticResource NpMutedText}"
+                                               Text="{Binding MemberCountLabel}" />
+                                    <TextBlock Text="{Binding PrioritySummary}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Horizontal"
+                                            VerticalAlignment="Center"
+                                            Spacing="8">
+                                    <Button Theme="{StaticResource NpSecondaryButton}"
+                                            Command="{ReflectionBinding DataContext.SetDefaultCommand, ElementName=GroupRoot}"
+                                            CommandParameter="{Binding}"
+                                            Content="设为默认"
+                                            AutomationProperties.Name="将自动切换线路组设为默认" />
+                                    <Button Theme="{StaticResource NpSecondaryButton}"
+                                            Command="{ReflectionBinding DataContext.EditCommand, ElementName=GroupRoot}"
+                                            CommandParameter="{Binding}"
+                                            Content="编辑顺序"
+                                            AutomationProperties.Name="编辑自动切换线路组顺序" />
+                                    <Button Theme="{StaticResource NpSecondaryButton}"
+                                            Command="{ReflectionBinding DataContext.RequestDeleteCommand, ElementName=GroupRoot}"
+                                            CommandParameter="{Binding}"
+                                            Content="删除"
+                                            AutomationProperties.Name="删除自动切换线路组" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border x:Name="OutboundGroupEditor"
+                    IsVisible="{Binding IsEditorVisible}"
+                    Background="{DynamicResource NpCanvasBrush}"
+                    BorderBrush="{DynamicResource NpBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="18">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="4">
+                            <TextBlock FontSize="17"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding EditorTitle}" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="优先级就是实际选择顺序：01 先用，随后依次接替。" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding CancelEditCommand}"
+                                Content="取消"
+                                AutomationProperties.Name="取消编辑自动切换线路组" />
+                    </Grid>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="线路组名称" />
+                        <TextBox Theme="{StaticResource NpTextBox}"
+                                 Text="{Binding EditingName}"
+                                 PlaceholderText="例如：工作线路自动切换"
+                                 AutomationProperties.Name="自动切换线路组名称" />
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="0.9*,1.35*"
+                          ColumnSpacing="20">
+                        <StackPanel Spacing="10">
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="可选线路" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="点击加入；已加入的线路会自动禁用。"
+                                       TextWrapping="Wrap" />
+                            <ItemsControl x:Name="AvailableOutboundGroupMembers"
+                                          ItemsSource="{Binding AvailableOutbounds}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="control:OutboundListItem">
+                                        <Button HorizontalContentAlignment="Stretch"
+                                                Theme="{StaticResource NpSecondaryButton}"
+                                                Command="{ReflectionBinding DataContext.AddMemberCommand, ElementName=GroupRoot}"
+                                                CommandParameter="{Binding}"
+                                                Margin="0,3"
+                                                AutomationProperties.Name="向自动切换线路组加入代理">
+                                            <Grid ColumnDefinitions="*,Auto"
+                                                  ColumnSpacing="10">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="{Binding Name}" />
+                                                    <TextBlock Theme="{StaticResource NpMutedText}"
+                                                               FontSize="11"
+                                                               Text="{Binding Endpoint}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1"
+                                                           VerticalAlignment="Center"
+                                                           Theme="{StaticResource NpMutedText}"
+                                                           Text="加入" />
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1"
+                                    Spacing="10">
+                            <TextBlock FontWeight="SemiBold"
+                                       Text="优先级线路栈" />
+                            <ItemsControl x:Name="OutboundGroupPriorityStack"
+                                          ItemsSource="{Binding PriorityMembers}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="outbounds:OutboundGroupMemberItem">
+                                        <Grid ColumnDefinitions="36,*,Auto"
+                                              ColumnSpacing="12"
+                                              Margin="0,0,0,8">
+                                            <Grid RowDefinitions="*,*">
+                                                <Border Grid.RowSpan="2"
+                                                        Width="2"
+                                                        HorizontalAlignment="Center"
+                                                        Background="{DynamicResource NpBrandBrush}" />
+                                                <Border Width="30"
+                                                        Height="30"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Background="{DynamicResource NpSurfaceBrush}"
+                                                        BorderBrush="{DynamicResource NpBrandBrush}"
+                                                        BorderThickness="2"
+                                                        CornerRadius="15">
+                                                    <TextBlock HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="11"
+                                                               FontWeight="Bold"
+                                                               Foreground="{DynamicResource NpBrandBrush}"
+                                                               Text="{Binding PositionLabel}" />
+                                                </Border>
+                                            </Grid>
+                                            <Border Grid.Column="1"
+                                                    Background="{DynamicResource NpSurfaceBrush}"
+                                                    BorderBrush="{DynamicResource NpBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Padding="12">
+                                                <Grid ColumnDefinitions="*,Auto"
+                                                      ColumnSpacing="12">
+                                                    <StackPanel Spacing="3">
+                                                        <TextBlock FontWeight="SemiBold"
+                                                                   Text="{Binding Name}" />
+                                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                                   Text="{Binding Endpoint}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1"
+                                                                HorizontalAlignment="Right">
+                                                        <TextBlock Text="{Binding Health}" />
+                                                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                                                   FontSize="11"
+                                                                   Text="{Binding Kind}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Grid.Column="2"
+                                                        VerticalAlignment="Center"
+                                                        Spacing="5">
+                                                <StackPanel Orientation="Horizontal"
+                                                            Spacing="5">
+                                                    <Button Theme="{StaticResource NpSecondaryButton}"
+                                                            Command="{ReflectionBinding DataContext.MoveMemberUpCommand, ElementName=GroupRoot}"
+                                                            CommandParameter="{Binding}"
+                                                            Content="上移"
+                                                            AutomationProperties.Name="提高线路优先级" />
+                                                    <Button Theme="{StaticResource NpSecondaryButton}"
+                                                            Command="{ReflectionBinding DataContext.MoveMemberDownCommand, ElementName=GroupRoot}"
+                                                            CommandParameter="{Binding}"
+                                                            Content="下移"
+                                                            AutomationProperties.Name="降低线路优先级" />
+                                                </StackPanel>
+                                                <Button Theme="{StaticResource NpSecondaryButton}"
+                                                        Command="{ReflectionBinding DataContext.RemoveMemberCommand, ElementName=GroupRoot}"
+                                                        CommandParameter="{Binding}"
+                                                        Content="移出"
+                                                        AutomationProperties.Name="从自动切换线路组移出代理" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="至少保留 2 条线路；保存默认组时会生成新快照并等待系统组件确认。"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                               Text="{Binding ValidationMessage}"
+                               TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="10">
+                        <Button Theme="{StaticResource NpPrimaryButton}"
+                                Command="{Binding SaveCommand}"
+                                Content="保存线路顺序"
+                                AutomationProperties.Name="保存自动切换线路组及优先级" />
+                        <TextBlock VerticalAlignment="Center"
+                                   Theme="{StaticResource NpMutedText}"
+                                   Text="保存不会删除或修改成员代理。" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border IsVisible="{Binding IsDeleteConfirmationVisible}"
+                    BorderBrush="{DynamicResource NpDangerBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="14">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="确认删除这个线路组？" />
+                        <TextBlock Theme="{StaticResource NpMutedText}"
+                                   Text="成员代理不会被删除；当前默认线路组必须先切换默认路由。" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                Spacing="8">
+                        <Button Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding CancelDeleteCommand}"
+                                Content="保留"
+                                AutomationProperties.Name="取消删除自动切换线路组" />
+                        <Button Theme="{StaticResource NpSecondaryButton}"
+                                Command="{Binding ConfirmDeleteCommand}"
+                                Content="确认删除"
+                                AutomationProperties.Name="确认删除自动切换线路组" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <TextBlock Foreground="{DynamicResource NpDangerBrush}"
+                       Text="{Binding ValidationMessage}"
+                       TextWrapping="Wrap" />
+            <TextBlock Theme="{StaticResource NpMutedText}"
+                       Text="{Binding OperationMessage}"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+    </Border>
+</UserControl>

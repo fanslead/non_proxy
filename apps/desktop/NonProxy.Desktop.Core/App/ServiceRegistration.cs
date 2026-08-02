@@ -38,6 +38,7 @@ public static class ServiceRegistration
         services.AddSingleton<AdaptersViewModel>();
         services.AddSingleton<ApplicationsViewModel>();
         services.AddSingleton<WebsitesViewModel>();
+        services.AddSingleton<OutboundGroupsViewModel>();
         services.AddSingleton<OutboundsViewModel>();
         services.AddSingleton<SubscriptionsViewModel>();
         services.AddSingleton<NetworkProfilesViewModel>();
@@ -89,6 +90,7 @@ public static class ServiceRegistration
         services.AddSingleton<IPolicyService, GatewayPolicyService>();
         services.AddSingleton<INetworkProfileService, GatewayNetworkProfileService>();
         services.AddSingleton<IOutboundService, GatewayOutboundService>();
+        services.AddSingleton<IOutboundGroupService, GatewayOutboundGroupService>();
         services.AddSingleton<ISubscriptionService, GatewaySubscriptionService>();
         services.AddSingleton<IActivityService, GatewayActivityService>();
         services.AddSingleton<IDiagnosticsService, GatewayDiagnosticsService>();

@@ -119,4 +119,28 @@ public sealed class DashboardViewModelTests
         Assert.Contains("其他配置", presentation.Detail, StringComparison.Ordinal);
         Assert.DoesNotContain("新请求", presentation.Detail, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void DefaultGroupDoesNotPretendEmergencyProxyOverrideAcceptsAGroup()
+    {
+        var status = new RuntimeOverrideStatus(
+            true,
+            null,
+            null,
+            7,
+            null,
+            false);
+        var outbounds = new OutboundCatalog(
+            [],
+            3,
+            DefaultOutboundGroupId: "office-failover");
+
+        var presentation = RuntimeOverridePanelState.Build(
+            OptionalRead<RuntimeOverrideStatus>.Success(status),
+            OptionalRead<OutboundCatalog>.Success(outbounds));
+
+        Assert.True(presentation.CanRequest);
+        Assert.False(presentation.CanProxy);
+        Assert.Contains("只接受单条默认代理", presentation.Detail, StringComparison.Ordinal);
+    }
 }

@@ -115,6 +115,9 @@
                 </StackPanel>
             </Border>
 
+            <outbounds:OutboundGroupsView x:Name="OutboundGroupsPanel"
+                                          DataContext="{Binding OutboundGroups}" />
+
             <Border Theme="{StaticResource NpCard}">
                 <StackPanel Spacing="14">
                     <TextBlock Theme="{StaticResource NpSectionTitle}"

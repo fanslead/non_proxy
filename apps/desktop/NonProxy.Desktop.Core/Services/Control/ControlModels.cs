@@ -199,9 +199,11 @@ public sealed record OutboundCatalog(
     ulong RoutingRevision,
     string? DefaultOutboundId = null,
     bool ExitVerificationAvailable = false,
-    ExitVerificationReceipt? DirectExitReceipt = null)
+    ExitVerificationReceipt? DirectExitReceipt = null,
+    string? DefaultOutboundGroupId = null)
 {
-    public bool UsesDirectByDefault => DefaultOutboundId is null;
+    public bool UsesDirectByDefault => DefaultOutboundId is null
+        && DefaultOutboundGroupId is null;
 }
 
 public sealed record OutboundTestResult(

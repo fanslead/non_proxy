@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NonProxy.Desktop.Core.Bootstrap;
 using NonProxy.Desktop.Core.Features.Dashboard;
+using NonProxy.Desktop.Core.Features.Outbounds;
 using NonProxy.Desktop.Core.Features.Shell;
 using NonProxy.Desktop.Core.Platform;
 using NonProxy.Desktop.Core.Services.Adapters;
@@ -40,6 +41,8 @@ public sealed class ServiceRegistrationTests
         Assert.Equal(12, shell.NavigationItems.Count);
         Assert.Equal("运行概览", shell.CurrentPage.Title);
         Assert.NotNull(services.GetRequiredService<DesktopLifetimeController>());
+        Assert.NotNull(services.GetRequiredService<OutboundGroupsViewModel>());
+        Assert.NotNull(services.GetRequiredService<IOutboundGroupService>());
         Assert.Same(
             services.GetRequiredService<GrpcControlRpcClient>(),
             services.GetRequiredService<IControlEventSource>());

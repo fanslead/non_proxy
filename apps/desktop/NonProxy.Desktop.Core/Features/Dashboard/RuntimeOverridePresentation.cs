@@ -35,6 +35,10 @@ public sealed record RuntimeOverridePanelState(
             };
         }
         var hasDefaultProxy = outbounds.Value?.DefaultOutboundId is not null;
+        var hasDefaultGroup = outbounds.Value?.DefaultOutboundGroupId is not null;
+        var regularDetail = hasDefaultGroup
+            ? "常规路由使用自动切换线路组；限时“全部代理”目前只接受单条默认代理。"
+            : "紧急操作固定持续 5 分钟，并随快照分发到数据面。";
         if (value.PendingClearsOverride)
         {
             return new RuntimeOverridePanelState(
@@ -100,7 +104,7 @@ public sealed record RuntimeOverridePanelState(
         }
         return new RuntimeOverridePanelState(
             "常规策略正在运行",
-            "紧急操作固定持续 5 分钟，并随快照分发到数据面。",
+            regularDetail,
             true,
             false,
             false,

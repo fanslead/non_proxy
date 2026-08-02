@@ -236,6 +236,59 @@ public sealed class OutboundsViewModelTests
     }
 
     [Fact]
+    public async Task CatalogRevisionMismatchRetriesThenReportsChangingState()
+    {
+        var outboundService = new RecordingOutboundService();
+        var groupService = new FixedOutboundGroupService(
+            new OutboundGroupCatalog([], 2));
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+            {
+                collection.AddSingleton<IOutboundService>(outboundService);
+                collection.AddSingleton<IOutboundGroupService>(groupService);
+            });
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, groupService.ListCallCount);
+        Assert.Contains("发生变化", viewModel.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DefaultGroupIsPresentedAsNonDirectDefaultRoute()
+    {
+        var outboundService = new RecordingOutboundService
+        {
+            DefaultGroupId = "office-failover",
+        };
+        var groupService = new FixedOutboundGroupService(
+            new OutboundGroupCatalog(
+                [
+                    new OutboundGroupListItem(
+                        "office-failover",
+                        "Office failover",
+                        ["primary", "backup"],
+                        2,
+                        IsDefault: true),
+                ],
+                1,
+                "office-failover"));
+        using var services = TestPlatformServices.Create(
+            configure: collection =>
+            {
+                collection.AddSingleton<IOutboundService>(outboundService);
+                collection.AddSingleton<IOutboundGroupService>(groupService);
+            });
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        Assert.Contains("Office failover", viewModel.DefaultRouteSummary, StringComparison.Ordinal);
+        Assert.True(viewModel.SetDirectCommand.CanExecute(null));
+    }
+
+    [Fact]
     public async Task UriImportRequiresPreviewAndInvalidatesItWhenTheSourceChanges()
     {
         var outboundService = new RecordingOutboundService();
@@ -492,6 +545,8 @@ public sealed class OutboundsViewModelTests
 
         public bool ExitVerificationAvailable { get; init; } = true;
 
+        public string? DefaultGroupId { get; init; }
+
         private ulong RoutingRevision { get; set; } = 1;
 
         public void Seed(params OutboundListItem[] items)
@@ -508,7 +563,8 @@ public sealed class OutboundsViewModelTests
                 RoutingRevision,
                 _items.SingleOrDefault(item => item.IsDefault)?.Id,
                 ExitVerificationAvailable,
-                DirectExitReceipt: DirectReceipt));
+                DirectExitReceipt: DirectReceipt,
+                DefaultOutboundGroupId: DefaultGroupId));
         }
 
         public Task<OutboundImportResult> ImportAsync(
@@ -701,6 +757,43 @@ public sealed class OutboundsViewModelTests
                 "NP_SNAPSHOT_PENDING_ACK",
                 "默认直连已保存，新的路由快照正在等待系统组件确认。",
                 2));
+        }
+    }
+
+    private sealed class FixedOutboundGroupService(
+        OutboundGroupCatalog catalog) : IOutboundGroupService
+    {
+        public int ListCallCount { get; private set; }
+
+        public Task<OutboundGroupCatalog> ListAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ListCallCount++;
+            return Task.FromResult(catalog);
+        }
+
+        public Task<OutboundGroupMutation> SaveAsync(
+            OutboundGroupDraft draft,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<OutboundGroupDeletion> DeleteAsync(
+            string groupId,
+            ulong expectedRevision,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ApplyResult> SetDefaultAsync(
+            string groupId,
+            ulong expectedRoutingRevision,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
         }
     }
 }

@@ -135,6 +135,51 @@ public sealed class DisconnectedOutboundService : IOutboundService
     }
 }
 
+public sealed class DisconnectedOutboundGroupService : IOutboundGroupService
+{
+    public Task<OutboundGroupCatalog> ListAsync(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new OutboundGroupCatalog([], 0));
+    }
+
+    public Task<OutboundGroupMutation> SaveAsync(
+        OutboundGroupDraft draft,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+        return Unavailable<OutboundGroupMutation>(cancellationToken);
+    }
+
+    public Task<OutboundGroupDeletion> DeleteAsync(
+        string groupId,
+        ulong expectedRevision,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(groupId);
+        return Unavailable<OutboundGroupDeletion>(cancellationToken);
+    }
+
+    public Task<ApplyResult> SetDefaultAsync(
+        string groupId,
+        ulong expectedRoutingRevision,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(groupId);
+        return Unavailable<ApplyResult>(cancellationToken);
+    }
+
+    private static Task<TResult> Unavailable<TResult>(
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new ControlServiceException(
+            "NP_CONTROL_UNAVAILABLE",
+            "控制服务尚未连接，自动切换线路组没有发生变化。");
+    }
+}
+
 public sealed class DisconnectedSubscriptionService : ISubscriptionService
 {
     public Task<SubscriptionCatalog> ListAsync(CancellationToken cancellationToken)

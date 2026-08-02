@@ -47,6 +47,16 @@ public sealed partial class GrpcControlRpcClient
                 ReadOptions(cancellationToken)).ResponseAsync);
     }
 
+    public Task<ListOutboundGroupsResponse> ListOutboundGroupsAsync(
+        string pageToken,
+        CancellationToken cancellationToken)
+    {
+        return ExecuteAsync(
+            () => Client.ListOutboundGroupsAsync(
+                new ListOutboundGroupsRequest { Page = FullPage(pageToken) },
+                ReadOptions(cancellationToken)).ResponseAsync);
+    }
+
     public Task<ListSubscriptionSourcesResponse> ListSubscriptionSourcesAsync(
         string pageToken,
         CancellationToken cancellationToken)

@@ -646,6 +646,90 @@ public sealed class GatewayOutboundServiceTests
         Assert.Equal("NP_CONTROL_CONTRACT_INVALID", error.Code);
     }
 
+    [Fact]
+    public async Task ListMapsDefaultOutboundGroupWithoutMarkingSingleOutbound()
+    {
+        var client = new StubControlRpcClient
+        {
+            OutboundsResponse = new ListOutboundsResponse
+            {
+                Page = new PageResponse(),
+                RoutingRevision = 9,
+                DefaultOutboundGroupId = "office-failover",
+                Outbounds =
+                {
+                    new OutboundSummary
+                    {
+                        Id = "primary",
+                        DisplayName = "Primary",
+                        Kind = OutboundKind.Socks5,
+                        Enabled = true,
+                    },
+                },
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var catalog = await service.ListAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("office-failover", catalog.DefaultOutboundGroupId);
+        Assert.Null(catalog.DefaultOutboundId);
+        Assert.False(catalog.UsesDirectByDefault);
+        Assert.False(Assert.Single(catalog.Items).IsDefault);
+    }
+
+    [Fact]
+    public async Task ListRejectsSingleAndGroupDefaultsAtTheSameTime()
+    {
+        var client = new StubControlRpcClient
+        {
+            OutboundsResponse = new ListOutboundsResponse
+            {
+                Page = new PageResponse(),
+                RoutingRevision = 9,
+                DefaultOutboundGroupId = "office-failover",
+                Outbounds =
+                {
+                    new OutboundSummary
+                    {
+                        Id = "primary",
+                        DisplayName = "Primary",
+                        Kind = OutboundKind.Socks5,
+                        Enabled = true,
+                        IsDefault = true,
+                    },
+                },
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var error = await Assert.ThrowsAsync<ControlServiceException>(() =>
+            service.ListAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("NP_CONTROL_PAGING_INVALID", error.Code);
+    }
+
+    [Fact]
+    public async Task ListRejectsMalformedDefaultGroupIdentity()
+    {
+        var client = new StubControlRpcClient
+        {
+            OutboundsResponse = new ListOutboundsResponse
+            {
+                Page = new PageResponse(),
+                RoutingRevision = 9,
+                DefaultOutboundGroupId = " invalid group ",
+            },
+        };
+        var service = new GatewayOutboundService(client);
+
+        var error = await Assert.ThrowsAsync<ControlServiceException>(() =>
+            service.ListAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("NP_CONTROL_PAGING_INVALID", error.Code);
+    }
+
     private static ExitProbeSummary ExitProbe(
         ulong sequence,
         ExitProbeRouteKind route,

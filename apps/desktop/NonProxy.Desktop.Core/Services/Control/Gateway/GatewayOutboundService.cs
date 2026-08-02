@@ -24,6 +24,7 @@ public sealed partial class GatewayOutboundService : IOutboundService
         var tokens = new HashSet<string>(StringComparer.Ordinal);
         var pageToken = string.Empty;
         ulong? routingRevision = null;
+        string? defaultGroupId = null;
         for (var page = 0; page < MaximumPages; page++)
         {
             if (!tokens.Add(pageToken))
@@ -34,21 +35,37 @@ public sealed partial class GatewayOutboundService : IOutboundService
             var response = await _client.ListOutboundsAsync(
                 pageToken,
                 cancellationToken);
-            if (response.RoutingRevision == 0
+            var responseDefaultGroupId = string.IsNullOrWhiteSpace(
+                    response.DefaultOutboundGroupId)
+                ? null
+                : response.DefaultOutboundGroupId;
+            if (response.DefaultOutboundGroupId.Length > 0
+                    && responseDefaultGroupId is null
+                || responseDefaultGroupId is not null
+                    && !GatewayOutboundGroupService.IsValidIdentifier(
+                        responseDefaultGroupId)
+                || response.RoutingRevision == 0
                 || routingRevision is not null
-                    && routingRevision != response.RoutingRevision)
+                    && routingRevision != response.RoutingRevision
+                || page > 0 && !string.Equals(
+                    defaultGroupId,
+                    responseDefaultGroupId,
+                    StringComparison.Ordinal))
             {
                 throw InvalidPaging();
             }
 
             routingRevision = response.RoutingRevision;
+            defaultGroupId = responseDefaultGroupId;
             items.AddRange(response.Outbounds.Select(OutboundContractMapper.ToItem));
             pageToken = response.Page?.NextPageToken ?? string.Empty;
             if (string.IsNullOrEmpty(pageToken))
             {
                 if (items.Select(item => item.Id).Distinct(
                         StringComparer.Ordinal).Count() != items.Count
-                    || items.Count(item => item.IsDefault) > 1)
+                    || items.Count(item => item.IsDefault) > 1
+                    || defaultGroupId is not null
+                        && items.Any(item => item.IsDefault))
                 {
                     throw InvalidPaging();
                 }
@@ -60,7 +77,8 @@ public sealed partial class GatewayOutboundService : IOutboundService
                     items.SingleOrDefault(item => item.IsDefault)?.Id,
                     exitCatalog.Available,
                     exitCatalog.Receipts.FirstOrDefault(
-                        receipt => receipt.OutboundId is null));
+                        receipt => receipt.OutboundId is null),
+                    defaultGroupId);
             }
         }
 
@@ -98,10 +116,11 @@ public sealed partial class GatewayOutboundService : IOutboundService
             "默认直连已保存，新的路由快照正在等待系统组件确认。");
     }
 
-    private static ApplyResult MapRouteChange(
+    internal static ApplyResult MapRouteChange(
         SetDefaultRouteResponse response,
         ulong expectedRoutingRevision,
-        string acceptedMessage)
+        string acceptedMessage,
+        Func<string, string>? errorMessage = null)
     {
         if (response.Error is { } error)
         {
@@ -109,7 +128,8 @@ public sealed partial class GatewayOutboundService : IOutboundService
                 false,
                 false,
                 error.Code,
-                DefaultRouteErrorMessage(error.Code),
+                errorMessage?.Invoke(error.Code)
+                    ?? DefaultRouteErrorMessage(error.Code),
                 null);
         }
         if (response.RoutingRevision != expectedRoutingRevision + 1

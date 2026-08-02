@@ -104,7 +104,8 @@ public sealed record DashboardSetupJourney(
             ? catalog.Items.SingleOrDefault(item =>
                 string.Equals(item.Id, id, StringComparison.Ordinal))
             : null;
-        if (defaultOutbound is null)
+        var hasDefaultGroup = catalog.DefaultOutboundGroupId is not null;
+        if (defaultOutbound is null && !hasDefaultGroup)
         {
             return new DashboardSetupPath(
                 "效果最完整",
@@ -121,11 +122,14 @@ public sealed record DashboardSetupJourney(
             + overview.DirectNetworkCount;
         if (directRuleCount == 0)
         {
+            var defaultLabel = hasDefaultGroup
+                ? "自动切换线路组"
+                : "默认代理";
             return new DashboardSetupPath(
                 "效果最完整",
                 "完整网关",
                 "还没有直连目标",
-                "默认代理已配置；添加第一个应用或网站后才会形成分流策略。",
+                $"{defaultLabel}已配置；添加第一个应用或网站后才会形成分流策略。",
                 "添加直连应用",
                 WorkspaceDestination.Applications,
                 DashboardSetupTone.Attention);

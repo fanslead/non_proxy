@@ -134,6 +134,35 @@ public sealed class GrpcControlRpcClientTests
     }
 
     [Fact]
+    public void OutboundGroupRequestsPreservePriorityAndUseGroupRouteOneof()
+    {
+        var context = new OperationContext
+        {
+            OperationId = "desktop:outbound-group:operation",
+            SessionCapabilityToken = ByteString.CopyFrom(new byte[32]),
+        };
+
+        var upsert = GrpcControlRpcClient.CreateUpsertOutboundGroupRequest(
+            "office",
+            "Office",
+            ["primary", "backup"],
+            3,
+            context);
+        var route = GrpcControlRpcClient.CreateSetDefaultOutboundGroupRequest(
+            "office",
+            7,
+            context);
+
+        Assert.Same(context, upsert.Context);
+        Assert.Equal(OutboundGroupStrategy.Failover, upsert.Strategy);
+        Assert.Equal(["primary", "backup"], upsert.OutboundIds);
+        Assert.Equal<ulong>(3, upsert.ExpectedRevision);
+        Assert.Equal(SetDefaultRouteRequest.RouteOneofCase.OutboundGroupId, route.RouteCase);
+        Assert.Equal("office", route.OutboundGroupId);
+        Assert.Equal<ulong>(7, route.ExpectedRoutingRevision);
+    }
+
+    [Fact]
     public void SetDirectRouteUsesExplicitTrueOneOf()
     {
         var context = new OperationContext

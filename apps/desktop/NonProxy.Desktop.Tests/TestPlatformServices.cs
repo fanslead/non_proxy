@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NonProxy.Desktop.Core.Bootstrap;
 using NonProxy.Desktop.Core.Platform;
+using NonProxy.Desktop.Core.Services.Control;
 
 namespace NonProxy.Desktop.Tests;
 
@@ -16,6 +17,9 @@ internal static class TestPlatformServices
             services.AddSingleton<IPlatformInformation>(
                 new FakePlatformInformation(platform, displayName));
             services.AddSingleton<ISystemComponentInstaller, FakeSystemComponentInstaller>();
+            services.AddSingleton<
+                IOutboundGroupService,
+                DisconnectedOutboundGroupService>();
             configure?.Invoke(services);
         });
     }

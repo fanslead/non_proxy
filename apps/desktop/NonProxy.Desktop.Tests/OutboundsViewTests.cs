@@ -24,6 +24,18 @@ public sealed class OutboundsViewTests
         return AssertOutboundTestActionAsync(PlatformKind.Windows, "Windows");
     }
 
+    [AvaloniaFact]
+    public Task MacCompositionRendersOutboundGroupLineStack()
+    {
+        return AssertOutboundGroupLineStackAsync(PlatformKind.MacOS, "macOS");
+    }
+
+    [AvaloniaFact]
+    public Task WindowsCompositionRendersOutboundGroupLineStack()
+    {
+        return AssertOutboundGroupLineStackAsync(PlatformKind.Windows, "Windows");
+    }
+
     private static async Task AssertOutboundTestActionAsync(
         PlatformKind platform,
         string displayName)
@@ -139,7 +151,77 @@ public sealed class OutboundsViewTests
         }
     }
 
-    private sealed class VisibleOutboundService : IOutboundService
+    private static async Task AssertOutboundGroupLineStackAsync(
+        PlatformKind platform,
+        string displayName)
+    {
+        using var services = TestPlatformServices.Create(
+            platform,
+            displayName,
+            registrations =>
+            {
+                registrations.AddSingleton<IOutboundService>(
+                    new VisibleGroupOutboundService());
+                registrations.AddSingleton<IOutboundGroupService>(
+                    new VisibleOutboundGroupService());
+            });
+        var viewModel = services.GetRequiredService<OutboundsViewModel>();
+        var view = new OutboundsView { DataContext = viewModel };
+        var window = new Window
+        {
+            Width = 1_200,
+            Height = 1_000,
+            Content = view,
+        };
+
+        try
+        {
+            window.Show();
+            await viewModel.RefreshCommand.ExecuteAsync(null);
+            Dispatcher.UIThread.RunJobs();
+
+            var panel = view.FindControl<OutboundGroupsView>(
+                "OutboundGroupsPanel");
+            Assert.NotNull(panel);
+            var create = panel.FindControl<Button>("CreateOutboundGroupButton");
+            Assert.NotNull(create);
+            Assert.True(create.IsEnabled);
+            Assert.Equal(
+                "新建自动切换线路组",
+                AutomationProperties.GetName(create));
+
+            var group = Assert.Single(viewModel.OutboundGroups.Groups);
+            var list = panel.FindControl<ItemsControl>("OutboundGroupList");
+            var row = list?.ItemTemplate?.Build(group);
+            Assert.NotNull(row);
+            var actions = row.GetLogicalDescendants().OfType<Button>().ToArray();
+            Assert.Contains(actions, button =>
+                string.Equals(button.Content as string, "设为默认", StringComparison.Ordinal));
+            Assert.Contains(actions, button =>
+                string.Equals(button.Content as string, "编辑顺序", StringComparison.Ordinal));
+
+            viewModel.OutboundGroups.StartCreateCommand.Execute(null);
+            foreach (var outbound in viewModel.OutboundGroups.AvailableOutbounds)
+            {
+                viewModel.OutboundGroups.AddMemberCommand.Execute(outbound);
+            }
+            Dispatcher.UIThread.RunJobs();
+
+            var editor = panel.FindControl<Border>("OutboundGroupEditor");
+            var stack = panel.FindControl<ItemsControl>(
+                "OutboundGroupPriorityStack");
+            Assert.True(editor?.IsVisible);
+            Assert.Equal(2, stack?.ItemCount);
+            Assert.Equal("01", viewModel.OutboundGroups.PriorityMembers[0].PositionLabel);
+            Assert.Equal("02", viewModel.OutboundGroups.PriorityMembers[1].PositionLabel);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private class VisibleOutboundService : IOutboundService
     {
         private static readonly OutboundListItem Outbound = new(
             "office",
@@ -153,7 +235,7 @@ public sealed class OutboundsViewTests
             IsHandshakeVerified: true,
             CanVerifyExit: true);
 
-        public Task<OutboundCatalog> ListAsync(
+        public virtual Task<OutboundCatalog> ListAsync(
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -246,6 +328,81 @@ public sealed class OutboundsViewTests
                 "NP_SNAPSHOT_PENDING_ACK",
                 "等待系统组件确认。",
                 1));
+        }
+    }
+
+    private sealed class VisibleGroupOutboundService : VisibleOutboundService
+    {
+        public override Task<OutboundCatalog> ListAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new OutboundCatalog(
+                [
+                    new OutboundListItem(
+                        "primary",
+                        "Primary",
+                        "SOCKS5",
+                        "127.0.0.1:1080",
+                        "代理握手可用",
+                        TimeSpan.FromMilliseconds(20),
+                        DateTimeOffset.UtcNow,
+                        SupportsDefaultRoute: true,
+                        IsHandshakeVerified: true),
+                    new OutboundListItem(
+                        "backup",
+                        "Backup",
+                        "Shadowsocks",
+                        "proxy.example:8388",
+                        "代理握手可用",
+                        TimeSpan.FromMilliseconds(30),
+                        DateTimeOffset.UtcNow,
+                        SupportsDefaultRoute: true,
+                        IsHandshakeVerified: true),
+                ],
+                4,
+                ExitVerificationAvailable: true));
+        }
+    }
+
+    private sealed class VisibleOutboundGroupService : IOutboundGroupService
+    {
+        public Task<OutboundGroupCatalog> ListAsync(
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new OutboundGroupCatalog(
+                [
+                    new OutboundGroupListItem(
+                        "automatic",
+                        "Automatic",
+                        ["primary", "backup"],
+                        2),
+                ],
+                4));
+        }
+
+        public Task<OutboundGroupMutation> SaveAsync(
+            OutboundGroupDraft draft,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<OutboundGroupDeletion> DeleteAsync(
+            string groupId,
+            ulong expectedRevision,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ApplyResult> SetDefaultAsync(
+            string groupId,
+            ulong expectedRoutingRevision,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
         }
     }
 }

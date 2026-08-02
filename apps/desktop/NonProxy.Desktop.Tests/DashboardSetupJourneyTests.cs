@@ -38,6 +38,21 @@ public sealed class DashboardSetupJourneyTests
     }
 
     [Fact]
+    public void DefaultOutboundGroupSatisfiesGatewayDefaultRouteRequirement()
+    {
+        var journey = DashboardSetupJourney.Build(
+            Overview(dataPlaneEnabled: true, directApplications: 1),
+            OptionalRead<OutboundCatalog>.Success(new OutboundCatalog(
+                [],
+                4,
+                DefaultOutboundGroupId: "office-failover")),
+            OptionalRead<AdapterCatalog>.Success(EmptyAdapters()));
+
+        Assert.True(journey.Gateway.IsReady);
+        Assert.DoesNotContain("需要默认代理", journey.Gateway.Status, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ActiveGatewayDoesNotConfuseExpiredSetupHandshakeWithRuntimeFailure()
     {
         var catalog = DefaultProxyCatalog();
