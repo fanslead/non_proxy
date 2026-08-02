@@ -37,14 +37,14 @@ public sealed class WindowsReleaseSourceContractTests
             ("verify", "bootstrap/NonProxy.Windows.Bootstrap.exe"),
             ("verify", "ConsumerBootstrapManifestSha256"),
             ("verify", "AllowCrossArchitectureBuildVerification"),
+            ("verify", "DevelopmentRootCertificatePath"),
             ("developmentSign", "ExpectedArchitecture"),
             ("developmentSign", "-AllowCrossArchitectureBuildVerification"),
+            ("developmentSign", "-DevelopmentRootCertificatePath"),
             ("developmentSign", "RootCertificatePath"),
             ("developmentSign", "NonProxy-Development-Root.cer"),
             ("developmentCertificate", "StoreName]::TrustedPeople"),
             ("developmentCertificate", "StoreName]::TrustedPublisher"),
-            ("developmentCertificate", "-user"),
-            ("developmentCertificate", "-addstore"),
             ("developmentCertificate", "RootCertificatePath"),
             ("developmentCertificate", "X509BasicConstraintsExtension"),
             ("install", "Set-NonProxyAdapterHostTask"),
@@ -57,6 +57,7 @@ public sealed class WindowsReleaseSourceContractTests
             ("task", "-RunLevel Limited"),
             ("task", "-MultipleInstances Parallel"),
             ("common", "#requires -Version 5.1"),
+            ("common", "AllowUnknownCertificateAuthority"),
         })
         {
             Assert.Contains(required, sources[source], StringComparison.Ordinal);

@@ -192,13 +192,57 @@ function Assert-NonProxyAuthenticodeSignature {
         [Parameter(Mandatory = $true)]
         [string]$Path,
         [Parameter(Mandatory = $true)]
-        [string]$ExpectedPublisherThumbprint
+        [string]$ExpectedPublisherThumbprint,
+        [string]$DevelopmentRootCertificatePath
     )
 
     $expected = ConvertTo-NonProxyThumbprint $ExpectedPublisherThumbprint
-    $actual = Get-NonProxySignerThumbprint $Path
+    $signature = Get-AuthenticodeSignature -LiteralPath $Path
+    $allowUntrustedDevelopmentRoot =
+        -not [string]::IsNullOrWhiteSpace($DevelopmentRootCertificatePath)
+    if ($null -eq $signature.SignerCertificate -or
+        ($signature.Status -ne [Management.Automation.SignatureStatus]::Valid -and
+            (-not $allowUntrustedDevelopmentRoot -or
+                $signature.Status -ne
+                    [Management.Automation.SignatureStatus]::UnknownError))) {
+        throw "Authenticode 签名无效：$Path（$($signature.Status)）"
+    }
+    $actual = ConvertTo-NonProxyThumbprint `
+        $signature.SignerCertificate.Thumbprint
     if ($actual -ne $expected) {
         throw "文件发布者与固定指纹不匹配：$Path"
+    }
+    if (-not $allowUntrustedDevelopmentRoot) {
+        return
+    }
+
+    $rootPath = Resolve-NonProxyExistingPath `
+        -Path $DevelopmentRootCertificatePath -PathType Leaf
+    $root = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
+        $rootPath)
+    $chain = [Security.Cryptography.X509Certificates.X509Chain]::new()
+    try {
+        $chain.ChainPolicy.RevocationMode =
+            [Security.Cryptography.X509Certificates.X509RevocationMode]::NoCheck
+        $allowUnknownAuthority = (
+            [Security.Cryptography.X509Certificates.X509VerificationFlags]::AllowUnknownCertificateAuthority)
+        $chain.ChainPolicy.VerificationFlags = $allowUnknownAuthority
+        [void]$chain.ChainPolicy.ExtraStore.Add($root)
+        if (-not $chain.Build($signature.SignerCertificate)) {
+            $statuses = ($chain.ChainStatus | ForEach-Object {
+                $_.Status.ToString()
+            }) -join ","
+            throw "开发签名证书链无效：$Path（$statuses）"
+        }
+        $last = $chain.ChainElements[$chain.ChainElements.Count - 1].Certificate
+        $actualRoot = ConvertTo-NonProxyThumbprint $last.Thumbprint
+        $expectedRoot = ConvertTo-NonProxyThumbprint $root.Thumbprint
+        if ($actualRoot -ne $expectedRoot) {
+            throw "开发签名证书链没有终止于固定根证书：$Path"
+        }
+    } finally {
+        $chain.Dispose()
+        $root.Dispose()
     }
 }
 

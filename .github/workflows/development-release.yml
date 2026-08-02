@@ -65,9 +65,11 @@ jobs:
             -LiteralPath $probe `
             -Certificate $signing.Certificate `
             -HashAlgorithm SHA256
-          if ($signature.Status -ne "Valid") {
-            throw "临时开发证书 Authenticode 校验失败：$($signature.Status)"
-          }
+          Import-Module ./scripts/windows/NonProxy.Windows.Common.psm1 -Force
+          Assert-NonProxyAuthenticodeSignature `
+            -Path $probe `
+            -ExpectedPublisherThumbprint $signing.Thumbprint `
+            -DevelopmentRootCertificatePath $signing.RootCertificatePath
 
       - name: 构建并生成开发签名包
         id: package

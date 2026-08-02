@@ -10,6 +10,7 @@ param(
     [ValidateSet("x64", "arm64")]
     [string]$ExpectedArchitecture,
     [switch]$AllowCrossArchitectureBuildVerification,
+    [string]$DevelopmentRootCertificatePath,
     [switch]$PassThru
 )
 
@@ -28,7 +29,8 @@ $trustPath = Resolve-NonProxyExistingPath -Path $trustPath -PathType Leaf
 
 Assert-NonProxyAuthenticodeSignature `
     -Path $trustPath `
-    -ExpectedPublisherThumbprint $expected
+    -ExpectedPublisherThumbprint $expected `
+    -DevelopmentRootCertificatePath $DevelopmentRootCertificatePath
 $trustText = Get-Content -LiteralPath $trustPath -Raw
 $signatureMarker = "# SIG # Begin signature block"
 $markerIndex = $trustText.IndexOf($signatureMarker, [StringComparison]::Ordinal)
@@ -56,8 +58,13 @@ $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 if ($manifest.schemaVersion -ne 1 -or $manifest.product -ne "NonProxy") {
     throw "发布清单版本或产品标识不受支持。"
 }
-$publisherCertificateSha256 = Get-NonProxySignerCertificateSha256 `
-    -Path $trustPath
+$publisherCertificateSha256 = if (
+    [string]::IsNullOrWhiteSpace($DevelopmentRootCertificatePath)) {
+    Get-NonProxySignerCertificateSha256 -Path $trustPath
+} else {
+    $trustSignature = Get-AuthenticodeSignature -LiteralPath $trustPath
+    Get-NonProxyCertificateSha256 -Certificate $trustSignature.SignerCertificate
+}
 if ([string]$manifest.publisherCertificateSha256 -notmatch "^[0-9a-f]{64}$" -or
     [string]$manifest.publisherCertificateSha256 -ne
         $publisherCertificateSha256) {
@@ -137,7 +144,8 @@ foreach ($entry in $manifest.files) {
         $file.Extension.ToLowerInvariant() -in @(".msi", ".msix")) {
         Assert-NonProxyAuthenticodeSignature `
             -Path $path `
-            -ExpectedPublisherThumbprint $expected
+            -ExpectedPublisherThumbprint $expected `
+            -DevelopmentRootCertificatePath $DevelopmentRootCertificatePath
     }
 }
 foreach ($requiredPublisherFile in $publisherSignedPaths) {

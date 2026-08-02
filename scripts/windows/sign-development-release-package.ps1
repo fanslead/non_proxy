@@ -48,6 +48,31 @@ foreach ($generated in @($manifestPath, $trustPath)) {
     }
 }
 
+function Assert-NonProxyDevelopmentCatalogMember {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CatalogPath,
+        [Parameter(Mandatory = $true)]
+        [string]$MemberPath
+    )
+
+    $verificationOutput = (& $signTool verify /pa /c `
+        $CatalogPath $MemberPath 2>&1 | Out-String)
+    $verificationExitCode = $LASTEXITCODE
+    if ($verificationExitCode -eq 0) {
+        return
+    }
+    $untrustedRootPattern =
+        "0x800B0109|root certificate which is not trusted|CERT_E_UNTRUSTEDROOT"
+    if ($verificationExitCode -ne 1 -or
+        $verificationOutput -notmatch $untrustedRootPattern) {
+        throw (
+            "开发驱动目录成员签名校验失败：$MemberPath`n" +
+            $verificationOutput.Trim())
+    }
+    Write-Host $verificationOutput.Trim()
+}
+
 $developmentDirectory = Join-Path $root "development"
 New-Item -ItemType Directory -Force -Path $developmentDirectory | Out-Null
 Copy-Item -LiteralPath $publicCertificate `
@@ -116,13 +141,14 @@ foreach ($file in $allFiles) {
         $root,
         $file.FullName).Replace("\", "/")
     if ($scriptExtensions -contains $file.Extension.ToLowerInvariant()) {
-        $signature = Set-AuthenticodeSignature `
+        [void](Set-AuthenticodeSignature `
             -LiteralPath $file.FullName `
             -Certificate $certificate `
-            -HashAlgorithm SHA256
-        if ($signature.Status -ne [Management.Automation.SignatureStatus]::Valid) {
-            throw "PowerShell 开发签名失败：$relative（$($signature.Status)）"
-        }
+            -HashAlgorithm SHA256)
+        Assert-NonProxyAuthenticodeSignature `
+            -Path $file.FullName `
+            -ExpectedPublisherThumbprint $thumbprint `
+            -DevelopmentRootCertificatePath $rootCertificate
     } elseif ($publisherSignedPaths -contains $relative) {
         Invoke-NonProxyExternal -FilePath $signTool -Arguments @(
             "sign", "/sha1", $thumbprint, "/fd", "SHA256", $file.FullName
@@ -134,14 +160,19 @@ foreach ($driverFile in @(
     (Join-Path $root "driver/NonProxyWfp.inf"),
     (Join-Path $root "driver/NonProxyWfp.sys")
 )) {
-    Invoke-NonProxyExternal -FilePath $signTool -Arguments @(
-        "verify", "/pa", "/c", $driverCatalog, $driverFile
-    ) | Out-Null
+    Assert-NonProxyDevelopmentCatalogMember `
+        -CatalogPath $driverCatalog `
+        -MemberPath $driverFile
 }
+Assert-NonProxyAuthenticodeSignature `
+    -Path $driverCatalog `
+    -ExpectedPublisherThumbprint $thumbprint `
+    -DevelopmentRootCertificatePath $rootCertificate
 foreach ($relative in $publisherSignedPaths) {
-    Invoke-NonProxyExternal -FilePath $signTool -Arguments @(
-        "verify", "/pa", "/all", (Join-Path $root $relative)
-    ) | Out-Null
+    Assert-NonProxyAuthenticodeSignature `
+        -Path (Join-Path $root $relative) `
+        -ExpectedPublisherThumbprint $thumbprint `
+        -DevelopmentRootCertificatePath $rootCertificate
 }
 
 $entries = foreach ($file in (
@@ -170,19 +201,21 @@ $manifest | ConvertTo-Json -Depth 6 |
 $manifestHash = Get-NonProxyFileSha256 -Path $manifestPath
 Set-Content -LiteralPath $trustPath -Encoding UTF8 -Value (
     "`$NonProxyReleaseManifestSha256 = '$manifestHash'")
-$trustSignature = Set-AuthenticodeSignature `
+[void](Set-AuthenticodeSignature `
     -LiteralPath $trustPath `
     -Certificate $certificate `
-    -HashAlgorithm SHA256
-if ($trustSignature.Status -ne [Management.Automation.SignatureStatus]::Valid) {
-    throw "开发发布清单信任文件签名失败。"
-}
+    -HashAlgorithm SHA256)
+Assert-NonProxyAuthenticodeSignature `
+    -Path $trustPath `
+    -ExpectedPublisherThumbprint $thumbprint `
+    -DevelopmentRootCertificatePath $rootCertificate
 
 [void](& (Join-Path $PSScriptRoot "verify-release-package.ps1") `
     -PackageRoot $root `
     -ExpectedPublisherThumbprint $thumbprint `
     -ExpectedArchitecture $ExpectedArchitecture `
     -AllowCrossArchitectureBuildVerification `
+    -DevelopmentRootCertificatePath $rootCertificate `
     -ConsumerBootstrapManifestSha256 $manifestHash `
     -PassThru)
 Write-Host "Windows 开发预览发布目录签名完成：$root"
