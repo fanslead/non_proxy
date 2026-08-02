@@ -12,6 +12,8 @@ mod learning_confirmation_repository;
 mod learning_repository;
 mod migration;
 mod network_profile;
+mod outbound_group_repository;
+mod outbound_group_types;
 mod outbound_repository;
 mod outbound_types;
 mod policy_codec;
@@ -47,6 +49,11 @@ pub use learning_repository::{LearningObservationResult, LearningRepository, Sto
 pub use migration::{AppliedMigration, MigrationReport};
 pub use network_profile::NetworkProfileRepository;
 pub use nonproxy_model::{NetworkFingerprint, NetworkFingerprintKind, NetworkProfileReference};
+pub use outbound_group_repository::OutboundGroupRepository;
+pub use outbound_group_types::{
+    MAXIMUM_OUTBOUND_GROUP_MEMBERS, MINIMUM_OUTBOUND_GROUP_MEMBERS, OutboundGroup,
+    OutboundGroupStrategy,
+};
 pub use outbound_repository::OutboundRepository;
 pub use outbound_types::{CredentialKind, CredentialReference, OutboundKind, OutboundReference};
 pub use policy_repository::PolicyRepository;

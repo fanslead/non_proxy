@@ -15,7 +15,7 @@ pub use destination::{
     Cidr, Destination, DomainMatchKind, DomainMatcher, DomainName, IpFamily, PortRange, Transport,
 };
 pub use error::ModelError;
-pub use ids::{NetworkProfileId, OutboundId, PolicyId, RuleId};
+pub use ids::{NetworkProfileId, OutboundGroupId, OutboundId, PolicyId, RuleId};
 pub use network_profile::{
     NetworkFingerprint, NetworkFingerprintKind, NetworkProfileBinding, NetworkProfileReference,
 };

@@ -9,9 +9,9 @@ use rusqlite::{Connection, OpenFlags};
 use crate::{
     ConnectionDecisionRepository, CredentialCleanupRepository, ExitProbeRepository,
     LearningConfirmationRepository, LearningRepository, MigrationReport, NetworkProfileRepository,
-    OutboundRepository, PolicyRepository, ProviderRepository, RetentionRepository,
-    RoutingSettingsRepository, SnapshotRepository, StorageError, SubscriptionRepository,
-    SyntheticDnsRepository, migration::migrate,
+    OutboundGroupRepository, OutboundRepository, PolicyRepository, ProviderRepository,
+    RetentionRepository, RoutingSettingsRepository, SnapshotRepository, StorageError,
+    SubscriptionRepository, SyntheticDnsRepository, migration::migrate,
 };
 
 #[derive(Debug)]
@@ -74,6 +74,11 @@ impl PolicyDatabase {
     #[must_use]
     pub fn outbounds(&mut self) -> OutboundRepository<'_> {
         OutboundRepository::new(&mut self.connection)
+    }
+
+    #[must_use]
+    pub fn outbound_groups(&mut self) -> OutboundGroupRepository<'_> {
+        OutboundGroupRepository::new(&mut self.connection)
     }
 
     #[must_use]

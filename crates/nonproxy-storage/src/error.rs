@@ -45,6 +45,14 @@ pub enum StorageError {
     OutboundRevisionConflict,
     #[error("出口配置无效")]
     OutboundInvalid,
+    #[error("出口组配置无效")]
+    OutboundGroupInvalid,
+    #[error("出口组修订冲突")]
+    OutboundGroupRevisionConflict,
+    #[error("出口组成员不存在")]
+    OutboundGroupMemberNotFound,
+    #[error("出口组成员类型不支持内置连接")]
+    OutboundGroupMemberUnsupported,
     #[error("默认路由配置修订冲突")]
     RoutingRevisionConflict,
     #[error("默认代理出口不存在、未启用或能力不足")]
@@ -151,6 +159,10 @@ impl StorageError {
             Self::PolicyRevisionConflict => "NP_STORAGE_POLICY_REVISION_CONFLICT",
             Self::OutboundRevisionConflict => "NP_STORAGE_OUTBOUND_REVISION_CONFLICT",
             Self::OutboundInvalid => "NP_STORAGE_OUTBOUND_INVALID",
+            Self::OutboundGroupInvalid => "NP_STORAGE_OUTBOUND_GROUP_INVALID",
+            Self::OutboundGroupRevisionConflict => "NP_STORAGE_OUTBOUND_GROUP_REVISION_CONFLICT",
+            Self::OutboundGroupMemberNotFound => "NP_STORAGE_OUTBOUND_GROUP_MEMBER_NOT_FOUND",
+            Self::OutboundGroupMemberUnsupported => "NP_STORAGE_OUTBOUND_GROUP_MEMBER_UNSUPPORTED",
             Self::RoutingRevisionConflict => "NP_STORAGE_ROUTING_REVISION_CONFLICT",
             Self::DefaultOutboundUnavailable => "NP_STORAGE_DEFAULT_OUTBOUND_UNAVAILABLE",
             Self::ConnectionDecisionInvalid => "NP_STORAGE_CONNECTION_DECISION_INVALID",

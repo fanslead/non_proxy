@@ -41,6 +41,7 @@ macro_rules! define_identifier {
 define_identifier!(PolicyId);
 define_identifier!(RuleId);
 define_identifier!(OutboundId);
+define_identifier!(OutboundGroupId);
 define_identifier!(NetworkProfileId);
 
 fn validate_identifier(value: &str) -> Result<(), ModelError> {
