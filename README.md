@@ -104,7 +104,8 @@ App 或测试签名 Driver 不作为面向普通用户的正式安装包发布�
 ### 环境要求
 
 - macOS 开发机：Apple Silicon、macOS 15+、完整 Xcode。
-- Windows Driver：Windows 11、Visual Studio 2026、固定 WDK/SDK NuGet 包、PowerShell 7.4+。
+- Windows Driver：Windows 11、Visual Studio 2026（含 Driver Kit 组件）、固定 WDK/SDK NuGet
+  包、PowerShell 7.4+。
 - 仓库固定版本：.NET 10、Rust、Node.js、pnpm、Buf、Protobuf Compiler 和 just。
 
 macOS 可以把完整工具链安装在仓库自己的 `.tools/`，不会修改系统默认版本：

@@ -74,8 +74,10 @@ Runner 的用户证书库，不得导出或上传。
 
 ## 4. CI 环境
 
-- macOS CI 固定使用 Runner 已安装的 Xcode 26.5，避免默认 Xcode 更新破坏命令行工具解析。
-- Windows Driver CI 使用 `windows-2025-vs2026` 和固定版本 WDK/SDK NuGet 包。
+- macOS CI 固定使用 Runner 已安装的 Xcode 26.6；若镜像中的 Xcode Toolchain 缺少
+  `install_name_tool` 入口，则链接同镜像 Command Line Tools 提供的系统工具后再构建。
+- Windows Driver CI 使用 `windows-2025-vs2026` 的 Driver Kit 构建组件，以及固定版本
+  WDK/SDK NuGet 包中的头文件、库和主机构建工具。
 - Windows Rust 构建使用仓库固定版本 Protobuf Compiler，并校验官方压缩包 SHA-256。
 - WDK、Protobuf、Rust、.NET 版本都由仓库文件固定，不从未版本化的系统默认值推断。
 

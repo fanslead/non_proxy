@@ -26,10 +26,33 @@ if (-not (Test-Path $vswhere)) {
     throw "找不到 Visual Studio Installer 的 vswhere.exe。"
 }
 
-$msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild `
-    -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
-if (-not $msbuild) {
-    throw "找不到 MSBuild。"
+$vsInstallPath = $null
+foreach ($wdkComponent in @(
+    "Microsoft.Windows.DriverKit",
+    "Component.Microsoft.Windows.DriverKit.BuildTools"
+)) {
+    $candidate = & $vswhere -latest -products * `
+        -requires $wdkComponent `
+        -property installationPath | Select-Object -First 1
+    if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+        $vsInstallPath = $candidate.Trim()
+        break
+    }
+}
+if ([string]::IsNullOrWhiteSpace($vsInstallPath)) {
+    throw "找不到包含 Windows Driver Kit 组件的 Visual Studio。"
+}
+$devShellModule = Join-Path $vsInstallPath (
+    "Common7/Tools/Microsoft.VisualStudio.DevShell.dll")
+if (-not (Test-Path -LiteralPath $devShellModule -PathType Leaf)) {
+    throw "找不到 Visual Studio Developer Shell 模块。"
+}
+Import-Module $devShellModule -Force
+Enter-VsDevShell -VsInstallPath $vsInstallPath
+Set-Location $repositoryRoot
+$msbuild = (Get-Command msbuild.exe -ErrorAction Stop).Source
+if ([string]::IsNullOrWhiteSpace($msbuild)) {
+    throw "Visual Studio Developer Shell 未提供 MSBuild。"
 }
 
 $nuget = Get-Command nuget.exe -ErrorAction SilentlyContinue
@@ -55,6 +78,26 @@ New-Item -ItemType Directory -Force -Path $packagesDirectory | Out-Null
     -NonInteractive
 if ($LASTEXITCODE -ne 0) {
     throw "固定版本 WDK NuGet 包还原失败。"
+}
+
+$wdkPackageRoot = Join-Path $packagesDirectory (
+    "Microsoft.Windows.WDK.x64.$wdkVersion")
+$wdkHostToolDirectories = @(
+    Get-ChildItem -LiteralPath $wdkPackageRoot -Filter *.exe -File -Recurse |
+        Where-Object { $_.Directory.Name -eq "x64" } |
+        ForEach-Object { $_.Directory.FullName }
+    Get-ChildItem -LiteralPath $wdkPackageRoot -Filter *.exe -File -Recurse |
+        Where-Object { $_.Directory.Name -eq "x86" } |
+        ForEach-Object { $_.Directory.FullName }
+) | Select-Object -Unique
+if ($wdkHostToolDirectories.Count -eq 0) {
+    throw "固定版本 WDK NuGet 包缺少 Windows 主机工具。"
+}
+$env:Path = (($wdkHostToolDirectories -join ";") + ";" + $env:Path)
+foreach ($requiredTool in @("stampinf.exe", "Inf2Cat.exe")) {
+    if ($null -eq (Get-Command $requiredTool -ErrorAction SilentlyContinue)) {
+        throw "固定版本 WDK NuGet 包未提供 $requiredTool。"
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $output, $intermediate | Out-Null

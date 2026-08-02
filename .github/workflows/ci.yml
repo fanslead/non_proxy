@@ -98,7 +98,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 45
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - name: 检出代码
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 固定为 v6.0.2
@@ -106,8 +106,16 @@ jobs:
       - name: 安装仓库工具链
         run: ./scripts/bootstrap/install-local-tools.sh
 
-      - name: 验证固定 Xcode 工具链
-        run: xcrun --find install_name_tool
+      - name: 验证并补全托管 Xcode 工具链
+        run: |
+          if ! xcrun --find install_name_tool >/dev/null 2>&1; then
+            test -x /usr/bin/install_name_tool
+            tool_directory="$DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin"
+            sudo mkdir -p "$tool_directory"
+            sudo ln -s /usr/bin/install_name_tool "$tool_directory/install_name_tool"
+          fi
+          xcodebuild -version
+          xcrun --find install_name_tool
 
       - name: 执行完整检查
         run: |
