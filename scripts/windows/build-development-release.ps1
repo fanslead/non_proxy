@@ -55,6 +55,9 @@ if ([string]::IsNullOrWhiteSpace($SigningCertificateDirectory)) {
     $certificatePath = Resolve-NonProxyExistingPath `
         -Path (Join-Path $certificateDirectory "NonProxy-Development.cer") `
         -PathType Leaf
+    $rootCertificatePath = Resolve-NonProxyExistingPath `
+        -Path (Join-Path $certificateDirectory "NonProxy-Development-Root.cer") `
+        -PathType Leaf
     $publicCertificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
         $certificatePath)
     try {
@@ -69,6 +72,7 @@ if ([string]::IsNullOrWhiteSpace($SigningCertificateDirectory)) {
         $signing = [pscustomobject]@{
             CertificatePath = $certificatePath
             CertificateSha256 = $certificateSha256
+            RootCertificatePath = $rootCertificatePath
             Thumbprint = $thumbprint
         }
     } finally {
@@ -158,7 +162,8 @@ Write-Host "正在签名并校验 Windows 开发预览目录。"
     -PackageRoot $packageRoot `
     -ExpectedArchitecture $Architecture `
     -CertificateThumbprint $signing.Thumbprint `
-    -PublicCertificatePath $signing.CertificatePath
+    -PublicCertificatePath $signing.CertificatePath `
+    -RootCertificatePath $signing.RootCertificatePath
 
 $releaseDirectory = Join-Path $repositoryRoot ".artifacts/release/$Version"
 New-Item -ItemType Directory -Force -Path $releaseDirectory | Out-Null

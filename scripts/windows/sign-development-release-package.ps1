@@ -10,7 +10,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$CertificateThumbprint,
     [Parameter(Mandatory = $true)]
-    [string]$PublicCertificatePath
+    [string]$PublicCertificatePath,
+    [Parameter(Mandatory = $true)]
+    [string]$RootCertificatePath
 )
 
 Set-StrictMode -Version 3.0
@@ -22,6 +24,8 @@ Assert-NonProxyWindows
 $root = Resolve-NonProxyExistingPath -Path $PackageRoot -PathType Container
 $publicCertificate = Resolve-NonProxyExistingPath `
     -Path $PublicCertificatePath -PathType Leaf
+$rootCertificate = Resolve-NonProxyExistingPath `
+    -Path $RootCertificatePath -PathType Leaf
 $thumbprint = ConvertTo-NonProxyThumbprint $CertificateThumbprint
 $certificate = Get-NonProxySigningCertificate -Thumbprint $thumbprint
 $publisherCertificateSha256 = Get-NonProxyCertificateSha256 `
@@ -48,10 +52,16 @@ $developmentDirectory = Join-Path $root "development"
 New-Item -ItemType Directory -Force -Path $developmentDirectory | Out-Null
 Copy-Item -LiteralPath $publicCertificate `
     -Destination (Join-Path $developmentDirectory "NonProxy-Development.cer")
+Copy-Item -LiteralPath $rootCertificate `
+    -Destination (Join-Path $developmentDirectory "NonProxy-Development-Root.cer")
 Set-Content `
     -LiteralPath (Join-Path $developmentDirectory "certificate-sha256.txt") `
     -Encoding UTF8 `
     -Value $publisherCertificateSha256
+Set-Content `
+    -LiteralPath (Join-Path $developmentDirectory "root-certificate-sha256.txt") `
+    -Encoding UTF8 `
+    -Value (Get-NonProxyFileSha256 -Path $rootCertificate)
 Copy-Item `
     -LiteralPath (Join-Path $PSScriptRoot "Install-Development-Certificate.ps1") `
     -Destination $developmentDirectory

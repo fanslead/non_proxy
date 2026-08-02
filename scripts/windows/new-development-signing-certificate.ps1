@@ -29,15 +29,43 @@ if (Test-Path -LiteralPath $output) {
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 
 $subject = "CN=NonProxy Development $Version $Architecture"
-Write-Host "正在生成临时自签名代码签名证书：$subject"
-$rsa = [Security.Cryptography.RSA]::Create(3072)
+$rootSubject = "CN=NonProxy Development Root $Version $Architecture"
+Write-Host "正在生成临时开发 CA 与代码签名证书：$subject"
+$rootRsa = [Security.Cryptography.RSA]::Create(3072)
+$signingRsa = [Security.Cryptography.RSA]::Create(3072)
+$rootCertificate = $null
+$issuedCertificate = $null
 $generatedCertificate = $null
 $certificate = $null
 $pfxBytes = $null
+$rootCertificateBytes = $null
 try {
+    $rootRequest = [Security.Cryptography.X509Certificates.CertificateRequest]::new(
+        $rootSubject,
+        $rootRsa,
+        [Security.Cryptography.HashAlgorithmName]::SHA256,
+        [Security.Cryptography.RSASignaturePadding]::Pkcs1)
+    [void]$rootRequest.CertificateExtensions.Add(
+        [Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]::new(
+            $true, $false, 0, $true))
+    $rootKeyUsage =
+        [Security.Cryptography.X509Certificates.X509KeyUsageFlags]::KeyCertSign `
+        -bor [Security.Cryptography.X509Certificates.X509KeyUsageFlags]::CrlSign
+    [void]$rootRequest.CertificateExtensions.Add(
+        [Security.Cryptography.X509Certificates.X509KeyUsageExtension]::new(
+            $rootKeyUsage, $true))
+    [void]$rootRequest.CertificateExtensions.Add(
+        [Security.Cryptography.X509Certificates.X509SubjectKeyIdentifierExtension]::new(
+            $rootRequest.PublicKey, $false))
+    $now = [DateTimeOffset]::UtcNow
+    $rootCertificate = $rootRequest.CreateSelfSigned(
+        $now.AddMinutes(-5), $now.AddDays(91))
+    $rootCertificateBytes = $rootCertificate.Export(
+        [Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+
     $request = [Security.Cryptography.X509Certificates.CertificateRequest]::new(
         $subject,
-        $rsa,
+        $signingRsa,
         [Security.Cryptography.HashAlgorithmName]::SHA256,
         [Security.Cryptography.RSASignaturePadding]::Pkcs1)
     [void]$request.CertificateExtensions.Add(
@@ -57,9 +85,19 @@ try {
     [void]$request.CertificateExtensions.Add(
         [Security.Cryptography.X509Certificates.X509SubjectKeyIdentifierExtension]::new(
             $request.PublicKey, $false))
-    $now = [DateTimeOffset]::UtcNow
-    $generatedCertificate = $request.CreateSelfSigned(
-        $now.AddMinutes(-5), $now.AddDays(90))
+    $serialNumber = [byte[]]::new(16)
+    [Security.Cryptography.RandomNumberGenerator]::Fill($serialNumber)
+    $serialNumber[0] = [byte]($serialNumber[0] -band 0x7F)
+    $serialNumber[$serialNumber.Length - 1] = [byte](
+        $serialNumber[$serialNumber.Length - 1] -bor 1)
+    $issuedCertificate = $request.Create(
+        $rootCertificate,
+        $now.AddMinutes(-5),
+        $now.AddDays(90),
+        $serialNumber)
+    $generatedCertificate = (
+        [Security.Cryptography.X509Certificates.RSACertificateExtensions]::CopyWithPrivateKey(
+            $issuedCertificate, $signingRsa))
     $pfxPassword = [Guid]::NewGuid().ToString("N")
     $pfxBytes = $generatedCertificate.Export(
         [Security.Cryptography.X509Certificates.X509ContentType]::Pfx,
@@ -88,7 +126,14 @@ try {
     if ($null -ne $generatedCertificate) {
         $generatedCertificate.Dispose()
     }
-    $rsa.Dispose()
+    if ($null -ne $issuedCertificate) {
+        $issuedCertificate.Dispose()
+    }
+    if ($null -ne $rootCertificate) {
+        $rootCertificate.Dispose()
+    }
+    $signingRsa.Dispose()
+    $rootRsa.Dispose()
 }
 if ($null -eq $certificate -or -not $certificate.HasPrivateKey) {
     throw "Windows 开发代码签名证书创建失败。"
@@ -100,6 +145,9 @@ $publicCertificateBytes = $certificate.Export(
     [Security.Cryptography.X509Certificates.X509ContentType]::Cert)
 [IO.File]::WriteAllBytes($certificatePath, $publicCertificateBytes)
 Write-Host "临时开发签名公钥证书已导出。"
+$rootCertificatePath = Join-Path $output "NonProxy-Development-Root.cer"
+[IO.File]::WriteAllBytes($rootCertificatePath, $rootCertificateBytes)
+Write-Host "临时开发 CA 根证书已导出。"
 Write-Host "正在以命令行模式加入一次性 CI 用户根信任存储。"
 $certUtil = Join-Path $env:SystemRoot "System32/certutil.exe"
 Invoke-NonProxyExternal -FilePath $certUtil -Arguments @(
@@ -107,7 +155,7 @@ Invoke-NonProxyExternal -FilePath $certUtil -Arguments @(
     "-addstore",
     "-f",
     "Root",
-    $certificatePath
+    $rootCertificatePath
 ) | ForEach-Object { Write-Host $_ }
 $publicCertificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
     $publicCertificateBytes)
@@ -135,6 +183,8 @@ $certificateSha256 = Get-NonProxyCertificateSha256 -Certificate $certificate
     Certificate = $certificate
     CertificatePath = $certificatePath
     CertificateSha256 = $certificateSha256
+    RootCertificatePath = $rootCertificatePath
+    RootCertificateSha256 = Get-NonProxyFileSha256 -Path $rootCertificatePath
     Subject = $subject
     Thumbprint = ConvertTo-NonProxyThumbprint $certificate.Thumbprint
 }
