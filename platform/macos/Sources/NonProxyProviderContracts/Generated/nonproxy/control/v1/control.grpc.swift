@@ -137,6 +137,45 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "ListOutboundGroups" metadata.
+        public enum ListOutboundGroups: Sendable {
+            /// Request type for "ListOutboundGroups".
+            public typealias Input = Nonproxy_Control_V1_ListOutboundGroupsRequest
+            /// Response type for "ListOutboundGroups".
+            public typealias Output = Nonproxy_Control_V1_ListOutboundGroupsResponse
+            /// Descriptor for "ListOutboundGroups".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "ListOutboundGroups",
+                type: .unary
+            )
+        }
+        /// Namespace for "UpsertOutboundGroup" metadata.
+        public enum UpsertOutboundGroup: Sendable {
+            /// Request type for "UpsertOutboundGroup".
+            public typealias Input = Nonproxy_Control_V1_UpsertOutboundGroupRequest
+            /// Response type for "UpsertOutboundGroup".
+            public typealias Output = Nonproxy_Control_V1_UpsertOutboundGroupResponse
+            /// Descriptor for "UpsertOutboundGroup".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "UpsertOutboundGroup",
+                type: .unary
+            )
+        }
+        /// Namespace for "DeleteOutboundGroup" metadata.
+        public enum DeleteOutboundGroup: Sendable {
+            /// Request type for "DeleteOutboundGroup".
+            public typealias Input = Nonproxy_Control_V1_DeleteOutboundGroupRequest
+            /// Response type for "DeleteOutboundGroup".
+            public typealias Output = Nonproxy_Control_V1_DeleteOutboundGroupResponse
+            /// Descriptor for "DeleteOutboundGroup".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "nonproxy.control.v1.ControlService"),
+                method: "DeleteOutboundGroup",
+                type: .unary
+            )
+        }
         /// Namespace for "ListSubscriptionSources" metadata.
         public enum ListSubscriptionSources: Sendable {
             /// Request type for "ListSubscriptionSources".
@@ -447,6 +486,9 @@ public enum Nonproxy_Control_V1_ControlService: Sendable {
             ApplyPolicySnapshot.descriptor,
             RollbackPolicySnapshot.descriptor,
             ListOutbounds.descriptor,
+            ListOutboundGroups.descriptor,
+            UpsertOutboundGroup.descriptor,
+            DeleteOutboundGroup.descriptor,
             ListSubscriptionSources.descriptor,
             UpsertSubscriptionSource.descriptor,
             RefreshSubscriptionSource.descriptor,
@@ -662,6 +704,63 @@ extension Nonproxy_Control_V1_ControlService {
             deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListOutboundsResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListOutboundsResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "ListOutboundGroups" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ListOutboundGroupsRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ListOutboundGroupsRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ListOutboundGroupsResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func listOutboundGroups<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListOutboundGroupsRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ListOutboundGroupsRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListOutboundGroupsResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListOutboundGroupsResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "UpsertOutboundGroup" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_UpsertOutboundGroupRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_UpsertOutboundGroupRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_UpsertOutboundGroupResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func upsertOutboundGroup<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertOutboundGroupRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_UpsertOutboundGroupRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_UpsertOutboundGroupResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertOutboundGroupResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "DeleteOutboundGroup" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_DeleteOutboundGroupRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_DeleteOutboundGroupRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_DeleteOutboundGroupResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func deleteOutboundGroup<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteOutboundGroupRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_DeleteOutboundGroupRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_DeleteOutboundGroupResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteOutboundGroupResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "ListSubscriptionSources" method.
@@ -1385,6 +1484,96 @@ extension Nonproxy_Control_V1_ControlService {
             try await self.client.unary(
                 request: request,
                 descriptor: Nonproxy_Control_V1_ControlService.Method.ListOutbounds.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "ListOutboundGroups" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_ListOutboundGroupsRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_ListOutboundGroupsRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_ListOutboundGroupsResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func listOutboundGroups<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListOutboundGroupsRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_ListOutboundGroupsRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_ListOutboundGroupsResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListOutboundGroupsResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.ListOutboundGroups.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "UpsertOutboundGroup" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_UpsertOutboundGroupRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_UpsertOutboundGroupRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_UpsertOutboundGroupResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func upsertOutboundGroup<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertOutboundGroupRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_UpsertOutboundGroupRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_UpsertOutboundGroupResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertOutboundGroupResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.UpsertOutboundGroup.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "DeleteOutboundGroup" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Nonproxy_Control_V1_DeleteOutboundGroupRequest` message.
+        ///   - serializer: A serializer for `Nonproxy_Control_V1_DeleteOutboundGroupRequest` messages.
+        ///   - deserializer: A deserializer for `Nonproxy_Control_V1_DeleteOutboundGroupResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func deleteOutboundGroup<Result>(
+            request: GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteOutboundGroupRequest>,
+            serializer: some GRPCCore.MessageSerializer<Nonproxy_Control_V1_DeleteOutboundGroupRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Nonproxy_Control_V1_DeleteOutboundGroupResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteOutboundGroupResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Nonproxy_Control_V1_ControlService.Method.DeleteOutboundGroup.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -2310,6 +2499,81 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
         )
     }
 
+    /// Call the "ListOutboundGroups" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_ListOutboundGroupsRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listOutboundGroups<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_ListOutboundGroupsRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListOutboundGroupsResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.listOutboundGroups(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_ListOutboundGroupsRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_ListOutboundGroupsResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "UpsertOutboundGroup" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_UpsertOutboundGroupRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func upsertOutboundGroup<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertOutboundGroupRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertOutboundGroupResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.upsertOutboundGroup(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_UpsertOutboundGroupRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_UpsertOutboundGroupResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "DeleteOutboundGroup" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Nonproxy_Control_V1_DeleteOutboundGroupRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func deleteOutboundGroup<Result>(
+        request: GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteOutboundGroupRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteOutboundGroupResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.deleteOutboundGroup(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Nonproxy_Control_V1_DeleteOutboundGroupRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Nonproxy_Control_V1_DeleteOutboundGroupResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "ListSubscriptionSources" method.
     ///
     /// - Parameters:
@@ -3142,6 +3406,93 @@ extension Nonproxy_Control_V1_ControlService.ClientProtocol {
             metadata: metadata
         )
         return try await self.listOutbounds(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListOutboundGroups" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listOutboundGroups<Result>(
+        _ message: Nonproxy_Control_V1_ListOutboundGroupsRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_ListOutboundGroupsResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_ListOutboundGroupsRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.listOutboundGroups(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "UpsertOutboundGroup" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func upsertOutboundGroup<Result>(
+        _ message: Nonproxy_Control_V1_UpsertOutboundGroupRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_UpsertOutboundGroupResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_UpsertOutboundGroupRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.upsertOutboundGroup(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "DeleteOutboundGroup" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func deleteOutboundGroup<Result>(
+        _ message: Nonproxy_Control_V1_DeleteOutboundGroupRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Nonproxy_Control_V1_DeleteOutboundGroupResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Nonproxy_Control_V1_DeleteOutboundGroupRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.deleteOutboundGroup(
             request: request,
             options: options,
             onResponse: handleResponse

@@ -9,17 +9,18 @@ use nonproxy_policy_compiler::CompileCapabilities;
 use nonproxy_proto::common::v1::ComponentKind;
 use nonproxy_proto::control::v1::{
     ApplyPolicySnapshotRequest, CapabilityName, ConfirmLearningCandidatesRequest, DefaultRouteKind,
-    DeleteNetworkProfileRequest, DeleteSubscriptionSourceRequest, DiagnosticRedactionLevel,
-    ExitProbeRouteKind, ExportDiagnosticsRequest, GetActivePolicySnapshotRequest,
-    GetCapabilitiesRequest, GetSystemStatusRequest, ImportConfigurationRequest,
-    LearningObservationKind, LearningResourceType, LearningSessionKind, ListExitProbesRequest,
-    ListLearningCandidatesRequest, ListNetworkProfilesRequest, ListOutboundsRequest,
-    OperationContext, OutboundKind as ProtoOutboundKind, RecordLearningObservationRequest,
-    RollbackPolicySnapshotRequest, SetDefaultRouteRequest, StartLearningSessionRequest,
-    StopLearningSessionRequest, TestOutboundRequest, UpsertNetworkProfileRequest,
-    UpsertPolicyRequest, UpsertSubscriptionSourceRequest, VerifyExitRequest,
-    control_service_server::ControlService, set_default_route_request,
-    start_learning_session_request,
+    DeleteNetworkProfileRequest, DeleteOutboundGroupRequest, DeleteSubscriptionSourceRequest,
+    DiagnosticRedactionLevel, ExitProbeRouteKind, ExportDiagnosticsRequest,
+    GetActivePolicySnapshotRequest, GetCapabilitiesRequest, GetSystemStatusRequest,
+    ImportConfigurationRequest, LearningObservationKind, LearningResourceType, LearningSessionKind,
+    ListExitProbesRequest, ListLearningCandidatesRequest, ListNetworkProfilesRequest,
+    ListOutboundGroupsRequest, ListOutboundsRequest, OperationContext,
+    OutboundGroupStrategy as ProtoOutboundGroupStrategy, OutboundKind as ProtoOutboundKind,
+    RecordLearningObservationRequest, RollbackPolicySnapshotRequest, SetDefaultRouteRequest,
+    StartLearningSessionRequest, StopLearningSessionRequest, TestOutboundRequest,
+    UpsertNetworkProfileRequest, UpsertOutboundGroupRequest, UpsertPolicyRequest,
+    UpsertSubscriptionSourceRequest, VerifyExitRequest, control_service_server::ControlService,
+    set_default_route_request, start_learning_session_request,
 };
 use nonproxy_proto::events::v1::{LearningCandidateKind, RuntimeState, event_envelope};
 use nonproxy_proto::policy::v1::{NetworkFingerprintKind, NetworkProfileSpec};
@@ -120,6 +121,133 @@ async fn subscription_delete_requires_authentication_before_reading_state() {
         panic!("错误令牌必须在读取订阅删除状态前被拒绝");
     };
     assert_eq!(status.code(), Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn outbound_group_mutation_requires_the_exact_session_capability() {
+    let service = service([7; 32]);
+    let result = service
+        .upsert_outbound_group(Request::new(UpsertOutboundGroupRequest {
+            context: Some(context([8; 32], "save-outbound-group")),
+            group_id: "office-failover".to_owned(),
+            display_name: "办公室故障切换".to_owned(),
+            strategy: ProtoOutboundGroupStrategy::Failover as i32,
+            outbound_ids: vec!["primary".to_owned(), "backup".to_owned()],
+            expected_revision: 0,
+        }))
+        .await;
+
+    assert!(matches!(
+        result,
+        Err(status) if status.code() == Code::PermissionDenied
+    ));
+}
+
+#[tokio::test]
+async fn authenticated_outbound_group_crud_preserves_priority_and_revision_cas() {
+    let service = service([7; 32]);
+    service
+        .gateway
+        .save_outbounds(vec![
+            (test_outbound("primary", 1080), None),
+            (test_outbound("backup", 1081), None),
+        ])
+        .await
+        .unwrap_or_else(|error| panic!("出口组测试出口保存失败: {error}"));
+
+    let created = service
+        .upsert_outbound_group(Request::new(outbound_group_request(
+            "save-outbound-group",
+            vec!["primary", "backup"],
+            0,
+        )))
+        .await
+        .unwrap_or_else(|error| panic!("出口组创建 RPC 失败: {error}"))
+        .into_inner()
+        .result
+        .and_then(|result| result.group)
+        .unwrap_or_else(|| panic!("出口组创建结果缺少安全摘要"));
+    assert_eq!(created.revision, 1);
+    assert_eq!(created.outbound_ids, ["primary", "backup"]);
+
+    let listed = service
+        .list_outbound_groups(Request::new(ListOutboundGroupsRequest { page: None }))
+        .await
+        .unwrap_or_else(|error| panic!("出口组目录 RPC 失败: {error}"))
+        .into_inner();
+    assert!(matches!(
+        listed.groups.as_slice(),
+        [group] if group.id == "office-failover"
+            && group.outbound_ids == ["primary", "backup"]
+    ));
+
+    let stale = service
+        .upsert_outbound_group(Request::new(outbound_group_request(
+            "save-outbound-group-stale",
+            vec!["backup", "primary"],
+            0,
+        )))
+        .await
+        .unwrap_or_else(|error| panic!("出口组过期写入响应失败: {error}"))
+        .into_inner();
+    assert!(matches!(
+        stale.result.and_then(|result| result.error),
+        Some(error) if error.code == "NP_STORAGE_OUTBOUND_GROUP_REVISION_CONFLICT"
+    ));
+
+    let updated = service
+        .upsert_outbound_group(Request::new(outbound_group_request(
+            "save-outbound-group-r2",
+            vec!["backup", "primary"],
+            1,
+        )))
+        .await
+        .unwrap_or_else(|error| panic!("出口组更新 RPC 失败: {error}"))
+        .into_inner()
+        .result
+        .and_then(|result| result.group)
+        .unwrap_or_else(|| panic!("出口组更新结果缺少安全摘要"));
+    assert_eq!(updated.revision, 2);
+    assert_eq!(updated.outbound_ids, ["backup", "primary"]);
+
+    let stale_delete = service
+        .delete_outbound_group(Request::new(DeleteOutboundGroupRequest {
+            context: Some(context([7; 32], "delete-outbound-group-stale")),
+            group_id: "office-failover".to_owned(),
+            expected_revision: 1,
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("出口组过期删除响应失败: {error}"))
+        .into_inner();
+    assert!(matches!(
+        stale_delete.error,
+        Some(error) if error.code == "NP_STORAGE_OUTBOUND_GROUP_REVISION_CONFLICT"
+    ));
+
+    let deleted = service
+        .delete_outbound_group(Request::new(DeleteOutboundGroupRequest {
+            context: Some(context([7; 32], "delete-outbound-group-r2")),
+            group_id: "office-failover".to_owned(),
+            expected_revision: 2,
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("出口组删除 RPC 失败: {error}"))
+        .into_inner();
+    assert_eq!(deleted.group_id, "office-failover");
+    assert!(deleted.error.is_none());
+    assert!(
+        service
+            .list_outbound_groups(Request::new(ListOutboundGroupsRequest { page: None }))
+            .await
+            .is_ok_and(|response| response.get_ref().groups.is_empty())
+    );
+    assert!(
+        service
+            .gateway
+            .list_outbounds()
+            .await
+            .is_ok_and(|outbounds| outbounds.len() == 2)
+    );
 }
 
 #[tokio::test]
@@ -1295,6 +1423,33 @@ fn network_profile_spec(
         fingerprint_value: fingerprint.to_owned(),
         revision,
     }
+}
+
+fn outbound_group_request(
+    operation_id: &str,
+    outbound_ids: Vec<&str>,
+    expected_revision: u64,
+) -> UpsertOutboundGroupRequest {
+    UpsertOutboundGroupRequest {
+        context: Some(context([7; 32], operation_id)),
+        group_id: "office-failover".to_owned(),
+        display_name: "办公室故障切换".to_owned(),
+        strategy: ProtoOutboundGroupStrategy::Failover as i32,
+        outbound_ids: outbound_ids.into_iter().map(str::to_owned).collect(),
+        expected_revision,
+    }
+}
+
+fn test_outbound(id: &str, port: u16) -> OutboundReference {
+    OutboundReference::new(
+        OutboundId::new(id).unwrap_or_else(|error| panic!("测试出口标识无效: {error}")),
+        OutboundKind::Socks5,
+        Some("127.0.0.1"),
+        Some(port),
+        None,
+        1,
+    )
+    .unwrap_or_else(|error| panic!("测试出口配置无效: {error}"))
 }
 
 fn context(token: [u8; 32], operation_id: &str) -> OperationContext {

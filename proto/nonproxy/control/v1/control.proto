@@ -21,6 +21,9 @@ service ControlService {
   rpc ApplyPolicySnapshot(ApplyPolicySnapshotRequest) returns (ApplyPolicySnapshotResponse);
   rpc RollbackPolicySnapshot(RollbackPolicySnapshotRequest) returns (RollbackPolicySnapshotResponse);
   rpc ListOutbounds(ListOutboundsRequest) returns (ListOutboundsResponse);
+  rpc ListOutboundGroups(ListOutboundGroupsRequest) returns (ListOutboundGroupsResponse);
+  rpc UpsertOutboundGroup(UpsertOutboundGroupRequest) returns (UpsertOutboundGroupResponse);
+  rpc DeleteOutboundGroup(DeleteOutboundGroupRequest) returns (DeleteOutboundGroupResponse);
   rpc ListSubscriptionSources(ListSubscriptionSourcesRequest) returns (ListSubscriptionSourcesResponse);
   rpc UpsertSubscriptionSource(UpsertSubscriptionSourceRequest) returns (UpsertSubscriptionSourceResponse);
   rpc RefreshSubscriptionSource(RefreshSubscriptionSourceRequest) returns (RefreshSubscriptionSourceResponse);
@@ -72,6 +75,12 @@ enum OutboundKind {
   OUTBOUND_KIND_OPENVPN = 5;
   OUTBOUND_KIND_EXTERNAL_ADAPTER = 6;
   OUTBOUND_KIND_SHADOWSOCKS = 7;
+}
+
+// OutboundGroupStrategy 表示出口组选择成员的方式。
+enum OutboundGroupStrategy {
+  OUTBOUND_GROUP_STRATEGY_UNSPECIFIED = 0;
+  OUTBOUND_GROUP_STRATEGY_FAILOVER = 1;
 }
 
 // DefaultRouteKind 表示未命中用户规则时采用的基础路由。
@@ -344,6 +353,56 @@ message ListOutboundsResponse {
   repeated OutboundSummary outbounds = 1;
   nonproxy.common.v1.PageResponse page = 2;
   uint64 routing_revision = 3;
+}
+
+// OutboundGroupSummary 返回按优先级排列的出口组，不包含任何出口凭据。
+message OutboundGroupSummary {
+  string id = 1;
+  string display_name = 2;
+  OutboundGroupStrategy strategy = 3;
+  repeated string outbound_ids = 4;
+  uint64 revision = 5;
+}
+
+// ListOutboundGroupsRequest 请求稳定排序的出口组目录。
+message ListOutboundGroupsRequest {
+  nonproxy.common.v1.PageRequest page = 1;
+}
+
+message ListOutboundGroupsResponse {
+  repeated OutboundGroupSummary groups = 1;
+  nonproxy.common.v1.PageResponse page = 2;
+}
+
+// UpsertOutboundGroupRequest 使用 expected_revision 对出口组执行乐观并发写入。
+message UpsertOutboundGroupRequest {
+  OperationContext context = 1;
+  string group_id = 2;
+  string display_name = 3;
+  OutboundGroupStrategy strategy = 4;
+  repeated string outbound_ids = 5;
+  uint64 expected_revision = 6;
+}
+
+message OutboundGroupMutationResult {
+  OutboundGroupSummary group = 1;
+  nonproxy.common.v1.ErrorDetail error = 2;
+}
+
+message UpsertOutboundGroupResponse {
+  OutboundGroupMutationResult result = 1;
+}
+
+// DeleteOutboundGroupRequest 只删除组本身，不删除成员出口。
+message DeleteOutboundGroupRequest {
+  OperationContext context = 1;
+  string group_id = 2;
+  uint64 expected_revision = 3;
+}
+
+message DeleteOutboundGroupResponse {
+  string group_id = 1;
+  nonproxy.common.v1.ErrorDetail error = 2;
 }
 
 // SubscriptionSourceSummary 返回不含订阅 URL、凭据引用和响应正文的安全摘要。

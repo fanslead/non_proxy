@@ -159,6 +159,41 @@ public nonisolated enum Nonproxy_Control_V1_OutboundKind: SwiftProtobuf.Enum, Sw
 
 }
 
+/// OutboundGroupStrategy 表示出口组选择成员的方式。
+public nonisolated enum Nonproxy_Control_V1_OutboundGroupStrategy: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+  case failover // = 1
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .failover
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .failover: return 1
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Nonproxy_Control_V1_OutboundGroupStrategy] = [
+    .unspecified,
+    .failover,
+  ]
+
+}
+
 /// DefaultRouteKind 表示未命中用户规则时采用的基础路由。
 public nonisolated enum Nonproxy_Control_V1_DefaultRouteKind: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
@@ -1313,6 +1348,205 @@ public nonisolated struct Nonproxy_Control_V1_ListOutboundsResponse: Sendable {
   public init() {}
 
   fileprivate var _page: Nonproxy_Common_V1_PageResponse? = nil
+}
+
+/// OutboundGroupSummary 返回按优先级排列的出口组，不包含任何出口凭据。
+public nonisolated struct Nonproxy_Control_V1_OutboundGroupSummary: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: String = String()
+
+  public var displayName: String = String()
+
+  public var strategy: Nonproxy_Control_V1_OutboundGroupStrategy = .unspecified
+
+  public var outboundIds: [String] = []
+
+  public var revision: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// ListOutboundGroupsRequest 请求稳定排序的出口组目录。
+public nonisolated struct Nonproxy_Control_V1_ListOutboundGroupsRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var page: Nonproxy_Common_V1_PageRequest {
+    get {_page ?? Nonproxy_Common_V1_PageRequest()}
+    set {_page = newValue}
+  }
+  /// Returns true if `page` has been explicitly set.
+  public var hasPage: Bool {self._page != nil}
+  /// Clears the value of `page`. Subsequent reads from it will return its default value.
+  public mutating func clearPage() {self._page = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _page: Nonproxy_Common_V1_PageRequest? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_ListOutboundGroupsResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var groups: [Nonproxy_Control_V1_OutboundGroupSummary] = []
+
+  public var page: Nonproxy_Common_V1_PageResponse {
+    get {_page ?? Nonproxy_Common_V1_PageResponse()}
+    set {_page = newValue}
+  }
+  /// Returns true if `page` has been explicitly set.
+  public var hasPage: Bool {self._page != nil}
+  /// Clears the value of `page`. Subsequent reads from it will return its default value.
+  public mutating func clearPage() {self._page = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _page: Nonproxy_Common_V1_PageResponse? = nil
+}
+
+/// UpsertOutboundGroupRequest 使用 expected_revision 对出口组执行乐观并发写入。
+public nonisolated struct Nonproxy_Control_V1_UpsertOutboundGroupRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var groupID: String = String()
+
+  public var displayName: String = String()
+
+  public var strategy: Nonproxy_Control_V1_OutboundGroupStrategy = .unspecified
+
+  public var outboundIds: [String] = []
+
+  public var expectedRevision: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_OutboundGroupMutationResult: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var group: Nonproxy_Control_V1_OutboundGroupSummary {
+    get {_group ?? Nonproxy_Control_V1_OutboundGroupSummary()}
+    set {_group = newValue}
+  }
+  /// Returns true if `group` has been explicitly set.
+  public var hasGroup: Bool {self._group != nil}
+  /// Clears the value of `group`. Subsequent reads from it will return its default value.
+  public mutating func clearGroup() {self._group = nil}
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _group: Nonproxy_Control_V1_OutboundGroupSummary? = nil
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_UpsertOutboundGroupResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Nonproxy_Control_V1_OutboundGroupMutationResult {
+    get {_result ?? Nonproxy_Control_V1_OutboundGroupMutationResult()}
+    set {_result = newValue}
+  }
+  /// Returns true if `result` has been explicitly set.
+  public var hasResult: Bool {self._result != nil}
+  /// Clears the value of `result`. Subsequent reads from it will return its default value.
+  public mutating func clearResult() {self._result = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _result: Nonproxy_Control_V1_OutboundGroupMutationResult? = nil
+}
+
+/// DeleteOutboundGroupRequest 只删除组本身，不删除成员出口。
+public nonisolated struct Nonproxy_Control_V1_DeleteOutboundGroupRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var context: Nonproxy_Control_V1_OperationContext {
+    get {_context ?? Nonproxy_Control_V1_OperationContext()}
+    set {_context = newValue}
+  }
+  /// Returns true if `context` has been explicitly set.
+  public var hasContext: Bool {self._context != nil}
+  /// Clears the value of `context`. Subsequent reads from it will return its default value.
+  public mutating func clearContext() {self._context = nil}
+
+  public var groupID: String = String()
+
+  public var expectedRevision: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
+}
+
+public nonisolated struct Nonproxy_Control_V1_DeleteOutboundGroupResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var groupID: String = String()
+
+  public var error: Nonproxy_Common_V1_ErrorDetail {
+    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
 }
 
 /// SubscriptionSourceSummary 返回不含订阅 URL、凭据引用和响应正文的安全摘要。
@@ -3003,6 +3237,10 @@ nonisolated extension Nonproxy_Control_V1_OutboundKind: SwiftProtobuf._ProtoName
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OUTBOUND_KIND_UNSPECIFIED\0\u{1}OUTBOUND_KIND_DIRECT\0\u{1}OUTBOUND_KIND_HTTP_CONNECT\0\u{1}OUTBOUND_KIND_SOCKS5\0\u{1}OUTBOUND_KIND_WIREGUARD\0\u{1}OUTBOUND_KIND_OPENVPN\0\u{1}OUTBOUND_KIND_EXTERNAL_ADAPTER\0\u{1}OUTBOUND_KIND_SHADOWSOCKS\0")
 }
 
+nonisolated extension Nonproxy_Control_V1_OutboundGroupStrategy: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OUTBOUND_GROUP_STRATEGY_UNSPECIFIED\0\u{1}OUTBOUND_GROUP_STRATEGY_FAILOVER\0")
+}
+
 nonisolated extension Nonproxy_Control_V1_DefaultRouteKind: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DEFAULT_ROUTE_KIND_UNSPECIFIED\0\u{1}DEFAULT_ROUTE_KIND_DIRECT\0\u{1}DEFAULT_ROUTE_KIND_PROXY\0")
 }
@@ -4282,6 +4520,344 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundsResponse: SwiftProtobuf.M
     if lhs.outbounds != rhs.outbounds {return false}
     if lhs._page != rhs._page {return false}
     if lhs.routingRevision != rhs.routingRevision {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_OutboundGroupSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".OutboundGroupSummary"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{1}strategy\0\u{3}outbound_ids\0\u{1}revision\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.strategy) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.outboundIds) }()
+      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.revision) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.displayName.isEmpty {
+      try visitor.visitSingularStringField(value: self.displayName, fieldNumber: 2)
+    }
+    if self.strategy != .unspecified {
+      try visitor.visitSingularEnumField(value: self.strategy, fieldNumber: 3)
+    }
+    if !self.outboundIds.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.outboundIds, fieldNumber: 4)
+    }
+    if self.revision != 0 {
+      try visitor.visitSingularUInt64Field(value: self.revision, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_OutboundGroupSummary, rhs: Nonproxy_Control_V1_OutboundGroupSummary) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.displayName != rhs.displayName {return false}
+    if lhs.strategy != rhs.strategy {return false}
+    if lhs.outboundIds != rhs.outboundIds {return false}
+    if lhs.revision != rhs.revision {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ListOutboundGroupsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListOutboundGroupsRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}page\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._page) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._page {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ListOutboundGroupsRequest, rhs: Nonproxy_Control_V1_ListOutboundGroupsRequest) -> Bool {
+    if lhs._page != rhs._page {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_ListOutboundGroupsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListOutboundGroupsResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}groups\0\u{1}page\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.groups) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._page) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.groups.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.groups, fieldNumber: 1)
+    }
+    try { if let v = self._page {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_ListOutboundGroupsResponse, rhs: Nonproxy_Control_V1_ListOutboundGroupsResponse) -> Bool {
+    if lhs.groups != rhs.groups {return false}
+    if lhs._page != rhs._page {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_UpsertOutboundGroupRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpsertOutboundGroupRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}group_id\0\u{3}display_name\0\u{1}strategy\0\u{3}outbound_ids\0\u{3}expected_revision\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.groupID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.strategy) }()
+      case 5: try { try decoder.decodeRepeatedStringField(value: &self.outboundIds) }()
+      case 6: try { try decoder.decodeSingularUInt64Field(value: &self.expectedRevision) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.groupID.isEmpty {
+      try visitor.visitSingularStringField(value: self.groupID, fieldNumber: 2)
+    }
+    if !self.displayName.isEmpty {
+      try visitor.visitSingularStringField(value: self.displayName, fieldNumber: 3)
+    }
+    if self.strategy != .unspecified {
+      try visitor.visitSingularEnumField(value: self.strategy, fieldNumber: 4)
+    }
+    if !self.outboundIds.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.outboundIds, fieldNumber: 5)
+    }
+    if self.expectedRevision != 0 {
+      try visitor.visitSingularUInt64Field(value: self.expectedRevision, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_UpsertOutboundGroupRequest, rhs: Nonproxy_Control_V1_UpsertOutboundGroupRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.groupID != rhs.groupID {return false}
+    if lhs.displayName != rhs.displayName {return false}
+    if lhs.strategy != rhs.strategy {return false}
+    if lhs.outboundIds != rhs.outboundIds {return false}
+    if lhs.expectedRevision != rhs.expectedRevision {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_OutboundGroupMutationResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".OutboundGroupMutationResult"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}group\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._group) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._group {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_OutboundGroupMutationResult, rhs: Nonproxy_Control_V1_OutboundGroupMutationResult) -> Bool {
+    if lhs._group != rhs._group {return false}
+    if lhs._error != rhs._error {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_UpsertOutboundGroupResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpsertOutboundGroupResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._result {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_UpsertOutboundGroupResponse, rhs: Nonproxy_Control_V1_UpsertOutboundGroupResponse) -> Bool {
+    if lhs._result != rhs._result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_DeleteOutboundGroupRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeleteOutboundGroupRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{3}group_id\0\u{3}expected_revision\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._context) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.groupID) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.expectedRevision) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._context {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.groupID.isEmpty {
+      try visitor.visitSingularStringField(value: self.groupID, fieldNumber: 2)
+    }
+    if self.expectedRevision != 0 {
+      try visitor.visitSingularUInt64Field(value: self.expectedRevision, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_DeleteOutboundGroupRequest, rhs: Nonproxy_Control_V1_DeleteOutboundGroupRequest) -> Bool {
+    if lhs._context != rhs._context {return false}
+    if lhs.groupID != rhs.groupID {return false}
+    if lhs.expectedRevision != rhs.expectedRevision {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Nonproxy_Control_V1_DeleteOutboundGroupResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeleteOutboundGroupResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}group_id\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.groupID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.groupID.isEmpty {
+      try visitor.visitSingularStringField(value: self.groupID, fieldNumber: 1)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Nonproxy_Control_V1_DeleteOutboundGroupResponse, rhs: Nonproxy_Control_V1_DeleteOutboundGroupResponse) -> Bool {
+    if lhs.groupID != rhs.groupID {return false}
+    if lhs._error != rhs._error {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

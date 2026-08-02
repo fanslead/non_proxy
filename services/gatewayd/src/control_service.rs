@@ -8,21 +8,18 @@ use nonproxy_proto::{
     },
     policy::v1::SnapshotState,
 };
-use nonproxy_storage::DefaultRoute;
 use tokio_stream::{Stream, StreamExt, wrappers::BroadcastStream};
 use tonic::{Request, Response, Status};
 
 use crate::{
-    GatewayError,
-    clock::unix_time_ms,
-    control_mapping,
+    GatewayError, control_mapping,
     control_rpc_helpers::{
         empty_mutation, event_meets_minimum, event_response, internal_status, minimum_severity,
         mutation_error, publish_snapshot_event, request_status,
     },
     control_rpc_service::ControlRpcService,
     decision_rpc, diagnostics_export, exit_probe, exit_probe_rpc, learning_rpc,
-    network_profile_rpc, outbound_import_service, outbound_probe,
+    network_profile_rpc, outbound_group_rpc, outbound_import_service, outbound_probe, outbound_rpc,
     proto_policy::{policy_from_proto, policy_to_proto},
     routing_rpc, runtime_override_rpc, subscription_rpc, system_rpc,
 };
@@ -291,39 +288,38 @@ impl ControlService for ControlRpcService {
         &self,
         request: Request<control_proto::ListOutboundsRequest>,
     ) -> Result<Response<control_proto::ListOutboundsResponse>, Status> {
-        let request = request.into_inner();
-        let (outbounds, routing) = self
-            .gateway
-            .list_outbounds_with_routing()
-            .await
-            .map_err(internal_status)?;
-        let page = request.page.unwrap_or(PageRequest {
-            page_size: 0,
-            page_token: String::new(),
-        });
-        let (start, end, page_response) =
-            control_mapping::page_bounds(page.page_size, &page.page_token, outbounds.len())?;
-        let now = unix_time_ms().map_err(internal_status)?;
-        let health = outbounds[start..end]
-            .iter()
-            .map(|outbound| self.gateway.outbound_health(outbound, now))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(internal_status)?;
-        Ok(Response::new(control_proto::ListOutboundsResponse {
-            outbounds: outbounds[start..end]
-                .iter()
-                .zip(health.iter())
-                .map(|(outbound, health)| {
-                    let is_default = matches!(
-                        routing.route(),
-                        DefaultRoute::Proxy(outbound_id) if outbound_id == outbound.id()
-                    );
-                    control_mapping::outbound_summary(outbound, health.as_ref(), is_default)
-                })
-                .collect(),
-            page: Some(page_response),
-            routing_revision: routing.revision(),
-        }))
+        Ok(Response::new(
+            outbound_rpc::list(&self.gateway, request.into_inner()).await?,
+        ))
+    }
+
+    async fn list_outbound_groups(
+        &self,
+        request: Request<control_proto::ListOutboundGroupsRequest>,
+    ) -> Result<Response<control_proto::ListOutboundGroupsResponse>, Status> {
+        Ok(Response::new(
+            outbound_group_rpc::list(&self.gateway, request.into_inner()).await?,
+        ))
+    }
+
+    async fn upsert_outbound_group(
+        &self,
+        request: Request<control_proto::UpsertOutboundGroupRequest>,
+    ) -> Result<Response<control_proto::UpsertOutboundGroupResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            outbound_group_rpc::upsert(&self.gateway, request.into_inner()).await,
+        ))
+    }
+
+    async fn delete_outbound_group(
+        &self,
+        request: Request<control_proto::DeleteOutboundGroupRequest>,
+    ) -> Result<Response<control_proto::DeleteOutboundGroupResponse>, Status> {
+        self.session.validate(request.get_ref().context.as_ref())?;
+        Ok(Response::new(
+            outbound_group_rpc::delete(&self.gateway, request.into_inner()).await?,
+        ))
     }
 
     async fn list_subscription_sources(

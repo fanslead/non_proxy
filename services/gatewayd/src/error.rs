@@ -87,6 +87,12 @@ impl GatewayError {
                 "NP_OUTBOUND_REVISION_CONFLICT"
             }
             Self::Storage(
+                error @ (StorageError::OutboundGroupInvalid
+                | StorageError::OutboundGroupRevisionConflict
+                | StorageError::OutboundGroupMemberNotFound
+                | StorageError::OutboundGroupMemberUnsupported),
+            ) => error.code(),
+            Self::Storage(
                 error @ (StorageError::SubscriptionInvalid
                 | StorageError::SubscriptionRevisionConflict
                 | StorageError::SubscriptionGenerationConflict
