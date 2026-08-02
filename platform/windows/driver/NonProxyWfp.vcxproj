@@ -68,6 +68,7 @@
       <Architecture>$(InfArch)</Architecture>
       <CopyOutput>$(OutDir)NonProxyWfp.inf</CopyOutput>
     </Inf>
+    <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

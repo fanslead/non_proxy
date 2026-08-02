@@ -115,16 +115,19 @@ if ($LASTEXITCODE -ne 0) {
     throw "NonProxyWfp $Platform 构建失败。"
 }
 
-$driver = Get-ChildItem -Path $output -Filter "NonProxyWfp.sys" -Recurse |
-    Select-Object -First 1
-$inf = Get-ChildItem -Path $output -Filter "NonProxyWfp.inf" -Recurse |
-    Select-Object -First 1
-$catalog = Get-ChildItem -Path $output -Filter "NonProxyWfp.cat" -Recurse |
-    Select-Object -First 1
-if (-not $driver -or -not $inf -or -not $catalog) {
-    throw "WDK 构建未生成完整的 SYS/INF/CAT 产物。"
+$driverPackageDirectory = Join-Path $output "NonProxyWfp"
+foreach ($driverFileName in @(
+    "NonProxyWfp.inf",
+    "NonProxyWfp.sys",
+    "NonProxyWfp.cat"
+)) {
+    $packagedDriverFile = Join-Path $driverPackageDirectory $driverFileName
+    if (-not (Test-Path -LiteralPath $packagedDriverFile -PathType Leaf)) {
+        throw "WDK Driver Package 缺少 $driverFileName。"
+    }
+    Copy-Item -LiteralPath $packagedDriverFile `
+        -Destination (Join-Path $output $driverFileName) `
+        -Force
 }
 
-Write-Host "WFP Driver 构建完成：$($driver.FullName)"
-Write-Host "WFP INF 构建完成：$($inf.FullName)"
-Write-Host "WFP Catalog 构建完成：$($catalog.FullName)"
+Write-Host "WFP Driver Package 构建完成：$output"
