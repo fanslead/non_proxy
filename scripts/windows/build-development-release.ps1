@@ -81,28 +81,40 @@ $desktopOutput = Join-Path $repositoryRoot (
     ".artifacts/desktop/$($target.Rid)")
 $bootstrapOutput = Join-Path $repositoryRoot (
     ".artifacts/bootstrap/$($target.Rid)")
+$desktopProject = Join-Path $repositoryRoot (
+    "apps/desktop/NonProxy.Desktop.Windows/" +
+    "NonProxy.Desktop.Windows.csproj")
+$bootstrapProject = Join-Path $repositoryRoot (
+    "platform/windows/NonProxy.Windows.Bootstrap/" +
+    "NonProxy.Windows.Bootstrap.csproj")
+Write-Host "正在按仓库锁文件还原 Windows 桌面端全部发行 RID。"
+& dotnet restore $desktopProject
+if ($LASTEXITCODE -ne 0) {
+    throw "Windows 桌面端依赖还原失败。"
+}
 Write-Host "正在发布 Windows 桌面端。"
-& dotnet publish (
-    Join-Path $repositoryRoot (
-        "apps/desktop/NonProxy.Desktop.Windows/" +
-        "NonProxy.Desktop.Windows.csproj")) `
+& dotnet publish $desktopProject `
     -c Release `
     -f net10.0-windows10.0.26100.0 `
     -r $target.Rid `
+    --no-restore `
     --self-contained true `
     "-p:NonProxyWindowsPublisherCertificateSha256=$($signing.CertificateSha256)" `
     -o $desktopOutput
 if ($LASTEXITCODE -ne 0) {
     throw "Windows 桌面端发布失败。"
 }
+Write-Host "正在按仓库锁文件还原 Windows Bootstrap 全部发行 RID。"
+& dotnet restore $bootstrapProject
+if ($LASTEXITCODE -ne 0) {
+    throw "Windows 安装 Bootstrap 依赖还原失败。"
+}
 Write-Host "正在发布 Windows 安装 Bootstrap。"
-& dotnet publish (
-    Join-Path $repositoryRoot (
-        "platform/windows/NonProxy.Windows.Bootstrap/" +
-        "NonProxy.Windows.Bootstrap.csproj")) `
+& dotnet publish $bootstrapProject `
     -c Release `
     -f net10.0-windows10.0.26100.0 `
     -r $target.Rid `
+    --no-restore `
     --self-contained true `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
