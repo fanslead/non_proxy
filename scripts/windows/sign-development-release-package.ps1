@@ -77,6 +77,7 @@ function Assert-NonProxyDevelopmentCatalogMember {
             $verificationOutput.Trim())
     }
     Write-Host $verificationOutput.Trim()
+    $global:LASTEXITCODE = 0
 }
 
 $developmentDirectory = Join-Path $root "development"

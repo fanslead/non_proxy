@@ -45,6 +45,7 @@ public sealed class WindowsReleaseSourceContractTests
             ("developmentSign", "NonProxy-Development-Root.cer"),
             ("developmentSign", "CERT_E_UNTRUSTEDROOT"),
             ("developmentSign", "CERT_E_CHAINING"),
+            ("developmentSign", "$global:LASTEXITCODE = 0"),
             ("developmentCertificate", "StoreName]::TrustedPeople"),
             ("developmentCertificate", "StoreName]::TrustedPublisher"),
             ("developmentCertificate", "RootCertificatePath"),
