@@ -143,15 +143,22 @@ pub fn outbound_summary(
 }
 
 #[must_use]
-pub fn default_route(route: &DefaultRoute) -> (i32, String) {
+pub fn default_route(route: &DefaultRoute) -> (i32, String, String) {
     match route {
         DefaultRoute::Direct => (
             nonproxy_proto::control::v1::DefaultRouteKind::Direct as i32,
+            String::new(),
             String::new(),
         ),
         DefaultRoute::Proxy(outbound_id) => (
             nonproxy_proto::control::v1::DefaultRouteKind::Proxy as i32,
             outbound_id.as_str().to_owned(),
+            String::new(),
+        ),
+        DefaultRoute::Group(group_id) => (
+            nonproxy_proto::control::v1::DefaultRouteKind::Proxy as i32,
+            String::new(),
+            group_id.as_str().to_owned(),
         ),
     }
 }

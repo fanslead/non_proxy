@@ -4,6 +4,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 use crate::{
     CredentialKind, CredentialReference, OutboundKind, OutboundReference, StorageError,
     credential_cleanup_repository::enqueue_credential_cleanup, migration::to_sqlite_u64,
+    routing_settings_repository::validate_current_default_route,
 };
 
 pub struct OutboundRepository<'connection> {
@@ -50,10 +51,10 @@ impl<'connection> OutboundRepository<'connection> {
         for (outbound, expected_revision) in outbounds {
             validate_revision(&transaction, outbound, *expected_revision)?;
         }
-        validate_default_outbound(&transaction, outbounds)?;
         for (outbound, _) in outbounds {
             save_outbound(&transaction, outbound, updated_at_unix_ms)?;
         }
+        validate_current_default_route(&transaction)?;
         enqueue_credential_cleanup(&transaction, credential_references, updated_at_unix_ms)?;
         transaction.commit()?;
         Ok(())
@@ -105,31 +106,6 @@ impl<'connection> OutboundRepository<'connection> {
             })
             .collect()
     }
-}
-
-pub(crate) fn validate_default_outbound(
-    transaction: &Transaction<'_>,
-    outbounds: &[(OutboundReference, Option<u64>)],
-) -> Result<(), StorageError> {
-    let default_outbound_id = transaction
-        .query_row(
-            "SELECT default_outbound_id
-             FROM routing_settings
-             WHERE singleton_id = 1 AND default_action = 'proxy'",
-            [],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()?;
-    let Some(default_outbound_id) = default_outbound_id else {
-        return Ok(());
-    };
-    if outbounds.iter().any(|(outbound, _)| {
-        outbound.id().as_str() == default_outbound_id
-            && (!outbound.enabled() || !outbound.kind().supports_default_route())
-    }) {
-        return Err(StorageError::DefaultOutboundUnavailable);
-    }
-    Ok(())
 }
 
 pub(crate) fn save_outbound(

@@ -81,14 +81,14 @@ fn an_existing_v1_database_upgrades_without_reapplying_v1() {
         panic!("V1 数据库升级失败: {upgraded:?}");
     };
     assert_eq!(upgraded.previous_version(), 1);
-    assert_eq!(upgraded.current_version(), 15);
+    assert_eq!(upgraded.current_version(), 16);
     assert_eq!(
         upgraded
             .applied()
             .iter()
             .map(AppliedMigration::version)
             .collect::<Vec<_>>(),
-        vec![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        vec![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     );
     let generation: i64 = match connection.query_row(
         "SELECT value FROM control_generation WHERE name = 'policy_catalog'",
@@ -194,7 +194,7 @@ fn legacy_learning_rows_upgrade_without_losing_candidates() {
     let Ok(upgraded) = upgraded else {
         panic!("旧学习数据升级失败: {upgraded:?}");
     };
-    assert_eq!(upgraded.current_version(), 15);
+    assert_eq!(upgraded.current_version(), 16);
     let session: (String, String, i64) = match connection.query_row(
         "SELECT browser_context_id, state, expires_at_unix_ms
          FROM learning_session WHERE id = 'legacy-session'",
@@ -340,7 +340,7 @@ fn legacy_connection_decisions_upgrade_without_fabricating_app_identity() {
         panic!("V11 连接记录升级失败: {upgraded:?}");
     };
     assert_eq!(upgraded.previous_version(), 11);
-    assert_eq!(upgraded.current_version(), 15);
+    assert_eq!(upgraded.current_version(), 16);
     let identity: (Option<String>, Option<String>, Option<String>) = match connection.query_row(
         "SELECT app_signer_id, app_parent_stable_id, app_helper_group_id
          FROM connection_decision WHERE event_id = 'legacy-identity'",
@@ -399,7 +399,7 @@ fn policy_target_migration_preserves_legacy_policy_children_and_foreign_keys() {
         )
         .unwrap_or_else(|error| panic!("旧策略端口条件写入失败: {error}"));
 
-    let report = migrate_with(&mut connection, None, 2_000, MIGRATIONS)
+    let report = migrate_with(&mut connection, None, 2_000, &MIGRATIONS[..15])
         .unwrap_or_else(|error| panic!("策略目标 V15 迁移失败: {error}"));
     assert_eq!(report.previous_version(), 14);
     assert_eq!(report.current_version(), 15);
@@ -426,6 +426,62 @@ fn policy_target_migration_preserves_legacy_policy_children_and_foreign_keys() {
             row.get(0)
         })
         .unwrap_or_else(|error| panic!("迁移后外键检查失败: {error}"));
+    assert_eq!(foreign_key_violations, 0);
+}
+
+#[test]
+fn routing_target_migration_preserves_the_legacy_default_outbound() {
+    let mut connection = Connection::open_in_memory()
+        .unwrap_or_else(|error| panic!("默认路由目标迁移测试数据库打开失败: {error}"));
+    connection
+        .pragma_update(None, "foreign_keys", "ON")
+        .unwrap_or_else(|error| panic!("默认路由目标迁移外键启用失败: {error}"));
+    migrate_with(&mut connection, None, 1_000, &MIGRATIONS[..15])
+        .unwrap_or_else(|error| panic!("V15 默认路由目标迁移基线创建失败: {error}"));
+    connection
+        .execute(
+            "INSERT INTO outbound(
+                 id, kind, endpoint_host, endpoint_port, enabled, revision, updated_at_unix_ms
+             ) VALUES ('legacy-default', 'socks5', '127.0.0.1', 1080, 1, 1, 1000)",
+            [],
+        )
+        .unwrap_or_else(|error| panic!("旧默认出口写入失败: {error}"));
+    connection
+        .execute(
+            "UPDATE routing_settings
+             SET default_action = 'proxy', default_outbound_id = 'legacy-default', revision = 2
+             WHERE singleton_id = 1",
+            [],
+        )
+        .unwrap_or_else(|error| panic!("旧默认路由写入失败: {error}"));
+
+    let report = migrate_with(&mut connection, None, 2_000, MIGRATIONS)
+        .unwrap_or_else(|error| panic!("默认路由目标 V16 迁移失败: {error}"));
+    assert_eq!(report.previous_version(), 15);
+    assert_eq!(report.current_version(), 16);
+    let target: (String, Option<String>, Option<String>, i64) = connection
+        .query_row(
+            "SELECT default_action, default_outbound_id,
+                    default_outbound_group_id, revision
+             FROM routing_settings WHERE singleton_id = 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .unwrap_or_else(|error| panic!("迁移后默认路由目标读取失败: {error}"));
+    assert_eq!(
+        target,
+        (
+            "proxy".to_owned(),
+            Some("legacy-default".to_owned()),
+            None,
+            2,
+        )
+    );
+    let foreign_key_violations: i64 = connection
+        .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
+            row.get(0)
+        })
+        .unwrap_or_else(|error| panic!("默认路由迁移后外键检查失败: {error}"));
     assert_eq!(foreign_key_violations, 0);
 }
 

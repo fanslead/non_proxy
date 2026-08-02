@@ -1,12 +1,12 @@
 mod support;
 
 use nonproxy_model::{
-    AppMatcher, DecisionSpec, FailureMode, OutboundId, Platform, Policy, PolicyId, PolicyMatch,
-    PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction,
+    AppMatcher, DecisionSpec, FailureMode, OutboundGroupId, OutboundId, Platform, Policy, PolicyId,
+    PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind, RouteAction,
 };
 use nonproxy_storage::{
-    CredentialKind, CredentialReference, DefaultRoute, OutboundKind, OutboundReference,
-    PolicyDatabase, StorageError,
+    CredentialKind, CredentialReference, DefaultRoute, OutboundGroup, OutboundGroupStrategy,
+    OutboundKind, OutboundReference, PolicyDatabase, StorageError,
 };
 use support::artifact;
 
@@ -320,6 +320,51 @@ fn active_default_outbound_cannot_be_disabled_or_limited_to_tcp() {
     assert!(matches!(
         database.outbounds().get(initial.id()),
         Ok(Some(value)) if value == initial
+    ));
+}
+
+#[test]
+fn active_default_group_member_cannot_be_disabled() {
+    let mut database = PolicyDatabase::open_in_memory(1_000)
+        .unwrap_or_else(|error| panic!("测试数据库打开失败: {error}"));
+    let primary = outbound_with_id("group-primary", 1, None);
+    let backup = outbound_with_id("group-backup", 1, None);
+    database
+        .outbounds()
+        .save_batch(&[(primary.clone(), None), (backup.clone(), None)], 1_100)
+        .unwrap_or_else(|error| panic!("默认组出口保存失败: {error}"));
+    let group = OutboundGroup::new(
+        OutboundGroupId::new("automatic")
+            .unwrap_or_else(|error| panic!("默认组标识创建失败: {error}")),
+        "自动切换",
+        OutboundGroupStrategy::Failover,
+        vec![primary.id().clone(), backup.id().clone()],
+        1,
+    )
+    .unwrap_or_else(|error| panic!("默认组创建失败: {error}"));
+    database
+        .outbound_groups()
+        .save(&group, None, 1_150)
+        .unwrap_or_else(|error| panic!("默认组保存失败: {error}"));
+    let snapshot = artifact(1, 5).unwrap_or_else(|error| panic!("默认组快照创建失败: {error}"));
+    database
+        .routing_settings()
+        .set_and_stage(
+            &DefaultRoute::Group(group.id().clone()),
+            1,
+            &snapshot,
+            1_200,
+        )
+        .unwrap_or_else(|error| panic!("默认组选择失败: {error}"));
+
+    let disabled = outbound_with_id("group-backup", 2, None).disabled();
+    assert!(matches!(
+        database.outbounds().save(&disabled, Some(1), 1_300),
+        Err(StorageError::DefaultOutboundUnavailable)
+    ));
+    assert!(matches!(
+        database.outbounds().get(backup.id()),
+        Ok(Some(value)) if value == backup
     ));
 }
 

@@ -2,7 +2,9 @@ use nonproxy_model::{OutboundGroupId, OutboundId};
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 
 use crate::{
-    OutboundGroup, OutboundGroupStrategy, OutboundKind, StorageError, migration::to_sqlite_u64,
+    OutboundGroup, OutboundGroupStrategy, OutboundKind, SnapshotArtifact, StorageError,
+    migration::to_sqlite_u64, routing_settings_repository::validate_current_default_route,
+    snapshot_repository::stage_in_transaction,
 };
 
 pub struct OutboundGroupRepository<'connection> {
@@ -18,6 +20,31 @@ impl<'connection> OutboundGroupRepository<'connection> {
         &mut self,
         group: &OutboundGroup,
         expected_current_revision: Option<u64>,
+        updated_at_unix_ms: u64,
+    ) -> Result<(), StorageError> {
+        self.save_with_snapshot(group, expected_current_revision, None, updated_at_unix_ms)
+    }
+
+    pub fn save_and_stage(
+        &mut self,
+        group: &OutboundGroup,
+        expected_current_revision: Option<u64>,
+        artifact: &SnapshotArtifact,
+        updated_at_unix_ms: u64,
+    ) -> Result<(), StorageError> {
+        self.save_with_snapshot(
+            group,
+            expected_current_revision,
+            Some(artifact),
+            updated_at_unix_ms,
+        )
+    }
+
+    fn save_with_snapshot(
+        &mut self,
+        group: &OutboundGroup,
+        expected_current_revision: Option<u64>,
+        artifact: Option<&SnapshotArtifact>,
         updated_at_unix_ms: u64,
     ) -> Result<(), StorageError> {
         let transaction = self
@@ -57,6 +84,7 @@ impl<'connection> OutboundGroupRepository<'connection> {
                 ],
             )?;
         }
+        validate_current_default_route(&transaction)?;
         transaction.execute(
             "INSERT INTO audit_event(event_id, event_type, occurred_at_unix_ms, details)
              VALUES (?1, 'outbound_group_saved', ?2, ?3)",
@@ -75,6 +103,9 @@ impl<'connection> OutboundGroupRepository<'connection> {
                 ),
             ],
         )?;
+        if let Some(artifact) = artifact {
+            stage_in_transaction(&transaction, artifact)?;
+        }
         transaction.commit()?;
         Ok(())
     }
@@ -131,7 +162,11 @@ impl<'connection> OutboundGroupRepository<'connection> {
             return Err(StorageError::OutboundGroupRevisionConflict);
         }
         let referenced: bool = transaction.query_row(
-            "SELECT EXISTS(SELECT 1 FROM policy WHERE outbound_group_id = ?1)",
+            "SELECT EXISTS(SELECT 1 FROM policy WHERE outbound_group_id = ?1)
+                 OR EXISTS(
+                    SELECT 1 FROM routing_settings
+                    WHERE singleton_id = 1 AND default_outbound_group_id = ?1
+                 )",
             [group_id.as_str()],
             |row| row.get(0),
         )?;

@@ -41,5 +41,9 @@ pub async fn list(
             .collect(),
         page: Some(page_response),
         routing_revision: routing.revision(),
+        default_outbound_group_id: match routing.route() {
+            DefaultRoute::Group(group_id) => group_id.as_str().to_owned(),
+            DefaultRoute::Direct | DefaultRoute::Proxy(_) => String::new(),
+        },
     })
 }

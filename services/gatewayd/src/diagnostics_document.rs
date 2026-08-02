@@ -209,6 +209,7 @@ pub(crate) async fn build(
                 default_route: match status.routing.route() {
                     DefaultRoute::Direct => "direct",
                     DefaultRoute::Proxy(_) => "proxy",
+                    DefaultRoute::Group(_) => "proxy_group",
                 },
                 routing_revision: status.routing.revision(),
                 dropped_decision_events: status.dropped_decision_events,

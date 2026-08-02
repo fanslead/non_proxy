@@ -1,4 +1,4 @@
-use nonproxy_model::OutboundId;
+use nonproxy_model::{OutboundGroupId, OutboundId};
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 
 use crate::{
@@ -14,6 +14,7 @@ use crate::{
 pub enum DefaultRoute {
     Direct,
     Proxy(OutboundId),
+    Group(OutboundGroupId),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -108,14 +109,15 @@ impl<'connection> RoutingSettingsRepository<'connection> {
 fn read_settings(connection: &Connection) -> Result<RoutingSettings, StorageError> {
     let raw = connection
         .query_row(
-            "SELECT default_action, default_outbound_id, revision
+            "SELECT default_action, default_outbound_id, default_outbound_group_id, revision
              FROM routing_settings WHERE singleton_id = 1",
             [],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, Option<String>>(1)?,
-                    row.get::<_, i64>(2)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, i64>(3)?,
                 ))
             },
         )
@@ -127,11 +129,12 @@ fn read_settings(connection: &Connection) -> Result<RoutingSettings, StorageErro
 }
 
 fn decode_settings(
-    (action, outbound_id, revision): (String, Option<String>, i64),
+    (action, outbound_id, group_id, revision): (String, Option<String>, Option<String>, i64),
 ) -> Result<RoutingSettings, StorageError> {
-    let route = match (action.as_str(), outbound_id) {
-        ("direct", None) => DefaultRoute::Direct,
-        ("proxy", Some(outbound_id)) => DefaultRoute::Proxy(OutboundId::new(outbound_id)?),
+    let route = match (action.as_str(), outbound_id, group_id) {
+        ("direct", None, None) => DefaultRoute::Direct,
+        ("proxy", Some(outbound_id), None) => DefaultRoute::Proxy(OutboundId::new(outbound_id)?),
+        ("proxy", None, Some(group_id)) => DefaultRoute::Group(OutboundGroupId::new(group_id)?),
         _ => {
             return Err(StorageError::CorruptData {
                 field: "routing_settings.default_action",
@@ -159,37 +162,25 @@ fn update_route(
     if expected_revision == 0 || current.revision() != expected_revision {
         return Err(StorageError::RoutingRevisionConflict);
     }
-    if let DefaultRoute::Proxy(outbound_id) = route {
-        let outbound = transaction
-            .query_row(
-                "SELECT enabled, kind FROM outbound WHERE id = ?1",
-                [outbound_id.as_str()],
-                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
-            )
-            .optional()?;
-        let available = match outbound {
-            Some((1, kind)) => OutboundKind::parse(&kind)?.supports_default_route(),
-            _ => false,
-        };
-        if !available {
-            return Err(StorageError::DefaultOutboundUnavailable);
-        }
-    }
+    validate_default_route_target(transaction, route)?;
     let revision = expected_revision
         .checked_add(1)
         .ok_or(StorageError::RoutingRevisionConflict)?;
-    let (action, outbound_id) = match route {
-        DefaultRoute::Direct => ("direct", None),
-        DefaultRoute::Proxy(outbound_id) => ("proxy", Some(outbound_id.as_str())),
+    let (action, outbound_id, group_id) = match route {
+        DefaultRoute::Direct => ("direct", None, None),
+        DefaultRoute::Proxy(outbound_id) => ("proxy", Some(outbound_id.as_str()), None),
+        DefaultRoute::Group(group_id) => ("proxy", None, Some(group_id.as_str())),
     };
     let changed = transaction.execute(
         "UPDATE routing_settings
          SET default_action = ?1, default_outbound_id = ?2,
-             revision = ?3, updated_at_unix_ms = ?4
-         WHERE singleton_id = 1 AND revision = ?5",
+             default_outbound_group_id = ?3,
+             revision = ?4, updated_at_unix_ms = ?5
+         WHERE singleton_id = 1 AND revision = ?6",
         params![
             action,
             outbound_id,
+            group_id,
             to_sqlite_u64(revision)?,
             to_sqlite_u64(updated_at_unix_ms)?,
             to_sqlite_u64(expected_revision)?
@@ -202,4 +193,66 @@ fn update_route(
         route: route.clone(),
         revision,
     })
+}
+
+pub(crate) fn validate_default_route_target(
+    transaction: &Transaction<'_>,
+    route: &DefaultRoute,
+) -> Result<(), StorageError> {
+    let available = match route {
+        DefaultRoute::Direct => true,
+        DefaultRoute::Proxy(outbound_id) => transaction
+            .query_row(
+                "SELECT enabled, kind FROM outbound WHERE id = ?1",
+                [outbound_id.as_str()],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()?
+            .map(|(enabled, kind)| {
+                Ok::<bool, StorageError>(
+                    enabled == 1 && OutboundKind::parse(&kind)?.supports_default_route(),
+                )
+            })
+            .transpose()?
+            .unwrap_or(false),
+        DefaultRoute::Group(group_id) => default_group_is_available(transaction, group_id)?,
+    };
+    if available {
+        Ok(())
+    } else {
+        Err(StorageError::DefaultOutboundUnavailable)
+    }
+}
+
+pub(crate) fn validate_current_default_route(
+    transaction: &Transaction<'_>,
+) -> Result<(), StorageError> {
+    let current = read_settings(transaction)?;
+    validate_default_route_target(transaction, current.route())
+}
+
+fn default_group_is_available(
+    transaction: &Transaction<'_>,
+    group_id: &OutboundGroupId,
+) -> Result<bool, StorageError> {
+    let mut statement = transaction.prepare(
+        "SELECT o.enabled, o.kind
+         FROM outbound_group_member m
+         JOIN outbound o ON o.id = m.outbound_id
+         WHERE m.group_id = ?1 ORDER BY m.position",
+    )?;
+    let members = statement
+        .query_map([group_id.as_str()], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    if members.len() < 2 {
+        return Ok(false);
+    }
+    for (enabled, kind) in members {
+        if enabled != 1 || !OutboundKind::parse(&kind)?.supports_default_route() {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }

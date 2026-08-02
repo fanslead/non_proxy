@@ -1,9 +1,9 @@
 mod support;
 
-use nonproxy_model::OutboundId;
+use nonproxy_model::{OutboundGroupId, OutboundId};
 use nonproxy_storage::{
-    CredentialKind, CredentialReference, DefaultRoute, OutboundKind, OutboundReference,
-    PolicyDatabase, StorageError,
+    CredentialKind, CredentialReference, DefaultRoute, OutboundGroup, OutboundGroupStrategy,
+    OutboundKind, OutboundReference, PolicyDatabase, StorageError,
 };
 use support::artifact;
 
@@ -24,6 +24,17 @@ fn outbound(id: &str, enabled: bool) -> OutboundReference {
         Err(error) => panic!("测试出口创建失败: {error}"),
     };
     if enabled { value } else { value.disabled() }
+}
+
+fn group(id: &str, members: &[&OutboundReference]) -> OutboundGroup {
+    OutboundGroup::new(
+        OutboundGroupId::new(id).unwrap_or_else(|error| panic!("测试出口组标识创建失败: {error}")),
+        "自动切换",
+        OutboundGroupStrategy::Failover,
+        members.iter().map(|value| value.id().clone()).collect(),
+        1,
+    )
+    .unwrap_or_else(|error| panic!("测试出口组创建失败: {error}"))
 }
 
 #[test]
@@ -71,6 +82,98 @@ fn proxy_route_and_snapshot_are_staged_atomically() {
         database.snapshots().pending(),
         Ok(Some(record)) if record.artifact() == &snapshot
     ));
+}
+
+#[test]
+fn group_route_and_snapshot_are_staged_atomically() {
+    let mut database = PolicyDatabase::open_in_memory(1_000)
+        .unwrap_or_else(|error| panic!("测试数据库打开失败: {error}"));
+    let primary = outbound("primary-proxy", true);
+    let backup = outbound("backup-proxy", true);
+    database
+        .outbounds()
+        .save_batch(&[(primary.clone(), None), (backup.clone(), None)], 1_100)
+        .unwrap_or_else(|error| panic!("测试出口保存失败: {error}"));
+    let group = group("automatic", &[&primary, &backup]);
+    database
+        .outbound_groups()
+        .save(&group, None, 1_200)
+        .unwrap_or_else(|error| panic!("测试出口组保存失败: {error}"));
+    let snapshot = artifact(1, 7).unwrap_or_else(|error| panic!("测试快照创建失败: {error}"));
+    let route = DefaultRoute::Group(group.id().clone());
+
+    let settings = database
+        .routing_settings()
+        .set_and_stage(&route, 1, &snapshot, 1_300)
+        .unwrap_or_else(|error| panic!("默认出口组和快照原子保存失败: {error}"));
+
+    assert_eq!(settings.route(), &route);
+    assert_eq!(settings.revision(), 2);
+    assert!(matches!(
+        database.snapshots().pending(),
+        Ok(Some(record)) if record.artifact() == &snapshot
+    ));
+}
+
+#[test]
+fn default_group_rejects_disabled_or_incomplete_members() {
+    let mut database = PolicyDatabase::open_in_memory(1_000)
+        .unwrap_or_else(|error| panic!("测试数据库打开失败: {error}"));
+    let primary = outbound("primary-proxy", true);
+    let disabled = outbound("disabled-proxy", false);
+    let http_id = OutboundId::new("http-proxy")
+        .unwrap_or_else(|error| panic!("HTTP 出口标识创建失败: {error}"));
+    let http = OutboundReference::new(
+        http_id,
+        OutboundKind::HttpConnect,
+        Some("proxy.example.com"),
+        Some(8_080),
+        None,
+        1,
+    )
+    .unwrap_or_else(|error| panic!("HTTP 出口创建失败: {error}"));
+    database
+        .outbounds()
+        .save_batch(
+            &[
+                (primary.clone(), None),
+                (disabled.clone(), None),
+                (http.clone(), None),
+            ],
+            1_100,
+        )
+        .unwrap_or_else(|error| panic!("测试出口保存失败: {error}"));
+    let disabled_group = group("disabled-group", &[&primary, &disabled]);
+    let incomplete_group = group("incomplete-group", &[&primary, &http]);
+    database
+        .outbound_groups()
+        .save(&disabled_group, None, 1_200)
+        .unwrap_or_else(|error| panic!("禁用成员组保存失败: {error}"));
+    database
+        .outbound_groups()
+        .save(&incomplete_group, None, 1_200)
+        .unwrap_or_else(|error| panic!("能力不足组保存失败: {error}"));
+    let snapshot = artifact(1, 7).unwrap_or_else(|error| panic!("测试快照创建失败: {error}"));
+
+    for group in [disabled_group, incomplete_group] {
+        assert!(matches!(
+            database.routing_settings().set_and_stage(
+                &DefaultRoute::Group(group.id().clone()),
+                1,
+                &snapshot,
+                1_300,
+            ),
+            Err(StorageError::DefaultOutboundUnavailable)
+        ));
+    }
+    assert_eq!(
+        database
+            .routing_settings()
+            .get()
+            .unwrap_or_else(|error| panic!("默认路由读取失败: {error}"))
+            .route(),
+        &DefaultRoute::Direct
+    );
 }
 
 #[test]

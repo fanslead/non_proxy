@@ -308,7 +308,7 @@ impl ControlService for ControlRpcService {
     ) -> Result<Response<control_proto::UpsertOutboundGroupResponse>, Status> {
         self.session.validate(request.get_ref().context.as_ref())?;
         Ok(Response::new(
-            outbound_group_rpc::upsert(&self.gateway, request.into_inner()).await,
+            outbound_group_rpc::upsert(self, request.into_inner()).await?,
         ))
     }
 

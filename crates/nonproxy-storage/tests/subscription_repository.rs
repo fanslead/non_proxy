@@ -1,7 +1,8 @@
-use nonproxy_model::OutboundId;
+use nonproxy_model::{OutboundGroupId, OutboundId};
 use nonproxy_storage::{
-    CredentialKind, CredentialReference, DefaultRoute, OutboundKind, OutboundReference,
-    PolicyDatabase, SnapshotArtifact, StorageError, SubscriptionNode, SubscriptionSource,
+    CredentialKind, CredentialReference, DefaultRoute, OutboundGroup, OutboundGroupStrategy,
+    OutboundKind, OutboundReference, PolicyDatabase, SnapshotArtifact, StorageError,
+    SubscriptionNode, SubscriptionSource,
 };
 
 #[test]
@@ -344,6 +345,127 @@ fn removing_the_active_default_node_rejects_the_whole_refresh() {
         .unwrap_or_else(|| panic!("默认出口冲突后出口不存在"));
     assert!(default.enabled());
     assert_eq!(default.revision(), 1);
+}
+
+#[test]
+fn removing_an_outbound_group_member_rejects_the_whole_refresh() {
+    let mut database = database_with_source("office");
+    let first = vec![
+        node("node-a", "subscription-office-a", 1, None, "first"),
+        node("node-b", "subscription-office-b", 1, None, "first"),
+    ];
+    database
+        .subscriptions()
+        .apply_refresh("office", 1, 0, [1; 32], &first, 1_100, 4_700)
+        .unwrap_or_else(|error| panic!("出口组订阅首次刷新失败: {error}"));
+    let member_a = OutboundId::new("subscription-office-a")
+        .unwrap_or_else(|error| panic!("出口组订阅主成员标识无效: {error}"));
+    let member_b = OutboundId::new("subscription-office-b")
+        .unwrap_or_else(|error| panic!("出口组订阅备用成员标识无效: {error}"));
+    let group = OutboundGroup::new(
+        OutboundGroupId::new("subscription-failover")
+            .unwrap_or_else(|error| panic!("出口组订阅组标识无效: {error}")),
+        "订阅自动切换",
+        OutboundGroupStrategy::Failover,
+        vec![member_a.clone(), member_b],
+        1,
+    )
+    .unwrap_or_else(|error| panic!("出口组订阅组配置无效: {error}"));
+    database
+        .outbound_groups()
+        .save(&group, None, 1_200)
+        .unwrap_or_else(|error| panic!("出口组订阅组保存失败: {error}"));
+    let second = vec![node(
+        "node-b",
+        "subscription-office-b",
+        2,
+        Some(1),
+        "second",
+    )];
+
+    assert!(matches!(
+        database
+            .subscriptions()
+            .apply_refresh("office", 1, 1, [2; 32], &second, 2_000, 5_600),
+        Err(StorageError::SubscriptionOutboundInUse)
+    ));
+    assert_eq!(
+        database
+            .subscriptions()
+            .get("office")
+            .unwrap_or_else(|error| panic!("出口组冲突后订阅源读取失败: {error}"))
+            .unwrap_or_else(|| panic!("出口组冲突后订阅源不存在"))
+            .content_generation(),
+        1
+    );
+    let preserved = database
+        .outbounds()
+        .get(&member_a)
+        .unwrap_or_else(|error| panic!("出口组冲突后成员读取失败: {error}"))
+        .unwrap_or_else(|| panic!("出口组冲突后成员不存在"));
+    assert!(preserved.enabled());
+    assert_eq!(preserved.revision(), 1);
+}
+
+#[test]
+fn default_group_members_can_refresh_without_changing_the_default_target() {
+    let mut database = database_with_source("office");
+    let first = vec![
+        node("node-a", "subscription-office-a", 1, None, "first"),
+        node("node-b", "subscription-office-b", 1, None, "first"),
+    ];
+    database
+        .subscriptions()
+        .apply_refresh("office", 1, 0, [1; 32], &first, 1_100, 4_700)
+        .unwrap_or_else(|error| panic!("默认组订阅首次刷新失败: {error}"));
+    let group = OutboundGroup::new(
+        OutboundGroupId::new("default-subscription-failover")
+            .unwrap_or_else(|error| panic!("默认组订阅组标识无效: {error}")),
+        "默认订阅自动切换",
+        OutboundGroupStrategy::Failover,
+        vec![
+            OutboundId::new("subscription-office-a")
+                .unwrap_or_else(|error| panic!("默认组订阅主成员标识无效: {error}")),
+            OutboundId::new("subscription-office-b")
+                .unwrap_or_else(|error| panic!("默认组订阅备用成员标识无效: {error}")),
+        ],
+        1,
+    )
+    .unwrap_or_else(|error| panic!("默认组订阅组配置无效: {error}"));
+    database
+        .outbound_groups()
+        .save(&group, None, 1_200)
+        .unwrap_or_else(|error| panic!("默认组订阅组保存失败: {error}"));
+    let snapshot = SnapshotArtifact::new(1, 1, 1_300, [9; 32], 0, vec![1])
+        .unwrap_or_else(|error| panic!("默认组订阅快照创建失败: {error}"));
+    database
+        .routing_settings()
+        .set_and_stage(
+            &DefaultRoute::Group(group.id().clone()),
+            1,
+            &snapshot,
+            1_300,
+        )
+        .unwrap_or_else(|error| panic!("默认组订阅默认路由保存失败: {error}"));
+    let second = vec![
+        node("node-a", "subscription-office-a", 2, Some(1), "second"),
+        node("node-b", "subscription-office-b", 2, Some(1), "second"),
+    ];
+
+    let committed = database
+        .subscriptions()
+        .apply_refresh("office", 1, 1, [2; 32], &second, 2_000, 5_600)
+        .unwrap_or_else(|error| panic!("默认组订阅成员刷新失败: {error}"));
+
+    assert_eq!(committed.generation(), 2);
+    assert_eq!(
+        database
+            .routing_settings()
+            .get()
+            .unwrap_or_else(|error| panic!("默认组订阅默认路由读取失败: {error}"))
+            .route(),
+        &DefaultRoute::Group(group.id().clone())
+    );
 }
 
 #[test]

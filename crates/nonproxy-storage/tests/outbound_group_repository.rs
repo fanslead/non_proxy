@@ -3,9 +3,10 @@ use nonproxy_model::{
     PolicyMatch, PolicyMetadata, PolicyOrigin, PolicySourceKind,
 };
 use nonproxy_storage::{
-    MAXIMUM_OUTBOUND_GROUP_MEMBERS, OutboundGroup, OutboundGroupStrategy, OutboundKind,
-    OutboundReference, PolicyDatabase, StorageError,
+    DefaultRoute, MAXIMUM_OUTBOUND_GROUP_MEMBERS, OutboundGroup, OutboundGroupStrategy,
+    OutboundKind, OutboundReference, PolicyDatabase, StorageError,
 };
+use support::artifact;
 
 #[test]
 fn group_round_trip_preserves_priority_and_revision_cas() {
@@ -213,6 +214,53 @@ fn policy_group_target_round_trip_blocks_group_deletion_until_policy_is_removed(
         .unwrap_or_else(|error| panic!("解除策略引用后的出口组删除失败: {error}"));
 }
 
+#[test]
+fn default_group_cannot_be_deleted_or_changed_to_an_incomplete_route() {
+    let mut database = database_with_connectable_outbounds();
+    let default_group = group(
+        "default-target",
+        "默认自动切换",
+        &["primary", "secondary"],
+        1,
+    );
+    database
+        .outbound_groups()
+        .save(&default_group, None, 1_100)
+        .unwrap_or_else(|error| panic!("默认目标组保存失败: {error}"));
+    let snapshot = artifact(1, 9).unwrap_or_else(|error| panic!("默认目标组快照创建失败: {error}"));
+    database
+        .routing_settings()
+        .set_and_stage(
+            &DefaultRoute::Group(default_group.id().clone()),
+            1,
+            &snapshot,
+            1_200,
+        )
+        .unwrap_or_else(|error| panic!("默认目标组选择失败: {error}"));
+
+    assert!(matches!(
+        database
+            .outbound_groups()
+            .delete(default_group.id(), 1, 1_300),
+        Err(StorageError::OutboundGroupInUse)
+    ));
+
+    let http = outbound("http", OutboundKind::HttpConnect);
+    database
+        .outbounds()
+        .save(&http, None, 1_350)
+        .unwrap_or_else(|error| panic!("HTTP 出口保存失败: {error}"));
+    let incomplete = group("default-target", "默认自动切换", &["primary", "http"], 2);
+    assert!(matches!(
+        database.outbound_groups().save(&incomplete, Some(1), 1_400),
+        Err(StorageError::DefaultOutboundUnavailable)
+    ));
+    assert!(matches!(
+        database.outbound_groups().get(default_group.id()),
+        Ok(Some(value)) if value == default_group
+    ));
+}
+
 fn database_with_connectable_outbounds() -> PolicyDatabase {
     let mut database = PolicyDatabase::open_in_memory(1_000)
         .unwrap_or_else(|error| panic!("出口组测试数据库打开失败: {error}"));
@@ -275,3 +323,4 @@ fn outbound_id(value: &str) -> OutboundId {
 fn group_id(value: &str) -> OutboundGroupId {
     OutboundGroupId::new(value).unwrap_or_else(|error| panic!("出口组标识创建失败: {error}"))
 }
+mod support;

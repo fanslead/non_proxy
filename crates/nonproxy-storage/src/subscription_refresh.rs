@@ -8,7 +8,8 @@ use crate::{
     SubscriptionRefreshCommit, SubscriptionRepository, SubscriptionSource,
     credential_cleanup_repository::enqueue_credential_cleanup,
     migration::to_sqlite_u64,
-    outbound_repository::{save_outbound, validate_default_outbound, validate_revision},
+    outbound_repository::{save_outbound, validate_revision},
+    routing_settings_repository::validate_current_default_route,
     subscription_codec::decode_ownership,
     subscription_refresh_state::{audit_refresh, update_refresh_state, validate_source_state},
     subscription_repository::{save_source, validate_source_revision},
@@ -125,12 +126,6 @@ fn apply_refresh_transaction(
     )?;
     let current = read_current_ownership(transaction, source_id)?;
     validate_nodes(transaction, source_id, nodes, &current)?;
-    let outbounds = nodes
-        .iter()
-        .map(|node| (node.outbound().clone(), node.expected_revision()))
-        .collect::<Vec<_>>();
-    validate_default_outbound(transaction, &outbounds)?;
-
     let incoming = nodes
         .iter()
         .map(|node| node.outbound().id().as_str())
@@ -143,6 +138,7 @@ fn apply_refresh_transaction(
         .map(|ownership| ownership.outbound_id().clone())
         .collect::<Vec<_>>();
     reject_default_retirement(transaction, &retired)?;
+    reject_group_member_retirement(transaction, &retired)?;
 
     let mut replaced = Vec::new();
     for node in nodes {
@@ -151,6 +147,7 @@ fn apply_refresh_transaction(
         save_ownership(transaction, source_id, node, generation)?;
     }
     retire_missing_nodes(transaction, source_id, &retired, attempted_at_unix_ms)?;
+    validate_current_default_route(transaction)?;
     update_refresh_state(
         transaction,
         source_id,
@@ -283,11 +280,31 @@ fn reject_default_retirement(
             "SELECT default_outbound_id FROM routing_settings
              WHERE singleton_id = 1 AND default_action = 'proxy'",
             [],
-            |row| row.get::<_, String>(0),
+            |row| row.get::<_, Option<String>>(0),
         )
-        .optional()?;
+        .optional()?
+        .flatten();
     if default.is_some_and(|value| retired.iter().any(|id| id.as_str() == value)) {
         return Err(StorageError::SubscriptionDefaultOutboundRemoved);
+    }
+    Ok(())
+}
+
+fn reject_group_member_retirement(
+    transaction: &Transaction<'_>,
+    retired: &[OutboundId],
+) -> Result<(), StorageError> {
+    for outbound_id in retired {
+        let referenced = transaction.query_row(
+            "SELECT EXISTS(
+                 SELECT 1 FROM outbound_group_member WHERE outbound_id = ?1
+             )",
+            [outbound_id.as_str()],
+            |row| row.get::<_, bool>(0),
+        )?;
+        if referenced {
+            return Err(StorageError::SubscriptionOutboundInUse);
+        }
     }
     Ok(())
 }

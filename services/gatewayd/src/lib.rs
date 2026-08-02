@@ -113,6 +113,7 @@ pub use error::GatewayError;
 pub use event_hub::EventHub;
 pub use gateway::{Gateway, GatewayStatus};
 pub use learning_confirmation_gateway::LearningConfirmationResult;
+pub use outbound_group_gateway::SavedOutboundGroup;
 pub use routing_gateway::StagedRoutingSettings;
 pub use runtime_policy::{RuntimePolicyCatalog, RuntimePolicyRecord, RuntimePolicyState};
 pub use server::run;

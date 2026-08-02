@@ -57,7 +57,7 @@ pub enum StorageError {
     OutboundGroupInUse,
     #[error("默认路由配置修订冲突")]
     RoutingRevisionConflict,
-    #[error("默认代理出口不存在、未启用或能力不足")]
+    #[error("默认代理目标不存在、未启用或能力不足")]
     DefaultOutboundUnavailable,
     #[error("连接决策记录无效")]
     ConnectionDecisionInvalid,

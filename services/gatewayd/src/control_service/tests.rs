@@ -251,6 +251,129 @@ async fn authenticated_outbound_group_crud_preserves_priority_and_revision_cas()
 }
 
 #[tokio::test]
+async fn authenticated_default_group_is_visible_in_status_and_both_catalogs() {
+    let service = service([7; 32]);
+    service
+        .gateway
+        .save_outbounds(vec![
+            (test_outbound("primary", 1080), None),
+            (test_outbound("backup", 1081), None),
+        ])
+        .await
+        .unwrap_or_else(|error| panic!("默认组 RPC 测试出口保存失败: {error}"));
+    service
+        .upsert_outbound_group(Request::new(outbound_group_request(
+            "save-default-group",
+            vec!["primary", "backup"],
+            0,
+        )))
+        .await
+        .unwrap_or_else(|error| panic!("默认组 RPC 创建失败: {error}"));
+    let primary_id = OutboundId::new("primary")
+        .unwrap_or_else(|error| panic!("默认组 RPC 主出口标识无效: {error}"));
+    let now = crate::clock::unix_time_ms()
+        .unwrap_or_else(|error| panic!("默认组 RPC 测试时间读取失败: {error}"));
+    for observed_at in [now, now.saturating_add(1)] {
+        service
+            .gateway
+            .report_outbound_health(
+                primary_id.clone(),
+                1,
+                RuntimeState::Ready,
+                Some(24),
+                observed_at,
+            )
+            .unwrap_or_else(|error| panic!("默认组 RPC 健康状态保存失败: {error}"));
+    }
+
+    let changed = service
+        .set_default_route(Request::new(SetDefaultRouteRequest {
+            context: Some(context([7; 32], "set-default-group")),
+            expected_routing_revision: 1,
+            route: Some(set_default_route_request::Route::OutboundGroupId(
+                "office-failover".to_owned(),
+            )),
+        }))
+        .await
+        .unwrap_or_else(|error| panic!("默认组 RPC 修改失败: {error}"))
+        .into_inner();
+    assert!(changed.error.is_none());
+    assert_eq!(changed.routing_revision, 2);
+    assert!(matches!(
+        changed.snapshot.as_ref(),
+        Some(snapshot) if snapshot.snapshot_version == 1
+    ));
+
+    let status = service
+        .get_system_status(Request::new(GetSystemStatusRequest {}))
+        .await
+        .unwrap_or_else(|error| panic!("默认组 RPC 状态读取失败: {error}"))
+        .into_inner();
+    assert_eq!(status.default_route, DefaultRouteKind::Proxy as i32);
+    assert!(status.default_outbound_id.is_empty());
+    assert_eq!(status.default_outbound_group_id, "office-failover");
+    assert_eq!(status.routing_revision, 2);
+
+    let groups = service
+        .list_outbound_groups(Request::new(ListOutboundGroupsRequest { page: None }))
+        .await
+        .unwrap_or_else(|error| panic!("默认组 RPC 组目录读取失败: {error}"))
+        .into_inner();
+    assert_eq!(groups.routing_revision, 2);
+    assert!(matches!(
+        groups.groups.as_slice(),
+        [group] if group.id == "office-failover" && group.is_default
+    ));
+
+    let outbounds = service
+        .list_outbounds(Request::new(ListOutboundsRequest { page: None }))
+        .await
+        .unwrap_or_else(|error| panic!("默认组 RPC 出口目录读取失败: {error}"))
+        .into_inner();
+    assert_eq!(outbounds.routing_revision, 2);
+    assert_eq!(outbounds.default_outbound_group_id, "office-failover");
+    assert!(
+        outbounds
+            .outbounds
+            .iter()
+            .all(|outbound| !outbound.is_default)
+    );
+
+    let content_hash: [u8; 32] = changed
+        .snapshot
+        .as_ref()
+        .unwrap_or_else(|| panic!("默认组 RPC 修改缺少快照"))
+        .content_hash
+        .as_slice()
+        .try_into()
+        .unwrap_or_else(|_| panic!("默认组 RPC 快照哈希长度无效"));
+    activate_snapshot(&service.gateway, 1, content_hash).await;
+    let updated = service
+        .upsert_outbound_group(Request::new(outbound_group_request(
+            "update-default-group",
+            vec!["backup", "primary"],
+            1,
+        )))
+        .await
+        .unwrap_or_else(|error| panic!("默认组 RPC 更新失败: {error}"))
+        .into_inner()
+        .result
+        .unwrap_or_else(|| panic!("默认组 RPC 更新缺少结果"));
+    assert!(updated.error.is_none());
+    assert_eq!(updated.routing_revision, 2);
+    assert!(matches!(
+        updated.group,
+        Some(group) if group.is_default
+            && group.revision == 2
+            && group.outbound_ids == ["backup", "primary"]
+    ));
+    assert!(matches!(
+        updated.snapshot,
+        Some(snapshot) if snapshot.snapshot_version == 2
+    ));
+}
+
+#[tokio::test]
 async fn rollback_requires_an_expected_active_snapshot_version() {
     let service = service([7; 32]);
     let result = service
@@ -1437,6 +1560,29 @@ fn outbound_group_request(
         strategy: ProtoOutboundGroupStrategy::Failover as i32,
         outbound_ids: outbound_ids.into_iter().map(str::to_owned).collect(),
         expected_revision,
+    }
+}
+
+async fn activate_snapshot(gateway: &Gateway, snapshot_version: u64, content_hash: [u8; 32]) {
+    let required = crate::provider_requirements::required_provider_ids()
+        .iter()
+        .map(|value| (*value).to_owned())
+        .collect::<Vec<_>>();
+    for (index, provider_id) in crate::provider_requirements::required_provider_ids()
+        .iter()
+        .enumerate()
+    {
+        let acknowledgement = ProviderAck::loaded(
+            *provider_id,
+            snapshot_version,
+            content_hash,
+            1_000 + u64::try_from(index).unwrap_or(0),
+        )
+        .unwrap_or_else(|error| panic!("默认组 RPC Provider ACK 创建失败: {error}"));
+        gateway
+            .acknowledge_provider_snapshot(snapshot_version, acknowledgement, required.clone())
+            .await
+            .unwrap_or_else(|error| panic!("默认组 RPC Provider ACK 保存失败: {error}"));
     }
 }
 

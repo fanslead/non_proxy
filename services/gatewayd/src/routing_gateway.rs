@@ -57,7 +57,7 @@ impl Gateway {
     ) -> Result<StagedRoutingSettings, GatewayError> {
         let _operation = self.mutation_gate.lock().await;
         let now = unix_time_ms()?;
-        self.require_verified_default_proxy(&route, expected_revision, now)
+        self.require_verified_default_target(&route, expected_revision, now)
             .await?;
         let capabilities = self.capabilities().clone();
         let system_policy_config = self.system_policy_config.clone();
@@ -107,39 +107,87 @@ impl Gateway {
             .await
     }
 
-    async fn require_verified_default_proxy(
+    async fn require_verified_default_target(
         &self,
         route: &DefaultRoute,
         expected_revision: u64,
         now_unix_ms: u64,
     ) -> Result<(), GatewayError> {
-        let DefaultRoute::Proxy(outbound_id) = route else {
-            return Ok(());
-        };
-        let outbound_id = outbound_id.clone();
-        let outbound = self
-            .database
+        match route {
+            DefaultRoute::Direct => Ok(()),
+            DefaultRoute::Proxy(outbound_id) => {
+                let outbound = self
+                    .load_default_outbounds(expected_revision, None, Some(outbound_id.clone()))
+                    .await?
+                    .pop()
+                    .ok_or(StorageError::DefaultOutboundUnavailable)?;
+                if !outbound.enabled() || !outbound.kind().supports_default_route() {
+                    return Err(StorageError::DefaultOutboundUnavailable.into());
+                }
+                if !matches!(
+                    self.outbound_health(&outbound, now_unix_ms)?,
+                    Some(observation) if observation.state == RuntimeState::Ready
+                ) {
+                    return Err(GatewayError::DefaultOutboundUnverified);
+                }
+                Ok(())
+            }
+            DefaultRoute::Group(group_id) => {
+                let outbounds = self
+                    .load_default_outbounds(expected_revision, Some(group_id.clone()), None)
+                    .await?;
+                if outbounds.len() < 2
+                    || outbounds
+                        .iter()
+                        .any(|value| !value.enabled() || !value.kind().supports_default_route())
+                {
+                    return Err(StorageError::DefaultOutboundUnavailable.into());
+                }
+                for outbound in outbounds {
+                    if self
+                        .stable_outbound_health(&outbound, now_unix_ms)?
+                        .is_some_and(|health| health.state == RuntimeState::Ready)
+                    {
+                        return Ok(());
+                    }
+                }
+                Err(GatewayError::DefaultOutboundUnverified)
+            }
+        }
+    }
+
+    async fn load_default_outbounds(
+        &self,
+        expected_revision: u64,
+        group_id: Option<nonproxy_model::OutboundGroupId>,
+        outbound_id: Option<nonproxy_model::OutboundId>,
+    ) -> Result<Vec<OutboundReference>, GatewayError> {
+        self.database
             .run(move |database| {
                 let routing = database.routing_settings().get()?;
                 if expected_revision == 0 || routing.revision() != expected_revision {
                     return Err(StorageError::RoutingRevisionConflict.into());
                 }
-                Ok(database.outbounds().get(&outbound_id)?)
+                let members = match (group_id, outbound_id) {
+                    (Some(group_id), None) => database
+                        .outbound_groups()
+                        .get(&group_id)?
+                        .map(|group| group.members().to_vec())
+                        .ok_or(StorageError::DefaultOutboundUnavailable)?,
+                    (None, Some(outbound_id)) => vec![outbound_id],
+                    _ => return Err(StorageError::DefaultOutboundUnavailable.into()),
+                };
+                members
+                    .into_iter()
+                    .map(|id| {
+                        database
+                            .outbounds()
+                            .get(&id)?
+                            .ok_or(StorageError::DefaultOutboundUnavailable.into())
+                    })
+                    .collect()
             })
-            .await?;
-        let Some(outbound) = outbound else {
-            return Err(StorageError::DefaultOutboundUnavailable.into());
-        };
-        if !outbound.enabled() || !outbound.kind().supports_default_route() {
-            return Err(StorageError::DefaultOutboundUnavailable.into());
-        }
-        if !matches!(
-            self.outbound_health(&outbound, now_unix_ms)?,
-            Some(observation) if observation.state == RuntimeState::Ready
-        ) {
-            return Err(GatewayError::DefaultOutboundUnverified);
-        }
-        Ok(())
+            .await
     }
 
     pub(crate) async fn stage_rollback_with_route(
@@ -212,22 +260,26 @@ pub(crate) fn decision_for_route(route: &DefaultRoute) -> Result<DecisionSpec, G
             Some(outbound_id.clone()),
             FailureMode::Closed,
         )?),
+        DefaultRoute::Group(group_id) => Ok(DecisionSpec::proxy_group(
+            group_id.clone(),
+            FailureMode::Closed,
+        )?),
     }
 }
 
 fn route_for_decision(decision: &DecisionSpec) -> Result<DefaultRoute, GatewayError> {
     match decision.action() {
         RouteAction::Direct => Ok(DefaultRoute::Direct),
-        RouteAction::Proxy => decision
-            .outbound_id()
-            .cloned()
-            .map(DefaultRoute::Proxy)
-            .ok_or(GatewayError::InvalidContract("代理默认决策缺少出口标识")),
+        RouteAction::Proxy => match decision.proxy_target() {
+            Some(nonproxy_model::ProxyTarget::Outbound(id)) => Ok(DefaultRoute::Proxy(id.clone())),
+            Some(nonproxy_model::ProxyTarget::Group(id)) => Ok(DefaultRoute::Group(id.clone())),
+            None => Err(GatewayError::InvalidContract("代理默认决策缺少出口目标")),
+        },
         RouteAction::Block => Err(GatewayError::InvalidContract("默认路由配置不支持阻断决策")),
     }
 }
 
-fn next_version(current: u64) -> Result<u64, GatewayError> {
+pub(crate) fn next_version(current: u64) -> Result<u64, GatewayError> {
     current
         .checked_add(1)
         .ok_or(GatewayError::SnapshotVersionExhausted)

@@ -51,7 +51,7 @@ pub async fn status(service: &ControlRpcService) -> Result<GetSystemStatusRespon
             error: provider.error().cloned(),
         });
     }
-    let (default_route, default_outbound_id) =
+    let (default_route, default_outbound_id, default_outbound_group_id) =
         control_mapping::default_route(status.routing.route());
     Ok(GetSystemStatusResponse {
         state: system.state() as i32,
@@ -69,6 +69,7 @@ pub async fn status(service: &ControlRpcService) -> Result<GetSystemStatusRespon
         default_outbound_id,
         routing_revision: status.routing.revision(),
         dropped_decision_events: status.dropped_decision_events,
+        default_outbound_group_id,
     })
 }
 

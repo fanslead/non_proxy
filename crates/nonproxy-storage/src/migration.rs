@@ -32,6 +32,8 @@ const CREDENTIAL_CLEANUP_QUEUE: &str =
     include_str!("../../../migrations/V0014__credential_cleanup_queue.sql");
 const POLICY_OUTBOUND_GROUP_TARGET: &str =
     include_str!("../../../migrations/V0015__policy_outbound_group_target.sql");
+const ROUTING_OUTBOUND_GROUP_TARGET: &str =
+    include_str!("../../../migrations/V0016__routing_outbound_group_target.sql");
 
 struct Migration {
     version: i64,
@@ -130,6 +132,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "policy_outbound_group_target",
         sql: POLICY_OUTBOUND_GROUP_TARGET,
         rebuilds_referenced_table: true,
+    },
+    Migration {
+        version: 16,
+        name: "routing_outbound_group_target",
+        sql: ROUTING_OUTBOUND_GROUP_TARGET,
+        rebuilds_referenced_table: false,
     },
 ];
 

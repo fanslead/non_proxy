@@ -182,6 +182,109 @@ async fn selecting_default_proxy_stages_a_proxy_default_snapshot() {
 }
 
 #[tokio::test]
+async fn selecting_default_group_requires_stable_health_and_stages_the_group_target() {
+    let gateway = gateway();
+    let primary = proxy_outbound("group-default-primary");
+    let backup = proxy_outbound("group-default-backup");
+    gateway
+        .save_outbounds(vec![(primary.clone(), None), (backup.clone(), None)])
+        .await
+        .unwrap_or_else(|error| panic!("默认组成员保存失败: {error}"));
+    let group_id = OutboundGroupId::new("default-failover")
+        .unwrap_or_else(|error| panic!("默认组标识无效: {error}"));
+    let group = OutboundGroup::new(
+        group_id.clone(),
+        "默认自动切换",
+        OutboundGroupStrategy::Failover,
+        vec![primary.id().clone(), backup.id().clone()],
+        1,
+    )
+    .unwrap_or_else(|error| panic!("默认组配置无效: {error}"));
+    gateway
+        .save_outbound_group(group, None)
+        .await
+        .unwrap_or_else(|error| panic!("默认组保存失败: {error}"));
+
+    mark_outbound_ready(&gateway, &primary);
+    let unverified = gateway
+        .set_default_route_and_stage(DefaultRoute::Group(group_id.clone()), 1)
+        .await;
+    assert!(matches!(
+        unverified,
+        Err(GatewayError::DefaultOutboundUnverified)
+    ));
+    assert!(
+        gateway
+            .status()
+            .await
+            .is_ok_and(|status| status.pending.is_none())
+    );
+
+    mark_outbound_ready(&gateway, &primary);
+    let update = gateway
+        .set_default_route_and_stage(DefaultRoute::Group(group_id.clone()), 1)
+        .await
+        .unwrap_or_else(|error| panic!("默认组设置失败: {error}"));
+    let (_, capabilities, decision) =
+        decode_snapshot_payload(update.snapshot().artifact().payload())
+            .unwrap_or_else(|error| panic!("默认组快照解码失败: {error}"));
+
+    assert_eq!(update.settings().revision(), 2);
+    assert_eq!(
+        update.settings().route(),
+        &DefaultRoute::Group(group_id.clone())
+    );
+    assert_eq!(decision.action(), RouteAction::Proxy);
+    assert_eq!(decision.outbound_group_id(), Some(&group_id));
+    assert!(decision.outbound_id().is_none());
+    assert!(capabilities.outbound_groups().contains_key(&group_id));
+
+    let reordered = OutboundGroup::new(
+        group_id.clone(),
+        "默认自动切换",
+        OutboundGroupStrategy::Failover,
+        vec![backup.id().clone(), primary.id().clone()],
+        2,
+    )
+    .unwrap_or_else(|error| panic!("默认组更新配置无效: {error}"));
+    let blocked = gateway
+        .save_outbound_group(reordered.clone(), Some(1))
+        .await;
+    assert!(matches!(
+        blocked,
+        Err(GatewayError::Storage(StorageError::PendingSnapshotExists))
+    ));
+    assert!(matches!(
+        gateway.list_outbound_groups().await.as_deref(),
+        Ok([stored]) if stored.revision() == 1
+            && stored.members() == [primary.id().clone(), backup.id().clone()]
+    ));
+
+    activate(&gateway, update.snapshot()).await;
+    let saved = gateway
+        .save_outbound_group(reordered, Some(1))
+        .await
+        .unwrap_or_else(|error| panic!("默认组原子更新失败: {error}"));
+    let staged = saved
+        .snapshot()
+        .unwrap_or_else(|| panic!("默认组更新必须生成待确认快照"));
+    let (_, updated_capabilities, updated_decision) =
+        decode_snapshot_payload(staged.artifact().payload())
+            .unwrap_or_else(|error| panic!("默认组更新快照解码失败: {error}"));
+    let updated_group = updated_capabilities
+        .outbound_groups()
+        .get(&group_id)
+        .unwrap_or_else(|| panic!("默认组更新快照缺少组目录"));
+    assert_eq!(staged.artifact().snapshot_version(), 2);
+    assert_eq!(updated_group.revision(), 2);
+    assert_eq!(
+        updated_group.members(),
+        &[backup.id().clone(), primary.id().clone()]
+    );
+    assert_eq!(updated_decision.outbound_group_id(), Some(&group_id));
+}
+
+#[tokio::test]
 async fn runtime_override_is_time_bounded_snapshot_state_and_does_not_mutate_routing_settings() {
     let gateway = gateway();
     let too_short = gateway

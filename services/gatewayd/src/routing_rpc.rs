@@ -1,4 +1,4 @@
-use nonproxy_model::OutboundId;
+use nonproxy_model::{OutboundGroupId, OutboundId};
 use nonproxy_proto::{
     control::v1::{SetDefaultRouteRequest, SetDefaultRouteResponse, set_default_route_request},
     policy::v1::SnapshotState,
@@ -61,6 +61,11 @@ fn parse_route(route: Option<set_default_route_request::Route>) -> Result<Defaul
             let outbound_id = OutboundId::new(value)
                 .map_err(|error| request_status(GatewayError::from(error)))?;
             Ok(DefaultRoute::Proxy(outbound_id))
+        }
+        Some(set_default_route_request::Route::OutboundGroupId(value)) => {
+            let group_id = OutboundGroupId::new(value)
+                .map_err(|error| request_status(GatewayError::from(error)))?;
+            Ok(DefaultRoute::Group(group_id))
         }
         None => Err(Status::invalid_argument("缺少默认路由目标")),
     }

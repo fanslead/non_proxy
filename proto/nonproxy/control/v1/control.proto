@@ -175,6 +175,7 @@ message GetSystemStatusResponse {
   string default_outbound_id = 9;
   uint64 routing_revision = 10;
   uint64 dropped_decision_events = 11;
+  string default_outbound_group_id = 12;
 }
 
 // ComponentStatus 描述单个进程或 Provider 的状态。
@@ -353,6 +354,7 @@ message ListOutboundsResponse {
   repeated OutboundSummary outbounds = 1;
   nonproxy.common.v1.PageResponse page = 2;
   uint64 routing_revision = 3;
+  string default_outbound_group_id = 4;
 }
 
 // OutboundGroupSummary 返回按优先级排列的出口组，不包含任何出口凭据。
@@ -362,6 +364,7 @@ message OutboundGroupSummary {
   OutboundGroupStrategy strategy = 3;
   repeated string outbound_ids = 4;
   uint64 revision = 5;
+  bool is_default = 6;
 }
 
 // ListOutboundGroupsRequest 请求稳定排序的出口组目录。
@@ -372,6 +375,7 @@ message ListOutboundGroupsRequest {
 message ListOutboundGroupsResponse {
   repeated OutboundGroupSummary groups = 1;
   nonproxy.common.v1.PageResponse page = 2;
+  uint64 routing_revision = 3;
 }
 
 // UpsertOutboundGroupRequest 使用 expected_revision 对出口组执行乐观并发写入。
@@ -387,6 +391,8 @@ message UpsertOutboundGroupRequest {
 message OutboundGroupMutationResult {
   OutboundGroupSummary group = 1;
   nonproxy.common.v1.ErrorDetail error = 2;
+  nonproxy.policy.v1.PolicySnapshotMetadata snapshot = 3;
+  uint64 routing_revision = 4;
 }
 
 message UpsertOutboundGroupResponse {
@@ -603,6 +609,7 @@ message SetDefaultRouteRequest {
   oneof route {
     bool direct = 2;
     string outbound_id = 3;
+    string outbound_group_id = 5;
   }
   uint64 expected_routing_revision = 4;
 }

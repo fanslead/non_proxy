@@ -6,18 +6,25 @@ use nonproxy_proto::{
         ListOutboundGroupsResponse, OutboundGroupMutationResult, OutboundGroupStrategy,
         OutboundGroupSummary, UpsertOutboundGroupRequest, UpsertOutboundGroupResponse,
     },
+    policy::v1::SnapshotState,
 };
-use nonproxy_storage::{OutboundGroup, OutboundGroupStrategy as StoredOutboundGroupStrategy};
+use nonproxy_storage::{
+    DefaultRoute, OutboundGroup, OutboundGroupStrategy as StoredOutboundGroupStrategy,
+};
 use tonic::Status;
 
-use crate::{Gateway, GatewayError, control_mapping, control_rpc_helpers};
+use crate::{
+    Gateway, GatewayError, control_mapping,
+    control_rpc_helpers::{self, publish_snapshot_event},
+    control_rpc_service::ControlRpcService,
+};
 
 pub async fn list(
     gateway: &Gateway,
     request: ListOutboundGroupsRequest,
 ) -> Result<ListOutboundGroupsResponse, Status> {
-    let groups = gateway
-        .list_outbound_groups()
+    let (groups, routing) = gateway
+        .list_outbound_groups_with_routing()
         .await
         .map_err(control_rpc_helpers::internal_status)?;
     let page = request.page.unwrap_or(PageRequest {
@@ -27,30 +34,65 @@ pub async fn list(
     let (start, end, page) =
         control_mapping::page_bounds(page.page_size, &page.page_token, groups.len())?;
     Ok(ListOutboundGroupsResponse {
-        groups: groups[start..end].iter().map(to_proto).collect(),
+        groups: groups[start..end]
+            .iter()
+            .map(|group| {
+                let is_default = matches!(
+                    routing.route(),
+                    DefaultRoute::Group(group_id) if group_id == group.id()
+                );
+                to_proto(group, is_default)
+            })
+            .collect(),
         page: Some(page),
+        routing_revision: routing.revision(),
     })
 }
 
 pub async fn upsert(
-    gateway: &Gateway,
+    service: &ControlRpcService,
     request: UpsertOutboundGroupRequest,
-) -> UpsertOutboundGroupResponse {
+) -> Result<UpsertOutboundGroupResponse, Status> {
     let expected_revision = (request.expected_revision > 0).then_some(request.expected_revision);
     let result = match from_request(request) {
-        Ok(group) => gateway
+        Ok(group) => match service
+            .gateway
             .save_outbound_group(group, expected_revision)
             .await
-            .map(|group| OutboundGroupMutationResult {
-                group: Some(to_proto(&group)),
-                error: None,
-            })
-            .unwrap_or_else(|error| mutation_error(&error)),
+        {
+            Ok(saved) => {
+                let is_default = matches!(
+                    saved.routing().route(),
+                    DefaultRoute::Group(group_id) if group_id == saved.group().id()
+                );
+                let snapshot = saved
+                    .snapshot()
+                    .map(|snapshot| {
+                        control_mapping::snapshot_metadata(
+                            snapshot.artifact(),
+                            SnapshotState::PendingAck,
+                        )
+                    })
+                    .transpose()
+                    .map_err(control_rpc_helpers::internal_status)?;
+                if let Some(metadata) = snapshot.as_ref() {
+                    publish_snapshot_event(&service.gateway, metadata.clone())?;
+                    let _ = service.gateway.publish_runtime_events().await;
+                }
+                OutboundGroupMutationResult {
+                    group: Some(to_proto(saved.group(), is_default)),
+                    error: None,
+                    snapshot,
+                    routing_revision: saved.routing().revision(),
+                }
+            }
+            Err(error) => mutation_error(&error),
+        },
         Err(error) => mutation_error(&error),
     };
-    UpsertOutboundGroupResponse {
+    Ok(UpsertOutboundGroupResponse {
         result: Some(result),
-    }
+    })
 }
 
 pub async fn delete(
@@ -102,7 +144,7 @@ fn from_request(request: UpsertOutboundGroupRequest) -> Result<OutboundGroup, Ga
         .map_err(GatewayError::from)
 }
 
-fn to_proto(group: &OutboundGroup) -> OutboundGroupSummary {
+fn to_proto(group: &OutboundGroup, is_default: bool) -> OutboundGroupSummary {
     OutboundGroupSummary {
         id: group.id().as_str().to_owned(),
         display_name: group.display_name().to_owned(),
@@ -113,6 +155,7 @@ fn to_proto(group: &OutboundGroup) -> OutboundGroupSummary {
             .map(|id| id.as_str().to_owned())
             .collect(),
         revision: group.revision(),
+        is_default,
     }
 }
 
@@ -120,5 +163,7 @@ fn mutation_error(error: &GatewayError) -> OutboundGroupMutationResult {
     OutboundGroupMutationResult {
         group: None,
         error: Some(control_mapping::error_detail(error)),
+        snapshot: None,
+        routing_revision: 0,
     }
 }

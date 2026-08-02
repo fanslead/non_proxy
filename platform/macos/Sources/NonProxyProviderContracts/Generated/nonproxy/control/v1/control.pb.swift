@@ -623,6 +623,8 @@ public nonisolated struct Nonproxy_Control_V1_GetSystemStatusResponse: Sendable 
 
   public var droppedDecisionEvents: UInt64 = 0
 
+  public var defaultOutboundGroupID: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1343,6 +1345,8 @@ public nonisolated struct Nonproxy_Control_V1_ListOutboundsResponse: Sendable {
 
   public var routingRevision: UInt64 = 0
 
+  public var defaultOutboundGroupID: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1365,6 +1369,8 @@ public nonisolated struct Nonproxy_Control_V1_OutboundGroupSummary: Sendable {
   public var outboundIds: [String] = []
 
   public var revision: UInt64 = 0
+
+  public var isDefault: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1409,6 +1415,8 @@ public nonisolated struct Nonproxy_Control_V1_ListOutboundGroupsResponse: Sendab
   /// Clears the value of `page`. Subsequent reads from it will return its default value.
   public mutating func clearPage() {self._page = nil}
 
+  public var routingRevision: UInt64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1448,35 +1456,48 @@ public nonisolated struct Nonproxy_Control_V1_UpsertOutboundGroupRequest: Sendab
   fileprivate var _context: Nonproxy_Control_V1_OperationContext? = nil
 }
 
-public nonisolated struct Nonproxy_Control_V1_OutboundGroupMutationResult: Sendable {
+public nonisolated struct Nonproxy_Control_V1_OutboundGroupMutationResult: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var group: Nonproxy_Control_V1_OutboundGroupSummary {
-    get {_group ?? Nonproxy_Control_V1_OutboundGroupSummary()}
-    set {_group = newValue}
+    get {_storage._group ?? Nonproxy_Control_V1_OutboundGroupSummary()}
+    set {_uniqueStorage()._group = newValue}
   }
   /// Returns true if `group` has been explicitly set.
-  public var hasGroup: Bool {self._group != nil}
+  public var hasGroup: Bool {_storage._group != nil}
   /// Clears the value of `group`. Subsequent reads from it will return its default value.
-  public mutating func clearGroup() {self._group = nil}
+  public mutating func clearGroup() {_uniqueStorage()._group = nil}
 
   public var error: Nonproxy_Common_V1_ErrorDetail {
-    get {_error ?? Nonproxy_Common_V1_ErrorDetail()}
-    set {_error = newValue}
+    get {_storage._error ?? Nonproxy_Common_V1_ErrorDetail()}
+    set {_uniqueStorage()._error = newValue}
   }
   /// Returns true if `error` has been explicitly set.
-  public var hasError: Bool {self._error != nil}
+  public var hasError: Bool {_storage._error != nil}
   /// Clears the value of `error`. Subsequent reads from it will return its default value.
-  public mutating func clearError() {self._error = nil}
+  public mutating func clearError() {_uniqueStorage()._error = nil}
+
+  public var snapshot: Nonproxy_Policy_V1_PolicySnapshotMetadata {
+    get {_storage._snapshot ?? Nonproxy_Policy_V1_PolicySnapshotMetadata()}
+    set {_uniqueStorage()._snapshot = newValue}
+  }
+  /// Returns true if `snapshot` has been explicitly set.
+  public var hasSnapshot: Bool {_storage._snapshot != nil}
+  /// Clears the value of `snapshot`. Subsequent reads from it will return its default value.
+  public mutating func clearSnapshot() {_uniqueStorage()._snapshot = nil}
+
+  public var routingRevision: UInt64 {
+    get {_storage._routingRevision}
+    set {_uniqueStorage()._routingRevision = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _group: Nonproxy_Control_V1_OutboundGroupSummary? = nil
-  fileprivate var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public nonisolated struct Nonproxy_Control_V1_UpsertOutboundGroupResponse: Sendable {
@@ -2402,6 +2423,14 @@ public nonisolated struct Nonproxy_Control_V1_SetDefaultRouteRequest: Sendable {
     set {route = .outboundID(newValue)}
   }
 
+  public var outboundGroupID: String {
+    get {
+      if case .outboundGroupID(let v)? = route {return v}
+      return String()
+    }
+    set {route = .outboundGroupID(newValue)}
+  }
+
   public var expectedRoutingRevision: UInt64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -2409,6 +2438,7 @@ public nonisolated struct Nonproxy_Control_V1_SetDefaultRouteRequest: Sendable {
   public nonisolated enum OneOf_Route: Equatable, Sendable {
     case direct(Bool)
     case outboundID(String)
+    case outboundGroupID(String)
 
   }
 
@@ -3329,7 +3359,7 @@ nonisolated extension Nonproxy_Control_V1_GetSystemStatusRequest: SwiftProtobuf.
 
 nonisolated extension Nonproxy_Control_V1_GetSystemStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetSystemStatusResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}state\0\u{3}active_snapshot_version\0\u{3}data_plane_enabled\0\u{1}components\0\u{3}latest_event_sequence\0\u{1}error\0\u{3}pending_snapshot_version\0\u{3}default_route\0\u{3}default_outbound_id\0\u{3}routing_revision\0\u{3}dropped_decision_events\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}state\0\u{3}active_snapshot_version\0\u{3}data_plane_enabled\0\u{1}components\0\u{3}latest_event_sequence\0\u{1}error\0\u{3}pending_snapshot_version\0\u{3}default_route\0\u{3}default_outbound_id\0\u{3}routing_revision\0\u{3}dropped_decision_events\0\u{3}default_outbound_group_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3348,6 +3378,7 @@ nonisolated extension Nonproxy_Control_V1_GetSystemStatusResponse: SwiftProtobuf
       case 9: try { try decoder.decodeSingularStringField(value: &self.defaultOutboundID) }()
       case 10: try { try decoder.decodeSingularUInt64Field(value: &self.routingRevision) }()
       case 11: try { try decoder.decodeSingularUInt64Field(value: &self.droppedDecisionEvents) }()
+      case 12: try { try decoder.decodeSingularStringField(value: &self.defaultOutboundGroupID) }()
       default: break
       }
     }
@@ -3391,6 +3422,9 @@ nonisolated extension Nonproxy_Control_V1_GetSystemStatusResponse: SwiftProtobuf
     if self.droppedDecisionEvents != 0 {
       try visitor.visitSingularUInt64Field(value: self.droppedDecisionEvents, fieldNumber: 11)
     }
+    if !self.defaultOutboundGroupID.isEmpty {
+      try visitor.visitSingularStringField(value: self.defaultOutboundGroupID, fieldNumber: 12)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3406,6 +3440,7 @@ nonisolated extension Nonproxy_Control_V1_GetSystemStatusResponse: SwiftProtobuf
     if lhs.defaultOutboundID != rhs.defaultOutboundID {return false}
     if lhs.routingRevision != rhs.routingRevision {return false}
     if lhs.droppedDecisionEvents != rhs.droppedDecisionEvents {return false}
+    if lhs.defaultOutboundGroupID != rhs.defaultOutboundGroupID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4483,7 +4518,7 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundsRequest: SwiftProtobuf.Me
 
 nonisolated extension Nonproxy_Control_V1_ListOutboundsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListOutboundsResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}outbounds\0\u{1}page\0\u{3}routing_revision\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}outbounds\0\u{1}page\0\u{3}routing_revision\0\u{3}default_outbound_group_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4494,6 +4529,7 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundsResponse: SwiftProtobuf.M
       case 1: try { try decoder.decodeRepeatedMessageField(value: &self.outbounds) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._page) }()
       case 3: try { try decoder.decodeSingularUInt64Field(value: &self.routingRevision) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.defaultOutboundGroupID) }()
       default: break
       }
     }
@@ -4513,6 +4549,9 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundsResponse: SwiftProtobuf.M
     if self.routingRevision != 0 {
       try visitor.visitSingularUInt64Field(value: self.routingRevision, fieldNumber: 3)
     }
+    if !self.defaultOutboundGroupID.isEmpty {
+      try visitor.visitSingularStringField(value: self.defaultOutboundGroupID, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -4520,6 +4559,7 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundsResponse: SwiftProtobuf.M
     if lhs.outbounds != rhs.outbounds {return false}
     if lhs._page != rhs._page {return false}
     if lhs.routingRevision != rhs.routingRevision {return false}
+    if lhs.defaultOutboundGroupID != rhs.defaultOutboundGroupID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4527,7 +4567,7 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundsResponse: SwiftProtobuf.M
 
 nonisolated extension Nonproxy_Control_V1_OutboundGroupSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OutboundGroupSummary"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{1}strategy\0\u{3}outbound_ids\0\u{1}revision\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}display_name\0\u{1}strategy\0\u{3}outbound_ids\0\u{1}revision\0\u{3}is_default\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4540,6 +4580,7 @@ nonisolated extension Nonproxy_Control_V1_OutboundGroupSummary: SwiftProtobuf.Me
       case 3: try { try decoder.decodeSingularEnumField(value: &self.strategy) }()
       case 4: try { try decoder.decodeRepeatedStringField(value: &self.outboundIds) }()
       case 5: try { try decoder.decodeSingularUInt64Field(value: &self.revision) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.isDefault) }()
       default: break
       }
     }
@@ -4561,6 +4602,9 @@ nonisolated extension Nonproxy_Control_V1_OutboundGroupSummary: SwiftProtobuf.Me
     if self.revision != 0 {
       try visitor.visitSingularUInt64Field(value: self.revision, fieldNumber: 5)
     }
+    if self.isDefault != false {
+      try visitor.visitSingularBoolField(value: self.isDefault, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -4570,6 +4614,7 @@ nonisolated extension Nonproxy_Control_V1_OutboundGroupSummary: SwiftProtobuf.Me
     if lhs.strategy != rhs.strategy {return false}
     if lhs.outboundIds != rhs.outboundIds {return false}
     if lhs.revision != rhs.revision {return false}
+    if lhs.isDefault != rhs.isDefault {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4611,7 +4656,7 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundGroupsRequest: SwiftProtob
 
 nonisolated extension Nonproxy_Control_V1_ListOutboundGroupsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListOutboundGroupsResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}groups\0\u{1}page\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}groups\0\u{1}page\0\u{3}routing_revision\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4621,6 +4666,7 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundGroupsResponse: SwiftProto
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedMessageField(value: &self.groups) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._page) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.routingRevision) }()
       default: break
       }
     }
@@ -4637,12 +4683,16 @@ nonisolated extension Nonproxy_Control_V1_ListOutboundGroupsResponse: SwiftProto
     try { if let v = self._page {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    if self.routingRevision != 0 {
+      try visitor.visitSingularUInt64Field(value: self.routingRevision, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Nonproxy_Control_V1_ListOutboundGroupsResponse, rhs: Nonproxy_Control_V1_ListOutboundGroupsResponse) -> Bool {
     if lhs.groups != rhs.groups {return false}
     if lhs._page != rhs._page {return false}
+    if lhs.routingRevision != rhs.routingRevision {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4709,38 +4759,90 @@ nonisolated extension Nonproxy_Control_V1_UpsertOutboundGroupRequest: SwiftProto
 
 nonisolated extension Nonproxy_Control_V1_OutboundGroupMutationResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OutboundGroupMutationResult"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}group\0\u{1}error\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}group\0\u{1}error\0\u{1}snapshot\0\u{3}routing_revision\0")
+
+  fileprivate class _StorageClass {
+    var _group: Nonproxy_Control_V1_OutboundGroupSummary? = nil
+    var _error: Nonproxy_Common_V1_ErrorDetail? = nil
+    var _snapshot: Nonproxy_Policy_V1_PolicySnapshotMetadata? = nil
+    var _routingRevision: UInt64 = 0
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _group = source._group
+      _error = source._error
+      _snapshot = source._snapshot
+      _routingRevision = source._routingRevision
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._group) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._error) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._group) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._error) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._snapshot) }()
+        case 4: try { try decoder.decodeSingularUInt64Field(value: &_storage._routingRevision) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._group {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._error {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._group {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._error {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._snapshot {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      if _storage._routingRevision != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._routingRevision, fieldNumber: 4)
+      }
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Nonproxy_Control_V1_OutboundGroupMutationResult, rhs: Nonproxy_Control_V1_OutboundGroupMutationResult) -> Bool {
-    if lhs._group != rhs._group {return false}
-    if lhs._error != rhs._error {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._group != rhs_storage._group {return false}
+        if _storage._error != rhs_storage._error {return false}
+        if _storage._snapshot != rhs_storage._snapshot {return false}
+        if _storage._routingRevision != rhs_storage._routingRevision {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -6178,7 +6280,7 @@ nonisolated extension Nonproxy_Control_V1_VerifyExitResponse: SwiftProtobuf.Mess
 
 nonisolated extension Nonproxy_Control_V1_SetDefaultRouteRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetDefaultRouteRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{1}direct\0\u{3}outbound_id\0\u{3}expected_routing_revision\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}context\0\u{1}direct\0\u{3}outbound_id\0\u{3}expected_routing_revision\0\u{3}outbound_group_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -6204,6 +6306,14 @@ nonisolated extension Nonproxy_Control_V1_SetDefaultRouteRequest: SwiftProtobuf.
         }
       }()
       case 4: try { try decoder.decodeSingularUInt64Field(value: &self.expectedRoutingRevision) }()
+      case 5: try {
+        var v: String?
+        try decoder.decodeSingularStringField(value: &v)
+        if let v = v {
+          if self.route != nil {try decoder.handleConflictingOneOf()}
+          self.route = .outboundGroupID(v)
+        }
+      }()
       default: break
       }
     }
@@ -6226,11 +6336,14 @@ nonisolated extension Nonproxy_Control_V1_SetDefaultRouteRequest: SwiftProtobuf.
       guard case .outboundID(let v)? = self.route else { preconditionFailure() }
       try visitor.visitSingularStringField(value: v, fieldNumber: 3)
     }()
-    case nil: break
+    default: break
     }
     if self.expectedRoutingRevision != 0 {
       try visitor.visitSingularUInt64Field(value: self.expectedRoutingRevision, fieldNumber: 4)
     }
+    try { if case .outboundGroupID(let v)? = self.route {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 

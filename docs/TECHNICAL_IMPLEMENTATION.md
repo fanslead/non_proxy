@@ -943,7 +943,7 @@ Rust 服务使用 `Arc`，Swift Provider 使用不可变值和同步只读引用
 ```text
 RoutingSettings
   default_action: DIRECT | PROXY
-  default_outbound_id
+  default_outbound_id | default_outbound_group_id
   revision
   updated_at
 ```
@@ -954,10 +954,10 @@ RoutingSettings
 `BEGIN IMMEDIATE` 事务中完成以下操作：
 
 1. 校验 revision 未过期。
-2. 校验代理出口存在、启用且可承载完整网关。
-3. 校验当前出口配置 revision 在 60 秒内取得 `READY` 握手观察；进程重启、配置变化、
-   失败或过期均必须重新测试。
-4. 用所选出口生成 fail-closed 的默认 `PROXY` decision。
+2. 校验单出口，或出口组的至少两个有序成员存在、启用且均可承载完整网关。
+3. 单出口校验当前配置 revision 在 60 秒内取得 `READY` 握手观察；出口组要求至少一个成员
+   连续两次探测为 `READY`。进程重启、配置变化、失败或过期均必须重新测试。
+4. 用所选单出口或显式组目标生成 fail-closed 的默认 `PROXY` decision。
 5. 编译包含该默认 decision 的完整不可变快照。
 6. 更新 `routing_settings` 并递增 revision。
 7. 写入唯一 pending 快照和审计事件。
@@ -972,9 +972,11 @@ RoutingSettings
 RPC 成功只表示配置已保存且快照进入
 `PENDING_ACK`；只有所需 Provider 全部确认后才能显示为已生效。
 
-`ListOutbounds` 在每页返回同一个 `routing_revision`，并只允许一个出口带
-`is_default`。桌面端跨页发现 revision 变化、重复出口或多个默认出口时拒绝该
-目录并要求刷新。回滚到历史快照时，`gatewayd` 从历史 payload 解码
+`ListOutbounds` 在每页返回同一个 `routing_revision` 和互斥的
+`default_outbound_group_id`，单出口默认路由只允许一个出口带 `is_default`；
+`ListOutboundGroups` 同样返回 routing revision，并只允许权威默认组带 `is_default`。
+桌面端跨页发现 revision 或默认目标变化、重复记录或多个默认目标时拒绝目录并要求刷新。
+回滚到历史快照时，`gatewayd` 从历史 payload 解码
 `default_decision`，在同一事务内同步恢复 `routing_settings` 和回滚快照；不允许
 把回滚默认值硬编码为 `DIRECT`，也不允许原样复制历史版本的受保护系统规则。
 
@@ -986,8 +988,9 @@ RPC 成功只表示配置已保存且快照进入
 不写快照。成功响应仍是新的 `PENDING_ACK`，只有 Provider 确认后才是已恢复。完整决策见
 [ADR-0030](ADR/0030-restore-the-previous-effective-snapshot.md)。
 
-当前默认出口不能通过后续导入被改成停用状态或当前完整网关无法承载的 TCP-only
-类型；该批次写入必须整体回滚。普通用户可以点击“恢复默认直连”，该操作使用相同的
+当前默认出口以及默认组中的任一成员，都不能通过后续导入被改成停用状态或当前完整网关
+无法承载的 TCP-only 类型；默认组也不能被改成少于两个成员或直接删除。相关批次写入必须
+整体回滚。普通用户可以点击“恢复默认直连”，该操作使用相同的
 鉴权、revision、编译、pending ACK 和事务边界，不通过直接改 UI 状态实现。
 
 ### 11.6 限时运行态覆盖
@@ -1361,13 +1364,21 @@ pub trait OutboundConnector: Send + Sync {
 `outbound_group_member`。首版策略固定为有序 `failover`，每组 2～32 个不重复、
 不可嵌套且由内置数据面支持的成员；成员位置就是优先级。仓储通过 revision CAS 在同一个
 IMMEDIATE 事务中替换完整成员顺序并写去敏审计，任何缺失或不支持的成员都会回滚整次保存。
-删除组只删除组配置，不删除成员出口；成员外键继续阻止订阅刷新或删除移除仍被组引用的节点。
+删除组只删除组配置，不删除成员出口；成员外键阻止物理删除，订阅刷新还会在停用缺失节点前
+显式检查组引用并回滚整代刷新，不能留下仍引用不可用成员的组。
 
 `ControlService` 通过 `ListOutboundGroups`、`UpsertOutboundGroup` 与
 `DeleteOutboundGroup` 暴露同一份权威目录。列表只返回组 ID、显示名称、策略、成员 ID
-顺序和 revision；写入、删除必须先验证本机会话能力，创建固定从 revision 1 开始，更新和
-删除必须携带当前 revision。协议枚举显式表达 `FAILOVER`，不会用 ID 前缀或数据库试探来
-推断“单出口/出口组”。组删除成功后成员出口继续保留。
+顺序、revision、默认标志和当前 routing revision；写入、删除必须先验证本机会话能力，创建
+固定从 revision 1 开始，更新和删除必须携带当前 revision。`SetDefaultRoute` 的 oneof 明确
+区分直连、单出口和出口组，系统状态与出口目录也返回默认组 ID，不会用 ID 前缀或数据库试探
+来推断目标类型。组删除成功后成员出口继续保留。
+
+普通未使用组的保存仍是草稿变更；若被编辑的组正是默认路由目标，gatewayd 会用提议中的完整
+成员顺序先构建下一版快照，再把组 revision、去敏审计和 pending 快照放入同一个事务。已有
+pending 时整次更新回滚，组目录不会抢先变化；成功响应会同时返回保持不变的 routing revision
+和新的 `PolicySnapshotMetadata`，桌面端必须继续显示“等待系统组件确认”。默认组编辑还要重新
+通过完整能力与至少一个稳定健康成员门禁。
 
 V0015 在 `policy` 中加入与 `outbound_id` 互斥的 `outbound_group_id` 外键，并通过受控表重建
 保留既有策略及域名、传输和端口子项。领域层对应使用 `ProxyTarget::Outbound` 与
@@ -1398,7 +1409,10 @@ hash。Rust 编译器与 macOS Provider 使用同一 golden vector 校验该编�
 `example.com:443`，不会接触用户 flow 的目标。组选中成员首次确定或真正变化时，进程内判重
 器只持久化一条 `outbound_group_selection_changed` 审计，包含活动快照版本、组 revision、
 旧/新成员和稳定原因码，不包含用户目标；相同成员的后续 flow 和无关快照变化不会重复写入。
-尚未完成的激活边界是对应桌面状态；Windows x64/ARM64 源码构建与真实 WFP/VPN 网络路径仍
+V0016 为 `routing_settings` 增加与单出口互斥的默认组外键；设置默认组要求全部成员支持
+TCP、UDP、IPv4 与 IPv6，且至少一个成员已经连续两次通过新鲜探测。配置、组目标默认 decision
+和 pending 快照在同一事务提交，历史回滚也恢复组目标。尚未完成的激活边界是对应桌面状态；
+Windows x64/ARM64 源码构建与真实 WFP/VPN 网络路径仍
 分别受 W0 和 W4 验收门禁约束。完整边界与冷启动行为见
 [ADR-0043](ADR/0043-own-ordered-outbound-failover-groups.md)。
 
@@ -1471,8 +1485,9 @@ V0013 通过 `subscription_source` 持久化不含秘密的源配置、乐观 re
 成功刷新使用单个 IMMEDIATE 事务同时校验源 revision、内容 generation 与每个出口
 revision，保存新一代全部节点，再禁用并标记缺失节点，最后推进源状态。失败记录也绑定同一组
 源 revision 与 generation，因此用户换地址或改配置后，仍在途的旧请求不能覆盖节点或污染新
-源的失败状态。若缺失节点仍是默认出口，整次事务回滚；普通策略引用的缺失节点保留元数据但
-数据面按 disabled 安全失败。存储层返回被替换的旧凭据引用，供 gateway 在权威提交后清理。
+源的失败状态。若缺失节点仍是默认出口或任一出口组成员，整次事务回滚；普通策略引用的缺失
+节点保留元数据但数据面按 disabled 安全失败。存储层返回被替换的旧凭据引用，供 gateway 在
+权威提交后清理。
 完整取舍见
 [ADR-0039](ADR/0039-own-remote-subscription-state-and-outbounds.md)。
 
@@ -1610,17 +1625,18 @@ Bundle 校验与 gateway 冒烟会再次解析；Windows `Install`/`Repair` 参�
 信任集合写入 Service `Environment`，未传新值时保留当前集合，安装失败时随旧
 Service 一并恢复。任何平台都不能先切服务端密钥。
 
-### 15.5 默认代理选择
+### 15.5 默认代理与自动切换组选择
 
-保存或测试一个代理不会自动改变默认路径。只有用户显式点击“设为默认”，且
-`SetDefaultRoute` 通过鉴权、routing revision、出口可用性、策略能力和当前配置的
-新鲜 `READY` 握手校验后，系统才生成新的待确认快照。门禁位于 `gatewayd` 权威写入
+保存或测试一个代理、创建一个出口组都不会自动改变默认路径。只有用户显式点击“设为默认”，
+且 `SetDefaultRoute` 通过鉴权、routing revision、目标可用性、策略能力和当前配置的健康门禁
+后，系统才生成新的待确认快照。单出口需要一次新鲜 `READY` 握手；组需要所有成员具备完整
+网关能力、至少两个成员，且至少一个成员连续两次探测为 `READY`。门禁位于 `gatewayd` 权威写入
 路径内，桌面端禁用按钮只是提前反馈，不能替代服务端检查。未命中应用/网站直连规则
 的流量使用该快照中的默认代理；直连规则仍具有更高的显式策略优先级。
 
 桌面端必须区分三种事实：
 
-- `is_default`：权威配置当前选择了该出口；
+- `is_default`：权威配置当前选择了该单出口或出口组；
 - `PENDING_ACK`：新快照已保存但尚未由所有系统组件确认；
 - `ACTIVE`：Provider 已加载该快照。
 
