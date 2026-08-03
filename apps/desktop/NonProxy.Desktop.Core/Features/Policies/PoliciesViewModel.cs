@@ -87,6 +87,11 @@ public sealed partial class PoliciesViewModel : LoadableViewModel
         OnPropertyChanged(nameof(CanRestorePrevious));
     }
 
+    protected override void OnBusyStateChanged()
+    {
+        DeleteCommand.NotifyCanExecuteChanged();
+    }
+
     private bool CanDelete(PolicyListItem? item)
     {
         return !IsBusy

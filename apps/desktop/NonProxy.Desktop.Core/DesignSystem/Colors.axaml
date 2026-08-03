@@ -2,6 +2,9 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Color x:Key="NpColorBrand">#246BFD</Color>
     <Color x:Key="NpColorBrandHover">#1557D8</Color>
+    <Color x:Key="NpColorBrandPressed">#0E46B8</Color>
+    <Color x:Key="NpColorActionHover">#EAF0FE</Color>
+    <Color x:Key="NpColorActionPressed">#DCE7FD</Color>
     <Color x:Key="NpColorSidebar">#121826</Color>
     <Color x:Key="NpColorSidebarMuted">#AAB4C8</Color>
     <Color x:Key="NpColorSurface">#FFFFFF</Color>
@@ -17,6 +20,12 @@
                      Color="{StaticResource NpColorBrand}" />
     <SolidColorBrush x:Key="NpBrandHoverBrush"
                      Color="{StaticResource NpColorBrandHover}" />
+    <SolidColorBrush x:Key="NpBrandPressedBrush"
+                     Color="{StaticResource NpColorBrandPressed}" />
+    <SolidColorBrush x:Key="NpActionHoverBrush"
+                     Color="{StaticResource NpColorActionHover}" />
+    <SolidColorBrush x:Key="NpActionPressedBrush"
+                     Color="{StaticResource NpColorActionPressed}" />
     <SolidColorBrush x:Key="NpSidebarBrush"
                      Color="{StaticResource NpColorSidebar}" />
     <SolidColorBrush x:Key="NpSidebarMutedBrush"

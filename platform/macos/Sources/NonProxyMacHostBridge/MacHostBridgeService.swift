@@ -292,8 +292,8 @@ enum MacHostBridgeService {
     }
 
     private static func queryState() async throws -> MacHostState {
-        let gatewayAgent = GatewayAgentController().query()
-        let adapterHostAgent = AdapterHostAgentController().query()
+        let gatewayAgent = try GatewayAgentController().query()
+        let adapterHostAgent = try AdapterHostAgentController().query()
         let systemController = SystemExtensionController()
         let transparent = try await systemController.query(
             bundleIdentifier: BridgeConstants.transparentBundleIdentifier

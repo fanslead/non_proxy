@@ -155,6 +155,14 @@ public sealed partial class OutboundsViewModel : LoadableViewModel
         OnPropertyChanged(nameof(DirectExitCheckedLabel));
     }
 
+    protected override void OnBusyStateChanged()
+    {
+        ImportCommand.NotifyCanExecuteChanged();
+        DiscoverLocalProxiesCommand.NotifyCanExecuteChanged();
+        PreviewUriImportCommand.NotifyCanExecuteChanged();
+        SaveUriImportCommand.NotifyCanExecuteChanged();
+    }
+
     private bool CanImport()
     {
         return !IsBusy

@@ -2099,6 +2099,7 @@ macOS：
 - `NonProxyMacHostBridge` 是动态 Swift target，负责 `SMAppService`、System Extension 请求、审批进度、状态查询以及 Transparent Proxy/DNS Proxy 偏好事务；它不承载策略或流量。
 - `gatewayd` plist 位于 `.app/Contents/Library/LaunchAgents/com.nonproxy.gatewayd.plist`，通过相对 `BundleProgram` 启动 `.app/Contents/Resources/nonproxy-gatewayd`。它是当前用户会话内的后台项目，不是 root daemon；`RunAtLoad` 与 `KeepAlive` 保证 UI 退出后仍可运行，明确卸载使用异步 `unregister` 等待进程终止。
 - `adapter-host` 以第二个独立签名二进制和 `com.nonproxy.adapter-host.plist` 嵌入同一 App。它使用相对 `BundleProgram`、固定代码签名 identifier 和独立 SHA-256 包指纹；状态位于共享根目录下的私有 `adapter-host` 子目录。桌面桥通过同一受限后台项目状态机独立登记、检查、升级和卸载它。
+- 后台项目状态查询先只读验证最终宿主已嵌入 Profile，代码签名具备 System Extension、两种 Network Extension 和 `group.com.nonproxy.shared` 权限，然后验证统一 App Group 容器可访问；Profile 或受限签名权限不完整时返回 `NP_MAC_MISSING_ENTITLEMENT`，容器不可访问时返回 `NP_MAC_APP_GROUP_UNAVAILABLE`，不能把 `SMAppService.notFound` 误报为安装包缺少实际存在的 `gatewayd` 或 `adapter-host`。
 - UI、LaunchAgent 和 Provider 的默认状态目录统一为 App Group `group.com.nonproxy.shared` 容器内的 `Library/Application Support/NonProxy`。gatewayd 的控制 Socket、数据 Socket、两个 capability、运行身份和 Provider cache 从共享根目录派生；adapter-host 的 Socket、capability 与运行身份只从其私有子目录派生。环境覆盖只用于开发与测试。
 - 打包时分别签名两个 Rust 服务，再用各自已签名二进制和源 LaunchAgent 模板的 SHA-256 生成独立包指纹并注入 plist 环境变量。每个服务只在自身通道绑定成功后原子写入权限为 `0600` 的运行身份，内容包括 schema、包指纹、PID、语义版本和构建标识；退出时只清理自己写入且内容未被替换的身份文件。
 - 激活依次登记 `gatewayd` 和 `adapter-host`。原生桥分别验证私有 Socket、32 字节 capability、目录所有权/权限，以及同一用户所有的 `0600` 运行身份、存活 PID 和当前包指纹；任何后台项目未获用户允许时都返回可恢复的等待授权状态。两个后台服务就绪后才处理两个系统扩展；扩展需要重启时不会提前写入网络偏好。
@@ -2108,8 +2109,9 @@ macOS：
 - `NonProxy.Desktop.Mac` 构建完成后调用 `scripts/macos/package-system-extensions.sh`，把两个 `SYSX` Bundle 放入最终 `.app/Contents/Library/SystemExtensions/`，把真实 Safari Web Extension 放入 `.app/Contents/PlugIns/NonProxySafariWebExtension.appex`，把原生桥放入 `.app/Contents/Frameworks/`，并嵌入两个 LaunchAgent plist、`gatewayd` 与 `adapter-host`。
 - Debug 构建生成当前机器架构；不指定 RID 的 Release 构建同时生成 `arm64` 与 `x86_64`，并要求宿主、原生桥、两个 Rust 后台服务、两个 System Extension 和 Safari `.appex` 的架构集合完全一致。
 - 默认使用临时签名验证开发包结构，不代表系统会批准真实激活。正式包必须设置 `NONPROXY_RESTRICTED_SIGNING=1`，并提供 `NONPROXY_CODESIGN_IDENTITY`、`NONPROXY_HOST_PROFILE`、`NONPROXY_TRANSPARENT_PROFILE`、`NONPROXY_DNS_PROFILE` 与 `NONPROXY_SAFARI_PROFILE`。
+- `scripts/macos/run-development.sh` 使用仓库隔离状态目录和既有 `NONPROXY_STATE_DIR`、`NONPROXY_ADAPTER_STATE_DIR` 契约启动 `gatewayd`、`adapter-host` 与 Debug 桌面端；它不登记或模拟 System Extension，不设置系统变更开关，也不把用户态服务就绪渲染为真实网络接管。开发规则允许停留在等待 Provider 确认状态。
 - 签名按两个 System Extension、Safari `.appex`、原生桥、`gatewayd`、`adapter-host`、外层 App 的嵌套顺序执行；Safari 扩展启用 App Sandbox、App Group 和仅用于认证本地 UDS 的网络客户端权限。CoreCLR 宿主在开发签名和正式受限签名中都必须显式携带 `com.apple.security.cs.allow-jit`；开发包只使用该运行时权限，正式包再叠加安装 System Extension、Network Extension 与 App Group entitlement。Bundle 校验始终读取最终代码签名确认 JIT 权限，开发 DMG 还会实际启动 Release 宿主执行原生桥冒烟，不能用签名前的中间文件或仅 `codesign --verify` 替代。
-- `scripts/macos/verify-system-extension-bundle.sh` 还校验原生桥导出符号、SystemExtensions/NetworkExtension/ServiceManagement 链接、LaunchAgent 的固定字段、包指纹与签名；`scripts/macos/native-bridge-smoke.sh` 从最终 App 宿主跨 C ABI 验证版本及非 ASCII UTF-8。
+- `scripts/macos/verify-system-extension-bundle.sh` 还校验原生桥导出符号、SystemExtensions/NetworkExtension/ServiceManagement 链接、LaunchAgent 的固定字段、包指纹与签名；`scripts/macos/native-bridge-smoke.sh` 从最终 App 宿主跨 C ABI 验证版本及非 ASCII UTF-8，并要求无宿主 Profile 的开发包稳定返回 `NP_MAC_MISSING_ENTITLEMENT`，具备 Profile 的正式包则必须返回结构化系统状态。
 - `scripts/macos/gateway-bundle-smoke.sh` 使用隔离临时目录直接启动包内 `gatewayd`，验证 Socket/capability 类型、长度、`0600` 权限，核对运行身份指纹和 PID，并确认 SIGTERM 清理。它不调用 `SMAppService.register()`，因此不能代替系统“后台项目”授权与登录重启测试。
 - `scripts/macos/adapter-host-bundle-smoke.sh` 同样直接启动包内 `adapter-host`，验证独立 Socket、能力文件、运行身份、包指纹和 SIGTERM 清理；真实 LaunchAgent 登记仍由系统生命周期验收证明。
 - 运行概览把路由后台服务、客户端适配服务、Transparent Proxy、DNS Proxy 和网络偏好建模为五段有序状态，不用一个总开关掩盖部分失败；诊断页从同一领域状态生成逐段检查和稳定错误码。

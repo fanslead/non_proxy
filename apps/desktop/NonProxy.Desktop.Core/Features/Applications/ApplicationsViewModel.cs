@@ -18,7 +18,7 @@ public sealed partial class ApplicationsViewModel : LoadableViewModel
     private string _searchText = string.Empty;
 
     [ObservableProperty]
-    private string _catalogMessage = "正在读取可选择的应用…";
+    private string _catalogMessage = "正在校验可选择应用的身份；本机应用较多时可能需要几十秒。";
 
     [ObservableProperty]
     private bool _canChooseApplication;
@@ -79,6 +79,13 @@ public sealed partial class ApplicationsViewModel : LoadableViewModel
         var policies = await policiesTask;
         ReplacePolicies(policies.Items);
         RebuildAvailableApplications();
+    }
+
+    protected override void OnBusyStateChanged()
+    {
+        AddCommand.NotifyCanExecuteChanged();
+        ChooseCommand.NotifyCanExecuteChanged();
+        DeleteCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanAdd(ApplicationCatalogItem? item)

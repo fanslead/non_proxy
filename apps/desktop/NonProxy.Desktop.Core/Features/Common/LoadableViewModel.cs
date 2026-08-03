@@ -31,6 +31,15 @@ public abstract partial class LoadableViewModel : ObservableObject, IPageViewMod
         OnPropertyChanged(nameof(HasError));
     }
 
+    partial void OnIsBusyChanged(bool value)
+    {
+        OnBusyStateChanged();
+    }
+
+    protected virtual void OnBusyStateChanged()
+    {
+    }
+
     protected abstract Task LoadCoreAsync(CancellationToken cancellationToken);
 
     protected void ClearError()

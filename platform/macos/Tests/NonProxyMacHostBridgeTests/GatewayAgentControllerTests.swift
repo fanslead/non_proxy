@@ -46,6 +46,69 @@ struct GatewayAgentControllerTests {
     }
 
     @Test
+    func queryPreservesInstallationEligibilityError() {
+        let events = GatewayAgentTestEvents()
+        let service = FakeGatewayAgentService(
+            status: .notFound,
+            events: events
+        )
+        let controller = BackgroundAgentController(
+            descriptor: .gateway,
+            service: service,
+            installationValidator: {
+                throw BridgeError(
+                    code: "NP_MAC_MISSING_ENTITLEMENT",
+                    message: "测试 Provisioning Profile 缺失"
+                )
+            },
+            fingerprintProvider: {
+                String(repeating: "a", count: 64)
+            },
+            runtimeInspector: { _ in .notReady }
+        )
+
+        do {
+            _ = try controller.query()
+            Issue.record("签名能力不足时不应继续报告后台项目状态")
+        } catch let error as BridgeError {
+            #expect(error.code == "NP_MAC_MISSING_ENTITLEMENT")
+            #expect(error.message.contains("Provisioning Profile"))
+        } catch {
+            Issue.record("返回了非产品错误：\(error)")
+        }
+    }
+
+    @Test
+    func queryMapsUnavailableAppGroupBeforeReportingMissingPackage() {
+        let events = GatewayAgentTestEvents()
+        let service = FakeGatewayAgentService(
+            status: .notFound,
+            events: events
+        )
+        let controller = BackgroundAgentController(
+            descriptor: .gateway,
+            service: service,
+            installationValidator: {
+                throw GatewayAgentTestError.appGroupUnavailable
+            },
+            fingerprintProvider: {
+                String(repeating: "a", count: 64)
+            },
+            runtimeInspector: { _ in .notReady }
+        )
+
+        do {
+            _ = try controller.query()
+            Issue.record("App Group 不可用时不应继续报告后台项目状态")
+        } catch let error as BridgeError {
+            #expect(error.code == "NP_MAC_APP_GROUP_UNAVAILABLE")
+            #expect(error.message.contains("App Group"))
+        } catch {
+            Issue.record("返回了非产品错误：\(error)")
+        }
+    }
+
+    @Test
     func replacementStopsNetworkBeforeReplacingAgent() async throws {
         let events = GatewayAgentTestEvents()
         let service = FakeGatewayAgentService(
@@ -54,7 +117,7 @@ struct GatewayAgentControllerTests {
         )
         let controller = GatewayAgentController(
             service: service,
-            appGroupValidator: {},
+            installationValidator: {},
             fingerprintProvider: {
                 String(repeating: "a", count: 64)
             },
@@ -89,7 +152,7 @@ struct GatewayAgentControllerTests {
         )
         let controller = GatewayAgentController(
             service: service,
-            appGroupValidator: {},
+            installationValidator: {},
             fingerprintProvider: {
                 String(repeating: "a", count: 64)
             },
@@ -116,7 +179,7 @@ struct GatewayAgentControllerTests {
         )
         let controller = AdapterHostAgentController(
             service: service,
-            appGroupValidator: {},
+            installationValidator: {},
             fingerprintProvider: {
                 String(repeating: "b", count: 64)
             },
@@ -144,7 +207,7 @@ struct GatewayAgentControllerTests {
         let controller = BackgroundAgentController(
             descriptor: .adapterHost,
             service: service,
-            appGroupValidator: {},
+            installationValidator: {},
             fingerprintProvider: {
                 String(repeating: "b", count: 64)
             },
@@ -174,6 +237,10 @@ struct GatewayAgentControllerTests {
 private final class GatewayAgentTestEvents {
     var values: [String] = []
     var runtimeChecks = 0
+}
+
+private enum GatewayAgentTestError: Error {
+    case appGroupUnavailable
 }
 
 @MainActor

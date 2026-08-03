@@ -77,6 +77,11 @@ public sealed partial class NetworkProfilesViewModel : LoadableViewModel
         RebuildItems();
     }
 
+    protected override void OnBusyStateChanged()
+    {
+        NotifyCommandStates();
+    }
+
     private Task DetectAsync(CancellationToken cancellationToken)
     {
         return RunNetworkOperationAsync(

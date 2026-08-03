@@ -26,7 +26,7 @@ struct BackgroundAgentDescriptor: Sendable {
 struct BackgroundAgentController {
   private let descriptor: BackgroundAgentDescriptor
   private let service: any BackgroundAgentServicing
-  private let appGroupValidator: () throws -> Void
+  private let installationValidator: () throws -> Void
   private let fingerprintProvider: () throws -> String
   private let runtimeInspector: (String) -> BackgroundRuntimeState
   private let readinessAttempts: Int
@@ -35,7 +35,7 @@ struct BackgroundAgentController {
   init(
     descriptor: BackgroundAgentDescriptor,
     service: any BackgroundAgentServicing,
-    appGroupValidator: @escaping () throws -> Void,
+    installationValidator: @escaping () throws -> Void,
     fingerprintProvider: @escaping () throws -> String,
     runtimeInspector: @escaping (String) -> BackgroundRuntimeState,
     readinessAttempts: Int = 100,
@@ -43,14 +43,15 @@ struct BackgroundAgentController {
   ) {
     self.descriptor = descriptor
     self.service = service
-    self.appGroupValidator = appGroupValidator
+    self.installationValidator = installationValidator
     self.fingerprintProvider = fingerprintProvider
     self.runtimeInspector = runtimeInspector
     self.readinessAttempts = max(1, readinessAttempts)
     self.readinessDelay = readinessDelay
   }
 
-  func query() -> BackgroundAgentSnapshot {
+  func query() throws -> BackgroundAgentSnapshot {
+    try requireInstallationEligibility()
     let status = service.status
     let runtimeState = status == .enabled ? inspectRuntime() : .notReady
     return Self.snapshot(
@@ -64,7 +65,7 @@ struct BackgroundAgentController {
     approvalHandler: @escaping () -> Void,
     prepareForReplacement: @escaping () async throws -> Void
   ) async throws -> BackgroundAgentRegistrationOutcome {
-    try requireAppGroupContainer()
+    try requireInstallationEligibility()
     let expectedFingerprint = try expectedFingerprint()
     let initialStatus = service.status
     let isFreshRegistration = initialStatus == .notRegistered
@@ -272,9 +273,11 @@ struct BackgroundAgentController {
     }
   }
 
-  private func requireAppGroupContainer() throws {
+  private func requireInstallationEligibility() throws {
     do {
-      try appGroupValidator()
+      try installationValidator()
+    } catch let error as BridgeError {
+      throw error
     } catch {
       throw BridgeError(
         code: "NP_MAC_APP_GROUP_UNAVAILABLE",

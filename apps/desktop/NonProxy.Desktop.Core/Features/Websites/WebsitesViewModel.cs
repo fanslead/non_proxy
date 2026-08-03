@@ -54,6 +54,12 @@ public sealed partial class WebsitesViewModel : LoadableViewModel
         }
     }
 
+    protected override void OnBusyStateChanged()
+    {
+        AddCommand.NotifyCanExecuteChanged();
+        DeleteCommand.NotifyCanExecuteChanged();
+    }
+
     private bool CanAdd()
     {
         return !IsBusy && !string.IsNullOrWhiteSpace(Domain);

@@ -44,33 +44,126 @@
         </ControlTheme>
 
         <ControlTheme x:Key="NpPrimaryButton"
-                  TargetType="Button">
-        <Setter Property="Padding"
-                Value="18,10" />
-        <Setter Property="CornerRadius"
-                Value="7" />
-        <Setter Property="Background"
-                Value="{DynamicResource NpBrandBrush}" />
-        <Setter Property="Foreground"
-                Value="White" />
-        <Setter Property="FontWeight"
-                Value="SemiBold" />
+                      TargetType="Button"
+                      BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding"
+                    Value="18,10" />
+            <Setter Property="CornerRadius"
+                    Value="7" />
+            <Setter Property="Background"
+                    Value="{DynamicResource NpBrandBrush}" />
+            <Setter Property="BorderBrush"
+                    Value="{DynamicResource NpBrandBrush}" />
+            <Setter Property="BorderThickness"
+                    Value="1" />
+            <Setter Property="Foreground"
+                    Value="White" />
+            <Setter Property="FontWeight"
+                    Value="SemiBold" />
+            <Style Selector="^ /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Transitions">
+                    <Transitions>
+                        <BrushTransition Property="Background"
+                                         Duration="0:0:0.08" />
+                        <BrushTransition Property="BorderBrush"
+                                         Duration="0:0:0.08" />
+                        <DoubleTransition Property="Opacity"
+                                          Duration="0:0:0.06" />
+                    </Transitions>
+                </Setter>
+            </Style>
+            <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background"
+                        Value="{DynamicResource NpBrandHoverBrush}" />
+                <Setter Property="BorderBrush"
+                        Value="{DynamicResource NpBrandHoverBrush}" />
+            </Style>
+            <Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background"
+                        Value="{DynamicResource NpBrandPressedBrush}" />
+                <Setter Property="BorderBrush"
+                        Value="{DynamicResource NpBrandPressedBrush}" />
+                <Setter Property="Opacity"
+                        Value="0.86" />
+            </Style>
+            <Style Selector="^:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="BorderBrush"
+                        Value="{DynamicResource NpTextBrush}" />
+                <Setter Property="BorderThickness"
+                        Value="2" />
+            </Style>
+            <Style Selector="^:disabled /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Opacity"
+                        Value="0.46" />
+            </Style>
         </ControlTheme>
 
         <ControlTheme x:Key="NpSecondaryButton"
-                  TargetType="Button">
-        <Setter Property="Padding"
-                Value="16,9" />
-        <Setter Property="CornerRadius"
-                Value="7" />
+                      TargetType="Button"
+                      BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding"
+                    Value="16,9" />
+            <Setter Property="CornerRadius"
+                    Value="7" />
+            <Setter Property="Background"
+                    Value="{DynamicResource NpCanvasBrush}" />
+            <Setter Property="BorderBrush"
+                    Value="{DynamicResource NpBorderBrush}" />
+            <Setter Property="BorderThickness"
+                    Value="1" />
+            <Setter Property="Foreground"
+                    Value="{DynamicResource NpTextBrush}" />
+            <Style Selector="^ /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Transitions">
+                    <Transitions>
+                        <BrushTransition Property="Background"
+                                         Duration="0:0:0.08" />
+                        <BrushTransition Property="BorderBrush"
+                                         Duration="0:0:0.08" />
+                        <DoubleTransition Property="Opacity"
+                                          Duration="0:0:0.06" />
+                    </Transitions>
+                </Setter>
+            </Style>
+            <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background"
+                        Value="{DynamicResource NpActionHoverBrush}" />
+                <Setter Property="BorderBrush"
+                        Value="{DynamicResource NpBrandBrush}" />
+            </Style>
+            <Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Background"
+                        Value="{DynamicResource NpActionPressedBrush}" />
+                <Setter Property="BorderBrush"
+                        Value="{DynamicResource NpBrandPressedBrush}" />
+                <Setter Property="Opacity"
+                        Value="0.86" />
+            </Style>
+            <Style Selector="^:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="BorderBrush"
+                        Value="{DynamicResource NpBrandBrush}" />
+                <Setter Property="BorderThickness"
+                        Value="2" />
+            </Style>
+            <Style Selector="^:disabled /template/ ContentPresenter#PART_ContentPresenter">
+                <Setter Property="Opacity"
+                        Value="0.46" />
+            </Style>
         </ControlTheme>
 
         <ControlTheme x:Key="NpTextBox"
-                  TargetType="TextBox">
-        <Setter Property="MinHeight"
-                Value="40" />
-        <Setter Property="Padding"
-                Value="12,8" />
+                      TargetType="TextBox"
+                      BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="MinHeight"
+                    Value="40" />
+            <Setter Property="Padding"
+                    Value="12,8" />
+            <Setter Property="Background"
+                    Value="{DynamicResource NpSurfaceBrush}" />
+            <Setter Property="BorderBrush"
+                    Value="{DynamicResource NpBorderBrush}" />
+            <Setter Property="BorderThickness"
+                    Value="1" />
         </ControlTheme>
     </Styles.Resources>
 

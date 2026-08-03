@@ -87,8 +87,15 @@
                             CornerRadius="8"
                             Background="{DynamicResource NpCanvasBrush}"
                             IsVisible="{Binding HasNoAvailableApplications}">
-                        <TextBlock Theme="{StaticResource NpMutedText}"
-                                   Text="{Binding CatalogMessage}" />
+                        <StackPanel Spacing="10">
+                            <ProgressBar x:Name="ApplicationCatalogProgress"
+                                         Height="4"
+                                         IsIndeterminate="True"
+                                         IsVisible="{Binding IsBusy}"
+                                         AutomationProperties.Name="正在校验本机应用身份" />
+                            <TextBlock Theme="{StaticResource NpMutedText}"
+                                       Text="{Binding CatalogMessage}" />
+                        </StackPanel>
                     </Border>
 
                     <TextBlock Theme="{StaticResource NpMutedText}"

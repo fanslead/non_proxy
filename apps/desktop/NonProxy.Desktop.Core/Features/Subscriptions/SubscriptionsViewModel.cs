@@ -69,13 +69,6 @@ public sealed partial class SubscriptionsViewModel : LoadableViewModel
         ConfirmDeleteCommand = new AsyncRelayCommand<SubscriptionViewItem>(
             ConfirmDeleteAsync,
             CanConfirmDelete);
-        PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName == nameof(IsBusy))
-            {
-                NotifyCommandState();
-            }
-        };
     }
 
     public static IReadOnlyList<SubscriptionIntervalOption> IntervalOptions { get; } =
@@ -137,6 +130,11 @@ public sealed partial class SubscriptionsViewModel : LoadableViewModel
             Items.Add(new SubscriptionViewItem(item));
         }
         Recount();
+        NotifyCommandState();
+    }
+
+    protected override void OnBusyStateChanged()
+    {
         NotifyCommandState();
     }
 

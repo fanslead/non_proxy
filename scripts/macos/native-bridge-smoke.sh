@@ -43,12 +43,26 @@ if [[ "${mutation_exit_code}" != 64 ]] ||
     exit 68
 fi
 
-query_output=$("${host_binary}" --system-components-query)
-if ! grep -F '"operation":"query"' <<<"${query_output}" >/dev/null ||
-   ! grep -F '"success":true' <<<"${query_output}" >/dev/null ||
-   ! grep -F '"state":{' <<<"${query_output}" >/dev/null ||
-   ! grep -F '"adapterHostAgent":{' <<<"${query_output}" >/dev/null; then
-    echo "只读系统组件查询未返回结构化状态：${query_output}" >&2
+set +e
+query_output=$("${host_binary}" --system-components-query 2>&1)
+query_exit_code=$?
+set -e
+host_profile="${app_bundle}/Contents/embedded.provisionprofile"
+if [[ -f "${host_profile}" ]]; then
+    if [[ "${query_exit_code}" != 0 ]] ||
+       ! grep -F '"operation":"query"' <<<"${query_output}" >/dev/null ||
+       ! grep -F '"success":true' <<<"${query_output}" >/dev/null ||
+       ! grep -F '"state":{' <<<"${query_output}" >/dev/null ||
+       ! grep -F '"adapterHostAgent":{' <<<"${query_output}" >/dev/null; then
+        echo "正式签名包的只读系统组件查询未返回结构化状态：${query_output}" >&2
+        exit 68
+    fi
+elif [[ "${query_exit_code}" != 1 ]] ||
+     ! grep -F '"operation":"query"' <<<"${query_output}" >/dev/null ||
+     ! grep -F '"success":false' <<<"${query_output}" >/dev/null ||
+     ! grep -F '"errorCode":"NP_MAC_MISSING_ENTITLEMENT"' \
+         <<<"${query_output}" >/dev/null; then
+    echo "开发包未准确拒绝缺少 Profile 的系统组件查询：${query_output}" >&2
     exit 68
 fi
 

@@ -158,6 +158,11 @@ public sealed partial class AdaptersViewModel : LoadableViewModel
         NotifyCollectionState();
     }
 
+    protected override void OnBusyStateChanged()
+    {
+        NotifyOperationCommands();
+    }
+
     private bool CanRegister()
     {
         return !IsBusy

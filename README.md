@@ -116,6 +116,164 @@ source ./scripts/bootstrap/env.sh
 ./scripts/bootstrap/check-prerequisites.sh
 ```
 
+### macOS 本机完整运行
+
+macOS 上要先区分两种完全不同的产物：
+
+- `NonProxy-*-macos-universal-development.dmg` 是开发预览包，只用于验证 UI、Bundle、签名来源
+  和无需受限权限的本地冒烟。它没有 NonProxy 专用 Provisioning Profile，不能登记完整网关所需的
+  App Group、后台项目和 Network/System Extension。
+- 完整网关必须由加入 Apple Developer Program 的同一团队签名，并把宿主、两个 System Extension
+  和 Safari Web Extension 的有效 Profile 一起嵌入 App。Xcode 的免费 `Personal Team`
+  [不支持 Network Extension Provider](https://developer.apple.com/forums/thread/128767)；不能用
+  `launchctl`、临时签名或关闭仓库验收门禁代替。
+
+若诊断显示 `NP_MAC_MISSING_ENTITLEMENT`，说明当前 App 缺少完整网关所需的 Profile 或受限签名权限；
+`NP_MAC_APP_GROUP_UNAVAILABLE` 则表示签名声明了权限，但运行时仍无法访问
+`group.com.nonproxy.shared`。这两种情况都不是重新启动应用就能恢复。Apple 对能力、Profile 和
+System Extension 签名的要求见[macOS 支持的能力](https://developer.apple.com/help/account/reference/supported-capabilities-macos)、
+[创建开发 Provisioning Profile](https://developer.apple.com/help/account/provisioning-profiles/create-a-development-provisioning-profile/)
+和[安装 System Extension](https://developer.apple.com/documentation/systemextensions/installing-system-extensions-and-drivers/)。
+
+#### 用户态开发调试模式
+
+没有付费 Team 或受限 Profile 时，仍可一键启动 `gatewayd`、`adapter-host` 和连接到这两个服务的
+macOS 桌面端：
+
+```bash
+./scripts/macos/run-development.sh
+```
+
+脚本会完成依赖恢复和 Debug 构建，把开发数据库、私有 Socket、能力文件与日志放在
+`.artifacts/np-dev/`，关闭桌面端后停止本次启动的两个后台进程，但保留开发数据供
+下次继续测试。可以验证：
+
+- 桌面 UI 与控制服务连接、配置读写和诊断；
+- 规则与网络出口的创建、编辑、校验和待发布状态；
+- 订阅、客户端协同及 Adapter 的本地认证通信；
+- `gatewayd` 和 `adapter-host` 的真实进程、私有 Socket 与能力文件。
+
+首次进入“应用直连”会逐个校验本机应用身份和代码签名；应用较多时可能需要几十秒。页面会显示
+不确定进度条，并在校验期间暂时禁用相关动作，完成后自动恢复“刷新应用”“从应用程序中选择”
+和各行“设为直连”按钮。
+
+只验证服务启动而不打开桌面端：
+
+```bash
+./scripts/macos/run-development.sh --smoke
+```
+
+需要隔离测试数据时可指定一个较短的绝对目录；脚本会在耗时构建前检查 macOS 的 103 字节
+Unix Socket 路径上限：
+
+```bash
+./scripts/macos/run-development.sh --state-directory /tmp/nonproxy-dev-test
+```
+
+该模式不会登记 System Extension，不会捕获或改写本机真实流量，也不会伪造 Provider ACK、路径证据
+或公网出口证据。因此规则可以保存和送达控制面，但可能保持“等待系统组件确认”；诊断继续显示
+`NP_MAC_MISSING_ENTITLEMENT` 是预期行为。Transparent Proxy、DNS Proxy、真实分流和 VPN 共存仍需
+下面的完整签名流程。
+
+#### 1. 准备签名身份与 Profile
+
+在同一个付费 Team 下注册 App Group `group.com.nonproxy.shared`，并为以下四个显式 App ID
+创建 Mac App Development Profile：
+
+| Bundle ID | 必需能力 |
+|---|---|
+| `com.nonproxy.desktop` | System Extension、Network Extension、App Groups |
+| `com.nonproxy.desktop.transparent-proxy` | App Proxy Provider System Extension、App Groups |
+| `com.nonproxy.desktop.dns-proxy` | DNS Proxy System Extension、App Groups |
+| `com.nonproxy.desktop.safari-web-extension` | App Sandbox、App Groups |
+
+四份 Profile 必须使用同一 Team、未过期，并覆盖仓库对应 `.entitlements` 中声明的权限。Profile
+和签名证书属于本机受保护配置，不要复制进仓库、日志或诊断包。
+
+#### 2. 构建完整签名 App
+
+把下面的占位值替换为本机签名身份和四份 Profile 的绝对路径：
+
+```bash
+source ./scripts/bootstrap/env.sh
+
+export NONPROXY_RESTRICTED_SIGNING=1
+export NONPROXY_CODESIGN_IDENTITY='Apple Development: account@example.com (TEAMID)'
+export NONPROXY_HOST_PROFILE='/absolute/path/NonProxyHost.provisionprofile'
+export NONPROXY_TRANSPARENT_PROFILE='/absolute/path/NonProxyTransparent.provisionprofile'
+export NONPROXY_DNS_PROFILE='/absolute/path/NonProxyDNS.provisionprofile'
+export NONPROXY_SAFARI_PROFILE='/absolute/path/NonProxySafari.provisionprofile'
+
+dotnet restore apps/desktop/NonProxy.Desktop.slnx \
+  --locked-mode \
+  -p:Configuration=Release
+
+dotnet build apps/desktop/NonProxy.Desktop.Mac/NonProxy.Desktop.Mac.csproj \
+  --configuration Release \
+  --no-restore \
+  --no-incremental \
+  -p:CodesignKey="$NONPROXY_CODESIGN_IDENTITY"
+
+NONPROXY_RESTRICTED_SIGNING=1 \
+./scripts/macos/verify-system-extension-bundle.sh \
+  apps/desktop/NonProxy.Desktop.Mac/bin/Release/net10.0-macos/NonProxy.app
+```
+
+构建和 Bundle 校验会拒绝缺失 Profile、嵌套签名无效或代码签名权限不完整的 App；后续系统
+生命周期查询还会拒绝 Team、Bundle ID 或 Profile 有效期不一致。不要为了得到一个“能打开”的包
+把 `NONPROXY_RESTRICTED_SIGNING` 改回 `0`；那会重新退化为只能验证 UI 的开发包。
+
+#### 3. 安装并启用系统组件
+
+退出正在运行的旧版 NonProxy，通过 Finder 将构建出的 `NonProxy.app` 放到 `/Applications`。
+System Extension 必须由最终的 `/Applications/NonProxy.app` 发起，不能从 `bin/` 或 DMG 挂载目录运行。
+
+先做只读查询，每次使用新的空证据目录：
+
+```bash
+mkdir -p artifacts/macos-system-e2e
+
+./scripts/macos/system-lifecycle-e2e.sh \
+  /Applications/NonProxy.app \
+  query \
+  artifacts/macos-system-e2e/query-001
+```
+
+确认允许本机网络接管状态发生变化后，再执行安装：
+
+```bash
+NONPROXY_ALLOW_SYSTEM_MUTATION=1 \
+./scripts/macos/system-lifecycle-e2e.sh \
+  /Applications/NonProxy.app \
+  install \
+  artifacts/macos-system-e2e/install-001
+```
+
+首次安装可能停在“等待系统允许”。进入“系统设置 → 通用 → 登录项与扩展”，分别允许 NonProxy
+后台项目和两个网络扩展；返回应用后使用新的空目录（例如 `install-002`）重新执行安装验收。
+密码、Touch ID 和系统授权必须由当前 Mac 用户本人完成。
+
+安装通过时，证据必须同时显示：
+
+- `gatewayAgent.ready=true`；
+- `adapterHostAgent.ready=true`；
+- Transparent Proxy 与 DNS Proxy 均为 `enabled=true`；
+- 两份 Network Extension 偏好均为 `enabled=true`；
+- `requiresReboot=false`。
+
+#### 4. 配置和验证分流
+
+1. 打开“网络出口”，添加并测试 SOCKS5、HTTP CONNECT 或 Shadowsocks 出口，再明确设为默认代理
+   或加入默认线路组。
+2. 在“应用直连”或“网站直连”添加目标；保存成功只表示生成了策略，等待活动快照和两个 Provider
+   确认后才算进入数据面。
+3. 打开“诊断”，确认控制服务、后台项目、两个扩展和网络接管全部就绪。
+4. 打开“活动记录”，核对规则决策和物理接口/代理网关路径。只有配置或决策命中，不能声明
+   “已确认直连”。
+
+`system-lifecycle-e2e.sh` 证明系统组件生命周期，不自动证明 DIRECT 流量绕过任意第三方 VPN；
+VPN 共存仍需按 [macOS 系统组件验收](docs/MACOS_SYSTEM_ACCEPTANCE.md) 保存路径和出口证据。
+
 ### 完整验证
 
 ```bash

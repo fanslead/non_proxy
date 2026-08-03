@@ -9,7 +9,8 @@ struct AdapterHostAgentController {
     service: any BackgroundAgentServicing = SMAppService.agent(
       plistName: MacSharedRuntimePaths.adapterHostAgentPlistName
     ),
-    appGroupValidator: @escaping () throws -> Void = {
+    installationValidator: @escaping () throws -> Void = {
+      try MacSystemInstallationEligibility.validateLive()
       _ = try MacSharedRuntimePaths.live()
     },
     fingerprintProvider: @escaping () throws -> String = {
@@ -22,14 +23,14 @@ struct AdapterHostAgentController {
     controller = BackgroundAgentController(
       descriptor: .adapterHost,
       service: service,
-      appGroupValidator: appGroupValidator,
+      installationValidator: installationValidator,
       fingerprintProvider: fingerprintProvider,
       runtimeInspector: runtimeInspector
     )
   }
 
-  func query() -> BackgroundAgentSnapshot {
-    controller.query()
+  func query() throws -> BackgroundAgentSnapshot {
+    try controller.query()
   }
 
   func registerAndWait(
