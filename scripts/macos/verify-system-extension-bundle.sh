@@ -399,7 +399,11 @@ assert_entitlement_true() {
     local entitlements=$1
     local key=$2
     local actual
-    actual=$(/usr/libexec/PlistBuddy -c "Print :${key}" "${entitlements}")
+    actual=$(
+        /usr/libexec/PlistBuddy \
+            -c "Print :${key}" \
+            "${entitlements}" 2>/dev/null || true
+    )
     if [[ "${actual}" != true ]]; then
         echo "签名权限 ${key} 必须为 true" >&2
         exit 67
@@ -496,10 +500,14 @@ verify_extension \
     dns-proxy-systemextension \
     DNSProxyProvider
 
+host_entitlements="${verification_dir}/host.entitlements.plist"
+codesign -d --entitlements :- \
+    "${app_bundle}" >"${host_entitlements}" 2>/dev/null
+assert_entitlement_true \
+    "${host_entitlements}" \
+    com.apple.security.cs.allow-jit
+
 if [[ "${NONPROXY_RESTRICTED_SIGNING:-0}" == 1 ]]; then
-    host_entitlements="${verification_dir}/host.entitlements.plist"
-    codesign -d --entitlements :- \
-        "${app_bundle}" >"${host_entitlements}" 2>/dev/null
     assert_entitlement_true \
         "${host_entitlements}" \
         com.apple.developer.system-extension.install

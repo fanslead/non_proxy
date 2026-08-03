@@ -41,6 +41,7 @@ if [[ ${actual_version} != "${version}" ]]; then
 fi
 codesign --verify --deep --strict --verbose=2 "${app_bundle}"
 "${script_dir}/verify-system-extension-bundle.sh" "${app_bundle}"
+"${script_dir}/native-bridge-smoke.sh" "${app_bundle}"
 
 staging=$(mktemp -d)
 cleanup() {

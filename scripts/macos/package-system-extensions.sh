@@ -396,12 +396,15 @@ if [[ -n "${release_exit_probe_endpoint}" ]]; then
         "${gateway_agent_plist}"
 fi
 
-host_sign_args=(--force --sign "${signing_identity}")
+host_entitlements="${packaging_root}/Host.Runtime.entitlements"
 if [[ "${restricted_signing}" == 1 ]]; then
-    host_sign_args+=(
-        --entitlements "${packaging_root}/Host.entitlements"
-    )
+    host_entitlements="${packaging_root}/Host.entitlements"
 fi
+host_sign_args=(
+    --force
+    --sign "${signing_identity}"
+    --entitlements "${host_entitlements}"
+)
 if [[ "${signing_identity}" == - ]]; then
     host_sign_args+=(--timestamp=none)
 else

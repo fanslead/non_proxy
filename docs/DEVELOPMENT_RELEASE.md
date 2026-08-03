@@ -25,7 +25,9 @@
 ```
 
 脚本会执行 Release Universal 构建、签名嵌套 System Extension、Safari Extension、后台服务
-和宿主，验证 App Bundle 后生成并签名 DMG，同时写出 `.sha256` 文件。
+和宿主。宿主重签名会显式保留 CoreCLR 启动所需的 `com.apple.security.cs.allow-jit`，并在生成
+DMG 前实际运行 Release 宿主的原生桥冒烟；随后脚本验证 App Bundle、生成并签名 DMG，同时
+写出 `.sha256` 文件。
 
 如果没有 NonProxy 对应的 Provisioning Profile，此产物只能验证 UI、Bundle 结构和签名来源。
 Transparent Proxy、DNS Proxy、Safari Web Extension 等受限权限不会因此获得可激活资格；
@@ -88,7 +90,7 @@ Runner 的用户证书库，不得导出或上传。
 1. `just check` 通过。
 2. GitHub `持续集成` 全部 Job 通过。
 3. Windows 两个开发签名包工作流通过，并下载复核 ZIP 与 `.sha256`。
-4. macOS DMG 通过 `codesign --verify` 和 `hdiutil verify`。
+4. macOS Release 宿主通过启动冒烟，DMG 通过 `codesign --verify` 和 `hdiutil verify`。
 5. 发布资产 SHA-256 与发布说明一致。
 6. 发布说明明确列出未公证、无正式 Provisioning Profile、Windows Test Signing 等限制。
 
